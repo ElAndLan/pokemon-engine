@@ -1,9 +1,17 @@
 import type { PokemonInstance } from '../data/DataTypes';
 import type { ItemData } from '../data/ItemData';
 import { CaptureCalculator, CaptureContext } from '../battle/CaptureCalculator';
+import { ExperienceCalculator } from '../battle/ExperienceCalculator';
 import type { Game } from '../Game';
+import { StatCalculator } from '../stat/StatCalculator';
+import { MoveLearningManager } from '../battle/MoveLearningManager';
 
 export type ItemUseContext = 'battle' | 'overworld';
+
+export interface MoveToReplace {
+    moveId: string;
+    moveName: string;
+}
 
 export interface ItemUseResult {
   success: boolean;
@@ -15,6 +23,9 @@ export interface ItemUseResult {
     statusCured?: string[];
     revived?: boolean;
     statChanges?: Record<string, number>;
+    learnedMoves?: string[];
+    movesToReplace?: MoveToReplace[];
+    pokemonInstanceId?: string;
   };
   capture?: {
       caught: boolean;
@@ -132,21 +143,72 @@ export class ItemHandler {
             };
         }
         
-        pokemon.level++;
-        // Simple stat bump (Placeholder for full recalculation)
-        pokemon.currentStats.hp += 2;
-        pokemon.currentStats.attack += 1;
-        pokemon.currentStats.defense += 1;
-        pokemon.currentStats.spAttack += 1;
-        pokemon.currentStats.spDefense += 1;
-        pokemon.currentStats.speed += 1;
-        pokemon.currentHp += 2; 
+        const oldLevel = pokemon.level;
+        const oldStats = { ...pokemon.currentStats };
         
+        pokemon.level++;
+        
+        const speciesData = this.game.dataManager.getPokemonSpecies(pokemon.speciesId);
+        if (!speciesData) {
+            return {
+                success: false,
+                message: 'Species data not found',
+                consumed: false
+            };
+        }
+        
+        const newStats = ExperienceCalculator.recalculateStats(pokemon, speciesData);
+        
+        pokemon.currentStats = newStats;
+        const hpDiff = newStats.hp - oldStats.hp;
+        if (hpDiff > 0) pokemon.currentHp += hpDiff;
+        
+        const moves = this.game.dataManager.getAllMoves();
+        const moveLearningManager = new MoveLearningManager(moves);
+        
+        const learnableMoves = moveLearningManager.getMovesLearnableAtLevel(speciesData, pokemon.level, pokemon);
+        const learnedMoves: string[] = [];
+        const movesToReplace: MoveToReplace[] = [];
+        
+        for (const learnableMove of learnableMoves) {
+            const moveData = this.game.dataManager.getMove(learnableMove.moveId);
+            if (moveData) {
+                const result = moveLearningManager.learnMove(pokemon, learnableMove.moveId);
+                if (result.learned) {
+                    learnedMoves.push(moveData.name);
+                } else if (result.reason === 'slots_full') {
+                    movesToReplace.push({
+                        moveId: learnableMove.moveId,
+                        moveName: moveData.name
+                    });
+                }
+            }
+        }
+        
+        const statChanges: Record<string, number> = {
+            hp: newStats.hp - oldStats.hp,
+            attack: newStats.attack - oldStats.attack,
+            defense: newStats.defense - oldStats.defense,
+            spAttack: newStats.spAttack - oldStats.spAttack,
+            spDefense: newStats.spDefense - oldStats.spDefense,
+            speed: newStats.speed - oldStats.speed
+        };
+        
+        const effects: ItemUseResult['effects'] = { 
+            statChanges,
+            learnedMoves: learnedMoves.length > 0 ? learnedMoves : undefined,
+            pokemonInstanceId: pokemon.uuid
+        };
+
+        if (movesToReplace.length > 0) {
+            effects.movesToReplace = movesToReplace;
+        }
+
         return {
             success: true,
             message: `${pokemonName}'s level is raised by 1.`,
             consumed: true,
-            effects: { statChanges: { hp: 2, attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 } }
+            effects
         };
     }
 
@@ -434,36 +496,20 @@ export class ItemHandler {
             
             pokemon.evs[statKey] = currentEv + amountToAdd;
             
-            // Recalculate Stats!
             const species = this.game.dataManager.getPokemonSpecies(pokemon.speciesId);
             if (species) {
-                // We need to import calculateStat or use it if available
-                // Since I can't easily add an import at the top without reading the whole file again,
-                // I will replicate the helper locally or rely on DataManager having a public helper?
-                // I just added calculateStat to DataType.ts, I should import it.
-                // Assuming it will be imported or I'll fix the import.
+                const newStats = StatCalculator.calculateAllStats(
+                    species.baseStats,
+                    pokemon.ivs,
+                    pokemon.evs,
+                    pokemon.level,
+                    pokemon.nature
+                );
                 
-                // But wait, the DataManager isn't exposing it, DataTypes is.
-                // I will cheat and define the formula locally to avoid import hell in this single step.
-                // Actually, I can just recalculate the specific stat.
-                const base = species.baseStats[statKey] || 0;
-                const iv = pokemon.ivs[statKey] || 0;
-                const ev = pokemon.evs[statKey] || 0;
-                const level = pokemon.level;
-                const isHp = evArgs.stat === 'hp';
+                const diff = newStats.hp - pokemon.currentStats.hp;
+                if (diff > 0) pokemon.currentHp += diff;
                 
-                // Calc Logic
-                let newStat = 0;
-                if (isHp) {
-                    newStat = Math.floor(((2 * base + iv + (ev/4)) * level / 100) + level + 10);
-                    // If HP increased, heal the difference?
-                    const diff = newStat - pokemon.currentStats.hp;
-                    if (diff > 0) pokemon.currentHp += diff;
-                } else {
-                    newStat = Math.floor(((2 * base + iv + (ev/4)) * level / 100) + 5);
-                }
-                
-                pokemon.currentStats[statKey] = newStat;
+                pokemon.currentStats = newStats;
             }
             
             return {

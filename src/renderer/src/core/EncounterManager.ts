@@ -7,6 +7,7 @@ import type {
   EncounterEntry,
   MovesData
 } from '../types/PokemonTypes';
+import { StatCalculator } from './stat/StatCalculator';
 
 /**
  * Manages wild Pokemon encounters with proper IV generation, movesets, and shiny determination
@@ -233,60 +234,9 @@ export class EncounterManager {
     };
   }
 
-  /**
-   * Calculate actual stats from base stats, IVs, level, and nature
-   */
   private calculateStats(baseStats: PokemonStats, ivs: PokemonIVs, level: number, nature: string): PokemonStats {
     const evs = { hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0 };
-
-    // HP calculation
-    const hp = Math.floor(((2 * baseStats.hp + ivs.hp + Math.floor(evs.hp / 4)) * level) / 100) + level + 10;
-
-    // Other stats calculation
-    const calcStat = (base: number, iv: number, ev: number, statName: keyof PokemonStats): number => {
-      const baseStat = Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + 5;
-      return Math.floor(baseStat * this.getNatureModifier(nature, statName));
-    };
-
-    return {
-      hp: hp,
-      attack: calcStat(baseStats.attack, ivs.attack, evs.attack, 'attack'),
-      defense: calcStat(baseStats.defense, ivs.defense, evs.defense, 'defense'),
-      spAttack: calcStat(baseStats.spAttack, ivs.spAttack, evs.spAttack, 'spAttack'),
-      spDefense: calcStat(baseStats.spDefense, ivs.spDefense, evs.spDefense, 'spDefense'),
-      speed: calcStat(baseStats.speed, ivs.speed, evs.speed, 'speed')
-    };
-  }
-
-  /**
-   * Get nature modifier for a stat
-   */
-  private getNatureModifier(nature: string, stat: keyof PokemonStats): number {
-    const natureEffects: { [key: string]: Partial<Record<keyof PokemonStats, number>> } = {
-      'Lonely': { attack: 1.1, defense: 0.9 },
-      'Brave': { attack: 1.1, speed: 0.9 },
-      'Adamant': { attack: 1.1, spAttack: 0.9 },
-      'Naughty': { attack: 1.1, spDefense: 0.9 },
-      'Bold': { defense: 1.1, attack: 0.9 },
-      'Relaxed': { defense: 1.1, speed: 0.9 },
-      'Impish': { defense: 1.1, spAttack: 0.9 },
-      'Lax': { defense: 1.1, spDefense: 0.9 },
-      'Timid': { speed: 1.1, attack: 0.9 },
-      'Hasty': { speed: 1.1, defense: 0.9 },
-      'Jolly': { speed: 1.1, spAttack: 0.9 },
-      'Naive': { speed: 1.1, spDefense: 0.9 },
-      'Modest': { spAttack: 1.1, attack: 0.9 },
-      'Mild': { spAttack: 1.1, defense: 0.9 },
-      'Quiet': { spAttack: 1.1, speed: 0.9 },
-      'Rash': { spAttack: 1.1, spDefense: 0.9 },
-      'Calm': { spDefense: 1.1, attack: 0.9 },
-      'Gentle': { spDefense: 1.1, defense: 0.9 },
-      'Sassy': { spDefense: 1.1, speed: 0.9 },
-      'Careful': { spDefense: 1.1, spAttack: 0.9 }
-    };
-
-    const effects = natureEffects[nature];
-    return effects?.[stat] || 1.0;
+    return StatCalculator.calculateAllStats(baseStats, ivs, evs, level, nature);
   }
 
   /**
