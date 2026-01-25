@@ -1,6 +1,0 @@
-{
-  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
-  "summary": "Updated technical plan for a Desktop Pokemon Engine. Switches platform to Electron, emphasizing local file access and standalone execution.",
-  "updatedAt": "2026-01-19T19:25:46.942705500Z",
-  "version": "1"
-}
