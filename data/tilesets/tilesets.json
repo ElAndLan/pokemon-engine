@@ -1,0 +1,52 @@
+{
+  "tilesets": [
+    {
+      "id": "tileset_1768974961099",
+      "name": "Buildings Bulk",
+      "imagePath": "C:\\Users\\xandr\\Desktop\\pokemon-engine\\data\\tilesets\\images\\buildings_bulk.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "columns": 100,
+      "rows": 106,
+      "tileCount": 10600,
+      "imageWidth": 1600,
+      "imageHeight": 1696
+    },
+    {
+      "id": "tileset_1769321571276",
+      "name": "Path  Tilesets",
+      "imagePath": "C:\\Users\\xandr\\Desktop\\pokemon-engine\\data\\tilesets\\images\\path__tilesets.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "columns": 22,
+      "rows": 18,
+      "tileCount": 396,
+      "imageWidth": 352,
+      "imageHeight": 288
+    },
+    {
+      "id": "tileset_1769321638120",
+      "name": "Terrain Tileset",
+      "imagePath": "C:\\Users\\xandr\\Desktop\\pokemon-engine\\data\\tilesets\\images\\terrain_tileset.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "columns": 29,
+      "rows": 17,
+      "tileCount": 493,
+      "imageWidth": 464,
+      "imageHeight": 272
+    },
+    {
+      "id": "tileset_1769323683181",
+      "name": "Pokemon Tileset From Public Tiles By Chaoticcherrycake D5xdb0y",
+      "imagePath": "C:\\Users\\xandr\\Desktop\\pokemon-engine\\data\\tilesets\\images\\pokemon_tileset_from_public_tiles_by_chaoticcherrycake_d5xdb0y.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "columns": 140,
+      "rows": 150,
+      "tileCount": 21000,
+      "imageWidth": 2240,
+      "imageHeight": 2400
+    }
+  ]
+}

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprite Sheet Mapper</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #2c3e50;
+            color: #ecf0f1;
+        }
+        #container {
+            display: flex;
+            gap: 20px;
+        }
+        #canvas-container {
+            position: relative;
+            border: 2px solid #3498db;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        #info {
+            background: #34495e;
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 300px;
+        }
+        #coordinates {
+            background: #2c3e50;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        #output {
+            background: #2c3e50;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sprite Sheet Coordinate Mapper</h1>
+    <p>Click on the sprite sheet to map coordinates. Use the grid to help identify sprite boundaries.</p>
+    
+    <div id="container">
+        <div id="canvas-container">
+            <canvas id="sprite-canvas"></canvas>
+            <canvas id="grid-canvas" class="grid-overlay"></canvas>
+        </div>
+        <div id="info">
+            <h3>Controls</h3>
+            <div>
+                <label>Grid Size: <input type="number" id="grid-size" value="24" min="8" max="128"></label>
+                <button onclick="updateGrid()">Update Grid</button>
+            </div>
+            <div>
+                <label>Show Grid: <input type="checkbox" id="show-grid" checked onchange="toggleGrid()"></label>
+            </div>
+            
+            <h3>Current Position</h3>
+            <div id="coordinates">
+                X: 0, Y: 0
+            </div>
+            
+            <h3>Actions</h3>
+            <div>
+                <input type="text" id="sprite-name" placeholder="Sprite name" style="width: 200px;">
+                <input type="number" id="sprite-width" placeholder="Width" value="24" style="width: 60px;">
+                <input type="number" id="sprite-height" placeholder="Height" value="24" style="width: 60px;">
+                <button onclick="addSprite()">Add Sprite</button>
+            </div>
+            
+            <h3>Mapped Sprites</h3>
+            <div id="output"></div>
+            
+            <button onclick="copyOutput()">Copy JSON</button>
+            <button onclick="clearSprites()">Clear All</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('sprite-canvas');
+        const gridCanvas = document.getElementById('grid-canvas');
+        const ctx = canvas.getContext('2d');
+        const gridCtx = gridCanvas.getContext('2d');
+        const coordsDiv = document.getElementById('coordinates');
+        const outputDiv = document.getElementById('output');
+        
+        let sprites = {};
+        let img = new Image();
+        
+        // Load the sprite sheet
+        async function loadSpriteSheet() {
+            try {
+                const response = await window.fs.readImage('../data/item_inventory_images/Inventory_spritesheet.png');
+                if (response.success) {
+                    img.onload = function() {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        gridCanvas.width = img.width;
+                        gridCanvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+                        updateGrid();
+                    };
+                    img.src = `data:image/png;base64,${response.data}`;
+                }
+            } catch (e) {
+                alert('Could not load sprite sheet. Make sure the file exists at: data/item_inventory_images/Inventory_spritesheet.png');
+            }
+        }
+        
+        // Update grid overlay
+        function updateGrid() {
+            const gridSize = parseInt(document.getElementById('grid-size').value);
+            gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+            
+            if (!document.getElementById('show-grid').checked) return;
+            
+            gridCtx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            gridCtx.lineWidth = 1;
+            
+            // Vertical lines
+            for (let x = 0; x < gridCanvas.width; x += gridSize) {
+                gridCtx.beginPath();
+                gridCtx.moveTo(x, 0);
+                gridCtx.lineTo(x, gridCanvas.height);
+                gridCtx.stroke();
+            }
+            
+            // Horizontal lines
+            for (let y = 0; y < gridCanvas.height; y += gridSize) {
+                gridCtx.beginPath();
+                gridCtx.moveTo(0, y);
+                gridCtx.lineTo(gridCanvas.width, y);
+                gridCtx.stroke();
+            }
+        }
+        
+        function toggleGrid() {
+            updateGrid();
+        }
+        
+        // Track mouse position
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor(e.clientX - rect.left);
+            const y = Math.floor(e.clientY - rect.top);
+            coordsDiv.textContent = `X: ${x}, Y: ${y}`;
+        });
+        
+        // Click to add sprite
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor(e.clientX - rect.left);
+            const y = Math.floor(e.clientY - rect.top);
+            
+            document.getElementById('sprite-name').focus();
+            document.getElementById('sprite-name').value = `sprite_${x}_${y}`;
+        });
+        
+        function addSprite() {
+            const name = document.getElementById('sprite-name').value;
+            const width = parseInt(document.getElementById('sprite-width').value);
+            const height = parseInt(document.getElementById('sprite-height').value);
+            const coords = coordsDiv.textContent.match(/X: (\d+), Y: (\d+)/);
+            
+            if (!name || !coords) {
+                alert('Please enter a sprite name and click on the canvas');
+                return;
+            }
+            
+            const x = parseInt(coords[1]);
+            const y = parseInt(coords[2]);
+            
+            sprites[name] = { x, y, width, height };
+            updateOutput();
+            
+            // Clear name for next entry
+            document.getElementById('sprite-name').value = '';
+        }
+        
+        function updateOutput() {
+            outputDiv.textContent = JSON.stringify(sprites, null, 2);
+        }
+        
+        function copyOutput() {
+            navigator.clipboard.writeText(outputDiv.textContent);
+            alert('Copied to clipboard!');
+        }
+        
+        function clearSprites() {
+            if (confirm('Clear all mapped sprites?')) {
+                sprites = {};
+                updateOutput();
+            }
+        }
+        
+        // Load sprite sheet on page load
+        loadSpriteSheet();
+    </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{
+  "mom_start": [
+    {
+      "type": "dialog",
+      "text": "Mom: Oh, you're leaving? Take care on your adventure!"
+    },
+    {
+      "type": "heal"
+    },
+    {
+      "type": "dialog",
+      "text": "Mom: Your Pokemon are fully rested."
+    }
+  ],
+  "event_1769197988184": [
+    {
+      "type": "npcWalk",
+      "targetId": "this",
+      "x": "5",
+      "y": "5",
+      "wait": true
+    },
+    {
+      "type": "dialog",
+      "text": "I've been waiting! W-wait, why are your pokemon already so hurt? Here..."
+    },
+    {
+      "type": "heal"
+    },
+    {
+      "type": "dialog",
+      "text": "Now lets battle!!"
+    },
+    {
+      "type": "battle",
+      "enemyId": "rival01"
+    }
+  ],
+  "rival_ambush": [
+    {
+      "type": "npcWalk",
+      "targetId": "rival1",
+      "x": "-10",
+      "y": "0",
+      "wait": true
+    },
+    {
+      "type": "dialog",
+      "text": "Hello Loser! "
+    },
+    {
+      "type": "heal"
+    },
+    {
+      "type": "dialog",
+      "text": "Goodbye"
+    },
+    {
+      "type": "npcWalk",
+      "targetId": "rival1",
+      "x": "-10",
+      "y": "0",
+      "wait": true
+    }
+  ],
+  "_folders": {},
+  "bomb": {
+    "actions": []
+  }
+}

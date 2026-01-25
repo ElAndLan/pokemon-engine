@@ -1,0 +1,554 @@
+[
+  {
+    "name": "Acid Armor",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Acupressure",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "After You",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Ally Switch",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Aqua Ring",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Assist",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Autotomize",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Bestow",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Captivate",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Charge",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Coil",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Confuse Ray",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Copycat",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Cosmic Power",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Cotton Guard",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Dark Void",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Defend Order",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Defense Curl",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Defog",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Embargo",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Entrainment",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Flash",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Flatter",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Follow Me",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Gastro Acid",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Glare",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Grass Whistle",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Gravity",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Grudge",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Guard Split",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Hail",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Heal Block",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Heal Order",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Heal Pulse",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Healing Wish",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Heart Swap",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Hone Claws",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Howl",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Lucky Chant",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Lunar Dance",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Magic Room",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Me First",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Meditate",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Memento",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Milk Drink",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Mimic",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Mind Reader",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Minimize",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Morning Sun",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Nature Power",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Nightmare",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Odor Sleuth",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Poison Gas",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Power Split",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Power Trick",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Psycho Shift",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Quash",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Quick Guard",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Quiver Dance",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Rage Powder",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Recover",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Reflect",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Reflect Type",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Rock Polish",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Sandstorm",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Shell Smash",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Shift Gear",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Simple Beam",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Sketch",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Skill Swap",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Snatch",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Soak",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Soft Boiled",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Spider Web",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Stealth Rock",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Stockpile",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Swallow",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Switcheroo",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Tail Glow",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Tailwind",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Taunt",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Teeter Dance",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Telekinesis",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Torment",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Toxic Spikes",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Trick Room",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Wide Guard",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Wish",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Withdraw",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Wonder Room",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Work Up",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  },
+  {
+    "name": "Worry Seed",
+    "errors": [
+      "Status effect missing \"status\" property"
+    ]
+  }
+]

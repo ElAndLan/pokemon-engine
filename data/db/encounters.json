@@ -1,0 +1,30 @@
+{
+  "route_1_grass": {
+    "encounters": [
+      {
+        "pokemonId": "304",
+        "levelMin": 2,
+        "levelMax": 5,
+        "weight": 10,
+        "timeOfDay": "Any"
+      },
+      {
+        "pokemonId": "377",
+        "levelMin": 2,
+        "levelMax": 5,
+        "weight": 10,
+        "timeOfDay": "Any"
+      },
+      {
+        "pokemonId": "329",
+        "levelMin": 2,
+        "levelMax": 5,
+        "weight": 10,
+        "timeOfDay": "Any"
+      }
+    ]
+  },
+  "route_1_water": {
+    "encounters": []
+  }
+}

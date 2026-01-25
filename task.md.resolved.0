@@ -1,0 +1,38 @@
+# Pokemon Engine Development Tasks
+
+- [ ] **Project Setup** <!-- id: 0 -->
+    - [/] Initialize Project Directory <!-- id: 1 -->
+    - [ ] Initialize Vite + TypeScript <!-- id: 2 -->
+    - [ ] Configure ESLint/Prettier <!-- id: 3 -->
+    - [ ] Set up Project Structure (src/core, src/game, src/assets) <!-- id: 4 -->
+
+- [ ] **Core Engine Architecture** <!-- id: 5 -->
+    - [ ] Implement Game Loop (Update/Render cycle) <!-- id: 6 -->
+    - [ ] Create Input Manager (Keyboard handling) <!-- id: 7 -->
+    - [ ] Implement Event Bus / Signal System <!-- id: 8 -->
+    - [ ] Create Checkpoint/Save System <!-- id: 9 -->
+
+- [ ] **World System (Overworld)** <!-- id: 10 -->
+    - [ ] Implement Tilemap Renderer (Canvas API) <!-- id: 11 -->
+    - [ ] Support Tiled Map Editor (JSON parsing) <!-- id: 12 -->
+    - [ ] Create Camera System <!-- id: 13 -->
+    - [ ] Implement Grid-based Movement logic <!-- id: 14 -->
+    - [ ] Add Collision Detection <!-- id: 15 -->
+    - [ ] Implement Map Transitions (Warps) <!-- id: 16 -->
+
+- [ ] **Data Management** <!-- id: 17 -->
+    - [ ] Define Data Structures using Interfaces/Types (Pokemon, Move, Item, Species) <!-- id: 18 -->
+    - [ ] Create Database/Registry for game data <!-- id: 19 -->
+    - [ ] Implement Resource Loader (Images, Audio) <!-- id: 20 -->
+
+- [ ] **Battle System** <!-- id: 21 -->
+    - [ ] Design Battle State Machine (Turn logic) <!-- id: 22 -->
+    - [ ] Implement Stat Calculation (IVs, EVs, Level processing) <!-- id: 23 -->
+    - [ ] Create Battle UI Layout <!-- id: 24 -->
+    - [ ] Implement Move execution logic <!-- id: 25 -->
+    - [ ] Add Damage Formula Implementation <!-- id: 26 -->
+
+- [ ] **Content & Polishing** <!-- id: 27 -->
+    - [ ] Create a starter Town <!-- id: 28 -->
+    - [ ] Add some basic Pokemon and Moves <!-- id: 29 -->
+    - [ ] Implement Main Menu <!-- id: 30 -->
