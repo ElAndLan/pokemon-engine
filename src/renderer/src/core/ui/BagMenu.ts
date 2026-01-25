@@ -2,7 +2,9 @@ import { Menu } from './MenuSystem';
 import { Game } from '../Game';
 import type { ItemCategory, ItemData, BagItem } from '../data/ItemData';
 import { PokemonSelectionMenu } from './PokemonSelectionMenu';
-import type { ItemUseContext } from '../items/ItemHandler';
+import type { ItemUseContext, MoveToReplace } from '../items/ItemHandler';
+import { MoveReplacementMenu } from './MoveReplacementMenu';
+import { MoveLearningManager } from '../battle/MoveLearningManager';
 
 export type BagMode = 'OVERWORLD' | 'BATTLE';
 
@@ -211,18 +213,29 @@ export class BagMenu implements Menu {
             this.game.bagSystem.removeItem(itemId, 1);
           }
           
-          // Show message to user via dialog
-          if (this.game.dialogBox) {
-            this.game.dialogBox.show(result.message);
-            // NOTE: Interaction flow might continue immediately if we don't wait?
-            // DialogBox.show sets 'active' = true.
-            // Game.update calls menuSystem.update. 
-            // We should arguably pause BagMenu update while dialog is open.
-          }
-          
-          // Call callback if set
-          if (this.onItemUsed && result.success) {
-            this.onItemUsed(itemId);
+          // Handle move replacement if needed
+          if (result.effects && result.effects.movesToReplace && result.effects.movesToReplace.length > 0) {
+            this.handleMoveReplacement(pokemon, result.effects.movesToReplace, 0, result.message);
+          } else {
+            // Show message to user via dialog
+            if (this.game.dialogBox) {
+              this.game.dialogBox.show(result.message);
+              // Show learned moves if any
+              if (result.effects && result.effects.learnedMoves && result.effects.learnedMoves.length > 0) {
+                result.effects.learnedMoves.forEach((moveName, moveIndex) => {
+                  setTimeout(() => {
+                    if (this.game.dialogBox) {
+                      this.game.dialogBox.show(`${pokemon.nickname || pokemon.speciesId} learned ${moveName}!`);
+                    }
+                  }, (moveIndex + 1) * 1500);
+                });
+              }
+            }
+            
+            // Call callback if set
+            if (this.onItemUsed && result.success) {
+              this.onItemUsed(itemId);
+            }
           }
         });
         this.game.menuSystem.push(pokemonMenu);
@@ -534,5 +547,69 @@ export class BagMenu implements Menu {
       }
     }
     ctx.fillText(line, x, currentY);
+  }
+
+  private handleMoveReplacement(pokemon: any, movesToReplace: MoveToReplace[], currentIndex: number, initialMessage: string): void {
+    if (currentIndex >= movesToReplace.length) {
+      if (this.onItemUsed) {
+        this.onItemUsed('');
+      }
+      return;
+    }
+
+    const moveToReplace = movesToReplace[currentIndex];
+    const moveData = this.game.dataManager.getMove(moveToReplace.moveId);
+    
+    if (!moveData) {
+      this.handleMoveReplacement(pokemon, movesToReplace, currentIndex + 1, initialMessage);
+      return;
+    }
+
+    const showDialogs = currentIndex === 0;
+
+    if (showDialogs && this.game.dialogBox) {
+      this.game.dialogBox.show(initialMessage);
+    }
+
+    setTimeout(() => {
+      if (showDialogs && this.game.dialogBox) {
+        this.game.dialogBox.show(`${pokemon.nickname || pokemon.speciesId} wants to learn ${moveData.name}!`);
+      }
+    }, showDialogs ? 1500 : 0);
+
+    setTimeout(() => {
+      if (showDialogs && this.game.dialogBox) {
+        this.game.dialogBox.show(`But it already knows 4 moves!`);
+      }
+    }, showDialogs ? 3000 : 0);
+
+    setTimeout(() => {
+      const moveReplacementMenu = new MoveReplacementMenu(this.game, pokemon, moveData);
+      moveReplacementMenu.onResult = (replaced, oldMoveId) => {
+        this.game.menuSystem.pop();
+        
+        if (replaced && oldMoveId) {
+          const moves = this.game.dataManager.getAllMoves();
+          const moveLearningManager = new MoveLearningManager(moves);
+          const oldMoveIndex = pokemon.moves.findIndex((m: any) => m.moveId === oldMoveId);
+          
+          if (oldMoveIndex !== -1) {
+            moveLearningManager.replaceMove(pokemon, oldMoveIndex, moveToReplace.moveId);
+            
+            if (this.game.dialogBox) {
+              this.game.dialogBox.show(`${pokemon.nickname || pokemon.speciesId} learned ${moveData.name}!`);
+            }
+          }
+        }
+
+        moveReplacementMenu.onResult = null;
+        
+        setTimeout(() => {
+          this.handleMoveReplacement(pokemon, movesToReplace, currentIndex + 1, initialMessage);
+        }, 1500);
+      };
+
+      this.game.menuSystem.push(moveReplacementMenu);
+    }, showDialogs ? 4500 : 0);
   }
 }
