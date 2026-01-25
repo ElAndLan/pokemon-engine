@@ -12,6 +12,7 @@ import { Stats } from '../data/DataTypes';
 import { BattleAI } from './BattleAI';
 import { PartyScreen } from '../ui/PartyScreen';
 import { BagMenu } from '../ui/BagMenu';
+import { AbilityRegistry } from './Abilities'; // New Import
 import { MoveReplacementMenu } from '../ui/MoveReplacementMenu';
 import { MoveLearningManager, LearnableMove, MoveLearningResult } from './MoveLearningManager';
 import type { ItemUseResult } from '../items/ItemHandler';
@@ -134,6 +135,10 @@ export class BattleScene {
       // Preload Moves
       for (const m of player.moves) await this.dataManager.loadMove(m.moveId);
       for (const m of enemy.moves) await this.dataManager.loadMove(m.moveId);
+
+      // Trigger Battle Start Abilities
+      await AbilityRegistry.trigger(player.ability, 'onBattleStart', { owner: player, battle: this });
+      await AbilityRegistry.trigger(enemy.ability, 'onBattleStart', { owner: enemy, battle: this });
   }
 
   private async loadBackground(path: string): Promise<void> {
@@ -985,6 +990,13 @@ export class BattleScene {
            }
        }
 
+       // Ability Turn End
+       for (const mon of participants) {
+           if (mon && mon.currentHp > 0) {
+              await AbilityRegistry.trigger(mon.ability, 'onTurnEnd', { owner: mon, battle: this });
+           }
+       }
+
        // 2. Check Faint after residual damage
        if (this.playerPokemon && this.playerPokemon.currentHp <= 0) {
            await this.showText(`${this.playerPokemon.nickname} fainted!`);
@@ -1617,6 +1629,9 @@ export class BattleScene {
       // TODO: Add send out animation / update sprite
       await this.showText(`Go! ${this.playerPokemon.nickname}!`);
       await new Promise(r => setTimeout(r, 500));
+      
+      // Trigger Switch-In Ability
+      await AbilityRegistry.trigger(this.playerPokemon.ability, 'onBattleStart', { owner: this.playerPokemon, battle: this });
       
       // 5. Enemy Turn (Sacrifice)
       console.log(`[BattleScene] Enemy gets free turn due to switch.`);

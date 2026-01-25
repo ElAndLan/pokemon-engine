@@ -1,5 +1,6 @@
 import { PokemonInstance, MoveData, getEffectiveStat } from '../data/DataTypes';
 import { getTypeEffectiveness } from './TypeChart';
+import { AbilityRegistry } from './Abilities';
 
 export interface DamageResult {
     damage: number;
@@ -49,7 +50,22 @@ export function calculateDamage(attacker: PokemonInstance, defender: PokemonInst
     const Power = move.power || 0;
     const Level = attacker.level;
 
-    details.push(`Level: ${Level}, Power: ${Power}, A: ${A}, D: ${D}`);
+    // --- ABILITY HOOKS (Stats) ---
+    // Context is created here. Note: BattleScene is missing, so weather checks won't work yet.
+    // We treat 'attacker' as owner for Attack hooks, and 'defender' as owner for Defense hooks.
+    
+    // 1. Modify Attack (e.g. Huge Power, Overgrow)
+    let modifiedA = A;
+    // We need to pass the move context to the ability
+    const atkCtx = { owner: attacker, target: defender, move }; 
+    modifiedA = AbilityRegistry.applyModifier(attacker.ability, 'onModifyAttack', A, atkCtx);
+    
+    // 2. Modify Defense (e.g. Fur Coat, Marvel Scale)
+    let modifiedD = D;
+    const defCtx = { owner: defender, target: attacker, move };
+    modifiedD = AbilityRegistry.applyModifier(defender.ability, 'onModifyDefense', D, defCtx);
+
+    details.push(`Level: ${Level}, Power: ${Power}, A: ${modifiedA} (was ${A}), D: ${modifiedD} (was ${D})`);
 
     if (Power === 0) {
         return { damage: 0, isCritical: false, effectiveness: 1, details };
@@ -57,7 +73,7 @@ export function calculateDamage(attacker: PokemonInstance, defender: PokemonInst
 
     // 2. Base Damage Calculation
     // floor( floor( floor( ((2 * Level / 5) + 2) * Power * A / D) / 50 ) + 2 )
-    const baseDamage = Math.floor(Math.floor(Math.floor((2 * Level / 5 + 2) * Power * A / D) / 50) + 2);
+    const baseDamage = Math.floor(Math.floor(Math.floor((2 * Level / 5 + 2) * Power * modifiedA / modifiedD) / 50) + 2);
     details.push(`Base Damage: ${baseDamage}`);
 
     // 3. Modifiers
@@ -67,6 +83,8 @@ export function calculateDamage(attacker: PokemonInstance, defender: PokemonInst
     let stab = 1.0;
     if (attacker.types.some(t => t.toLowerCase() === move.type.toLowerCase())) {
         stab = 1.5;
+        // Ability: Adaptability (STAB = 2.0)
+        // TODO: distinct hook? or just Modify Attack? distinct hook better.
         details.push('STAB applied (1.5x)');
     }
 
@@ -91,8 +109,16 @@ export function calculateDamage(attacker: PokemonInstance, defender: PokemonInst
         details.push(`Random Factor: ${random}`);
     }
 
+    // Ability: Filter / Solid Rock / Levitate (Immunity handled in MoveEngine loop usually but Levitate makes TypeEff 0)
+    // We'll stick to Multipliers here.
+    let abilityMult = 1.0;
+    abilityMult = AbilityRegistry.applyModifier(attacker.ability, 'onDamageMultiplier', abilityMult, atkCtx); // Life Orb etc?
+    abilityMult = AbilityRegistry.applyModifier(defender.ability, 'onDamageMultiplier', abilityMult, defCtx); // Filter etc.
+    
+    if (abilityMult !== 1.0) details.push(`Ability Multiplier: ${abilityMult}x`);
+
     // Final Calculation
-    const damage = Math.floor(baseDamage * stab * typeEff * crit * random);
+    const damage = Math.floor(baseDamage * stab * typeEff * crit * random * abilityMult);
     details.push(`Final Damage: ${damage}`);
 
     return { damage, isCritical, effectiveness: typeEff, details };

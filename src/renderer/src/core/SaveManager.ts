@@ -6,13 +6,13 @@ export class SaveManager {
   }
 
   public async checkSave(slot: number): Promise<boolean> {
-      const fileName = `save_input_${slot}.json`;
+      const fileName = `${this.saveDirectory}/save_input_${slot}.json`;
       const result = await window.fs.readFile(fileName);
       return result.success;
   }
 
   public async saveGame(slot: number, data: object): Promise<boolean> {
-    const fileName = `save_input_${slot}.json`;
+    const fileName = `${this.saveDirectory}/save_input_${slot}.json`;
     const json = JSON.stringify(data, null, 2);
     
     // In a real app, we'd ensure the directory exists first or use a known user data path.
@@ -27,7 +27,7 @@ export class SaveManager {
   }
 
   public async loadGame(slot: number): Promise<any | null> {
-    const fileName = `save_input_${slot}.json`;
+    const fileName = `${this.saveDirectory}/save_input_${slot}.json`;
     const result = await window.fs.readFile(fileName);
     
     if (!result.success || !result.data) {
