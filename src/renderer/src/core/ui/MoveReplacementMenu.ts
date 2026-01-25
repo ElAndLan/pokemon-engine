@@ -8,7 +8,6 @@ export class MoveReplacementMenu implements Menu {
     private pokemon: PokemonInstance;
     private newMoveData: MoveData;
     private selection: number = 0;
-    private newMoveSelected: boolean = false;
 
     public onResult: ((replaced: boolean, oldMoveId?: string) => void) | null = null;
 
@@ -22,7 +21,6 @@ export class MoveReplacementMenu implements Menu {
     public async onOpen(): Promise<void> {
         console.log('[MoveReplacementMenu] Opened');
         this.selection = 0;
-        this.newMoveSelected = false;
     }
 
     public onClose(): void {
@@ -32,7 +30,7 @@ export class MoveReplacementMenu implements Menu {
     public update(dt: number): void {
         const input = this.game.input;
 
-        const totalOptions = this.pokemon.moves.length + 2;
+        const totalOptions = this.pokemon.moves.length + 1;
 
         if (input.isJustPressed('ArrowDown') || input.isJustPressed('KeyS')) {
             this.selection = (this.selection + 1) % totalOptions;
@@ -48,13 +46,11 @@ export class MoveReplacementMenu implements Menu {
         }
 
         if (input.isJustPressed('Space') || input.isJustPressed('Enter') || input.isJustPressed('KeyZ')) {
-            const lastIndex = this.pokemon.moves.length + 1;
-
-            if (this.selection === lastIndex) {
+            if (this.selection === this.pokemon.moves.length) {
                 if (this.onResult) {
                     this.onResult(false);
                 }
-            } else if (this.selection < this.pokemon.moves.length) {
+            } else {
                 if (this.onResult) {
                     const oldMoveId = this.pokemon.moves[this.selection].moveId;
                     this.onResult(true, oldMoveId);
@@ -64,95 +60,57 @@ export class MoveReplacementMenu implements Menu {
     }
 
     public render(ctx: CanvasRenderingContext2D): void {
-        const width = 400;
-        const height = 320;
-        const x = (this.game.canvas.width - width) / 2;
-        const y = (this.game.canvas.height - height) / 2;
+        const width = 320;
+        const height = 200;
+        const x = Math.floor((this.game.display.width - width) / 2);
+        const y = Math.floor((this.game.display.height - height) / 2);
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(x, y, width, height);
+        const borderColor = '#303030';
+        const bgColor = '#ffffff';
+        const highlightColor = '#a0d8ef';
 
-        ctx.fillStyle = '#f8f8f8';
-        ctx.strokeStyle = '#303030';
+        ctx.fillStyle = bgColor;
+        ctx.strokeStyle = borderColor;
         ctx.lineWidth = 4;
+
         ctx.fillRect(x, y, width, height);
         ctx.strokeRect(x, y, width, height);
 
-        ctx.fillStyle = '#303030';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${this.pokemon.nickname || this.pokemon.speciesId}`, x + width / 2, y + 30);
-
-        ctx.font = '14px sans-serif';
-        ctx.fillText(`Which move to forget?`, x + width / 2, y + 55);
+        const padding = 8;
+        const startY = y + padding;
+        const moveHeight = 30;
 
         ctx.textAlign = 'left';
-        let currentY = y + 90;
-        const lineHeight = 35;
+        ctx.textBaseline = 'middle';
 
-        for (let i = 0; i < this.pokemon.moves.length; i++) {
-            const moveId = this.pokemon.moves[i].moveId;
-            const moveData = this.game.dataManager.getMove(moveId);
-            
+        for (let i = 0; i <= this.pokemon.moves.length; i++) {
+            const moveY = startY + i * moveHeight;
+
             if (i === this.selection) {
-                ctx.fillStyle = '#303030';
-                ctx.fillRect(x + 20, currentY - 20, width - 40, 28);
-                ctx.fillStyle = '#ffffff';
-            } else {
-                ctx.fillStyle = '#303030';
+                ctx.fillStyle = highlightColor;
+                ctx.fillRect(x + 2, moveY, width - 4, moveHeight - 2);
             }
 
-            const moveName = moveData?.name || moveId;
-            const pp = `${this.pokemon.moves[i].pp}/${this.pokemon.moves[i].maxPp}`;
-            
-            ctx.font = 'bold 14px sans-serif';
-            ctx.fillText(moveName, x + 30, currentY);
-            
-            ctx.font = '12px sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(`PP: ${pp}`, x + width - 30, currentY);
-            ctx.textAlign = 'left';
+            ctx.fillStyle = '#000000';
 
-            currentY += lineHeight;
-        }
+            if (i < this.pokemon.moves.length) {
+                const moveId = this.pokemon.moves[i].moveId;
+                const moveData = this.game.dataManager.getMove(moveId);
+                const moveName = moveData?.name || moveId;
+                const pp = `${this.pokemon.moves[i].pp}/${this.pokemon.moves[i].maxPp}`;
 
-        currentY += 10;
-        
-        const lastIndex = this.pokemon.moves.length + 1;
-        
-        if (this.selection === lastIndex) {
-            ctx.fillStyle = '#303030';
-            ctx.fillRect(x + 20, currentY - 20, width - 40, 28);
-            ctx.fillStyle = '#ffffff';
-        } else {
-            ctx.fillStyle = '#303030';
-        }
-        
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.fillText('STOP', x + width / 2, currentY);
+                ctx.font = 'bold 13px sans-serif';
+                ctx.fillText(moveName, x + padding, moveY + moveHeight / 2);
 
-        currentY += lineHeight + 15;
-
-        ctx.fillStyle = '#303030';
-        ctx.font = '12px sans-serif';
-        const moveDescription = this.newMoveData.description || this.newMoveData.effect || 'No description available.';
-        const words = moveDescription.split(' ');
-        let line = '';
-        const maxWidth = width - 60;
-        
-        for (let i = 0; i < words.length; i++) {
-            const testLine = line + words[i] + ' ';
-            const metrics = ctx.measureText(testLine);
-            if (metrics.width > maxWidth && i > 0) {
-                ctx.fillText(line.trim(), x + width / 2, currentY);
-                line = words[i] + ' ';
-                currentY += 16;
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`PP:${pp}`, x + width - padding, moveY + moveHeight / 2);
+                ctx.textAlign = 'left';
             } else {
-                line = testLine;
+                ctx.font = 'bold 13px sans-serif';
+                ctx.fillText('STOP', x + padding, moveY + moveHeight / 2);
             }
         }
-        ctx.fillText(line.trim(), x + width / 2, currentY);
     }
 
     public isActive(): boolean {

@@ -628,6 +628,8 @@ export class BattleScene {
 
         this.moveReplacementMenu = new MoveReplacementMenu(this.game, pokemon, moveData);
         this.moveReplacementMenu.onResult = async (replaced, oldMoveId) => {
+            this.game.menuSystem.pop();
+            
             if (replaced && oldMoveId) {
                 const oldMoveIndex = pokemon.moves.findIndex(m => m.moveId === oldMoveId);
                 if (oldMoveIndex !== -1) {

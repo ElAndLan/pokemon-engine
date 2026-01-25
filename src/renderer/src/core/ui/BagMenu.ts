@@ -565,25 +565,29 @@ export class BagMenu implements Menu {
       return;
     }
 
-    if (this.game.dialogBox) {
+    const showDialogs = currentIndex === 0;
+
+    if (showDialogs && this.game.dialogBox) {
       this.game.dialogBox.show(initialMessage);
     }
 
     setTimeout(() => {
-      if (this.game.dialogBox) {
+      if (showDialogs && this.game.dialogBox) {
         this.game.dialogBox.show(`${pokemon.nickname || pokemon.speciesId} wants to learn ${moveData.name}!`);
       }
-    }, 1500);
+    }, showDialogs ? 1500 : 0);
 
     setTimeout(() => {
-      if (this.game.dialogBox) {
+      if (showDialogs && this.game.dialogBox) {
         this.game.dialogBox.show(`But it already knows 4 moves!`);
       }
-    }, 3000);
+    }, showDialogs ? 3000 : 0);
 
     setTimeout(() => {
       const moveReplacementMenu = new MoveReplacementMenu(this.game, pokemon, moveData);
       moveReplacementMenu.onResult = (replaced, oldMoveId) => {
+        this.game.menuSystem.pop();
+        
         if (replaced && oldMoveId) {
           const moves = this.game.dataManager.getAllMoves();
           const moveLearningManager = new MoveLearningManager(moves);
@@ -606,6 +610,6 @@ export class BagMenu implements Menu {
       };
 
       this.game.menuSystem.push(moveReplacementMenu);
-    }, 4500);
+    }, showDialogs ? 4500 : 0);
   }
 }
