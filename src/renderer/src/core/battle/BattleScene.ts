@@ -4,19 +4,24 @@ import { PokemonInstance, MoveData } from '../data/DataTypes';
 import { InputManager } from '../InputManager';
 import { DataManager } from '../data/DataManager';
 import { calculateDamage } from './DamageCalculator';
-import { ExperienceCalculator } from './ExperienceCalculator'; 
+import { ExperienceCalculator } from './ExperienceCalculator';
+import { StatCalculator } from '../stat/StatCalculator';
 import { MoveEngine } from './MoveEngine';
 import { MoveExecutionResult } from './MoveEngineTypes';
-import { Stats } from '../data/DataTypes'; 
-import { BattleAI } from './BattleAI'; // New Import
+import { Stats } from '../data/DataTypes';
+import { BattleAI } from './BattleAI';
 import { PartyScreen } from '../ui/PartyScreen';
 import { BagMenu } from '../ui/BagMenu';
+import { MoveReplacementMenu } from '../ui/MoveReplacementMenu';
+import { MoveLearningManager, LearnableMove, MoveLearningResult } from './MoveLearningManager';
 import type { ItemUseResult } from '../items/ItemHandler';
 
 export class BattleScene {
   private dataManager: DataManager;
-  private battleAI!: BattleAI; // New Property
+  private battleAI!: BattleAI;
+  private moveLearningManager: MoveLearningManager;
   private partyScreen: PartyScreen | null = null;
+  private moveReplacementMenu: MoveReplacementMenu | null = null;
   private playerPokemon: PokemonInstance | null = null;
   private enemyPokemon: PokemonInstance | null = null;
   
@@ -105,6 +110,8 @@ export class BattleScene {
       this.game = game;
       this.dataManager = game.dataManager;
       this.battleAI = new BattleAI(this.dataManager);
+      const moves = this.dataManager.getAllMoves();
+      this.moveLearningManager = new MoveLearningManager(moves);
   }
 
 
@@ -481,11 +488,15 @@ export class BattleScene {
            this.enemyPokemon.currentHp = 0;
            await this.showText(`${this.enemyPokemon.nickname} fainted!`);
            await this.performFaintAnim();
-           
+
            // XP Logic (keeping here as it's separate from move execution phase)
            await this.handleExperienceGain();
 
-           this.state = 'BATTLE_END_WAIT';
+           // Only set BATTLE_END_WAIT if not showing level-up stats
+           console.log('[BattleScene] After handleExperienceGain, state:', this.state);
+           if (this.state !== 'LEVEL_UP_STATS' && this.state !== 'LEVEL_UP_STATS_2') {
+               this.state = 'BATTLE_END_WAIT';
+           }
            return;
        }
        
@@ -567,6 +578,19 @@ export class BattleScene {
 
              await this.showText(itemResult.message);
              
+             // Show learned moves if any
+             if (itemResult.effects && itemResult.effects.learnedMoves && itemResult.effects.learnedMoves.length > 0) {
+                 for (const moveName of itemResult.effects.learnedMoves) {
+                     await this.showText(`${target.nickname || target.speciesId} learned ${moveName}!`);
+                 }
+             }
+
+             // Handle move replacement if needed
+             if (itemResult.effects && itemResult.effects.movesToReplace && itemResult.effects.movesToReplace.length > 0) {
+                 await this.handleBattleMoveReplacement(target, itemResult.effects.movesToReplace, 0, itemId, itemResult.consumed);
+                 return;
+             }
+             
              if (itemResult.consumed) {
                   this.game.bagSystem.removeItem(itemId, 1);
                   // Proceed to Enemy Turn
@@ -578,6 +602,45 @@ export class BattleScene {
              await this.showText(itemResult.message);
              this.state = 'SELECT_ACTION';
          }
+    }
+
+    private async handleBattleMoveReplacement(pokemon: PokemonInstance, movesToReplace: any[], currentIndex: number, itemId: string, consumed: boolean): Promise<void> {
+        if (currentIndex >= movesToReplace.length) {
+            if (consumed) {
+                this.game.bagSystem.removeItem(itemId, 1);
+                await this.executeEnemyTurn();
+            } else {
+                this.state = 'SELECT_ACTION';
+            }
+            return;
+        }
+
+        const moveToReplace = movesToReplace[currentIndex];
+        const moveData = this.dataManager.getMove(moveToReplace.moveId);
+        
+        if (!moveData) {
+            await this.handleBattleMoveReplacement(pokemon, movesToReplace, currentIndex + 1, itemId, consumed);
+            return;
+        }
+
+        await this.showText(`${pokemon.nickname || pokemon.speciesId} wants to learn ${moveData.name}!`);
+        await this.showText(`But it already knows 4 moves!`);
+
+        this.moveReplacementMenu = new MoveReplacementMenu(this.game, pokemon, moveData);
+        this.moveReplacementMenu.onResult = async (replaced, oldMoveId) => {
+            if (replaced && oldMoveId) {
+                const oldMoveIndex = pokemon.moves.findIndex(m => m.moveId === oldMoveId);
+                if (oldMoveIndex !== -1) {
+                    this.moveLearningManager.replaceMove(pokemon, oldMoveIndex, moveToReplace.moveId);
+                    await this.showText(`${pokemon.nickname || pokemon.speciesId} learned ${moveData.name}!`);
+                }
+            }
+
+            this.moveReplacementMenu = null;
+            await this.handleBattleMoveReplacement(pokemon, movesToReplace, currentIndex + 1, itemId, consumed);
+        };
+
+        this.game.menuSystem.push(this.moveReplacementMenu);
     }
 
     private async startCaptureAnim(ballId: string, result: { caught: boolean, shakes: number }): Promise<void> {
@@ -771,21 +834,84 @@ export class BattleScene {
             if (hpDiff > 0) this.playerPokemon.currentHp += hpDiff;
 
             await this.showText(`${this.playerPokemon.nickname} grew to Lv. ${this.playerPokemon.level}!`);
+
+            const learnableMoves = this.moveLearningManager.getMovesLearnableAtLevel(speciesData, this.playerPokemon.level, this.playerPokemon);
             
-            this.levelUpData = {
-                oldStats,
-                newStats,
-                diff: {
-                    hp: newStats.hp - oldStats.hp,
-                    attack: newStats.attack - oldStats.attack,
-                    defense: newStats.defense - oldStats.defense,
-                    spAttack: newStats.spAttack - oldStats.spAttack,
-                    spDefense: newStats.spDefense - oldStats.spDefense,
-                    speed: newStats.speed - oldStats.speed
+            if (learnableMoves.length > 0) {
+                for (const learnableMove of learnableMoves) {
+                    const moveData = this.dataManager.getMove(learnableMove.moveId);
+                    if (moveData) {
+                        const result = this.moveLearningManager.learnMove(this.playerPokemon, learnableMove.moveId);
+                        
+                        if (result.learned) {
+                            await this.showText(`${this.playerPokemon.nickname} learned ${moveData.name}!`);
+                        } else if (result.reason === 'slots_full') {
+                            await this.showText(`${this.playerPokemon.nickname} wants to learn ${moveData.name}!`);
+                            await this.showText(`But it already knows 4 moves!`);
+                            
+                            this.moveReplacementMenu = new MoveReplacementMenu(this.game, this.playerPokemon, moveData);
+                              this.moveReplacementMenu.onResult = async (replaced, oldMoveId) => {
+                                  if (replaced && oldMoveId) {
+                                      const oldMoveIndex = this.playerPokemon!.moves.findIndex(m => m.moveId === oldMoveId);
+                                      if (oldMoveIndex !== -1) {
+                                          this.moveLearningManager.replaceMove(this.playerPokemon!, oldMoveIndex, learnableMove.moveId);
+                                      }
+                                      this.moveReplacementMenu = null;
+                                      await this.showText(`${this.playerPokemon.nickname} learned ${moveData.name}!`);
+                                      this.showLevelUpStats(oldStats, newStats);
+                                  } else {
+                                      this.moveReplacementMenu = null;
+                                      this.showLevelUpStats(oldStats, newStats);
+                                  }
+                              };
+                            
+                            this.game.menuSystem.push(this.moveReplacementMenu);
+                            return;
+                        }
+                    }
                 }
-            };
-            this.state = 'LEVEL_UP_STATS';
+            }
+
+            console.log('[BattleScene] After showText, setting up level up data...');
+
+            const statIncreases = StatCalculator.calculateAllStatIncreases(
+                speciesData.baseStats,
+                this.playerPokemon.ivs,
+                this.playerPokemon.evs,
+                this.playerPokemon.level - 1,
+                this.playerPokemon.nature
+            );
+
+            this.showLevelUpStats(oldStats, newStats);
         }
+   }
+
+   private showLevelUpStats(oldStats: Stats, newStats: Stats): void {
+        const speciesData = this.dataManager.getPokemonSpecies(this.playerPokemon!.speciesId);
+        if (!speciesData) return;
+
+        const statIncreases = StatCalculator.calculateAllStatIncreases(
+            speciesData.baseStats,
+            this.playerPokemon!.ivs,
+            this.playerPokemon!.evs,
+            this.playerPokemon!.level - 1,
+            this.playerPokemon!.nature
+        );
+
+        this.levelUpData = {
+            oldStats,
+            newStats,
+            diff: {
+                hp: statIncreases.hp ?? 0,
+                attack: statIncreases.attack ?? 0,
+                defense: statIncreases.defense ?? 0,
+                spAttack: statIncreases.spAttack ?? 0,
+                spDefense: statIncreases.spDefense ?? 0,
+                speed: statIncreases.speed ?? 0
+            }
+        };
+        this.state = 'LEVEL_UP_STATS';
+        console.log('[BattleScene] State set to LEVEL_UP_STATS:', this.state);
    }
 
    private async executeEndOfTurn(): Promise<void> {
@@ -867,7 +993,11 @@ export class BattleScene {
             await this.showText(`${this.enemyPokemon.nickname} fainted!`);
             await this.performFaintAnim();
             await this.handleExperienceGain();
-            this.state = 'BATTLE_END_WAIT';
+            // Only set BATTLE_END_WAIT if not showing level-up stats
+            console.log('[BattleScene] After handleExperienceGain in executeEndOfTurn, state:', this.state);
+            if (this.state !== 'LEVEL_UP_STATS' && this.state !== 'LEVEL_UP_STATS_2') {
+                this.state = 'BATTLE_END_WAIT';
+            }
        };
    }
 
@@ -1405,43 +1535,63 @@ export class BattleScene {
   
   private renderLevelUpBox(ctx: CanvasRenderingContext2D, width: number, height: number): void {
       if (!this.levelUpData) return;
-      
-      const boxHeight = 160;
-      const boxY = height - boxHeight;
-      
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, boxY, width, boxHeight);
-      ctx.strokeStyle = '#222';
+
+      const boxWidth = 180;
+      const boxHeight = 180;
+      const boxX = width - 460;
+      const boxY = height - 320;
+
+      ctx.save();
+
+      ctx.fillStyle = '#f8f8f8';
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+      ctx.strokeStyle = '#0066cc';
       ctx.lineWidth = 4;
-      ctx.strokeRect(0, boxY, width, boxHeight);
-      
+      ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
       ctx.fillStyle = '#000';
-      ctx.font = 'bold 16px monospace';
-      
-      if (this.state === 'LEVEL_UP_STATS') {
-          // Page 1: HP, Atk, Def
-          ctx.fillText(`Max. HP       + ${this.levelUpData.diff.hp}`, 40, boxY + 40);
-          ctx.fillText(`${this.levelUpData.oldStats.hp} -> ${this.levelUpData.newStats.hp}`, 200, boxY + 40);
+      ctx.font = 'bold 14px monospace';
 
-          ctx.fillText(`Attack        + ${this.levelUpData.diff.attack}`, 40, boxY + 80);
-          ctx.fillText(`${this.levelUpData.oldStats.attack} -> ${this.levelUpData.newStats.attack}`, 200, boxY + 80);
+      const stats = [
+          { name: 'HP', key: 'hp' },
+          { name: 'Attack', key: 'attack' },
+          { name: 'Defense', key: 'defense' },
+          { name: 'Sp. Atk', key: 'spAttack' },
+          { name: 'Sp. Def', key: 'spDefense' },
+          { name: 'Speed', key: 'speed' }
+      ];
 
-          ctx.fillText(`Defense       + ${this.levelUpData.diff.defense}`, 40, boxY + 120);
-          ctx.fillText(`${this.levelUpData.oldStats.defense} -> ${this.levelUpData.newStats.defense}`, 200, boxY + 120);
-      } else {
-          // Page 2: SpAtk, SpDef, Speed
-          ctx.fillText(`Sp. Atk       + ${this.levelUpData.diff.spAttack}`, 40, boxY + 40);
-          ctx.fillText(`${this.levelUpData.oldStats.spAttack} -> ${this.levelUpData.newStats.spAttack}`, 200, boxY + 40);
+      const startY = boxY + 30;
+      const lineHeight = 24;
 
-          ctx.fillText(`Sp. Def       + ${this.levelUpData.diff.spDefense}`, 40, boxY + 80);
-          ctx.fillText(`${this.levelUpData.oldStats.spDefense} -> ${this.levelUpData.newStats.spDefense}`, 200, boxY + 80);
+      stats.forEach((stat, index) => {
+          const y = startY + index * lineHeight;
+          const diff = this.levelUpData.diff[stat.key];
+          const oldVal = this.levelUpData.oldStats[stat.key];
+          const newVal = this.levelUpData.newStats[stat.key];
 
-          ctx.fillText(`Speed         + ${this.levelUpData.diff.speed}`, 40, boxY + 120);
-          ctx.fillText(`${this.levelUpData.oldStats.speed} -> ${this.levelUpData.newStats.speed}`, 200, boxY + 120);
-      }
-      
-      ctx.font = '12px monospace';
-      ctx.fillText('[SPACE] Next', width - 100, boxY + 140);
+          const displayVal = this.state === 'LEVEL_UP_STATS' ? oldVal : newVal;
+
+          ctx.font = 'bold 14px monospace';
+          ctx.fillStyle = '#000';
+          ctx.fillText(stat.name, boxX + 15, y);
+
+          ctx.font = 'bold 14px monospace';
+          ctx.fillStyle = '#000';
+          ctx.fillText(displayVal.toString().padStart(3, ' '), boxX + 90, y);
+
+          if (this.state === 'LEVEL_UP_STATS') {
+              ctx.font = 'bold 14px monospace';
+              ctx.fillStyle = diff > 0 ? '#00aa00' : '#aa0000';
+              ctx.fillText(`+${diff}`, boxX + 130, y);
+          }
+      });
+
+      ctx.fillStyle = '#0066cc';
+      ctx.fillRect(boxX + 1, boxY + boxHeight - 1, boxWidth - 2, 4);
+
+      ctx.restore();
   }
 
 

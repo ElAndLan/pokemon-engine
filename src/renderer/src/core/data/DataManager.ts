@@ -1,14 +1,19 @@
-import { PokemonSpecies, MoveData, PokemonInstance, Stats, calculateStat } from './DataTypes';
+import { PokemonSpecies, MoveData, PokemonInstance, Stats } from './DataTypes';
 import { ItemData } from './ItemData';
 import { ExperienceCalculator } from '../battle/ExperienceCalculator';
+import { StatCalculator } from '../stat/StatCalculator';
+import { MoveLearningManager } from '../battle/MoveLearningManager';
 
 export class DataManager {
   private encounterTables: Map<string, any> = new Map();
   private pokemonCache: Map<string, PokemonSpecies> = new Map();
   private moveCache: Map<string, MoveData> = new Map();
   private itemCache: Map<string, ItemData> = new Map();
+  private moveLearningManager: MoveLearningManager;
 
-  constructor() {}
+  constructor() {
+      this.moveLearningManager = new MoveLearningManager({});
+  }
 
   public async loadRegistries(): Promise<void> {
     console.log('[DataManager] Loading Registries...');
@@ -29,6 +34,8 @@ export class DataManager {
             this.moveCache.set(m.id, m);
         });
         console.log(`[DataManager] Loaded ${this.moveCache.size} Moves.`);
+        
+        this.moveLearningManager = new MoveLearningManager(moves);
     }
 
     // 3. Items
@@ -99,6 +106,14 @@ export class DataManager {
       return this.moveCache.get(id);
   }
 
+  public getAllMoves(): { [id: string]: MoveData } {
+      const moves: { [id: string]: MoveData } = {};
+      this.moveCache.forEach((move, id) => {
+          moves[id] = move;
+      });
+      return moves;
+  }
+
   public getItem(id: string): ItemData | undefined {
       return this.itemCache.get(id);
   }
@@ -134,24 +149,15 @@ export class DataManager {
       const ability = species.possibleAbilities[Math.floor(Math.random() * species.possibleAbilities.length)];
 
       // 5. Moves (Based on Level)
-      // Filter learnset for moves <= level, take last 4
-      const validMoves = species.learnset.filter(m => m.level <= level);
-      const learnedMoves = validMoves.slice(-4).map(m => ({
-          moveId: m.moveId,
-          pp: 10, // Placeholder, need actual Move Data to set max PP
-          maxPp: 10
-      }));
+      const learnedMoves = this.moveLearningManager.getMovesForLevel(species, level);
 
-      // 6. Calculate Stats
-      // Use helper from DataTypes
-      const currentStats: Stats = {
-          hp: calculateStat(species.baseStats.hp, ivs.hp, evs.hp, level, true),
-          attack: calculateStat(species.baseStats.attack, ivs.attack, evs.attack, level, false),
-          defense: calculateStat(species.baseStats.defense, ivs.defense, evs.defense, level, false),
-          spAttack: calculateStat(species.baseStats.spAttack, ivs.spAttack, evs.spAttack, level, false),
-          spDefense: calculateStat(species.baseStats.spDefense, ivs.spDefense, evs.spDefense, level, false),
-          speed: calculateStat(species.baseStats.speed, ivs.speed, evs.speed, level, false)
-      };
+      const currentStats = StatCalculator.calculateAllStats(
+          species.baseStats,
+          ivs,
+          evs,
+          level,
+          nature
+      );
 
       return {
           uuid: crypto.randomUUID(),

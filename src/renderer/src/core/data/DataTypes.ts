@@ -15,15 +15,6 @@ export interface Stats {
 
 export type StatName = keyof Stats;
 
-// Helper Formula
-export const calculateStat = (base: number, iv: number, ev: number, level: number, isHp: boolean): number => {
-    if (isHp) {
-        return Math.floor(((2 * base + iv + (ev/4)) * level / 100) + level + 10);
-    } else {
-        return Math.floor(((2 * base + iv + (ev/4)) * level / 100) + 5);
-    }
-}
-
 // 4. Learnset Item
 export interface LearnMove {
   level: number;
