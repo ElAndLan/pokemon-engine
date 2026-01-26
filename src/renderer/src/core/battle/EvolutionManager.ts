@@ -142,13 +142,18 @@ export class EvolutionManager {
     pokemon.speciesId = targetSpeciesId;
     pokemon.types = targetSpecies.types;
 
+    const oldMaxHp = pokemon.currentStats.hp;
+    const hpRatio = pokemon.currentHp / oldMaxHp;
+
     const newStats = ExperienceCalculator.recalculateStats(pokemon, targetSpecies);
     pokemon.currentStats = newStats;
 
-    const hpRatio = pokemon.currentHp / (oldSpecies.baseStats.hp + 100);
-    pokemon.currentHp = Math.floor(targetSpecies.baseStats.hp + 100 * hpRatio);
+    pokemon.currentHp = Math.floor(newStats.hp * hpRatio);
     if (pokemon.currentHp > newStats.hp) {
       pokemon.currentHp = newStats.hp;
+    }
+    if (pokemon.currentHp < 1) {
+      pokemon.currentHp = 1;
     }
 
     const possibleAbilities = targetSpecies.possibleAbilities;

@@ -208,3 +208,91 @@ private getPokemonDisplayName(mon: PokemonInstance): string {
 - No new libraries added
 - Uses existing DataManager.getPokemonSpecies() for species lookup
 - Follows existing PokemonInstance data structure
+
+---
+
+### 2025-01-25 - Evolution Stat Bonus Fix
+
+#### Problem
+Evolved Pokemon were not receiving proper stat bonuses after evolution. The HP calculation was incorrect, leading to:
+1. Wrong HP ratio calculation using base stats instead of current max HP
+2. Incorrect new HP calculation using base stats instead of recalculated stats
+3. Potential HP values that didn't match the Pokemon's actual maximum HP
+
+#### Solution
+Fixed the evolution stat calculation in EvolutionManager.evolvePokemon() to correctly:
+
+1. Calculate HP ratio using the Pokemon's current maximum HP (pokemon.currentStats.hp)
+2. Calculate new current HP using the newly recalculated stats (newStats.hp)
+3. Ensure HP never drops below 1 after evolution
+
+#### Code Changes
+
+**Modified** `src/renderer/src/core/battle/EvolutionManager.ts`
+
+Changed from:
+```typescript
+const newStats = ExperienceCalculator.recalculateStats(pokemon, targetSpecies);
+pokemon.currentStats = newStats;
+
+const hpRatio = pokemon.currentHp / (oldSpecies.baseStats.hp + 100);
+pokemon.currentHp = Math.floor(targetSpecies.baseStats.hp + 100 * hpRatio);
+if (pokemon.currentHp > newStats.hp) {
+  pokemon.currentHp = newStats.hp;
+}
+```
+
+Changed to:
+```typescript
+const oldMaxHp = pokemon.currentStats.hp;
+const hpRatio = pokemon.currentHp / oldMaxHp;
+
+const newStats = ExperienceCalculator.recalculateStats(pokemon, targetSpecies);
+pokemon.currentStats = newStats;
+
+pokemon.currentHp = Math.floor(newStats.hp * hpRatio);
+if (pokemon.currentHp > newStats.hp) {
+  pokemon.currentHp = newStats.hp;
+}
+if (pokemon.currentHp < 1) {
+  pokemon.currentHp = 1;
+}
+```
+
+#### Technical Details
+
+**HP Ratio Calculation**
+- Old (incorrect): `pokemon.currentHp / (oldSpecies.baseStats.hp + 100)`
+  - Used raw base stats + 100 instead of actual max HP
+  - Did not account for IVs, EVs, level, or nature
+  
+- New (correct): `pokemon.currentHp / pokemon.currentStats.hp`
+  - Uses the Pokemon's actual current maximum HP
+  - Correctly represents the HP percentage before evolution
+
+**New Current HP Calculation**
+- Old (incorrect): `Math.floor(targetSpecies.baseStats.hp + 100 * hpRatio)`
+  - Used raw base stats + 100 instead of recalculated max HP
+  - Did not account for IVs, EVs, level, or nature of the new species
+  
+- New (correct): `Math.floor(newStats.hp * hpRatio)`
+  - Uses the newly recalculated maximum HP with all modifiers
+  - Correctly applies the HP percentage to the new species
+
+**Safety Check**
+- Added minimum HP check to ensure Pokemon never has 0 HP after evolution
+- Maintains at least 1 HP to prevent invalid state
+
+#### Impact
+- Evolved Pokemon now correctly receive stat bonuses from their new species' base stats
+- HP percentage is preserved through evolution
+- All other stats (Attack, Defense, Sp. Atk, Sp. Def, Speed) were already correctly recalculated via StatCalculator
+- Prevents edge cases where a Pokemon could have more HP than their maximum or 0 HP
+
+#### Files Modified
+- src/renderer/src/core/battle/EvolutionManager.ts
+
+#### Dependencies
+- No new libraries added
+- Uses existing ExperienceCalculator.recalculateStats() for stat recalculation
+- Follows existing PokemonInstance and PokemonSpecies data structures
