@@ -87,6 +87,7 @@ export class BattleScene {
       ballSprite?: HTMLImageElement;
       shakes: number; // Max shakes from calc
       currentShake: number;
+      shakeState: 'WAIT' | 'SHAKING' | 'SETTLE';
       startX: number;
       startY: number;
       targetX: number;
@@ -95,6 +96,24 @@ export class BattleScene {
       ballX: number;
       ballY: number;
       result: { caught: boolean; shakes: number };
+      particles: {
+          x: number;
+          y: number;
+          vx: number;
+          vy: number;
+          life: number;
+          maxLife: number;
+          size: number;
+      }[];
+      whiteParticles: {
+          x: number;
+          y: number;
+          vx: number;
+          vy: number;
+          life: number;
+          maxLife: number;
+          size: number;
+      }[];
   } | null = null;
 
   // Text Box State
@@ -678,6 +697,7 @@ export class BattleScene {
             ballSprite: ballImg,
             shakes: result.shakes,
             currentShake: 0,
+            shakeState: 'WAIT',
             result,
             startX: 200, // Player position approx
             startY: 400,
@@ -685,7 +705,9 @@ export class BattleScene {
             targetY: 150,
             ballX: 200,
             ballY: 400,
-            enemyScale: 1.0
+            enemyScale: 1.0,
+            particles: [],
+            whiteParticles: []
         };
     }
 
@@ -709,8 +731,10 @@ export class BattleScene {
             if (t >= 1.0) {
                 anim.phase = 'OPEN';
                 anim.timer = 0;
+                this.spawnWhiteParticles(anim);
             }
         } else if (anim.phase === 'OPEN') {
+            this.updateWhiteParticles(anim, dt);
             // Suck in enemy
             const duration = 400;
             const t = Math.min(anim.timer / duration, 1.0);
@@ -731,25 +755,40 @@ export class BattleScene {
                 anim.timer = 0;
             }
         } else if (anim.phase === 'SHAKE') {
-            // Wait 1s, then Shake
-            const shakeDuration = 1000;
-            if (anim.timer >= shakeDuration) {
-                // Perform Shake or End
-                if (anim.currentShake < anim.shakes) {
-                    anim.currentShake++;
-                    anim.timer = 500; // Reset partly to loop shakes? Actually complex. 
-                    // Let's just say we wait 1s per shake limit.
-                    // Visual shake logic handled in render.
-                    // We increment shake counter.
+            // Shake phase with 3 distinct states: WAIT -> SHAKING -> SETTLE
+            const waitDuration = 500; // Wait before each shake
+            const shakeDuration = 400; // How long the shake lasts
+            const settleDuration = 300; // Time to settle after shake
+
+            if (anim.shakeState === 'WAIT') {
+                if (anim.timer >= waitDuration) {
+                    anim.shakeState = 'SHAKING';
                     anim.timer = 0;
-                } else {
-                    // Done shaking
-                    if (anim.result.caught) {
-                        anim.phase = 'CAUGHT';
+                }
+            } else if (anim.shakeState === 'SHAKING') {
+                if (anim.timer >= shakeDuration) {
+                    anim.shakeState = 'SETTLE';
+                    anim.timer = 0;
+                }
+            } else if (anim.shakeState === 'SETTLE') {
+                if (anim.timer >= settleDuration) {
+                    anim.currentShake++;
+                    // In Pokemon games, shakes=4 means caught, but only 3 shakes are shown visually
+                    const maxShakes = anim.result.caught ? anim.shakes - 1 : anim.shakes;
+                    if (anim.currentShake < maxShakes) {
+                        // Another shake
+                        anim.shakeState = 'WAIT';
                         anim.timer = 0;
                     } else {
-                        anim.phase = 'BREAK';
-                        anim.timer = 0;
+                        // Done shaking
+                        if (anim.result.caught) {
+                            anim.phase = 'CAUGHT';
+                            this.spawnCatchParticles(anim);
+                            anim.timer = 0;
+                        } else {
+                            anim.phase = 'BREAK';
+                            anim.timer = 0;
+                        }
                     }
                 }
             }
@@ -763,9 +802,43 @@ export class BattleScene {
                 this.finishCapture(false);
             }
         } else if (anim.phase === 'CAUGHT') {
+            // Update particles
+            this.updateCatchParticles(anim, dt);
+            
             // Wait a moment
             if (anim.timer > 1000) {
                 this.finishCapture(true);
+            }
+        }
+    }
+
+    private spawnCatchParticles(anim: any): void {
+        const particleCount = 12;
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (i / particleCount) * Math.PI * 2;
+            const speed = 2 + Math.random() * 2;
+            anim.particles.push({
+                x: anim.ballX,
+                y: anim.ballY,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 0,
+                maxLife: 500 + Math.random() * 300,
+                size: 4 + Math.random() * 4
+            });
+        }
+    }
+
+    private updateCatchParticles(anim: any, dt: number): void {
+        for (let i = anim.particles.length - 1; i >= 0; i--) {
+            const p = anim.particles[i];
+            p.life += dt;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy -= 0.05; // Slight upward drift
+            
+            if (p.life >= p.maxLife) {
+                anim.particles.splice(i, 1);
             }
         }
     }
@@ -1427,13 +1500,13 @@ export class BattleScene {
 
       // Render Pokeball during capture animation
       if (this.catchAnim) {
-          const ballSize = 64;
+          const ballSize = 40;
           const ballX = this.catchAnim.ballX - ballSize / 2;
           const ballY = this.catchAnim.ballY - ballSize / 2;
           
-          // Add shake effect during SHAKE phase
-          if (this.catchAnim.phase === 'SHAKE') {
-              const shakeAmount = Math.sin(this.catchAnim.timer * 0.02) * 10;
+          // Add shake effect during SHAKE phase only when in SHAKING state
+          if (this.catchAnim.phase === 'SHAKE' && this.catchAnim.shakeState === 'SHAKING') {
+              const shakeAmount = Math.sin(this.catchAnim.timer * 0.04) * 15;
               
               if (this.catchAnim.ballSprite) {
                   ctx.save();
@@ -1457,9 +1530,104 @@ export class BattleScene {
                   this.drawFallbackPokeball(ctx, ballX + ballSize / 2, ballY + ballSize / 2, ballSize);
               }
           }
+          
+          // Render white particles during OPEN phase
+          if (this.catchAnim.phase === 'OPEN') {
+              this.renderWhiteParticles(ctx, this.catchAnim);
+          }
+          
+          // Render particles during CAUGHT phase
+          if (this.catchAnim.phase === 'CAUGHT') {
+              this.renderCatchParticles(ctx, this.catchAnim);
+          }
       }
 
 
+  }
+
+  private renderCatchParticles(ctx: CanvasRenderingContext2D, anim: any): void {
+      for (const p of anim.particles) {
+          const alpha = 1 - (p.life / p.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          
+          // Draw star/spark shape
+          ctx.translate(p.x, p.y);
+          ctx.fillStyle = '#FFD700';
+          
+          // Simple star shape
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+              const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+              const x = Math.cos(angle) * p.size;
+              const y = Math.sin(angle) * p.size;
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.fill();
+          
+          // Add glow effect
+          ctx.shadowColor = '#FFD700';
+          ctx.shadowBlur = 10;
+          ctx.fill();
+          
+          ctx.restore();
+      }
+  }
+
+  private spawnWhiteParticles(anim: any): void {
+      const particleCount = 30;
+      for (let i = 0; i < particleCount; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * 100;
+          const x = anim.targetX + Math.cos(angle) * distance;
+          const y = anim.targetY + Math.sin(angle) * distance;
+          const speed = 1 + Math.random() * 2;
+          
+          anim.whiteParticles.push({
+              x,
+              y,
+              vx: (anim.targetX - x) / 200 * speed,
+              vy: (anim.targetY - y) / 200 * speed,
+              life: 0,
+              maxLife: 200 + Math.random() * 100,
+              size: 2 + Math.random() * 3
+          });
+      }
+  }
+
+  private updateWhiteParticles(anim: any, dt: number): void {
+      for (let i = anim.whiteParticles.length - 1; i >= 0; i--) {
+          const p = anim.whiteParticles[i];
+          p.life += dt;
+          p.x += p.vx;
+          p.y += p.vy;
+          
+          if (p.life >= p.maxLife) {
+              anim.whiteParticles.splice(i, 1);
+          }
+      }
+  }
+
+  private renderWhiteParticles(ctx: CanvasRenderingContext2D, anim: any): void {
+      if (anim.phase !== 'OPEN') return;
+      
+      for (const p of anim.whiteParticles) {
+          const alpha = 1 - (p.life / p.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          
+          ctx.fillStyle = '#FFFFFF';
+          ctx.shadowColor = '#FFFFFF';
+          ctx.shadowBlur = 15;
+          
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.restore();
+      }
   }
   
   private renderTextBox(ctx: CanvasRenderingContext2D, width: number, height: number, text: string, showArrow: boolean): void {
