@@ -1,0 +1,31 @@
+--- ENTRY ABILITY TESTS ---
+
+1. Intimidate (Gyarados vs Pikachu)
+Pikachu Attack Stage Before: 0
+[Battle] Started! Pikachu vs Gyarados
+[Text] Gyarados's Intimidate cuts Pikachu's Attack!
+[Text] Pikachu's Attack fell!
+Pikachu Attack Stage After: -1 (Expected -1)
+
+2. Drizzle (Politoed)
+[Weather] Set to Rain
+[Text] It started to rain!
+Weather: Rain (Expected Rain)
+
+3. Download (Porygon vs Snorlax)
+Porygon Attack Stage Before: 0
+[Text] Porygon's Download raised its Attack!
+Porygon Attack Stage After: 1 (Expected 1)
+
+4. Trace (Gardevoir vs Gyarados)
+Gardevoir Ability Before: Trace
+[Text] Gardevoir Traced Gyarados's Intimidate!
+[Text] Gardevoir's Intimidate cuts Gyarados's Attack!
+[Text] Gyarados's Attack fell!
+Gardevoir Ability After: Intimidate (Expected Intimidate)
+Gyarados Attack Stage: -1 (Expected -1 from Traced Intimidate)
+
+5. Snow Warning (Abomasnow)
+[Weather] Set to Hail
+[Text] It started to hail!
+Weather: Hail (Expected Hail)
