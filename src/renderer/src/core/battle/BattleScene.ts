@@ -1,6 +1,6 @@
 import { Display } from '../Display';
 import { Game } from '../Game';
-import { PokemonInstance, MoveData } from '../data/DataTypes';
+import { PokemonInstance, MoveData, WeatherType } from '../data/DataTypes';
 import { InputManager } from '../InputManager';
 import { DataManager } from '../data/DataManager';
 import { calculateDamage } from './DamageCalculator';
@@ -16,15 +16,16 @@ import { AbilityRegistry } from './Abilities'; // New Import
 import { MoveReplacementMenu } from '../ui/MoveReplacementMenu';
 import { MoveLearningManager, LearnableMove, MoveLearningResult } from './MoveLearningManager';
 import type { ItemUseResult } from '../items/ItemHandler';
+import { getEffectiveStat } from './StatCalculator';
 
 export class BattleScene {
   private dataManager: DataManager;
   private battleAI!: BattleAI;
-  private moveLearningManager: MoveLearningManager;
+  public moveLearningManager: MoveLearningManager;
   private partyScreen: PartyScreen | null = null;
   private moveReplacementMenu: MoveReplacementMenu | null = null;
-  private playerPokemon: PokemonInstance | null = null;
-  private enemyPokemon: PokemonInstance | null = null;
+  public playerPokemon: PokemonInstance | null = null;
+  public enemyPokemon: PokemonInstance | null = null;
   
   // ... visuals ...
   private playerSprite: HTMLImageElement | null = null;
@@ -137,8 +138,16 @@ export class BattleScene {
       for (const m of enemy.moves) await this.dataManager.loadMove(m.moveId);
 
       // Trigger Battle Start Abilities
-      await AbilityRegistry.trigger(player.ability, 'onBattleStart', { owner: player, battle: this });
-      await AbilityRegistry.trigger(enemy.ability, 'onBattleStart', { owner: enemy, battle: this });
+      // Determine order by speed (simplified: Player first if faster, else Enemy)
+      // Logic: fast pokemon activate first.
+      const pSpeed = this.playerPokemon.currentStats.speed;
+      const eSpeed = this.enemyPokemon.currentStats.speed;
+      
+      const first = pSpeed >= eSpeed ? this.playerPokemon : this.enemyPokemon;
+      const second = pSpeed >= eSpeed ? this.enemyPokemon : this.playerPokemon;
+      
+      await AbilityRegistry.trigger(first.ability, 'onBattleStart', { owner: first, battle: this });
+      await AbilityRegistry.trigger(second.ability, 'onBattleStart', { owner: second, battle: this });
   }
 
   private async loadBackground(path: string): Promise<void> {
@@ -292,7 +301,7 @@ export class BattleScene {
               const moveInstance = this.playerPokemon?.moves[this.moveSelection];
               if (moveInstance) {
                   this.state = 'BUSY';
-                  this.executePlayerTurn(moveInstance).catch(e => {
+                  this.executeTurnPhase(moveInstance).catch(e => {
                       console.error('[BattleScene] TURN_CRASH:', e);
                       this.state = 'SELECT_ACTION';
                   });
@@ -441,10 +450,70 @@ export class BattleScene {
                    break;
                case 'Damage': {
                    this.state = 'BUSY';
-                   const damage = event.value ?? 0;
+                   let damage = event.value ?? 0;
                    const targetHp = target.currentHp;
                    const startHp = targetHp + damage;
-                   await this.animateHealth(target, targetHp, startHp);
+                   
+                   // Check Sturdy / Survival Logic
+                   if (targetHp <= 0) {
+                       const ability = AbilityRegistry.get(target.ability);
+                       if (ability && ability.onTrySurvive) {
+                           // @ts-ignore
+                           const survives = ability.onTrySurvive(damage, { 
+                               owner: target, 
+                               variables: { startHp }, // Pass pre-damage HP
+                               battle: this 
+                           });
+                           
+                           if (survives) {
+                               target.currentHp = 1;
+                               damage = startHp - 1; // Adjust damage for display if needed
+                               await this.showText(`${target.nickname} hung on with ${target.ability}!`);
+                           }
+                       }
+                   }
+
+                   await this.animateHealth(target, target.currentHp, startHp);
+                   
+                   // Finding the attacker (needed for onReceiveCrit and onAfterDamage)
+                   const attacker = result.finalAttackerState;
+                   
+                   // Check if this was a critical hit by looking for the crit message in events
+                   const wasCritical = result.events.some(e => 
+                       e.type === 'Text' && e.message === 'A critical hit!' && e.targetId === target.uuid
+                   );
+                   
+                   if (wasCritical) {
+                       // Trigger onReceiveCrit for abilities like Anger Point
+                       await AbilityRegistry.trigger(target.ability, 'onReceiveCrit', {
+                           owner: target,
+                           target: attacker,
+                           battle: this
+                       });
+                   }
+                   
+                   // Ability Hook: onAfterDamage
+                   // We need the source of damage (Attacker). 
+                   // The event object doesn't strictly have 'sourceId'. 
+                   // But 'result.allParticipants' has everyone.
+                   // And we know 'result' comes from 'MoveEngine.executeMove(attacker, defender)'.
+                   // So we can assume: if target === defender, then source === attacker.
+                   
+                   // Check if attacker exists and is not target (Self-hit handled differently?)
+                   if (attacker && attacker !== target) {
+                        const move = this.dataManager.getMove(attacker.lastMoveUsed || ''); 
+                        // Note: lastMoveUsed is updated. 
+                        
+                        if (move) {
+                            await AbilityRegistry.trigger(target.ability, 'onAfterDamage', { 
+                                owner: target, 
+                                target: attacker, // The one who attacked me
+                                battle: this,
+                                move: move,
+                                damage: damage
+                            }, damage);
+                        }
+                   }
                    break;
                }
                case 'Heal': {
@@ -894,27 +963,28 @@ export class BattleScene {
    }
 
    private showLevelUpStats(oldStats: Stats, newStats: Stats): void {
-        const speciesData = this.dataManager.getPokemonSpecies(this.playerPokemon!.speciesId);
+        if (!this.playerPokemon) return;
+        const speciesData = this.dataManager.getPokemonSpecies(this.playerPokemon.speciesId);
         if (!speciesData) return;
 
         const statIncreases = StatCalculator.calculateAllStatIncreases(
             speciesData.baseStats,
-            this.playerPokemon!.ivs,
-            this.playerPokemon!.evs,
-            this.playerPokemon!.level - 1,
-            this.playerPokemon!.nature
+            this.playerPokemon.ivs,
+            this.playerPokemon.evs,
+            this.playerPokemon.level - 1,
+            this.playerPokemon.nature
         );
 
         this.levelUpData = {
             oldStats,
             newStats,
             diff: {
-                hp: statIncreases.hp ?? 0,
-                attack: statIncreases.attack ?? 0,
-                defense: statIncreases.defense ?? 0,
-                spAttack: statIncreases.spAttack ?? 0,
-                spDefense: statIncreases.spDefense ?? 0,
-                speed: statIncreases.speed ?? 0
+                hp: (statIncreases as any).hp ?? 0,
+                attack: (statIncreases as any).attack ?? 0,
+                defense: (statIncreases as any).defense ?? 0,
+                spAttack: (statIncreases as any).spAttack ?? 0,
+                spDefense: (statIncreases as any).spDefense ?? 0,
+                speed: (statIncreases as any).speed ?? 0
             }
         };
         this.state = 'LEVEL_UP_STATS';
@@ -929,65 +999,76 @@ export class BattleScene {
        for (const mon of participants) {
            if (!mon || mon.currentHp <= 0) continue;
 
-           // --- STATUS CONDITIONS ---
-           
-           // Burn (1/16th Max HP)
-           if (mon.status === 'Burn') {
-               const dmg = Math.floor(mon.currentStats.hp / 16) || 1;
-               mon.currentHp = Math.max(0, mon.currentHp - dmg);
-               await this.showText(`${mon.nickname} is hurt by its burn!`);
-               await this.animateHealth(mon, mon.currentHp);
-           }
+            // --- STATUS CONDITIONS ---
+            
+            const ability = AbilityRegistry.get(mon.ability);
+            const isMagicGuard = mon.ability === 'Magic Guard'; 
 
-           // Poison (1/8th Max HP)
-           if (mon.status === 'Poison') {
-                const dmg = Math.floor(mon.currentStats.hp / 8) || 1;
-                mon.currentHp = Math.max(0, mon.currentHp - dmg);
-                await this.showText(`${mon.nickname} is hurt by poison!`);
-                await this.animateHealth(mon, mon.currentHp);
-           }
-
-           // --- VOLATILE STATUSES ---
-
-           // Leech Seed (1/8th Max HP -> Heal Opponent)
-           if (mon.volatile['LeechSeed']) {
-               const dmg = Math.floor(mon.currentStats.hp / 8) || 1;
-               const oldHp = mon.currentHp;
-               mon.currentHp = Math.max(0, mon.currentHp - dmg);
-               
-               await this.showText(`${mon.nickname}'s health is sapped by Leech Seed!`);
-               await this.animateHealth(mon, mon.currentHp);
-               
-               // Heal Opponent (The one who didn't take damage)
-               if (oldHp > mon.currentHp) {
-                   const opponent = (mon === this.playerPokemon) ? this.enemyPokemon : this.playerPokemon;
-                   if (opponent && opponent.currentHp > 0) {
-                       const drainAmt = oldHp - mon.currentHp;
-                       const healStart = opponent.currentHp;
-                       opponent.currentHp = Math.min(opponent.currentStats.hp, opponent.currentHp + drainAmt);
-                       await this.animateHealth(opponent, opponent.currentHp, healStart);
-                   }
-               }
-           }
-
-            // Bound / Trap (Fire Spin, Wrap, etc) - 1/16th Damage
-            if (mon.volatile['Bound']) {
-                mon.volatile['Bound']--;
-                if (mon.volatile['Bound'] <= 0) {
-                     delete mon.volatile['Bound'];
-                     await this.showText(`${mon.nickname} was freed from the trap!`);
-                } else {
-                     const dmg = Math.floor(mon.currentStats.hp / 16) || 1;
-                     mon.currentHp = Math.max(0, mon.currentHp - dmg);
-                     await this.showText(`${mon.nickname} is hurt by the trap!`);
-                     await this.animateHealth(mon, mon.currentHp);
+            // Burn (1/16th Max HP)
+            if (mon.status === 'Burn') {
+                if (!isMagicGuard) {
+                    const dmg = Math.floor(mon.currentStats.hp / 16) || 1;
+                    mon.currentHp = Math.max(0, mon.currentHp - dmg);
+                    await this.showText(`${mon.nickname} is hurt by its burn!`);
+                    await this.animateHealth(mon, mon.currentHp);
                 }
             }
 
-           // Cleanup single-turn volatiles
-           if (mon.volatile['Flinch']) {
-               delete mon.volatile['Flinch'];
-           }
+            // Poison (1/8th Max HP)
+            if (mon.status === 'Poison') {
+                 if (!isMagicGuard) {
+                     const dmg = Math.floor(mon.currentStats.hp / 8) || 1;
+                     mon.currentHp = Math.max(0, mon.currentHp - dmg);
+                     await this.showText(`${mon.nickname} is hurt by poison!`);
+                     await this.animateHealth(mon, mon.currentHp);
+                 }
+            }
+
+            // --- VOLATILE STATUSES ---
+
+            // Leech Seed (1/8th Max HP -> Heal Opponent)
+            if (mon.volatile['LeechSeed']) {
+                if (!isMagicGuard) {
+                    const dmg = Math.floor(mon.currentStats.hp / 8) || 1;
+                    const oldHp = mon.currentHp;
+                    mon.currentHp = Math.max(0, mon.currentHp - dmg);
+                    
+                    await this.showText(`${mon.nickname}'s health is sapped by Leech Seed!`);
+                    await this.animateHealth(mon, mon.currentHp);
+                    
+                    // Heal Opponent (The one who didn't take damage)
+                    if (oldHp > mon.currentHp) {
+                        const opponent = (mon === this.playerPokemon) ? this.enemyPokemon : this.playerPokemon;
+                        if (opponent && opponent.currentHp > 0) {
+                            const drainAmt = oldHp - mon.currentHp;
+                            const healStart = opponent.currentHp;
+                            opponent.currentHp = Math.min(opponent.currentStats.hp, opponent.currentHp + drainAmt);
+                            await this.animateHealth(opponent, opponent.currentHp, healStart);
+                        }
+                    }
+                }
+            }
+
+             // Bound / Trap (Fire Spin, Wrap, etc) - 1/16th Damage
+             if (mon.volatile['Bound']) {
+                 mon.volatile['Bound']--;
+                 if (mon.volatile['Bound'] <= 0) {
+                      delete mon.volatile['Bound'];
+                      await this.showText(`${mon.nickname} was freed from the trap!`);
+                 } else {
+                      if (!isMagicGuard) {
+                          const dmg = Math.floor(mon.currentStats.hp / 16) || 1;
+                          mon.currentHp = Math.max(0, mon.currentHp - dmg);
+                          await this.showText(`${mon.nickname} is hurt by the trap!`);
+                          await this.animateHealth(mon, mon.currentHp);
+                      }
+                 }
+             }
+
+            // Cleanup single-turn volatiles
+            if (mon.volatile['Flinch']) {
+                delete mon.volatile['Flinch'];
+            }
        }
 
        // Ability Turn End
@@ -1044,7 +1125,7 @@ export class BattleScene {
   }
 
   // Helper to show text and wait for user input (Promisified)
-  private showText(text: string): Promise<void> {
+  public async showText(text: string, duration: number = 1000): Promise<void> {
       return new Promise((resolve) => {
           this.state = 'SHOW_TEXT';
           this.currentText = text;
@@ -1617,6 +1698,9 @@ export class BattleScene {
       
       // 1. Text: Come back
       await this.showText(`Come back, ${this.playerPokemon.nickname}!`);
+
+      // Trigger Switch-Out Ability (Natural Cure, etc)
+      await AbilityRegistry.trigger(this.playerPokemon.ability, 'onSwitchOut', { owner: this.playerPokemon, battle: this });
       
       // 2. Visuals: Withdraw
       // TODO: Add withdraw animation
@@ -1679,4 +1763,126 @@ export class BattleScene {
       
       ctx.restore();
   }
+
+    private async executeTurnPhase(playerMoveInst: any): Promise<void> {
+        if (!this.playerPokemon || !this.enemyPokemon) return;
+        
+        this.state = 'BUSY';
+        
+        // 1. Determine Moves
+        // Player Move
+        const playerMove = this.dataManager.getMove(playerMoveInst.moveId);
+        if (!playerMove) {
+            console.error('[BattleScene] Player move not found:', playerMoveInst.moveId);
+            this.state = 'SELECT_ACTION';
+            return;
+        }
+
+        // Enemy Move (AI)
+        const aiResult = this.battleAI.getBestAction(this.playerPokemon, this.enemyPokemon);
+        const moveIndex = aiResult.moveIndex >= 0 ? aiResult.moveIndex : 0;
+        const enemyMoveInst = this.enemyPokemon.moves[moveIndex];
+        const enemyMoveId = enemyMoveInst 
+            ? (typeof enemyMoveInst === 'string' ? enemyMoveInst : enemyMoveInst.moveId) 
+            : null;
+        const enemyMove = enemyMoveId ? this.dataManager.getMove(enemyMoveId) : null;
+        
+        console.log(`[BattleScene] Turn Start. Player: ${playerMove.name}, Enemy: ${enemyMove?.name}`);
+
+        // 2. Determine Order
+        // Priority > Speed
+        let playerFirst = true;
+
+        // Create Contexts
+        const pCtx = { owner: this.playerPokemon, battle: this, move: playerMove };
+        const eCtx = enemyMove ? { owner: this.enemyPokemon, battle: this, move: enemyMove } : undefined;
+
+        // Base Priority
+        let pPriority = playerMove.priority ?? 0;
+        let ePriority = enemyMove?.priority ?? 0;
+
+        // Apply Ability Modifiers
+        pPriority = AbilityRegistry.applyModifier(this.playerPokemon.ability, 'onModifyPriority', pPriority, pCtx);
+        if (eCtx) {
+             ePriority = AbilityRegistry.applyModifier(this.enemyPokemon.ability, 'onModifyPriority', ePriority, eCtx);
+        }
+
+        if (pPriority > ePriority) {
+            playerFirst = true;
+        } else if (ePriority > pPriority) {
+            playerFirst = false;
+        } else {
+            // Speed Check
+            const weather = this.game.weatherManager.currentWeather;
+            const pSpeed = getEffectiveStat(this.playerPokemon, 'speed', { owner: this.playerPokemon, battle: { weather } });
+            const eSpeed = getEffectiveStat(this.enemyPokemon, 'speed', { owner: this.enemyPokemon, battle: { weather } });
+            
+            console.log(`[BattleScene] Speed Check: Player ${pSpeed} vs Enemy ${eSpeed} (Weather: ${weather})`);
+            
+            if (pSpeed > eSpeed) playerFirst = true;
+            else if (eSpeed > pSpeed) playerFirst = false;
+            else playerFirst = Math.random() > 0.5; // Speed Tie
+        }
+        
+        // 3. Execute First
+        if (playerFirst) {
+            await this.runMove(this.playerPokemon, this.enemyPokemon, playerMove);
+            if (this.enemyPokemon.currentHp > 0 && enemyMove) {
+                await this.runMove(this.enemyPokemon, this.playerPokemon, enemyMove);
+            }
+        } else {
+             if (enemyMove) {
+                 await this.runMove(this.enemyPokemon, this.playerPokemon, enemyMove);
+             } else {
+                 await this.showText(`${this.enemyPokemon.nickname} couldn't move!`);
+             }
+             
+             if (this.playerPokemon.currentHp > 0) {
+                 await this.runMove(this.playerPokemon, this.enemyPokemon, playerMove);
+             }
+        }
+        
+        // 4. Check Fainting / end turn
+        if (this.playerPokemon.currentHp <= 0) {
+             await this.showText(`${this.playerPokemon.nickname} fainted!`);
+             await this.showText(`You blacked out!`);
+             this.isActive = false;
+             return;
+        }
+        if (this.enemyPokemon.currentHp <= 0) {
+            await this.handleFaintWin(); 
+            return;
+        }
+        
+        // End of Turn Effects
+        await this.executeEndOfTurn();
+        
+        // Re-check fainting after end of turn
+        if (this.playerPokemon.currentHp <= 0) {
+             await this.showText(`${this.playerPokemon.nickname} fainted!`);
+             this.isActive = false;
+             return;
+        }
+        if (this.enemyPokemon.currentHp <= 0) {
+            await this.handleFaintWin();
+            return;
+        }
+        
+        this.state = 'SELECT_ACTION';
+    }
+
+    private async runMove(attacker: PokemonInstance, defender: PokemonInstance, move: MoveData): Promise<void> {        
+        const result = MoveEngine.executeMove(attacker, defender, move, this.game.weatherManager.currentWeather);
+        await this.playMoveEvents(result);
+    }
+    
+    private async handleFaintWin(): Promise<void> {
+        this.enemyPokemon!.currentHp = 0;
+        await this.showText(`${this.enemyPokemon!.nickname} fainted!`);
+        await this.performFaintAnim();
+        await this.handleExperienceGain();
+        if (this.state !== 'LEVEL_UP_STATS' && this.state !== 'LEVEL_UP_STATS_2') {
+             this.state = 'BATTLE_END_WAIT';
+        }
+    }
 }
