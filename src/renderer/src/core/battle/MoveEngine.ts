@@ -12,12 +12,12 @@ export class MoveEngine {
   /**
    * Executes a move and returns a sequence of events for the UI to play
    */
-  public static executeMove(
+  public static async executeMove(
     attacker: PokemonInstance,
     defender: PokemonInstance,
     move: MoveData,
     weather: WeatherType = "None"
-  ): MoveExecutionResult {
+  ): Promise<MoveExecutionResult> {
     const events: MoveEvent[] = [];
     const context: BattleContext = {
       attacker,
@@ -375,7 +375,7 @@ export class MoveEngine {
     }
 
     // 3. Accuracy Check
-    if (!CoreMoveLogic.checkHit(attacker, defender, move, context.weather)) {
+    if (!CoreMoveLogic.checkHit(attacker, defender, move, weather)) {
       console.log(`[MoveEngine] ${move.name} missed.`);
       events.push({
         type: "Text",
@@ -483,16 +483,8 @@ export class MoveEngine {
       return sum;
     }, 0);
 
-    // KO Check for Abilities (Moxie, Beast Boost, Chilling Neigh, Grim Neigh)
-    if (defender.currentHp <= 0 && lastDamageDealt > 0) {
-      if (context.battle) {
-        await AbilityRegistry.trigger(attacker.ability, "onKOTarget", {
-          ...context,
-          owner: attacker,
-          target: defender,
-        });
-      }
-    }
+    // KO Check for Abilities (Moxie, Beast Boost, etc) is handled in BattleScene
+    // because MoveEngine lacks the BattleContext required for text/animations.
 
     // 5. Recoil
     if (move.recoil) {

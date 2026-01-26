@@ -103,7 +103,6 @@ Significant progress has been made in the Ability System. 367 abilities have bee
 
 ### Battle System - Missing Elements
 
-- ❌ **Map-Dependent Abilities** - Abilities requiring Grid/Map awareness (Nomad, Sequence, High-rise, Climber, Sprint, Disgust) are currently using placeholders or partial logic.
 - ❌ **Visual Weather Effects** - Logic exists, but visual rendering of Rain/Sun/etc. is missing.
 - ❌ **Terrain Effects** - Electric, Grassy, Misty, Psychic Terrain (Logic missing).
 - ❌ **Entry Hazards** - Stealth Rock, Spikes, Toxic Spikes, Sticky Web.

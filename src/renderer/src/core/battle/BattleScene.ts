@@ -1872,7 +1872,7 @@ export class BattleScene {
     }
 
     private async runMove(attacker: PokemonInstance, defender: PokemonInstance, move: MoveData): Promise<void> {        
-        const result = MoveEngine.executeMove(attacker, defender, move, this.game.weatherManager.currentWeather);
+        const result = await MoveEngine.executeMove(attacker, defender, move, this.game.weatherManager.currentWeather);
         await this.playMoveEvents(result);
     }
     

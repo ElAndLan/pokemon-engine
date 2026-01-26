@@ -1,10 +1,10 @@
-import { PokemonInstance, MoveData, StatName, StatusCondition } from '../data/DataTypes';
+import { PokemonInstance, MoveData, StatName, StatusCondition, WeatherType } from '../data/DataTypes';
 
 export interface BattleContext {
     attacker: PokemonInstance;
     defender: PokemonInstance;
     allParticipants: PokemonInstance[];
-    weather?: string;
+    weather?: WeatherType;
     terrain?: string;
 }
 
