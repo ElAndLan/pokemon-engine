@@ -54,6 +54,14 @@ export class PartyScreen implements Menu {
       }
   }
 
+  private getPokemonDisplayName(mon: PokemonInstance): string {
+      if (mon.nickname) {
+          return mon.nickname;
+      }
+      const species = this.game.dataManager.getPokemonSpecies(mon.speciesId);
+      return species?.name || mon.speciesId || 'Unknown';
+  }
+
   public onClose(): void {
       console.log("[PartyScreen] Closed");
       this.imageCache.clear(); // Clear cache to free memory?? Or keep it? keeping it might be better for performance but lets clear for now.
@@ -210,7 +218,7 @@ export class PartyScreen implements Menu {
            const textX = 100; // Shifted right for sprite
            ctx.fillStyle = '#ecf0f1';
            ctx.font = 'bold 20px monospace';
-           ctx.fillText(`${mon.nickname}`, textX, y + 30);
+           ctx.fillText(`${this.getPokemonDisplayName(mon)}`, textX, y + 30);
            
            // Gender/Level Line
            ctx.font = '16px monospace';

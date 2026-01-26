@@ -25,6 +25,12 @@ export class PCMenu implements Menu {
         this.currentBoxIndex = this.game.storageSystem.currentBox; // Restore last box state?
     }
 
+    private getPokemonDisplayName(mon: PokemonInstance): string {
+        if (mon.nickname) return mon.nickname;
+        const species = this.game.dataManager.getPokemonSpecies(mon.speciesId);
+        return species?.name || mon.speciesId || '???';
+    }
+
     public onOpen(): void {
         console.log('[PCMenu] Opened');
         this.mode = 'main';
@@ -155,7 +161,7 @@ export class PCMenu implements Menu {
                 if (this.game.party.length < 6) {
                     box.splice(this.selection, 1);
                     this.game.party.push(mon);
-                    console.log(`[PC] Withdrew ${mon.nickname}`);
+                    console.log(`[PC] Withdrew ${this.getPokemonDisplayName(mon)}`);
                 } else {
                     console.log(`[PC] Party Full!`);
                 }
@@ -213,7 +219,7 @@ export class PCMenu implements Menu {
             
             if (added) {
                 party.splice(this.selection, 1);
-                console.log(`[PC] Deposited ${mon.nickname} to Box ${this.currentBoxIndex + 1}`);
+                console.log(`[PC] Deposited ${this.getPokemonDisplayName(mon)} to Box ${this.currentBoxIndex + 1}`);
                 if (this.selection >= party.length) this.selection = party.length - 1;
             } else {
                 console.log(`[PC] Box ${this.currentBoxIndex + 1} is Full!`);
@@ -383,7 +389,7 @@ export class PCMenu implements Menu {
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'left';
             ctx.font = '16px monospace';
-            ctx.fillText(mon.nickname || '???', x + 50, py + 20);
+            ctx.fillText(this.getPokemonDisplayName(mon), x + 50, py + 20);
             ctx.font = '12px monospace';
             ctx.fillText(`Lv.${mon.level}`, x + 50, py + 38);
         });

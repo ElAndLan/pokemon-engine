@@ -15,6 +15,7 @@ import { BagMenu } from '../ui/BagMenu';
 import { AbilityRegistry } from './Abilities'; // New Import
 import { MoveReplacementMenu } from '../ui/MoveReplacementMenu';
 import { MoveLearningManager, LearnableMove, MoveLearningResult } from './MoveLearningManager';
+import { EvolutionManager } from './EvolutionManager';
 import type { ItemUseResult } from '../items/ItemHandler';
 
 export class BattleScene {
@@ -491,7 +492,7 @@ export class BattleScene {
        // 3. Post-Move Checks (Fainting, XP)
        if (this.enemyPokemon.currentHp <= 0) {
            this.enemyPokemon.currentHp = 0;
-           await this.showText(`${this.enemyPokemon.nickname} fainted!`);
+           await this.showText(`${this.getPokemonDisplayName(this.enemyPokemon)} fainted!`);
            await this.performFaintAnim();
 
            // XP Logic (keeping here as it's separate from move execution phase)
@@ -529,13 +530,13 @@ export class BattleScene {
             await this.playMoveEvents(eResult);
 
             if (this.playerPokemon.currentHp <= 0) {
-                await this.showText(`${this.playerPokemon.nickname} fainted!`);
+                await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} fainted!`);
                 await this.showText(`You blacked out!`);
                 this.isActive = false;
                 return;
             }
        } else {
-            await this.showText(`${this.enemyPokemon.nickname} couldn't move!`);
+            await this.showText(`${this.getPokemonDisplayName(this.enemyPokemon)} couldn't move!`);
        }
 
        // --- END OF TURN ---
@@ -816,7 +817,7 @@ export class BattleScene {
         // APPLY XP
         this.playerPokemon.experience = newExp;
         
-        await this.showText(`${this.playerPokemon.nickname} gained ${xpGain} Exp. Points!`);
+        await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} gained ${xpGain} Exp. Points!`);
         await this.animateExp(oldExp, newExp);
         
         const nextLevelExp = ExperienceCalculator.getExpForLevel(this.playerPokemon.level + 1);
@@ -840,7 +841,7 @@ export class BattleScene {
             const hpDiff = newStats.hp - oldStats.hp;
             if (hpDiff > 0) this.playerPokemon.currentHp += hpDiff;
 
-            await this.showText(`${this.playerPokemon.nickname} grew to Lv. ${this.playerPokemon.level}!`);
+            await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} grew to Lv. ${this.playerPokemon.level}!`);
 
             const learnableMoves = this.moveLearningManager.getMovesLearnableAtLevel(speciesData, this.playerPokemon.level, this.playerPokemon);
             
@@ -851,9 +852,9 @@ export class BattleScene {
                         const result = this.moveLearningManager.learnMove(this.playerPokemon, learnableMove.moveId);
                         
                         if (result.learned) {
-                            await this.showText(`${this.playerPokemon.nickname} learned ${moveData.name}!`);
+                            await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} learned ${moveData.name}!`);
                         } else if (result.reason === 'slots_full') {
-                            await this.showText(`${this.playerPokemon.nickname} wants to learn ${moveData.name}!`);
+                            await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} wants to learn ${moveData.name}!`);
                             await this.showText(`But it already knows 4 moves!`);
                             
                             this.moveReplacementMenu = new MoveReplacementMenu(this.game, this.playerPokemon, moveData);
@@ -864,11 +865,11 @@ export class BattleScene {
                                           this.moveLearningManager.replaceMove(this.playerPokemon!, oldMoveIndex, learnableMove.moveId);
                                       }
                                       this.moveReplacementMenu = null;
-                                      await this.showText(`${this.playerPokemon.nickname} learned ${moveData.name}!`);
-                                      this.showLevelUpStats(oldStats, newStats);
+                                      await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} learned ${moveData.name}!`);
+                                      await this.checkAndTriggerEvolution(oldStats, newStats);
                                   } else {
                                       this.moveReplacementMenu = null;
-                                      this.showLevelUpStats(oldStats, newStats);
+                                      await this.checkAndTriggerEvolution(oldStats, newStats);
                                   }
                               };
                             
@@ -879,7 +880,7 @@ export class BattleScene {
                 }
             }
 
-            console.log('[BattleScene] After showText, setting up level up data...');
+            await this.checkAndTriggerEvolution(oldStats, newStats);
 
             const statIncreases = StatCalculator.calculateAllStatIncreases(
                 speciesData.baseStats,
@@ -891,6 +892,36 @@ export class BattleScene {
 
             this.showLevelUpStats(oldStats, newStats);
         }
+   }
+
+   private async checkAndTriggerEvolution(oldStats: Stats, newStats: Stats): Promise<void> {
+      if (!this.playerPokemon) return;
+      
+      const evolutionManager = new EvolutionManager(this.dataManager.pokemonCache);
+      const evolutionResult = evolutionManager.checkEvolution(this.playerPokemon);
+      
+      if (evolutionResult.canEvolve && evolutionResult.evolutionData) {
+         await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} is evolving!`);
+         
+         const oldSpeciesId = this.playerPokemon.speciesId;
+         evolutionManager.evolvePokemon(this.playerPokemon, evolutionResult.evolutionData.targetSpeciesId);
+         
+         const newSpeciesData = this.dataManager.getPokemonSpecies(evolutionResult.evolutionData.targetSpeciesId);
+         if (newSpeciesData) {
+            await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} evolved into ${newSpeciesData.name}!`);
+            
+            const evolvedStats = ExperienceCalculator.recalculateStats(this.playerPokemon, newSpeciesData);
+            this.playerPokemon.currentStats = evolvedStats;
+            
+            const hpRatio = this.playerPokemon.currentHp / newStats.hp;
+            this.playerPokemon.currentHp = Math.floor(evolvedStats.hp * hpRatio);
+            if (this.playerPokemon.currentHp > evolvedStats.hp) {
+               this.playerPokemon.currentHp = evolvedStats.hp;
+            }
+         }
+      }
+      
+      this.showLevelUpStats(oldStats, newStats);
    }
 
    private showLevelUpStats(oldStats: Stats, newStats: Stats): void {
@@ -999,12 +1030,12 @@ export class BattleScene {
 
        // 2. Check Faint after residual damage
        if (this.playerPokemon && this.playerPokemon.currentHp <= 0) {
-           await this.showText(`${this.playerPokemon.nickname} fainted!`);
+           await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} fainted!`);
            // Handle wipe out?
        }
        if (this.enemyPokemon && this.enemyPokemon.currentHp <= 0) {
             this.enemyPokemon.currentHp = 0;
-            await this.showText(`${this.enemyPokemon.nickname} fainted!`);
+            await this.showText(`${this.getPokemonDisplayName(this.enemyPokemon)} fainted!`);
             await this.performFaintAnim();
             await this.handleExperienceGain();
             // Only set BATTLE_END_WAIT if not showing level-up stats
@@ -1444,6 +1475,14 @@ export class BattleScene {
       }
   }
 
+  private getPokemonDisplayName(mon: PokemonInstance): string {
+      if (mon.nickname) {
+          return mon.nickname;
+      }
+      const species = this.dataManager.getPokemonSpecies(mon.speciesId);
+      return species?.name || mon.speciesId || 'Unknown';
+  }
+
   private renderHealthBox(ctx: CanvasRenderingContext2D, x: number, y: number, mon: PokemonInstance, isPlayer: boolean): void {
       ctx.fillStyle = '#fff';
       ctx.strokeStyle = '#000';
@@ -1453,7 +1492,7 @@ export class BattleScene {
       
       ctx.fillStyle = '#000';
       ctx.font = 'bold 12px monospace';
-      ctx.fillText(mon.nickname || 'Unknown', x + 10, y + 15);
+      ctx.fillText(this.getPokemonDisplayName(mon), x + 10, y + 15);
       
       ctx.font = '12px monospace';
       ctx.fillText(`Lv${mon.level}`, x + 100, y + 15);
@@ -1613,10 +1652,10 @@ export class BattleScene {
   private async executeSwitch(newPokemon: PokemonInstance): Promise<void> {
       if (!this.playerPokemon || !this.enemyPokemon) return;
       
-      console.log(`[BattleScene] Swapping ${this.playerPokemon.nickname} for ${newPokemon.nickname}`);
+      console.log(`[BattleScene] Swapping ${this.getPokemonDisplayName(this.playerPokemon)} for ${this.getPokemonDisplayName(newPokemon)}`);
       
       // 1. Text: Come back
-      await this.showText(`Come back, ${this.playerPokemon.nickname}!`);
+      await this.showText(`Come back, ${this.getPokemonDisplayName(this.playerPokemon)}!`);
       
       // 2. Visuals: Withdraw
       // TODO: Add withdraw animation
@@ -1627,7 +1666,7 @@ export class BattleScene {
       
       // 4. Visuals: Send Out
       // TODO: Add send out animation / update sprite
-      await this.showText(`Go! ${this.playerPokemon.nickname}!`);
+      await this.showText(`Go! ${this.getPokemonDisplayName(this.playerPokemon)}!`);
       await new Promise(r => setTimeout(r, 500));
       
       // Trigger Switch-In Ability

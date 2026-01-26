@@ -162,7 +162,7 @@ export class DataManager {
       return {
           uuid: crypto.randomUUID(),
           speciesId: species.id,
-          nickname: species.name,
+          nickname: undefined,
           types: species.types, // Inherit types from species
           originalTrainer: "Player", // TODO: Get from Save Data
           level: level,

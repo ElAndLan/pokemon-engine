@@ -5,6 +5,7 @@ import { PokemonSelectionMenu } from './PokemonSelectionMenu';
 import type { ItemUseContext, MoveToReplace } from '../items/ItemHandler';
 import { MoveReplacementMenu } from './MoveReplacementMenu';
 import { MoveLearningManager } from '../battle/MoveLearningManager';
+import { EvolutionManager } from '../battle/EvolutionManager';
 
 export type BagMode = 'OVERWORLD' | 'BATTLE';
 
@@ -225,10 +226,20 @@ export class BagMenu implements Menu {
                 result.effects.learnedMoves.forEach((moveName, moveIndex) => {
                   setTimeout(() => {
                     if (this.game.dialogBox) {
-                      this.game.dialogBox.show(`${pokemon.nickname || pokemon.speciesId} learned ${moveName}!`);
+                      this.game.dialogBox.show(`${this.getPokemonDisplayName(pokemon)} learned ${moveName}!`);
                     }
                   }, (moveIndex + 1) * 1500);
                 });
+                
+                // Check for evolution after all move dialogs complete
+                setTimeout(() => {
+                  this.checkForEvolution(pokemon);
+                }, (result.effects.learnedMoves.length + 1) * 1500);
+              } else {
+                // No moves learned, check for evolution immediately after message
+                setTimeout(() => {
+                  this.checkForEvolution(pokemon);
+                }, 1500);
               }
             }
             
@@ -551,6 +562,10 @@ export class BagMenu implements Menu {
 
   private handleMoveReplacement(pokemon: any, movesToReplace: MoveToReplace[], currentIndex: number, initialMessage: string): void {
     if (currentIndex >= movesToReplace.length) {
+      setTimeout(() => {
+        this.checkForEvolution(pokemon);
+      }, 1500);
+      
       if (this.onItemUsed) {
         this.onItemUsed('');
       }
@@ -573,7 +588,7 @@ export class BagMenu implements Menu {
 
     setTimeout(() => {
       if (showDialogs && this.game.dialogBox) {
-        this.game.dialogBox.show(`${pokemon.nickname || pokemon.speciesId} wants to learn ${moveData.name}!`);
+        this.game.dialogBox.show(`${this.getPokemonDisplayName(pokemon)} wants to learn ${moveData.name}!`);
       }
     }, showDialogs ? 1500 : 0);
 
@@ -597,7 +612,7 @@ export class BagMenu implements Menu {
             moveLearningManager.replaceMove(pokemon, oldMoveIndex, moveToReplace.moveId);
             
             if (this.game.dialogBox) {
-              this.game.dialogBox.show(`${pokemon.nickname || pokemon.speciesId} learned ${moveData.name}!`);
+              this.game.dialogBox.show(`${this.getPokemonDisplayName(pokemon)} learned ${moveData.name}!`);
             }
           }
         }
@@ -611,5 +626,38 @@ export class BagMenu implements Menu {
 
       this.game.menuSystem.push(moveReplacementMenu);
     }, showDialogs ? 4500 : 0);
+  }
+
+  private getPokemonDisplayName(pokemon: any): string {
+      if (pokemon.nickname) {
+          return pokemon.nickname;
+      }
+      const species = this.game.dataManager.getPokemonSpecies(pokemon.speciesId);
+      return species?.name || pokemon.speciesId || 'Unknown';
+  }
+
+  private checkForEvolution(pokemon: any): void {
+    const evolutionManager = new EvolutionManager(this.game.dataManager.pokemonCache);
+    const evolutionResult = evolutionManager.checkEvolution(pokemon);
+    
+    if (evolutionResult.canEvolve && evolutionResult.evolutionData) {
+      const displayName = this.getPokemonDisplayName(pokemon);
+      evolutionManager.evolvePokemon(pokemon, evolutionResult.evolutionData.targetSpeciesId);
+      
+      const newSpeciesData = this.game.dataManager.getPokemonSpecies(evolutionResult.evolutionData.targetSpeciesId);
+      if (newSpeciesData && this.game.dialogBox) {
+        setTimeout(() => {
+          if (this.game.dialogBox) {
+            this.game.dialogBox.show(`${displayName} is evolving!`);
+          }
+        }, 0);
+        
+        setTimeout(() => {
+          if (this.game.dialogBox) {
+            this.game.dialogBox.show(`${displayName} evolved into ${newSpeciesData.name}!`);
+          }
+        }, 1500);
+      }
+    }
   }
 }
