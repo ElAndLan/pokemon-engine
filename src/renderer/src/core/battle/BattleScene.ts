@@ -484,7 +484,7 @@ export class BattleScene {
        }
        
        // 1. Logic Execution
-       const result = MoveEngine.executeMove(this.playerPokemon, this.enemyPokemon, playerMove);
+       const result = MoveEngine.executeMove(this.playerPokemon, this.enemyPokemon, playerMove, this.dataManager);
 
        // 2. Play Visuals
        await this.playMoveEvents(result);
@@ -526,7 +526,7 @@ export class BattleScene {
 
        if (enemyMove) {
             console.log(`[BattleScene] Enemy chose move: ${enemyMove.id}`);
-            const eResult = MoveEngine.executeMove(this.enemyPokemon, this.playerPokemon, enemyMove);
+            const eResult = MoveEngine.executeMove(this.enemyPokemon, this.playerPokemon, enemyMove, this.dataManager);
             await this.playMoveEvents(eResult);
 
             if (this.playerPokemon.currentHp <= 0) {
@@ -805,21 +805,43 @@ export class BattleScene {
 
    private async handleExperienceGain(): Promise<void> {
         if (!this.enemyPokemon || !this.playerPokemon) return;
-        
+
+        console.log('[BattleScene] Loading species for:', this.enemyPokemon.speciesId);
         await this.dataManager.loadPokemonSpecies(this.enemyPokemon.speciesId);
         const species = this.dataManager.getPokemonSpecies(this.enemyPokemon.speciesId);
-        if (!species) return;
+        
+        console.log('[BattleScene] Species lookup result:', species);
+        
+        if (!species) {
+            console.error('[BattleScene] Species not found for:', this.enemyPokemon.speciesId);
+            return;
+        }
+
+        console.log('[BattleScene] Enemy Pokemon:', {
+            speciesId: this.enemyPokemon.speciesId,
+            level: this.enemyPokemon.level,
+            expYield: species.expYield,
+            hasExpYield: species.expYield !== undefined
+        });
 
         const xpGain = ExperienceCalculator.calculateExpGain(this.enemyPokemon, species);
         const oldExp = this.playerPokemon.experience;
         const newExp = oldExp + xpGain;
-        
+
+        console.log('[BattleScene] XP Calculation:', {
+            oldExp,
+            xpGain,
+            newExp,
+            playerLevel: this.playerPokemon.level,
+            nextLevelExp: ExperienceCalculator.getExpForLevel(this.playerPokemon.level + 1)
+        });
+
         // APPLY XP
         this.playerPokemon.experience = newExp;
-        
+
         await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} gained ${xpGain} Exp. Points!`);
         await this.animateExp(oldExp, newExp);
-        
+
         const nextLevelExp = ExperienceCalculator.getExpForLevel(this.playerPokemon.level + 1);
         if (this.playerPokemon.experience >= nextLevelExp) {
             await this.handleLevelUp(newExp);
@@ -904,20 +926,13 @@ export class BattleScene {
          await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} is evolving!`);
          
          const oldSpeciesId = this.playerPokemon.speciesId;
+         const oldMaxHp = newStats.hp;
+         
          evolutionManager.evolvePokemon(this.playerPokemon, evolutionResult.evolutionData.targetSpeciesId);
          
          const newSpeciesData = this.dataManager.getPokemonSpecies(evolutionResult.evolutionData.targetSpeciesId);
          if (newSpeciesData) {
             await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} evolved into ${newSpeciesData.name}!`);
-            
-            const evolvedStats = ExperienceCalculator.recalculateStats(this.playerPokemon, newSpeciesData);
-            this.playerPokemon.currentStats = evolvedStats;
-            
-            const hpRatio = this.playerPokemon.currentHp / newStats.hp;
-            this.playerPokemon.currentHp = Math.floor(evolvedStats.hp * hpRatio);
-            if (this.playerPokemon.currentHp > evolvedStats.hp) {
-               this.playerPokemon.currentHp = evolvedStats.hp;
-            }
          }
       }
       

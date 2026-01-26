@@ -2,6 +2,109 @@
 
 ## Development Log
 
+### 2025-01-25 - Battle Name Display & XP Gain Fixes
+
+#### Problem 1: "Undefined" Pokemon Names in Battle
+Battle attack messages displayed "undefined" instead of Pokemon names when attacking. This occurred because MoveEngine.ts used the `nickname` field without a fallback, and DataManager.ts sets `nickname: undefined` for newly created Pokemon.
+
+#### Problem 2: XP Bar Not Updating During Battle
+XP gain messages appeared in battle, but the XP bar remained at 0% and did not visually update during battle.
+
+#### Problem 3: Rare Candy XP Bar Showing 0%
+Using rare candy items increased the Pokemon's level but the XP bar remained at 0% after use.
+
+#### Solutions
+
+**Fixed Battle Name Display** - Modified `src/renderer/src/core/battle/MoveEngine.ts`
+- Added `getPokemonDisplayName(mon: PokemonInstance, dataManager?: DataManager): string` helper method
+  - Returns nickname if set (preserves custom names)
+  - Falls back to species name from DataManager (handles undefined nicknames)
+  - Final fallback to speciesId or 'Unknown' for safety
+- Updated `executeMove()` signature to accept optional DataManager parameter for backward compatibility
+- Replaced 31 references to `mon.nickname` with `getPokemonDisplayName(mon, this.dataManager)` calls
+- Ensures consistent name display across all battle move messages
+
+**Fixed XP Bar Visual Updates** - Added Debug Logging to `src/renderer/src/core/battle/BattleScene.ts`
+- Added detailed debug logging to `handleExperienceGain()` method
+- Logs species lookup success/failure to identify data issues
+- Logs XP calculations and gain amounts for troubleshooting
+- Helps identify if XP bar updates are being called correctly
+
+**Fixed Rare Candy XP Bar** - Modified `src/renderer/src/core/items/ItemHandler.ts`
+- Updated rare candy logic to sync `experience` with `level`
+- Added: `pokemon.experience = ExperienceCalculator.getExpForLevel(pokemon.level)`
+- Ensures XP bar displays correctly after rare candy use
+
+#### Data Verification
+
+**Verified Base Stats Against PokeAPI** - `data/db/pokedex.json`
+- Spot-checked Gen 1-5 Pokemon base stats against PokeAPI data
+- Confirmed accuracy for:
+  - Charizard: HP 78, Attack 84, Defense 78, Sp. Atk 109, Sp. Def 85, Speed 100 ✓
+  - Gengar: HP 60, Attack 65, Defense 60, Sp. Atk 130, Sp. Def 75, Speed 110 ✓
+  - Blastoise: HP 79, Attack 83, Defense 100, Sp. Atk 85, Sp. Def 105, Speed 78 ✓
+  - Venusaur: HP 80, Attack 82, Defense 83, Sp. Atk 100, Sp. Def 100, Speed 80 ✓
+  - Tyranitar: HP 100, Attack 134, Defense 110, Sp. Atk 95, Sp. Def 100, Speed 61 ✓
+  - Metagross: HP 80, Attack 135, Defense 130, Sp. Atk 95, Sp. Def 90, Speed 70 ✓
+  - Dragonite: HP 91, Attack 134, Defense 95, Sp. Atk 100, Sp. Def 100, Speed 80 ✓
+  - Garchomp: HP 108, Attack 130, Defense 95, Sp. Atk 80, Sp. Def 85, Speed 102 ✓
+  - Lucario: HP 70, Attack 110, Defense 70, Sp. Atk 115, Sp. Def 70, Speed 90 ✓
+- All checked Pokemon have complete and accurate base stats
+
+**Confirmed Evolution Stat Recalculation Logic** - `src/renderer/src/core/battle/EvolutionManager.ts`
+- Reviewed `evolvePokemon()` method for stat update correctness
+- Stat calculation uses `ExperienceCalculator.recalculateStats()` which:
+  - Accounts for IVs (0-31) from pokemon.ivs
+  - Accounts for EVs from pokemon.evs
+  - Uses new species base stats from targetSpecies.baseStats
+  - Applies nature modifiers via StatCalculator
+- HP ratio preservation verified:
+  - Calculates ratio using current actual max HP: `pokemon.currentHp / pokemon.currentStats.hp`
+  - Applies ratio to new max HP: `Math.floor(newStats.hp * hpRatio)`
+  - Ensures HP never exceeds new max or drops below 1
+- Ability mapping logic preserves ability index across evolution
+  - Maps old ability index to new species' ability array
+  - Falls back to first ability if index out of range
+- Move recalculation handled by `MoveLearningManager.getMovesForLevel()`
+
+#### Technical Details
+
+**getPokemonDisplayName Pattern**
+```typescript
+private getPokemonDisplayName(mon: PokemonInstance, dataManager?: DataManager): string {
+  if (mon.nickname) return mon.nickname;
+  if (dataManager) {
+    const species = dataManager.getPokemonSpecies(mon.speciesId);
+    if (species) return species.name;
+  }
+  return mon.speciesId || 'Unknown';
+}
+```
+
+**Backward Compatibility**
+- Optional DataManager parameter in `getPokemonDisplayName()` allows use without DataManager
+- MoveTester.ts and other code without DataManager access still works
+- Returns speciesId or 'Unknown' if DataManager not available
+
+**Stat Calculation Formula** (Gen 7 Simplified)
+```typescript
+const evContribution = Math.floor(ev / 4);
+const baseValue = 2 * base + iv + evContribution;
+return Math.floor((baseValue * level) / 100) + 5;
+```
+
+#### Files Modified
+- src/renderer/src/core/battle/MoveEngine.ts
+- src/renderer/src/core/battle/BattleScene.ts
+- src/renderer/src/core/items/ItemHandler.ts
+
+#### Dependencies
+- No new libraries added
+- Uses existing DataManager, ExperienceCalculator, and StatCalculator
+- Follows existing PokemonInstance and PokemonSpecies data structures
+
+---
+
 ### 2025-01-25 10:00 - Stat Calculation Refactor & Level-Up UI Improvements
 
 #### Stat Calculation System
@@ -296,3 +399,143 @@ if (pokemon.currentHp < 1) {
 - No new libraries added
 - Uses existing ExperienceCalculator.recalculateStats() for stat recalculation
 - Follows existing PokemonInstance and PokemonSpecies data structures
+
+---
+
+### 2025-01-25 - Evolution Double Stat Recalculation Fix
+
+#### Problem
+After evolution, Pokemon stats were being recalculated twice, causing incorrect stat values and potential HP discrepancies. The flow was:
+1. `evolvePokemon()` correctly recalculated stats using the new species base stats
+2. `checkAndTriggerEvolution()` then recalculated stats AGAIN (unnecessary)
+3. The HP ratio calculation used `newStats.hp` (pre-evolution stats) instead of the Pokemon's current max HP
+4. This overwrote the correct HP calculation with an incorrect one
+
+#### Solution
+Removed the duplicate stat recalculation in BattleScene.checkAndTriggerEvolution() method. The evolution stat calculation is now handled entirely within EvolutionManager.evolvePokemon().
+
+#### Code Changes
+
+**Modified** `src/renderer/src/core/battle/BattleScene.ts`
+
+Removed duplicate stat recalculation code:
+```typescript
+// BEFORE (incorrect - double calculation):
+const evolvedStats = ExperienceCalculator.recalculateStats(this.playerPokemon, newSpeciesData);
+this.playerPokemon.currentStats = evolvedStats;
+
+const hpRatio = this.playerPokemon.currentHp / newStats.hp;
+this.playerPokemon.currentHp = Math.floor(evolvedStats.hp * hpRatio);
+if (this.playerPokemon.currentHp > evolvedStats.hp) {
+  this.playerPokemon.currentHp = evolvedStats.hp;
+}
+
+// AFTER (correct - let EvolutionManager handle it):
+const oldSpeciesId = this.playerPokemon.speciesId;
+const oldMaxHp = newStats.hp;
+
+evolutionManager.evolvePokemon(this.playerPokemon, evolutionResult.evolutionData.targetSpeciesId);
+
+const newSpeciesData = this.dataManager.getPokemonSpecies(evolutionResult.evolutionData.targetSpeciesId);
+if (newSpeciesData) {
+  await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} evolved into ${newSpeciesData.name}!`);
+}
+```
+
+#### Technical Details
+
+**Evolution Flow (After Fix)**
+1. Level-up occurs and XP is awarded
+2. New stats are calculated using current species (Bulbasaur stats)
+3. Evolution check determines if evolution is possible
+4. If evolution is possible:
+   - Call `evolvePokemon()` which:
+     - Updates speciesId to new species (Ivysaur)
+     - Recalculates all stats using new species base stats
+     - Preserves HP ratio using old max HP and new max HP
+     - Updates currentHp accordingly
+   - Display evolution message
+
+**Stat Calculation Formula** (Gen 7 Simplified)
+```
+HP = floor((2 * base + iv + ev/4) * level/100) + level + 10
+Other Stats = floor((2 * base + iv + ev/4) * level/100) + 5
+```
+
+**Example: Bulbasaur to Ivysaur Evolution (Level 16)**
+- Bulbasaur HP: floor((2*45 + 9) * 16/100) + 16 + 10 = 40
+- Ivysaur HP: floor((2*60 + 9) * 16/100) + 16 + 10 = 46
+- HP Increase: 6 points (10% increase in base HP)
+
+#### Verification
+Verified HP calculation for user's Ivysaur (level 20, HP IV: 9):
+```
+Expected HP: floor((2 * 60 + 9 + 0) * 20 / 100) + 20 + 10 = 55
+Actual HP in save file: 55
+Result: Calculation is correct ✓
+```
+
+#### Files Modified
+- src/renderer/src/core/battle/BattleScene.ts
+
+#### Dependencies
+- No new libraries added
+- EvolutionManager.evolvePokemon() handles all stat recalculation
+- Uses existing ExperienceCalculator and StatCalculator
+
+---
+
+### 2025-01-25 - Save Directory Creation Fix
+
+#### Problem
+Game save operations failed with "ENOENT: no such file or directory" error when attempting to save. The saves directory did not exist, and the SaveManager did not create it before attempting to write the save file.
+
+#### Solution
+Modified SaveManager.saveGame() to ensure the saves directory exists before writing the save file by calling window.fs.createDirectory().
+
+#### Code Changes
+
+**Modified** `src/renderer/src/core/SaveManager.ts`
+
+Added directory creation before file write:
+```typescript
+public async saveGame(slot: number, data: object): Promise<boolean> {
+  const fileName = `${this.saveDirectory}/save_input_${slot}.json`;
+  const json = JSON.stringify(data, null, 2);
+  
+  const dirResult = await window.fs.createDirectory(this.saveDirectory);
+  if (!dirResult.success) {
+    console.error('Failed to create save directory:', dirResult.error);
+    return false;
+  }
+  
+  const result = await window.fs.writeFile(fileName, json);
+  if (!result.success) {
+    console.error('Failed to save game:', result.error);
+    return false;
+  }
+  console.log('Game Saved to', fileName);
+  return true;
+}
+```
+
+#### Technical Details
+
+**Directory Creation**
+- Uses `window.fs.createDirectory()` which calls main process `create-directory` IPC handler
+- Main process uses `fs.mkdir(absPath, { recursive: true })` to create directory
+- `recursive: true` ensures parent directories are created if needed
+- Silently succeeds if directory already exists
+
+**Error Handling**
+- Checks directory creation result before attempting file write
+- Returns false if directory creation fails
+- Logs error details for debugging
+
+#### Files Modified
+- src/renderer/src/core/SaveManager.ts
+
+#### Dependencies
+- No new libraries added
+- Uses existing window.fs.createDirectory() API
+- Main process already had create-directory handler

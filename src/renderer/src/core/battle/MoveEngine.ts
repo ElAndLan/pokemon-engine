@@ -2,30 +2,40 @@ import { PokemonInstance, MoveData } from '../data/DataTypes';
 import { BattleContext, MoveEvent, MoveExecutionResult } from './MoveEngineTypes';
 import { CoreMoveLogic } from './CoreMoveLogic';
 import { AtomicEffects } from './AtomicEffects';
+import { DataManager } from '../data/DataManager';
 
 export class MoveEngine {
+    private static getPokemonDisplayName(mon: PokemonInstance, dataManager?: DataManager): string {
+        if (mon.nickname) return mon.nickname;
+        if (!dataManager) return mon.speciesId || 'Unknown';
+        const species = dataManager.getPokemonSpecies(mon.speciesId);
+        return species?.name || mon.speciesId || 'Unknown';
+    }
+
     /**
      * Executes a move and returns a sequence of events for the UI to play
      */
-    public static executeMove(attacker: PokemonInstance, defender: PokemonInstance, move: MoveData): MoveExecutionResult {
+    public static executeMove(attacker: PokemonInstance, defender: PokemonInstance, move: MoveData, dataManager?: DataManager): MoveExecutionResult {
         const events: MoveEvent[] = [];
         const context: BattleContext = { attacker, defender, allParticipants: [attacker, defender] };
 
         const allParticipants = [attacker, defender];
 
+        const attackerName = this.getPokemonDisplayName(attacker, dataManager);
+        const defenderName = this.getPokemonDisplayName(defender, dataManager);
 
-        console.log(`[MoveEngine] Executing ${move.name} from ${attacker.nickname} to ${defender.nickname}`);
+        console.log(`[MoveEngine] Executing ${move.name} from ${attackerName} to ${defenderName}`);
 
         // 0. Disable Check
         if (attacker.volatile['Disable'] && attacker.disabledMoveId === move.id) {
-            events.push({ type: 'Text', message: `${attacker.nickname}'s ${move.name} is disabled!`, targetId: attacker.uuid });
+            events.push({ type: 'Text', message: `${attackerName}'s ${move.name} is disabled!`, targetId: attacker.uuid });
             return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
         }
 
         // 0. Pre-Turn Checks (Recharge)
         if (attacker.volatile['Recharging']) {
             delete attacker.volatile['Recharging'];
-            events.push({ type: 'Text', message: `${attacker.nickname} must recharge!`, targetId: attacker.uuid });
+            events.push({ type: 'Text', message: `${attackerName} must recharge!`, targetId: attacker.uuid });
             return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
         }
 
@@ -42,20 +52,20 @@ export class MoveEngine {
             if (move.flags.invulnerable) {
                 const invulnKey = `Invuln_${move.flags.invulnerable}`;
                 attacker.volatile[invulnKey] = 1;
-                
-                let msg = `${attacker.nickname} hid!`;
-                if (move.flags.invulnerable === 'Fly' || move.flags.invulnerable === 'Bounce' || move.flags.invulnerable === 'SkyDrop') msg = `${attacker.nickname} flew up high!`;
-                if (move.flags.invulnerable === 'Dig') msg = `${attacker.nickname} burrowed underground!`;
-                if (move.flags.invulnerable === 'Dive') msg = `${attacker.nickname} hid underwater!`;
-                if (move.flags.invulnerable === 'ShadowForce' || move.flags.invulnerable === 'PhantomForce') msg = `${attacker.nickname} vanished instantly!`;
+
+                let msg = `${attackerName} hid!`;
+                if (move.flags.invulnerable === 'Fly' || move.flags.invulnerable === 'Bounce' || move.flags.invulnerable === 'SkyDrop') msg = `${attackerName} flew up high!`;
+                if (move.flags.invulnerable === 'Dig') msg = `${attackerName} burrowed underground!`;
+                if (move.flags.invulnerable === 'Dive') msg = `${attackerName} hid underwater!`;
+                if (move.flags.invulnerable === 'ShadowForce' || move.flags.invulnerable === 'PhantomForce') msg = `${attackerName} vanished instantly!`;
                 events.push({ type: 'Text', message: msg, targetId: attacker.uuid });
             } else {
                 // Normal Charge
-                let msg = `${attacker.nickname} is charging up!`;
-                if (move.name === 'Solar Beam' || move.name === 'Solar Blade') msg = `${attacker.nickname} took in sunlight!`;
-                if (move.name === 'Skull Bash') msg = `${attacker.nickname} lowered its head!`;
-                if (move.name === 'Sky Attack') msg = `${attacker.nickname} became cloaked in a harsh light!`;
-                if (move.name === 'Geomancy') msg = `${attacker.nickname} is absorbing energy!`;
+                let msg = `${attackerName} is charging up!`;
+                if (move.name === 'Solar Beam' || move.name === 'Solar Blade') msg = `${attackerName} took in sunlight!`;
+                if (move.name === 'Skull Bash') msg = `${attackerName} lowered its head!`;
+                if (move.name === 'Sky Attack') msg = `${attackerName} became cloaked in a harsh light!`;
+                if (move.name === 'Geomancy') msg = `${attackerName} is absorbing energy!`;
                 events.push({ type: 'Text', message: msg, targetId: attacker.uuid });
             }
             
@@ -80,35 +90,35 @@ export class MoveEngine {
             const turns = attacker.volatile['SleepTurns'] || 0;
             if (turns > 1) {
                 attacker.volatile['SleepTurns'] = turns - 1;
-                events.push({ type: 'Text', message: `${attacker.nickname} is fast asleep.`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} is fast asleep.`, targetId: attacker.uuid });
                 return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
             } else {
                 attacker.status = 'None';
-                events.push({ type: 'Text', message: `${attacker.nickname} woke up!`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} woke up!`, targetId: attacker.uuid });
             }
         }
 
         if (attacker.status === 'Freeze') {
             if (Math.random() < 0.2) {
                 attacker.status = 'None';
-                events.push({ type: 'Text', message: `${attacker.nickname} thawed out!`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} thawed out!`, targetId: attacker.uuid });
             } else {
-                events.push({ type: 'Text', message: `${attacker.nickname} is frozen solid!`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} is frozen solid!`, targetId: attacker.uuid });
                 return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
             }
         }
 
         if (attacker.volatile['Flinch']) {
-             events.push({ type: 'Text', message: `${attacker.nickname} flinched!`, targetId: attacker.uuid });
+             events.push({ type: 'Text', message: `${attackerName} flinched!`, targetId: attacker.uuid });
              return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
         }
-        
+
         if (attacker.volatile['Confusion']) {
-            events.push({ type: 'Text', message: `${attacker.nickname} is confused!`, targetId: attacker.uuid });
+            events.push({ type: 'Text', message: `${attackerName} is confused!`, targetId: attacker.uuid });
             const turns = attacker.volatile['Confusion'];
             if (turns <= 1) {
                 delete attacker.volatile['Confusion'];
-                events.push({ type: 'Text', message: `${attacker.nickname} snapped out of its confusion!`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} snapped out of its confusion!`, targetId: attacker.uuid });
             } else {
                 attacker.volatile['Confusion'] = turns - 1;
                 if (Math.random() < 0.5) {
@@ -120,16 +130,16 @@ export class MoveEngine {
                 }
             }
         }
-        
+
         if (attacker.status === 'Paralysis') {
             if (Math.random() < 0.25) {
-                events.push({ type: 'Text', message: `${attacker.nickname} is fully paralyzed!`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} is fully paralyzed!`, targetId: attacker.uuid });
                 return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
             }
         }
 
         // 1. Initial Message
-        events.push({ type: 'Text', message: `${attacker.nickname} used ${move.name}!`, targetId: defender.uuid });
+        events.push({ type: 'Text', message: `${attackerName} used ${move.name}!`, targetId: defender.uuid });
 
          // 2. Type Immunity Check & Invulnerability Check
         if (move.target !== 'Self') {
@@ -137,13 +147,13 @@ export class MoveEngine {
              const isInvuln = Object.keys(defender.volatile).some(k => k.startsWith('Invuln_'));
              if (isInvuln) {
                  // TODO: Check for moves that bypass (Thunder vs Fly, Earthquake vs Dig)
-                 events.push({ type: 'Text', message: `${defender.nickname} avoided the attack!`, targetId: defender.uuid });
+                 events.push({ type: 'Text', message: `${defenderName} avoided the attack!`, targetId: defender.uuid });
                  return { success: true, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
              }
 
              let typeMult = CoreMoveLogic.getTypeMultiplier(move.type, defender.types);
              if (typeMult === 0) {
-                 events.push({ type: 'Text', message: `It doesn't affect ${defender.nickname}!`, targetId: defender.uuid });
+                 events.push({ type: 'Text', message: `It doesn't affect ${defenderName}!`, targetId: defender.uuid });
                  return { success: true, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
              }
         }
@@ -151,13 +161,13 @@ export class MoveEngine {
         // 3. Accuracy Check
         if (!CoreMoveLogic.checkHit(attacker, defender, move)) {
             console.log(`[MoveEngine] ${move.name} missed.`);
-            events.push({ type: 'Text', message: `${attacker.nickname}'s attack missed!`, targetId: defender.uuid });
-            
+            events.push({ type: 'Text', message: `${attackerName}'s attack missed!`, targetId: defender.uuid });
+
             // If High Jump Kick / Jump Kick -> Crash
             if (move.id === 'high_jump_kick' || move.id === 'jump_kick') {
                 const crashDmg = Math.floor(attacker.currentStats.hp / 2);
                 attacker.currentHp = Math.max(0, attacker.currentHp - crashDmg);
-                events.push({ type: 'Text', message: `${attacker.nickname} kept going and crashed!`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} kept going and crashed!`, targetId: attacker.uuid });
                 events.push({ type: 'Damage', targetId: attacker.uuid, value: crashDmg });
             }
             
@@ -211,17 +221,17 @@ export class MoveEngine {
             if (recoilDmg > 0) {
                 attacker.currentHp = Math.max(0, attacker.currentHp - recoilDmg);
                 events.push({ type: 'Damage', targetId: attacker.uuid, value: recoilDmg });
-                events.push({ type: 'Text', message: `${attacker.nickname} is hit with recoil!`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} is hit with recoil!`, targetId: attacker.uuid });
             }
         }
-        
+
         // 6. Drain (Native Property)
         if (move.drainPercent && lastDamageDealt > 0) {
              const healAmt = Math.floor(lastDamageDealt * (move.drainPercent / 100));
              if (healAmt > 0) {
                 attacker.currentHp = Math.min(attacker.currentStats.hp, attacker.currentHp + healAmt);
                 events.push({ type: 'Heal', targetId: attacker.uuid, value: healAmt });
-                events.push({ type: 'Text', message: `${attacker.nickname} drained energy!`, targetId: attacker.uuid });
+                events.push({ type: 'Text', message: `${attackerName} drained energy!`, targetId: attacker.uuid });
              }
         }
         
@@ -267,7 +277,8 @@ export class MoveEngine {
                 if (healAmt > 0) {
                      attacker.currentHp = Math.min(attacker.currentStats.hp, attacker.currentHp + healAmt);
                      events.push({ type: 'Heal', targetId: attacker.uuid, value: healAmt });
-                     events.push({ type: 'Text', message: `${attacker.nickname} drained energy!`, targetId: attacker.uuid });
+                     const attackerName = this.getPokemonDisplayName(attacker, context.allParticipants.includes(context.attacker) ? undefined : undefined);
+                     events.push({ type: 'Text', message: `${attackerName} drained energy!`, targetId: attacker.uuid });
                 }
                 break;
 
@@ -276,14 +287,16 @@ export class MoveEngine {
                     if (!attacker.heldItem && defender.heldItem) {
                         attacker.heldItem = defender.heldItem;
                         defender.heldItem = undefined;
-                        events.push({ type: 'Text', message: `${attacker.nickname} stole ${attacker.heldItem}!`, targetId: attacker.uuid });
+                        const attackerName = this.getPokemonDisplayName(attacker, undefined);
+                        events.push({ type: 'Text', message: `${attackerName} stole ${attacker.heldItem}!`, targetId: attacker.uuid });
                     }
                 } else if (effect.volatileStatus === 'Disable') {
                     // Disable Logic
                     if (defender.lastMoveUsed) {
                         defender.volatile['Disable'] = 4; // 4 turns? "For 5 turns" usually means 4? Or 5.
                         defender.disabledMoveId = defender.lastMoveUsed;
-                         events.push({ type: 'Text', message: `${defender.nickname}'s ${defender.lastMoveUsed} was disabled!`, targetId: defender.uuid });
+                         const defenderName = this.getPokemonDisplayName(defender, undefined);
+                         events.push({ type: 'Text', message: `${defenderName}'s ${defender.lastMoveUsed} was disabled!`, targetId: defender.uuid });
                     } else {
                          events.push({ type: 'Text', message: `But it failed!`, targetId: defender.uuid });
                     }

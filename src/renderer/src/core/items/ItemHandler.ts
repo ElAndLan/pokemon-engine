@@ -147,6 +147,7 @@ export class ItemHandler {
         const oldStats = { ...pokemon.currentStats };
         
         pokemon.level++;
+        pokemon.experience = ExperienceCalculator.getExpForLevel(pokemon.level);
         
         const speciesData = this.game.dataManager.getPokemonSpecies(pokemon.speciesId);
         if (!speciesData) {
