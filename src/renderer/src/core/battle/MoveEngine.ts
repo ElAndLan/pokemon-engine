@@ -25,6 +25,26 @@ export class MoveEngine {
       allParticipants: [attacker, defender],
       weather,
     };
+import { PokemonInstance, MoveData } from '../data/DataTypes';
+import { BattleContext, MoveEvent, MoveExecutionResult } from './MoveEngineTypes';
+import { CoreMoveLogic } from './CoreMoveLogic';
+import { AtomicEffects } from './AtomicEffects';
+import { DataManager } from '../data/DataManager';
+
+export class MoveEngine {
+    private static getPokemonDisplayName(mon: PokemonInstance, dataManager?: DataManager): string {
+        if (mon.nickname) return mon.nickname;
+        if (!dataManager) return mon.speciesId || 'Unknown';
+        const species = dataManager.getPokemonSpecies(mon.speciesId);
+        return species?.name || mon.speciesId || 'Unknown';
+    }
+
+    /**
+     * Executes a move and returns a sequence of events for the UI to play
+     */
+    public static executeMove(attacker: PokemonInstance, defender: PokemonInstance, move: MoveData, dataManager?: DataManager): MoveExecutionResult {
+        const events: MoveEvent[] = [];
+        const context: BattleContext = { attacker, defender, allParticipants: [attacker, defender] };
 
     const allParticipants = [attacker, defender];
 
@@ -131,6 +151,158 @@ export class MoveEngine {
         allParticipants,
       };
     }
+        const attackerName = this.getPokemonDisplayName(attacker, dataManager);
+        const defenderName = this.getPokemonDisplayName(defender, dataManager);
+
+        console.log(`[MoveEngine] Executing ${move.name} from ${attackerName} to ${defenderName}`);
+
+        // 0. Disable Check
+        if (attacker.volatile['Disable'] && attacker.disabledMoveId === move.id) {
+            events.push({ type: 'Text', message: `${attackerName}'s ${move.name} is disabled!`, targetId: attacker.uuid });
+            return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+        }
+
+        // 0. Pre-Turn Checks (Recharge)
+        if (attacker.volatile['Recharging']) {
+            delete attacker.volatile['Recharging'];
+            events.push({ type: 'Text', message: `${attackerName} must recharge!`, targetId: attacker.uuid });
+            return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+        }
+
+        // 0.5 Check Charge/Invulnerable State (Execution Phase)
+        // If we are currently charging THIS move, checking the flag
+        const chargeKey = `Charging_${move.id}`;
+        const isCharging = !!attacker.volatile[chargeKey];
+        
+        if (!isCharging && (move.flags?.charge || move.flags?.invulnerable)) {
+            // Start Charge Turn
+            attacker.volatile[chargeKey] = 1;
+            
+            // Set Invulnerability
+            if (move.flags.invulnerable) {
+                const invulnKey = `Invuln_${move.flags.invulnerable}`;
+                attacker.volatile[invulnKey] = 1;
+
+                let msg = `${attackerName} hid!`;
+                if (move.flags.invulnerable === 'Fly' || move.flags.invulnerable === 'Bounce' || move.flags.invulnerable === 'SkyDrop') msg = `${attackerName} flew up high!`;
+                if (move.flags.invulnerable === 'Dig') msg = `${attackerName} burrowed underground!`;
+                if (move.flags.invulnerable === 'Dive') msg = `${attackerName} hid underwater!`;
+                if (move.flags.invulnerable === 'ShadowForce' || move.flags.invulnerable === 'PhantomForce') msg = `${attackerName} vanished instantly!`;
+                events.push({ type: 'Text', message: msg, targetId: attacker.uuid });
+            } else {
+                // Normal Charge
+                let msg = `${attackerName} is charging up!`;
+                if (move.name === 'Solar Beam' || move.name === 'Solar Blade') msg = `${attackerName} took in sunlight!`;
+                if (move.name === 'Skull Bash') msg = `${attackerName} lowered its head!`;
+                if (move.name === 'Sky Attack') msg = `${attackerName} became cloaked in a harsh light!`;
+                if (move.name === 'Geomancy') msg = `${attackerName} is absorbing energy!`;
+                events.push({ type: 'Text', message: msg, targetId: attacker.uuid });
+            }
+            
+            // End turn immediately
+            return { success: true, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+        }
+        
+        // If we ARE charging (isCharging === true), we proceed to execute. 
+        if (isCharging) {
+             delete attacker.volatile[chargeKey];
+             // Clear all invuln keys
+             Object.keys(attacker.volatile).forEach(k => {
+                 if (k.startsWith('Invuln_')) delete attacker.volatile[k];
+             });
+        }
+        
+        // Update Last Move Used (for Disable/Sketch/Mimic)
+        attacker.lastMoveUsed = move.id;
+
+        // Status Checks... (Sleep/Freeze/Paralysis...) (PREVIOUSLY EXISTING CODE)
+        if (attacker.status === 'Sleep') {
+            const turns = attacker.volatile['SleepTurns'] || 0;
+            if (turns > 1) {
+                attacker.volatile['SleepTurns'] = turns - 1;
+                events.push({ type: 'Text', message: `${attackerName} is fast asleep.`, targetId: attacker.uuid });
+                return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+            } else {
+                attacker.status = 'None';
+                events.push({ type: 'Text', message: `${attackerName} woke up!`, targetId: attacker.uuid });
+            }
+        }
+
+        if (attacker.status === 'Freeze') {
+            if (Math.random() < 0.2) {
+                attacker.status = 'None';
+                events.push({ type: 'Text', message: `${attackerName} thawed out!`, targetId: attacker.uuid });
+            } else {
+                events.push({ type: 'Text', message: `${attackerName} is frozen solid!`, targetId: attacker.uuid });
+                return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+            }
+        }
+
+        if (attacker.volatile['Flinch']) {
+             events.push({ type: 'Text', message: `${attackerName} flinched!`, targetId: attacker.uuid });
+             return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+        }
+
+        if (attacker.volatile['Confusion']) {
+            events.push({ type: 'Text', message: `${attackerName} is confused!`, targetId: attacker.uuid });
+            const turns = attacker.volatile['Confusion'];
+            if (turns <= 1) {
+                delete attacker.volatile['Confusion'];
+                events.push({ type: 'Text', message: `${attackerName} snapped out of its confusion!`, targetId: attacker.uuid });
+            } else {
+                attacker.volatile['Confusion'] = turns - 1;
+                if (Math.random() < 0.5) {
+                    events.push({ type: 'Text', message: `It hurt itself in its confusion!`, targetId: attacker.uuid });
+                    const confusionMove: any = { name: 'Confusion', power: 40, type: 'Normal' as any, category: 'Physical', accuracy: 100 };
+                    const dmgEvents = AtomicEffects.applyDamage(attacker, attacker, confusionMove);
+                    events.push(...dmgEvents);
+                    return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+                }
+            }
+        }
+
+        if (attacker.status === 'Paralysis') {
+            if (Math.random() < 0.25) {
+                events.push({ type: 'Text', message: `${attackerName} is fully paralyzed!`, targetId: attacker.uuid });
+                return { success: false, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+            }
+        }
+
+        // 1. Initial Message
+        events.push({ type: 'Text', message: `${attackerName} used ${move.name}!`, targetId: defender.uuid });
+
+         // 2. Type Immunity Check & Invulnerability Check
+        if (move.target !== 'Self') {
+             // Invulnerable Check
+             const isInvuln = Object.keys(defender.volatile).some(k => k.startsWith('Invuln_'));
+             if (isInvuln) {
+                 // TODO: Check for moves that bypass (Thunder vs Fly, Earthquake vs Dig)
+                 events.push({ type: 'Text', message: `${defenderName} avoided the attack!`, targetId: defender.uuid });
+                 return { success: true, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+             }
+
+             let typeMult = CoreMoveLogic.getTypeMultiplier(move.type, defender.types);
+             if (typeMult === 0) {
+                 events.push({ type: 'Text', message: `It doesn't affect ${defenderName}!`, targetId: defender.uuid });
+                 return { success: true, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+             }
+        }
+
+        // 3. Accuracy Check
+        if (!CoreMoveLogic.checkHit(attacker, defender, move)) {
+            console.log(`[MoveEngine] ${move.name} missed.`);
+            events.push({ type: 'Text', message: `${attackerName}'s attack missed!`, targetId: defender.uuid });
+
+            // If High Jump Kick / Jump Kick -> Crash
+            if (move.id === 'high_jump_kick' || move.id === 'jump_kick') {
+                const crashDmg = Math.floor(attacker.currentStats.hp / 2);
+                attacker.currentHp = Math.max(0, attacker.currentHp - crashDmg);
+                events.push({ type: 'Text', message: `${attackerName} kept going and crashed!`, targetId: attacker.uuid });
+                events.push({ type: 'Damage', targetId: attacker.uuid, value: crashDmg });
+            }
+            
+            return { success: true, events, finalAttackerState: attacker, finalDefenderState: defender, allParticipants };
+        }
 
     // If we ARE charging (isCharging === true), we proceed to execute.
     if (isCharging) {

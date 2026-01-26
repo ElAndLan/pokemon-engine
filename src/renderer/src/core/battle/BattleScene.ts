@@ -15,6 +15,7 @@ import { BagMenu } from '../ui/BagMenu';
 import { AbilityRegistry } from './Abilities'; // New Import
 import { MoveReplacementMenu } from '../ui/MoveReplacementMenu';
 import { MoveLearningManager, LearnableMove, MoveLearningResult } from './MoveLearningManager';
+import { EvolutionManager } from './EvolutionManager';
 import type { ItemUseResult } from '../items/ItemHandler';
 import { getEffectiveStat } from './StatCalculator';
 
@@ -87,6 +88,7 @@ export class BattleScene {
       ballSprite?: HTMLImageElement;
       shakes: number; // Max shakes from calc
       currentShake: number;
+      shakeState: 'WAIT' | 'SHAKING' | 'SETTLE';
       startX: number;
       startY: number;
       targetX: number;
@@ -95,6 +97,24 @@ export class BattleScene {
       ballX: number;
       ballY: number;
       result: { caught: boolean; shakes: number };
+      particles: {
+          x: number;
+          y: number;
+          vx: number;
+          vy: number;
+          life: number;
+          maxLife: number;
+          size: number;
+      }[];
+      whiteParticles: {
+          x: number;
+          y: number;
+          vx: number;
+          vy: number;
+          life: number;
+          maxLife: number;
+          size: number;
+      }[];
   } | null = null;
 
   // Text Box State
@@ -552,7 +572,7 @@ export class BattleScene {
        }
        
        // 1. Logic Execution
-       const result = MoveEngine.executeMove(this.playerPokemon, this.enemyPokemon, playerMove);
+       const result = MoveEngine.executeMove(this.playerPokemon, this.enemyPokemon, playerMove, this.dataManager);
 
        // 2. Play Visuals
        await this.playMoveEvents(result);
@@ -560,7 +580,7 @@ export class BattleScene {
        // 3. Post-Move Checks (Fainting, XP)
        if (this.enemyPokemon.currentHp <= 0) {
            this.enemyPokemon.currentHp = 0;
-           await this.showText(`${this.enemyPokemon.nickname} fainted!`);
+           await this.showText(`${this.getPokemonDisplayName(this.enemyPokemon)} fainted!`);
            await this.performFaintAnim();
 
            // XP Logic (keeping here as it's separate from move execution phase)
@@ -594,17 +614,17 @@ export class BattleScene {
 
        if (enemyMove) {
             console.log(`[BattleScene] Enemy chose move: ${enemyMove.id}`);
-            const eResult = MoveEngine.executeMove(this.enemyPokemon, this.playerPokemon, enemyMove);
+            const eResult = MoveEngine.executeMove(this.enemyPokemon, this.playerPokemon, enemyMove, this.dataManager);
             await this.playMoveEvents(eResult);
 
             if (this.playerPokemon.currentHp <= 0) {
-                await this.showText(`${this.playerPokemon.nickname} fainted!`);
+                await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} fainted!`);
                 await this.showText(`You blacked out!`);
                 this.isActive = false;
                 return;
             }
        } else {
-            await this.showText(`${this.enemyPokemon.nickname} couldn't move!`);
+            await this.showText(`${this.getPokemonDisplayName(this.enemyPokemon)} couldn't move!`);
        }
 
        // --- END OF TURN ---
@@ -746,6 +766,7 @@ export class BattleScene {
             ballSprite: ballImg,
             shakes: result.shakes,
             currentShake: 0,
+            shakeState: 'WAIT',
             result,
             startX: 200, // Player position approx
             startY: 400,
@@ -753,7 +774,9 @@ export class BattleScene {
             targetY: 150,
             ballX: 200,
             ballY: 400,
-            enemyScale: 1.0
+            enemyScale: 1.0,
+            particles: [],
+            whiteParticles: []
         };
     }
 
@@ -777,8 +800,10 @@ export class BattleScene {
             if (t >= 1.0) {
                 anim.phase = 'OPEN';
                 anim.timer = 0;
+                this.spawnWhiteParticles(anim);
             }
         } else if (anim.phase === 'OPEN') {
+            this.updateWhiteParticles(anim, dt);
             // Suck in enemy
             const duration = 400;
             const t = Math.min(anim.timer / duration, 1.0);
@@ -799,25 +824,40 @@ export class BattleScene {
                 anim.timer = 0;
             }
         } else if (anim.phase === 'SHAKE') {
-            // Wait 1s, then Shake
-            const shakeDuration = 1000;
-            if (anim.timer >= shakeDuration) {
-                // Perform Shake or End
-                if (anim.currentShake < anim.shakes) {
-                    anim.currentShake++;
-                    anim.timer = 500; // Reset partly to loop shakes? Actually complex. 
-                    // Let's just say we wait 1s per shake limit.
-                    // Visual shake logic handled in render.
-                    // We increment shake counter.
+            // Shake phase with 3 distinct states: WAIT -> SHAKING -> SETTLE
+            const waitDuration = 500; // Wait before each shake
+            const shakeDuration = 400; // How long the shake lasts
+            const settleDuration = 300; // Time to settle after shake
+
+            if (anim.shakeState === 'WAIT') {
+                if (anim.timer >= waitDuration) {
+                    anim.shakeState = 'SHAKING';
                     anim.timer = 0;
-                } else {
-                    // Done shaking
-                    if (anim.result.caught) {
-                        anim.phase = 'CAUGHT';
+                }
+            } else if (anim.shakeState === 'SHAKING') {
+                if (anim.timer >= shakeDuration) {
+                    anim.shakeState = 'SETTLE';
+                    anim.timer = 0;
+                }
+            } else if (anim.shakeState === 'SETTLE') {
+                if (anim.timer >= settleDuration) {
+                    anim.currentShake++;
+                    // In Pokemon games, shakes=4 means caught, but only 3 shakes are shown visually
+                    const maxShakes = anim.result.caught ? anim.shakes - 1 : anim.shakes;
+                    if (anim.currentShake < maxShakes) {
+                        // Another shake
+                        anim.shakeState = 'WAIT';
                         anim.timer = 0;
                     } else {
-                        anim.phase = 'BREAK';
-                        anim.timer = 0;
+                        // Done shaking
+                        if (anim.result.caught) {
+                            anim.phase = 'CAUGHT';
+                            this.spawnCatchParticles(anim);
+                            anim.timer = 0;
+                        } else {
+                            anim.phase = 'BREAK';
+                            anim.timer = 0;
+                        }
                     }
                 }
             }
@@ -831,9 +871,43 @@ export class BattleScene {
                 this.finishCapture(false);
             }
         } else if (anim.phase === 'CAUGHT') {
+            // Update particles
+            this.updateCatchParticles(anim, dt);
+            
             // Wait a moment
             if (anim.timer > 1000) {
                 this.finishCapture(true);
+            }
+        }
+    }
+
+    private spawnCatchParticles(anim: any): void {
+        const particleCount = 12;
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (i / particleCount) * Math.PI * 2;
+            const speed = 2 + Math.random() * 2;
+            anim.particles.push({
+                x: anim.ballX,
+                y: anim.ballY,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 0,
+                maxLife: 500 + Math.random() * 300,
+                size: 4 + Math.random() * 4
+            });
+        }
+    }
+
+    private updateCatchParticles(anim: any, dt: number): void {
+        for (let i = anim.particles.length - 1; i >= 0; i--) {
+            const p = anim.particles[i];
+            p.life += dt;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy -= 0.05; // Slight upward drift
+            
+            if (p.life >= p.maxLife) {
+                anim.particles.splice(i, 1);
             }
         }
     }
@@ -873,21 +947,43 @@ export class BattleScene {
 
    private async handleExperienceGain(): Promise<void> {
         if (!this.enemyPokemon || !this.playerPokemon) return;
-        
+
+        console.log('[BattleScene] Loading species for:', this.enemyPokemon.speciesId);
         await this.dataManager.loadPokemonSpecies(this.enemyPokemon.speciesId);
         const species = this.dataManager.getPokemonSpecies(this.enemyPokemon.speciesId);
-        if (!species) return;
+        
+        console.log('[BattleScene] Species lookup result:', species);
+        
+        if (!species) {
+            console.error('[BattleScene] Species not found for:', this.enemyPokemon.speciesId);
+            return;
+        }
+
+        console.log('[BattleScene] Enemy Pokemon:', {
+            speciesId: this.enemyPokemon.speciesId,
+            level: this.enemyPokemon.level,
+            expYield: species.expYield,
+            hasExpYield: species.expYield !== undefined
+        });
 
         const xpGain = ExperienceCalculator.calculateExpGain(this.enemyPokemon, species);
         const oldExp = this.playerPokemon.experience;
         const newExp = oldExp + xpGain;
-        
+
+        console.log('[BattleScene] XP Calculation:', {
+            oldExp,
+            xpGain,
+            newExp,
+            playerLevel: this.playerPokemon.level,
+            nextLevelExp: ExperienceCalculator.getExpForLevel(this.playerPokemon.level + 1)
+        });
+
         // APPLY XP
         this.playerPokemon.experience = newExp;
-        
-        await this.showText(`${this.playerPokemon.nickname} gained ${xpGain} Exp. Points!`);
+
+        await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} gained ${xpGain} Exp. Points!`);
         await this.animateExp(oldExp, newExp);
-        
+
         const nextLevelExp = ExperienceCalculator.getExpForLevel(this.playerPokemon.level + 1);
         if (this.playerPokemon.experience >= nextLevelExp) {
             await this.handleLevelUp(newExp);
@@ -909,7 +1005,7 @@ export class BattleScene {
             const hpDiff = newStats.hp - oldStats.hp;
             if (hpDiff > 0) this.playerPokemon.currentHp += hpDiff;
 
-            await this.showText(`${this.playerPokemon.nickname} grew to Lv. ${this.playerPokemon.level}!`);
+            await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} grew to Lv. ${this.playerPokemon.level}!`);
 
             const learnableMoves = this.moveLearningManager.getMovesLearnableAtLevel(speciesData, this.playerPokemon.level, this.playerPokemon);
             
@@ -920,9 +1016,9 @@ export class BattleScene {
                         const result = this.moveLearningManager.learnMove(this.playerPokemon, learnableMove.moveId);
                         
                         if (result.learned) {
-                            await this.showText(`${this.playerPokemon.nickname} learned ${moveData.name}!`);
+                            await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} learned ${moveData.name}!`);
                         } else if (result.reason === 'slots_full') {
-                            await this.showText(`${this.playerPokemon.nickname} wants to learn ${moveData.name}!`);
+                            await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} wants to learn ${moveData.name}!`);
                             await this.showText(`But it already knows 4 moves!`);
                             
                             this.moveReplacementMenu = new MoveReplacementMenu(this.game, this.playerPokemon, moveData);
@@ -933,11 +1029,11 @@ export class BattleScene {
                                           this.moveLearningManager.replaceMove(this.playerPokemon!, oldMoveIndex, learnableMove.moveId);
                                       }
                                       this.moveReplacementMenu = null;
-                                      await this.showText(`${this.playerPokemon.nickname} learned ${moveData.name}!`);
-                                      this.showLevelUpStats(oldStats, newStats);
+                                      await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} learned ${moveData.name}!`);
+                                      await this.checkAndTriggerEvolution(oldStats, newStats);
                                   } else {
                                       this.moveReplacementMenu = null;
-                                      this.showLevelUpStats(oldStats, newStats);
+                                      await this.checkAndTriggerEvolution(oldStats, newStats);
                                   }
                               };
                             
@@ -948,7 +1044,7 @@ export class BattleScene {
                 }
             }
 
-            console.log('[BattleScene] After showText, setting up level up data...');
+            await this.checkAndTriggerEvolution(oldStats, newStats);
 
             const statIncreases = StatCalculator.calculateAllStatIncreases(
                 speciesData.baseStats,
@@ -960,6 +1056,29 @@ export class BattleScene {
 
             this.showLevelUpStats(oldStats, newStats);
         }
+   }
+
+   private async checkAndTriggerEvolution(oldStats: Stats, newStats: Stats): Promise<void> {
+      if (!this.playerPokemon) return;
+      
+      const evolutionManager = new EvolutionManager(this.dataManager.pokemonCache);
+      const evolutionResult = evolutionManager.checkEvolution(this.playerPokemon);
+      
+      if (evolutionResult.canEvolve && evolutionResult.evolutionData) {
+         await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} is evolving!`);
+         
+         const oldSpeciesId = this.playerPokemon.speciesId;
+         const oldMaxHp = newStats.hp;
+         
+         evolutionManager.evolvePokemon(this.playerPokemon, evolutionResult.evolutionData.targetSpeciesId);
+         
+         const newSpeciesData = this.dataManager.getPokemonSpecies(evolutionResult.evolutionData.targetSpeciesId);
+         if (newSpeciesData) {
+            await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} evolved into ${newSpeciesData.name}!`);
+         }
+      }
+      
+      this.showLevelUpStats(oldStats, newStats);
    }
 
    private showLevelUpStats(oldStats: Stats, newStats: Stats): void {
@@ -1080,12 +1199,12 @@ export class BattleScene {
 
        // 2. Check Faint after residual damage
        if (this.playerPokemon && this.playerPokemon.currentHp <= 0) {
-           await this.showText(`${this.playerPokemon.nickname} fainted!`);
+           await this.showText(`${this.getPokemonDisplayName(this.playerPokemon)} fainted!`);
            // Handle wipe out?
        }
        if (this.enemyPokemon && this.enemyPokemon.currentHp <= 0) {
             this.enemyPokemon.currentHp = 0;
-            await this.showText(`${this.enemyPokemon.nickname} fainted!`);
+            await this.showText(`${this.getPokemonDisplayName(this.enemyPokemon)} fainted!`);
             await this.performFaintAnim();
             await this.handleExperienceGain();
             // Only set BATTLE_END_WAIT if not showing level-up stats
@@ -1237,8 +1356,7 @@ export class BattleScene {
           }
           
       } else {
-          // DRAW MAIN MENU
-          this.renderTextBox(ctx, width, height, `What will ${this.playerPokemon?.nickname} do?`, false);
+          this.renderTextBox(ctx, width, height, `What will ${this.getPokemonDisplayName(this.playerPokemon)} do?`, false);
           
           const menuWidth = 300; 
           const menuHeight = boxHeight;
@@ -1463,13 +1581,13 @@ export class BattleScene {
 
       // Render Pokeball during capture animation
       if (this.catchAnim) {
-          const ballSize = 64;
+          const ballSize = 40;
           const ballX = this.catchAnim.ballX - ballSize / 2;
           const ballY = this.catchAnim.ballY - ballSize / 2;
           
-          // Add shake effect during SHAKE phase
-          if (this.catchAnim.phase === 'SHAKE') {
-              const shakeAmount = Math.sin(this.catchAnim.timer * 0.02) * 10;
+          // Add shake effect during SHAKE phase only when in SHAKING state
+          if (this.catchAnim.phase === 'SHAKE' && this.catchAnim.shakeState === 'SHAKING') {
+              const shakeAmount = Math.sin(this.catchAnim.timer * 0.04) * 15;
               
               if (this.catchAnim.ballSprite) {
                   ctx.save();
@@ -1493,9 +1611,104 @@ export class BattleScene {
                   this.drawFallbackPokeball(ctx, ballX + ballSize / 2, ballY + ballSize / 2, ballSize);
               }
           }
+          
+          // Render white particles during OPEN phase
+          if (this.catchAnim.phase === 'OPEN') {
+              this.renderWhiteParticles(ctx, this.catchAnim);
+          }
+          
+          // Render particles during CAUGHT phase
+          if (this.catchAnim.phase === 'CAUGHT') {
+              this.renderCatchParticles(ctx, this.catchAnim);
+          }
       }
 
 
+  }
+
+  private renderCatchParticles(ctx: CanvasRenderingContext2D, anim: any): void {
+      for (const p of anim.particles) {
+          const alpha = 1 - (p.life / p.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          
+          // Draw star/spark shape
+          ctx.translate(p.x, p.y);
+          ctx.fillStyle = '#FFD700';
+          
+          // Simple star shape
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+              const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+              const x = Math.cos(angle) * p.size;
+              const y = Math.sin(angle) * p.size;
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.fill();
+          
+          // Add glow effect
+          ctx.shadowColor = '#FFD700';
+          ctx.shadowBlur = 10;
+          ctx.fill();
+          
+          ctx.restore();
+      }
+  }
+
+  private spawnWhiteParticles(anim: any): void {
+      const particleCount = 30;
+      for (let i = 0; i < particleCount; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * 100;
+          const x = anim.targetX + Math.cos(angle) * distance;
+          const y = anim.targetY + Math.sin(angle) * distance;
+          const speed = 1 + Math.random() * 2;
+          
+          anim.whiteParticles.push({
+              x,
+              y,
+              vx: (anim.targetX - x) / 200 * speed,
+              vy: (anim.targetY - y) / 200 * speed,
+              life: 0,
+              maxLife: 200 + Math.random() * 100,
+              size: 2 + Math.random() * 3
+          });
+      }
+  }
+
+  private updateWhiteParticles(anim: any, dt: number): void {
+      for (let i = anim.whiteParticles.length - 1; i >= 0; i--) {
+          const p = anim.whiteParticles[i];
+          p.life += dt;
+          p.x += p.vx;
+          p.y += p.vy;
+          
+          if (p.life >= p.maxLife) {
+              anim.whiteParticles.splice(i, 1);
+          }
+      }
+  }
+
+  private renderWhiteParticles(ctx: CanvasRenderingContext2D, anim: any): void {
+      if (anim.phase !== 'OPEN') return;
+      
+      for (const p of anim.whiteParticles) {
+          const alpha = 1 - (p.life / p.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          
+          ctx.fillStyle = '#FFFFFF';
+          ctx.shadowColor = '#FFFFFF';
+          ctx.shadowBlur = 15;
+          
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.restore();
+      }
   }
   
   private renderTextBox(ctx: CanvasRenderingContext2D, width: number, height: number, text: string, showArrow: boolean): void {
@@ -1525,6 +1738,14 @@ export class BattleScene {
       }
   }
 
+  private getPokemonDisplayName(mon: PokemonInstance): string {
+      if (mon.nickname) {
+          return mon.nickname;
+      }
+      const species = this.dataManager.getPokemonSpecies(mon.speciesId);
+      return species?.name || mon.speciesId || 'Unknown';
+  }
+
   private renderHealthBox(ctx: CanvasRenderingContext2D, x: number, y: number, mon: PokemonInstance, isPlayer: boolean): void {
       ctx.fillStyle = '#fff';
       ctx.strokeStyle = '#000';
@@ -1534,7 +1755,7 @@ export class BattleScene {
       
       ctx.fillStyle = '#000';
       ctx.font = 'bold 12px monospace';
-      ctx.fillText(mon.nickname || 'Unknown', x + 10, y + 15);
+      ctx.fillText(this.getPokemonDisplayName(mon), x + 10, y + 15);
       
       ctx.font = '12px monospace';
       ctx.fillText(`Lv${mon.level}`, x + 100, y + 15);
@@ -1694,13 +1915,14 @@ export class BattleScene {
   private async executeSwitch(newPokemon: PokemonInstance): Promise<void> {
       if (!this.playerPokemon || !this.enemyPokemon) return;
       
-      console.log(`[BattleScene] Swapping ${this.playerPokemon.nickname} for ${newPokemon.nickname}`);
+      console.log(`[BattleScene] Swapping ${this.getPokemonDisplayName(this.playerPokemon)} for ${this.getPokemonDisplayName(newPokemon)}`);
       
       // 1. Text: Come back
       await this.showText(`Come back, ${this.playerPokemon.nickname}!`);
 
       // Trigger Switch-Out Ability (Natural Cure, etc)
       await AbilityRegistry.trigger(this.playerPokemon.ability, 'onSwitchOut', { owner: this.playerPokemon, battle: this });
+      await this.showText(`Come back, ${this.getPokemonDisplayName(this.playerPokemon)}!`);
       
       // 2. Visuals: Withdraw
       // TODO: Add withdraw animation
@@ -1711,7 +1933,7 @@ export class BattleScene {
       
       // 4. Visuals: Send Out
       // TODO: Add send out animation / update sprite
-      await this.showText(`Go! ${this.playerPokemon.nickname}!`);
+      await this.showText(`Go! ${this.getPokemonDisplayName(this.playerPokemon)}!`);
       await new Promise(r => setTimeout(r, 500));
       
       // Trigger Switch-In Ability

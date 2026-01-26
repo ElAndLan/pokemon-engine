@@ -88,17 +88,31 @@ export class DataManager {
 
   public getPokemonSpecies(id: string): PokemonSpecies | undefined {
       let species = this.pokemonCache.get(id);
-      if (species) return species;
+      if (species) {
+          console.log('[DataManager] Found species in cache:', id, species.name);
+          return species;
+      }
+
+      console.log('[DataManager] Species not found directly, trying variants for:', id);
+      console.log('[DataManager] Cache keys sample:', Array.from(this.pokemonCache.keys()).slice(0, 10));
 
       // Try searching for integer version (e.g. "001" -> "1")
       const intId = parseInt(id).toString();
       species = this.pokemonCache.get(intId);
-      if (species) return species;
+      if (species) {
+          console.log('[DataManager] Found species with intId:', intId, species.name);
+          return species;
+      }
 
       // Try searching for padded version (e.g. "1" -> "001")
       const paddedId = intId.padStart(3, '0');
       species = this.pokemonCache.get(paddedId);
+      if (species) {
+          console.log('[DataManager] Found species with paddedId:', paddedId, species.name);
+          return species;
+      }
       
+      console.error('[DataManager] Species not found for:', id, 'Tried variants:', { id, intId, paddedId });
       return species;
   }
 
@@ -162,7 +176,7 @@ export class DataManager {
       return {
           uuid: crypto.randomUUID(),
           speciesId: species.id,
-          nickname: species.name,
+          nickname: undefined,
           types: species.types, // Inherit types from species
           originalTrainer: "Player", // TODO: Get from Save Data
           level: level,

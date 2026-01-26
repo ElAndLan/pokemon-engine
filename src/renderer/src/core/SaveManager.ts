@@ -15,8 +15,12 @@ export class SaveManager {
     const fileName = `${this.saveDirectory}/save_input_${slot}.json`;
     const json = JSON.stringify(data, null, 2);
     
-    // In a real app, we'd ensure the directory exists first or use a known user data path.
-    // For this prototype, we rely on the main process handling the writes to the working dir.
+    const dirResult = await window.fs.createDirectory(this.saveDirectory);
+    if (!dirResult.success) {
+      console.error('Failed to create save directory:', dirResult.error);
+      return false;
+    }
+    
     const result = await window.fs.writeFile(fileName, json);
     if (!result.success) {
       console.error('Failed to save game:', result.error);
