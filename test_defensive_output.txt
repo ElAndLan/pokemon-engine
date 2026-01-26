@@ -1,0 +1,17 @@
+--- DEFENSIVE ABILITY TESTS ---
+
+1. Wonder Guard (Shedinja)
+Checking Wonder Guard manually via hook (Simplified due to import complexity):
+
+2. Multiscale (Dragonite)
+Damage taken at Full HP: 50 (Expected 50)
+Damage taken at <Full HP: 100 (Expected 100)
+
+3. Sturdy (Geodude)
+Sturdy Activation (Full HP): true (Expected true)
+Sturdy Activation (<Full HP): false (Expected false)
+
+4. Magic Guard (Clefable)
+Running End of Turn for Clefable (Burned, Magic Guard)
+[BattleScene] Executing End of Turn...
+[Text] Geodude fainted!

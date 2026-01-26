@@ -1,0 +1,23 @@
+--- TURN ABILITY TESTS ---
+
+1. Natural Cure (Chansey)
+Status Before: Poison
+Status After: None (Expected None)
+
+2. Shed Skin (Ekans)
+[Text] Ekans shed its skin!
+Shed Skin Triggered: true (Expected true)
+
+3. Speed Boost (Yanma)
+Speed Stage Before: 0
+[Text] Yanma's Speed Boost!
+Speed Stage After: 1 (Expected 1)
+
+4. Rain Dish (Ludicolo)
+Ludicolo restored HP with Rain Dish!
+HP Before: 100, HP After: 110 (Expected increase)
+
+5. Solar Power (Charizard)
+Sp. Atk in Sun: 150 (Base 100 * 1.5 = 150?)
+Charizard takes damage from Solar Power!
+HP Before: 80, HP After: 70 (Expected drop)

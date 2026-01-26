@@ -1,0 +1,18 @@
+--- PRIORITY & MOVE PROPERTY TESTS ---
+
+1. Prankster (Murkrow)
+Thunder Wave Priority: 1 (Expected 1)
+
+2. Gale Wings (Talonflame)
+Brave Bird Priority (Full HP): 1 (Expected 1)
+Brave Bird Priority (Injured): 0 (Expected 0)
+
+3. Iron Fist (Hitmonchan)
+Comet Punch Power: 21.599999999999998 (Expected 18 * 1.2 = 21.6)
+
+4. Technician (Scyther)
+Quick Attack Power (40 BP): 60 (Expected 40 * 1.5 = 60)
+Take Down Power (90 BP): 90 (Expected 90 - No Boost)
+
+5. Reckless (Staraptor)
+Take Down Power: 108 (Expected 90 * 1.2 = 108)

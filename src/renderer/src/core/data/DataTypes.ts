@@ -2,6 +2,8 @@ export type PokemonType = 'Normal' | 'Fire' | 'Water' | 'Grass' | 'Electric' | '
 
 export type StatusCondition = 'None' | 'Poison' | 'Burn' | 'Sleep' | 'Paralysis' | 'Freeze';
 
+export type WeatherType = 'None' | 'Rain' | 'Sun' | 'Sandstorm' | 'Hail' | 'Fog';
+
 export interface Stats {
   hp: number;
   attack: number;
@@ -144,6 +146,9 @@ export interface MoveData {
       charge?: boolean; // 1-turn charge, 2nd turn attack
       recharge?: boolean; // Attack first, skip next turn
       invulnerable?: 'Fly' | 'Dig' | 'Dive' | 'Bounce' | 'ShadowForce' | 'SkyDrop' | 'PhantomForce'; // Charge + Invulnerable
+      punch?: boolean; // For Iron Fist
+      contact?: boolean; // For Contact abilities (overriding Category check ideally)
+      sound?: boolean; // For Soundproof
   };
 
   description: string;
@@ -176,21 +181,4 @@ export function getStatStageMultiplier(stage: number): number {
     return 1.0;
 }
 
-export function getEffectiveStat(mon: PokemonInstance, stat: StatName): number {
-    let value = mon.currentStats[stat] || 0;
-    
-    // Apply Stage Multiplier
-    const stage = mon.statStages?.[stat] || 0;
-    value *= getStatStageMultiplier(stage);
-    
-    // Status Modifiers (Spec 4.2)
-    if (stat === 'attack' && mon.status === 'Burn') {
-        value *= 0.5;
-    }
-    
-    if (stat === 'speed' && mon.status === 'Paralysis') {
-        value *= 0.5;
-    }
 
-    return Math.floor(value);
-}

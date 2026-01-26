@@ -1,0 +1,600 @@
+
+=== ABILITY STATUS ===
+Implemented: 81
+Unimplemented: 286
+Total: 367
+
+=== UNIMPLEMENTED ABILITIES (grouped by type) ===
+
+
+### Critical Hit (4)
+  - Battle Armor (battle-armor)
+    Protects against critical hits.
+  - Shell Armor (shell-armor)
+    Protects against critical hits.
+  - Anger Point (anger-point)
+    Raises Attack to the maximum of six stages upon receiving a critical hit.
+  - Merciless (merciless)
+    This Pokémon's moves critical hit against poisoned targets.
+
+### Weather (30)
+  - Sand Veil (sand-veil)
+    Increases evasion to 1.25× during a sandstorm.  Protects against sandstorm damage.
+  - Cloud Nine (cloud-nine)
+    Negates all effects of weather, but does not prevent the weather itself.
+  - Forecast (forecast)
+    Changes castform's type and form to match the weather.
+  - Air Lock (air-lock)
+    Negates all effects of weather, but does not prevent the weather itself.
+  - Snow Cloak (snow-cloak)
+    Increases evasion to 1.25× during hail.  Protects against hail damage.
+  - Dry Skin (dry-skin)
+    Causes 1/8 max HP in damage each turn during strong sunlight, but heals for 1/8 max HP during rain.  Increases damage from fire moves to 1.25×, but absorbs water moves, healing for 1/4 max HP.
+  - Hydration (hydration)
+    Cures any major status ailment after each turn during rain.
+  - Leaf Guard (leaf-guard)
+    Protects against major status ailments during strong sunlight.
+  - Anticipation (anticipation)
+    Notifies all trainers upon entering battle if an opponent has a super-effective move, self destruct, explosion, or a one-hit KO move.
+  - Flower Gift (flower-gift)
+    Increases friendly Pokémon's Attack and Special Defense to 1.5× during strong sunlight.
+  - Overcoat (overcoat)
+    Protects against damage from weather.
+  - Sand Rush (sand-rush)
+    Doubles Speed during a sandstorm.  Protects against sandstorm damage.
+  - Sand Force (sand-force)
+    Strengthens rock, ground, and steel moves to 1.3× their power during a sandstorm.  Protects against sandstorm damage.
+  - Grass Pelt (grass-pelt)
+    Boosts Defense while grassy terrain is in effect.
+  - Primordial Sea (primordial-sea)
+    Creates heavy rain, which has all the properties of Rain Dance, cannot be replaced, and causes damaging Fire moves to fail.
+  - Desolate Land (desolate-land)
+    Creates extremely harsh sunlight, which has all the properties of Sunny Day, cannot be replaced, and causes damaging Water moves to fail.
+  - Slush Rush (slush-rush)
+    During Hail, this Pokémon has double Speed.
+  - Surge Surfer (surge-surfer)
+    Doubles this Pokémon's Speed on Electric Terrain.
+  - Electric Surge (electric-surge)
+    When this Pokémon enters battle, it changes the terrain to Electric Terrain.
+  - Psychic Surge (psychic-surge)
+    When this Pokémon enters battle, it changes the terrain to Psychic Terrain.
+  - Misty Surge (misty-surge)
+    When this Pokémon enters battle, it changes the terrain to Misty Terrain.
+  - Grassy Surge (grassy-surge)
+    When this Pokémon enters battle, it changes the terrain to Grassy Terrain.
+  - Sand Spit (sand-spit)
+    Creates a sandstorm when hit by an attack.
+  - Mimicry (mimicry)
+    Changes type depending on the terrain.
+  - Seed Sower (seed-sower)
+    Turns the ground into Grassy Terrain when the Pokémon is hit by an attack.
+  - Protosynthesis (protosynthesis)
+    Raises highest stat in harsh sunlight, or if holding Booster Energy.
+  - Quark Drive (quark-drive)
+    Raises highest stat on Electric Terrain, or if holding Booster Energy.
+  - Orichalcum Pulse (orichalcum-pulse)
+    Turns the sunlight harsh when entering battle, and boosts Attack while active.
+  - Hadron Engine (hadron-engine)
+    Creates an Electric Terrain when entering battle, and boosts Special Attack while active.
+  - Teraform Zero (teraform-zero)
+    As soon as Terapagos assumes its Stellar Form, it will immediately neutralize weather and terrain effects. 
+
+### Status (21)
+  - Synchronize (synchronize)
+    Copies burns, paralysis, and poison received onto the Pokémon that inflicted them.
+  - Early Bird (early-bird)
+    Makes sleep pass twice as quickly.
+  - Vital Spirit (vital-spirit)
+    Prevents sleep.
+  - Bad Dreams (bad-dreams)
+    Damages sleeping opponents for 1/8 their max HP after each turn.
+  - Healer (healer)
+    Has a 30% chance of curing each adjacent ally of any major status ailment after each turn.
+  - Toxic Boost (toxic-boost)
+    Increases Attack to 1.5× when poisoned.
+  - Flare Boost (flare-boost)
+    Increases Special Attack to 1.5× when burned.
+  - Poison Touch (poison-touch)
+    Has a 30% chance of poisoning target Pokémon upon contact.
+  - Sweet Veil (sweet-veil)
+    Prevents friendly Pokémon from sleeping.
+  - Shields Down (shields-down)
+    Transforms this Minior between Core Form and Meteor Form.  Prevents major status ailments and drowsiness while in Meteor Form.
+  - Water Bubble (water-bubble)
+    Halves damage from Fire moves, doubles damage of Water moves, and prevents burns.
+  - Corrosion (corrosion)
+    This Pokémon can inflict poison on Poison and Steel Pokémon.
+  - Comatose (comatose)
+    This Pokémon always  acts as though it were Asleep.
+  - Pastel Veil (pastel-veil)
+    Prevents the Pokémon and its allies from being poisoned.
+  - Thermal Exchange (thermal-exchange)
+    Raises Attack when hit by a Fire-type move. Cannot be burned.
+  - Purifying Salt (purifying-salt)
+    Protects from status conditions and halves damage from Ghost-type moves.
+  - Good as Gold (good-as-gold)
+    Gives immunity to status moves.
+  - Toxic Debris (toxic-debris)
+    Scatters poison spikes at the feet of the opposing team when the Pokémon takes damage from physical moves.
+  - Mycelium Might (mycelium-might)
+    Status moves go last, but are not affected by the opponent's ability.
+  - Toxic Chain (toxic-chain)
+    May cause bad poisoning when the Pokémon hits an opponent with a move.
+  - Poison Puppeteer (poison-puppeteer)
+    Pokémon poisoned by Pecharunt's moves will also become confused.
+
+### Stat Boost (45)
+  - Plus (plus)
+    Increases Special Attack to 1.5× when a friendly Pokémon has plus or minus.
+  - Minus (minus)
+    Increases Special Attack to 1.5× when a friendly Pokémon has plus or minus.
+  - Steadfast (steadfast)
+    Raises Speed one stage upon flinching.
+  - Unburden (unburden)
+    Doubles Speed upon using or losing a held item.
+  - Aftermath (aftermath)
+    Damages the attacker for 1/4 its max HP when knocked out by a contact move.
+  - Slow Start (slow-start)
+    Halves Attack and Speed for five turns upon entering battle.
+  - Pickpocket (pickpocket)
+    Steals attacking Pokémon's held items on contact.
+  - Defiant (defiant)
+    Raises Attack two stages upon having any stat lowered.
+  - Defeatist (defeatist)
+    Halves Attack and Special Attack at 50% max HP or less.
+  - Weak Armor (weak-armor)
+    Raises Speed and lowers Defense by one stage each upon being hit by a physical move.
+  - Big Pecks (big-pecks)
+    Protects against Defense drops.
+  - Mummy (mummy)
+    Changes attacking Pokémon's abilities to Mummy on contact.
+  - Moxie (moxie)
+    Raises Attack one stage upon KOing a Pokémon.
+  - Justified (justified)
+    Raises Attack one stage upon taking damage from a dark move.
+  - Rattled (rattled)
+    Raises Speed one stage upon being hit by a dark, ghost, or bug move.
+  - Competitive (competitive)
+    Raises Special Attack by two stages upon having any stat lowered.
+  - Gooey (gooey)
+    Lowers attacking Pokémon's Speed by one stage on contact.
+  - Stamina (stamina)
+    Raises this Pokémon's Defense by one stage when it takes damage from a move.
+  - Water Compaction (water-compaction)
+    Raises this Pokémon's Defense by two stages when it's hit by a Water move.
+  - Berserk (berserk)
+    Raises this Pokémon's Special Attack by one stage every time its HP drops below half.
+  - Queenly Majesty (queenly-majesty)
+    Opposing Pokémon cannot use priority attacks.
+  - Dazzling (dazzling)
+    Opposing Pokémon cannot use priority attacks.
+  - Soul-Heart (soul-heart)
+    This Pokémon's Special Attack rises by one stage every time any Pokémon faints.
+  - Tangling Hair (tangling-hair)
+    When this Pokémon takes regular damage from a contact move, the attacking Pokémon's Speed lowers by one stage.
+  - Intrepid Sword (intrepid-sword)
+    Boosts Attack in battle.
+  - Dauntless Shield (dauntless-shield)
+    Boosts Defense in battle.
+  - Libero (libero)
+    Libero changes the Pokémon's type to that of its previously used attack.
+  - Steam Engine (steam-engine)
+    Boosts the Speed stat drastically when the Pokémon is hit by a Fire- or Water-type move.
+  - Ice Scales (ice-scales)
+    Halves damage from Special moves.
+  - Ice Face (ice-face)
+    The Pokémon’s ice head can take a physical attack as a substitute, but the attack also changes the Pokémon’s appearance. The ice will be restored when it snows.
+  - Perish Body (perish-body)
+    When hit by a move that makes direct contact, the Pokémon and the attacker will faint after three turns unless they switch out of battle.
+  - Gorilla Tactics (gorilla-tactics)
+    Boosts the Pokémon's Attack stat but only allows the use of the first selected move.
+  - Chilling Neigh (chilling-neigh)
+    Boosts Attack after knocking out a Pokémon.
+  - Grim Neigh (grim-neigh)
+    Boosts Special Attack after knocking out a Pokémon.
+  - Lingering Aroma (lingering-aroma)
+    Contact changes the attacker's Ability to Lingering Aroma.
+  - Anger Shell (anger-shell)
+    When the Pokémon's HP drops below half, Anger Shell lowers its Defense and Special Defense but its Attack, Special Attack and Speed are raised.
+  - Wind Rider (wind-rider)
+    Gives immunity to wind moves, and causes the Pokémon's Attack to increase by one stage when hit by one.
+  - Guard Dog (guard-dog)
+    Boosts Attack if intimidated, and prevents being forced to switch out.
+  - Electromorphosis (electromorphosis)
+    When hit by an attack, the power of the next Electric-type move it uses is doubled.
+  - Vessel of Ruin (vessel-of-ruin)
+    Lowers Special Attack of all Pokémon except itself.
+  - Sword of Ruin (sword-of-ruin)
+    Lowers Defense of all Pokémon except itself.
+  - Tablets of Ruin (tablets-of-ruin)
+    Lowers Attack of all Pokémon except itself.
+  - Beads of Ruin (beads-of-ruin)
+    Lowers Special Defense of all Pokémon except itself.
+  - Supreme Overlord (supreme-overlord)
+    Attack and Special Attack are boosted for each party Pokémon that has been defeated.
+  - Armor Tail (armor-tail)
+    Prevents the opponent from using any moves that have priority, such as Quick Attack.
+
+### Immunity (19)
+  - Damp (damp)
+    Prevents self destruct, explosion, and aftermath from working while the Pokémon is in battle.
+  - Oblivious (oblivious)
+    Prevents infatuation and protects against captivate.
+  - Shield Dust (shield-dust)
+    Protects against incoming moves' extra effects.
+  - Suction Cups (suction-cups)
+    Prevents being forced out of battle by other Pokémon's moves.
+  - Shadow Tag (shadow-tag)
+    Prevents opponents from fleeing or switching out.
+  - Magnet Pull (magnet-pull)
+    Prevents steel opponents from fleeing or switching out.
+  - Sticky Hold (sticky-hold)
+    Prevents a held item from being removed by other Pokémon.
+  - Arena Trap (arena-trap)
+    Prevents opponents from fleeing or switching out.  Eluded by flying-types and Pokémon in the air.
+  - Klutz (klutz)
+    Prevents the Pokémon from using its held item in battle.
+  - Sheer Force (sheer-force)
+    Strengthens moves with extra effects to 1.3× their power, but prevents their extra effects.
+  - Unnerve (unnerve)
+    Prevents opposing Pokémon from eating held Berries.
+  - Telepathy (telepathy)
+    Protects against friendly Pokémon's damaging moves.
+  - Turboblaze (turboblaze)
+    Bypasses targets' abilities if they could hinder or prevent moves.
+  - Teravolt (teravolt)
+    Bypasses targets' abilities if they could hinder or prevent moves.
+  - Aroma Veil (aroma-veil)
+    Protects allies against moves that affect their mental state.
+  - Flower Veil (flower-veil)
+    Protects friendly grass Pokémon from having their stats lowered by other Pokémon.
+  - Bulletproof (bulletproof)
+    Protects against bullet, ball, and bomb-based moves.
+  - Disguise (disguise)
+    Prevents the first instance of battle damage.
+  - Unseen Fist (unseen-fist)
+    Contact moves can strike through Protect/Detect.
+
+### Contact (4)
+  - Tough Claws (tough-claws)
+    Strengthens moves that make contact to 1.33× their power.
+  - Long Reach (long-reach)
+    This Pokémon's moves do not make contact.
+  - Fluffy (fluffy)
+    Damage from contact moves is halved.  Damage from Fire moves is doubled.
+  - Wandering Spirit (wandering-spirit)
+    Swaps abilities with opponents on contact.
+
+### Item (9)
+  - Pickup (pickup)
+    Picks up other Pokémon's used and Flung held items.  May also pick up an item after battle.
+  - Gluttony (gluttony)
+    Makes the Pokémon eat any held Berry triggered by low HP below 1/2 its max HP.
+  - Frisk (frisk)
+    Reveals an opponent's held item upon entering battle.
+  - Multitype (multitype)
+    Changes arceus's type and form to match its held Plate.
+  - Harvest (harvest)
+    Has a 50% chance of restoring a used Berry after each turn if the Pokémon has held no items in the meantime.
+  - Magician (magician)
+    Steals the target's held item when the bearer uses a damaging move.
+  - Symbiosis (symbiosis)
+    Passes the bearer's held item to an ally when the ally uses up its item.
+  - RKS System (rks-system)
+    Changes this Pokémon's type to match its held Memory.
+  - Ball Fetch (ball-fetch)
+    If the Pokémon is not holding an item, it will fetch the Poké Ball from the first failed throw of the battle.
+
+### Trap (6)
+  - Run Away (run-away)
+    Ensures success fleeing from wild battles.
+  - Regenerator (regenerator)
+    Heals for 1/3 max HP upon switching out.
+  - Wimp Out (wimp-out)
+    This Pokémon automatically switches out when its HP drops below half.
+  - Emergency Exit (emergency-exit)
+    This Pokémon automatically switches out when its HP drops below half.
+  - Stakeout (stakeout)
+    This Pokémon's moves have double power against Pokémon that switched in this turn.
+  - Zero to Hero (zero-to-hero)
+    Transforms into its Hero Form when switching out.
+
+### Form Change (10)
+  - Imposter (imposter)
+    Transforms upon entering battle.
+  - Zen Mode (zen-mode)
+    Changes darmanitan's form after each turn depending on its HP: Zen Mode below 50% max HP, and Standard Mode otherwise.
+  - Stance Change (stance-change)
+    Changes aegislash to Blade Forme before using a damaging move, or Shield Forme before using kings shield.
+  - Schooling (schooling)
+    Wishiwashi becomes Schooling Form when its HP is 25% or higher.
+  - Battle Bond (battle-bond)
+    Transforms this Pokémon into Ash-Greninja after fainting an opponent.  Water Shuriken's power is 20 and always hits three times.
+  - Power Construct (power-construct)
+    Transforms 10% or 50% Zygarde into Complete Forme when its HP is below 50%.
+  - Gulp Missile (gulp-missile)
+    If a Cramorant with Gulp Missile uses Surf or Dive, it catches prey and changes its form depending on its remaining HP.
+  - Hunger Switch (hunger-switch)
+    Causes Morpeko to change its form each turn, alternating between Full Belly Mode and Hangry Mode
+  - Embody Aspect (embody-aspect)
+    Embody Aspect boosts a particular stat, depending on the form of a Terastallized Ogerpon
+  - Tera Shift (tera-shift)
+    When Terapagos enters the battle, it turns into its Terastal Form until the end of the battle. 
+
+### Other (138)
+  - Stench (stench)
+    Has a 10% chance of making target Pokémon flinch with each hit.
+  - Color Change (color-change)
+    Changes type to match when hit by a damaging move.
+  - Illuminate (illuminate)
+    Doubles the wild encounter rate.
+  - Truant (truant)
+    Skips every second turn.
+  - Hustle (hustle)
+    Strengthens physical moves to inflict 1.5× damage, but decreases their accuracy to 0.8×.
+  - Tangled Feet (tangled-feet)
+    Doubles evasion when confused.
+  - Rivalry (rivalry)
+    Increases damage inflicted to 1.25× against Pokémon of the same gender, but decreases damage to 0.75× against the opposite gender.
+  - Simple (simple)
+    Doubles the Pokémon's stat modifiers.  These doubled modifiers are still capped at -6 or 6 stages.
+  - Normalize (normalize)
+    Makes the Pokémon's moves all act normal-type.
+  - Stall (stall)
+    Makes the Pokémon move last within its move's priority bracket.
+  - Forewarn (forewarn)
+    Reveals the opponents' strongest move upon entering battle.
+  - Unaware (unaware)
+    Ignores other Pokémon's stat modifiers for damage and accuracy calculation.
+  - Scrappy (scrappy)
+    Lets the Pokémon's normal and fighting moves hit ghost Pokémon.
+  - Honey Gather (honey-gather)
+    The Pokémon may pick up honey after battle.
+  - Contrary (contrary)
+    Inverts stat changes.
+  - Cursed Body (cursed-body)
+    Has a 30% chance of Disabling any move that hits the Pokémon.
+  - Friend Guard (friend-guard)
+    Decreases all direct damage taken by friendly Pokémon to 0.75×.
+  - Heavy Metal (heavy-metal)
+    Doubles the Pokémon's weight.
+  - Light Metal (light-metal)
+    Halves the Pokémon's weight.
+  - Moody (moody)
+    Raises a random stat two stages and lowers another one stage after each turn.
+  - Wonder Skin (wonder-skin)
+    Lowers incoming non-damaging moves' base accuracy to exactly 50%.
+  - Analytic (analytic)
+    Strengthens moves to 1.3× their power when moving last.
+  - Illusion (illusion)
+    Takes the appearance of the last conscious party Pokémon upon being sent out until hit by a damaging move.
+  - Infiltrator (infiltrator)
+    Bypasses light screen, reflect, and safeguard.
+  - Magic Bounce (magic-bounce)
+    Reflects most non-damaging moves back at their user.
+  - Victory Star (victory-star)
+    Increases moves' accuracy to 1.1× for friendly Pokémon.
+  - Cheek Pouch (cheek-pouch)
+    Restores HP upon eating a Berry, in addition to the Berry's effect.
+  - Protean (protean)
+    Changes the bearer's type to match each move it uses.
+  - Refrigerate (refrigerate)
+    Turns the bearer's normal moves into ice moves and strengthens them to 1.3× their power.
+  - Pixilate (pixilate)
+    Turns the bearer's normal moves into fairy moves and strengthens them to 1.3× their power.
+  - Aerilate (aerilate)
+    Turns the bearer's normal moves into flying moves and strengthens them to 1.3× their power.
+  - Parental Bond (parental-bond)
+    Lets the bearer hit twice with damaging moves.  The second hit has half power.
+  - Dark Aura (dark-aura)
+    Strengthens dark moves to 1.33× their power for all friendly and opposing Pokémon.
+  - Fairy Aura (fairy-aura)
+    Strengthens fairy moves to 1.33× their power for all friendly and opposing Pokémon.
+  - Aura Break (aura-break)
+    Makes dark aura and fairy aura weaken moves of their respective types.
+  - Delta Stream (delta-stream)
+    Creates a mysterious air current, which cannot be replaced and causes moves to never be super effective against Flying Pokémon.
+  - Steelworker (steelworker)
+    This Pokémon's Steel moves have 1.5× power.
+  - Liquid Voice (liquid-voice)
+    Sound-based moves become Water-type.
+  - Triage (triage)
+    This Pokémon's healing moves have their priority increased by 3.
+  - Galvanize (galvanize)
+    This Pokémon's Normal moves are Electric and have their power increased to 1.2×.
+  - Innards Out (innards-out)
+    When this Pokémon faints from an opponent's move, that opponent takes damage equal to the HP this Pokémon had remaining.
+  - Dancer (dancer)
+    Whenever another Pokémon uses a dance move, this Pokémon will use the same move immediately afterwards.
+  - Battery (battery)
+    Ally Pokémon's moves have their power increased to 1.3×.
+  - Receiver (receiver)
+    When an ally faints, this Pokémon gains its Ability.
+  - Power of Alchemy (power-of-alchemy)
+    When an ally faints, this Pokémon gains its Ability.
+  - Beast Boost (beast-boost)
+    Raises this Pokémon's highest stat by one stage when it faints another Pokémon.
+  - Full Metal Body (full-metal-body)
+    Other Pokémon cannot lower this Pokémon's stats.
+  - Shadow Shield (shadow-shield)
+    When this Pokémon has full HP, regular damage from moves is halved.
+  - Prism Armor (prism-armor)
+    Reduces super-effective damage to 0.75×.
+  - Neuroforce (neuroforce)
+    Increases super-effective damage dealt to 1.25×.
+  - Cotton Down (cotton-down)
+    When Ignores moves and abilities that draw in moves.
+  - Propeller Tail (propeller-tail)
+    Ignores moves and abilities that draw in moves.
+  - Mirror Armor (mirror-armor)
+    Reflects any stat-lowering effects.
+  - Stalwart (stalwart)
+    Ignores moves and abilities that draw in moves.
+  - Punk Rock (punk-rock)
+    Boosts sound-based moves and halves damage from the same moves.
+  - Ripen (ripen)
+    Doubles the effect of berries.
+  - Power Spot (power-spot)
+    Just being next to the Pokémon powers up moves.
+  - Screen Cleaner (screen-cleaner)
+    Nullifies effects of Light Screen, Reflect, and Aurora Veil.
+  - Steely Spirit (steely-spirit)
+    Powers up ally Pokémon's Steel-type moves.
+  - Neutralizing Gas (neutralizing-gas)
+    Neutralizes abilities of all Pokémon in battle.
+  - Quick Draw (quick-draw)
+    Enables the Pokémon to move first occasionally.
+  - Curious Medicine (curious-medicine)
+    Resets all stat changes upon entering battlefield.
+  - Transistor (transistor)
+    Powers up Electric-type moves.
+  - Dragon’s Maw (dragons-maw)
+    Powers up Dragon-type moves.
+  - As One (as-one-glastrier)
+    This Ability combines the effects of both Calyrex’s Unnerve Ability and Glastrier’s Chilling Neigh Ability.
+  - As One (as-one-spectrier)
+    This Ability combines the effects of both Calyrex’s Unnerve Ability and Spectrier’s Grim Neigh Ability.
+  - Rocky Payload (rocky-payload)
+    Powers up Rock-type moves.
+  - Wind Power (wind-power)
+    When hit by a wind move, the power of the next Electric-type move it uses is doubled.
+  - Commander (commander)
+    Goes inside the mouth of an ally Dondozo if one is on the field.
+  - Opportunist (opportunist)
+    Copies stat boosts by the opponent.
+  - Cud Chew (cud-chew)
+    Causes the Pokémon to reuse an already consumed Berry at the end of the next turn.
+  - Sharpness (sharpness)
+    Powers up slicing moves.
+  - Costar (costar)
+    Copies ally's stat changes on entering battle.
+  - Earth Eater (earth-eater)
+    Restores HP when hit by a Ground-type move.
+  - Mind’s Eye (minds-eye)
+    The Pokémon ignores changes to opponents' evasiveness, its accuracy can't be lowered, and it can hit Ghost types with Normal- and Fighting-type moves.
+  - Supersweet Syrup (supersweet-syrup)
+    Once per battle, when a Pokémon with Supersweet Syrup enters the battle, it lowers the evasion stat of all adjacent opponents by one stage. 
+  - Hospitality (hospitality)
+    When a Pokémon with Hospitality enters a battle, it restores HP for an ally by 25%.
+  - Tera Shell (tera-shell)
+    All damage-dealing moves that hit the Pokémon when its HP is full will not be very effective.
+  - Mountaineer (mountaineer)
+    No description available.
+  - Wave Rider (wave-rider)
+    No description available.
+  - Skater (skater)
+    No description available.
+  - Thrust (thrust)
+    No description available.
+  - Perception (perception)
+    No description available.
+  - Parry (parry)
+    No description available.
+  - Instinct (instinct)
+    No description available.
+  - Dodge (dodge)
+    No description available.
+  - Jagged Edge (jagged-edge)
+    No description available.
+  - Frostbite (frostbite)
+    No description available.
+  - Tenacity (tenacity)
+    No description available.
+  - Pride (pride)
+    No description available.
+  - Deep Sleep (deep-sleep)
+    No description available.
+  - Power Nap (power-nap)
+    No description available.
+  - Spirit (spirit)
+    No description available.
+  - Warm Blanket (warm-blanket)
+    No description available.
+  - Gulp (gulp)
+    No description available.
+  - Herbivore (herbivore)
+    No description available.
+  - Sandpit (sandpit)
+    No description available.
+  - Hot Blooded (hot-blooded)
+    No description available.
+  - Medic (medic)
+    No description available.
+  - Life Force (life-force)
+    No description available.
+  - Lunchbox (lunchbox)
+    No description available.
+  - Nurse (nurse)
+    No description available.
+  - Melee (melee)
+    No description available.
+  - Sponge (sponge)
+    No description available.
+  - Bodyguard (bodyguard)
+    No description available.
+  - Hero (hero)
+    No description available.
+  - Last Bastion (last-bastion)
+    No description available.
+  - Stealth (stealth)
+    No description available.
+  - Vanguard (vanguard)
+    No description available.
+  - Nomad (nomad)
+    No description available.
+  - Sequence (sequence)
+    No description available.
+  - Grass Cloak (grass-cloak)
+    No description available.
+  - Celebrate (celebrate)
+    No description available.
+  - Lullaby (lullaby)
+    No description available.
+  - Calming (calming)
+    No description available.
+  - Daze (daze)
+    No description available.
+  - Frighten (frighten)
+    No description available.
+  - Interference (interference)
+    No description available.
+  - Mood Maker (mood-maker)
+    No description available.
+  - Confidence (confidence)
+    No description available.
+  - Fortune (fortune)
+    No description available.
+  - Bonanza (bonanza)
+    No description available.
+  - Explode (explode)
+    No description available.
+  - Omnipotent (omnipotent)
+    No description available.
+  - Share (share)
+    No description available.
+  - Black Hole (black-hole)
+    No description available.
+  - Shadow Dash (shadow-dash)
+    No description available.
+  - Sprint (sprint)
+    No description available.
+  - Disgust (disgust)
+    No description available.
+  - High-rise (high-rise)
+    No description available.
+  - Climber (climber)
+    No description available.
+  - Flame Boost (flame-boost)
+    No description available.
+  - Aqua Boost (aqua-boost)
+    No description available.
+  - Run Up (run-up)
+    No description available.
+  - Conqueror (conqueror)
+    No description available.
+  - Shackle (shackle)
+    No description available.
+  - Decoy (decoy)
+    No description available.
+  - Shield (shield)
+    No description available.
