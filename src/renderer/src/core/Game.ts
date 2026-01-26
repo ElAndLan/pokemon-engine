@@ -21,6 +21,8 @@ import { BagSystem } from './BagSystem';
 import { StartMenu } from './ui/StartMenu';
 import { TitleScreen } from './ui/TitleScreen';
 import { ItemHandler } from './items/ItemHandler';
+import { WeatherManager } from './WeatherManager';
+import { WeatherType } from './data/DataTypes';
 
 export enum GameState {
   Overworld,
@@ -47,6 +49,7 @@ export class Game {
   public eventManager: EventManager;
   public dialogBox: DialogBox;
   public menuSystem: MenuSystem; // New System
+  public weatherManager: WeatherManager;
 
   public state: GameState = GameState.Overworld;
   public battleScene: BattleScene;
@@ -77,6 +80,7 @@ export class Game {
     this.dialogBox = new DialogBox(this.display, this.input);
     this.dialogBox.setEventManager(this.eventManager);
     this.menuSystem = new MenuSystem(); // Init Menu
+    this.weatherManager = new WeatherManager(this);
     
     // TEST DATA LOADING
     this.testDataLoading();
@@ -141,6 +145,25 @@ export class Game {
             // Update Camera Map Size
             console.log(`[Game] Map Dimensions: ${this.map.getPixelWidth()}x${this.map.getPixelHeight()}`);
             this.camera.setMapSize(this.map.getPixelWidth(), this.map.getPixelHeight());
+
+            // --- WEATHER INTEGRATION ---
+            // Check Map Properties for 'weather'
+            const weatherProp = mapData.properties?.find(p => p.name === 'weather')?.value;
+            if (weatherProp) {
+                const weatherStr = String(weatherProp);
+                // Simple mapping, assume property matches enum string or close to it
+                // 'Rain', 'Sun', 'Sandstorm', 'Hail', 'Fog'
+                console.log(`[Game] Map defines weather: ${weatherStr}`);
+                
+                // Capitalize first letter logic if needed, or exact match
+                if (['Rain', 'Sun', 'Sandstorm', 'Hail', 'Fog'].includes(weatherStr)) {
+                     this.weatherManager.setWeather(weatherStr as WeatherType);
+                } else {
+                     this.weatherManager.setWeather('None');
+                }
+            } else {
+                this.weatherManager.setWeather('None');
+            }
             
             // Spawn Logic
             console.log('[Game] Checking Spawn Logic...');

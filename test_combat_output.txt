@@ -1,0 +1,17 @@
+--- STARTING COMBAT ABILITY TESTS ---
+
+--- 1. Technician (Base Power: 40 -> 60) ---
+Damage (Technician): 41 (BP 60 effectively)
+
+--- 2. Guts (Burn -> 1.5x Atk) ---
+Damage (Guts + Burn): 41 (Should be boosted, and Burn Halving ignored? Wait, Burn Halving is usually ignored by Guts!)
+
+--- 3. Rock Head (No Recoil) ---
+[MoveEngine] Executing Double Edge from Onix to Machamp
+[MoveEngine] Double Edge execution finished with 3 events.
+Recoil Events on Onix: 0 (Expected 0)
+
+--- 4. Levitate (Ground Immunity) ---
+[MoveEngine] Executing Earthquake from Machamp to Flygon
+[MoveEngine] Earthquake execution finished with 2 events.
+Earthquake Hit Flygon: false (Expected false)

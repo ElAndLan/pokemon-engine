@@ -1,0 +1,24 @@
+--- IMMUNITY TESTS ---
+
+1. Wonder Guard (Shedinja)
+- Hit with Scratch (Normal vs Bug/Ghost) -> Immune?
+[MoveEngine] Executing Scratch from Jolteon to Shedinja
+Damage Event: false (Expected false)
+- Hit with Flamethrower (Fire vs Bug/Ghost) -> Hit?
+[MoveEngine] Executing Flamethrower from Arcanine to Shedinja
+[MoveEngine] Flamethrower execution finished with 4 events.
+Damage Event: true (Expected true)
+
+2. Volt Absorb (Jolteon)
+- Hit with Thunderbolt -> Heal?
+[MoveEngine] Executing Thunderbolt from Shedinja to Jolteon
+[MoveEngine] Thunderbolt execution finished with 3 events.
+Heal Event: true (Expected true)
+HP Change: 50 -> 75 (Expected increase)
+
+3. Flash Fire (Arcanine)
+- Hit with Flamethrower -> Boost?
+[MoveEngine] Executing Flamethrower from Shedinja to Arcanine
+[MoveEngine] Flamethrower execution finished with 2 events.
+Damage Event: false (Expected false - Immune)
+Volatile FlashFire: 1 (Expected 1)
