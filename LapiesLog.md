@@ -539,3 +539,58 @@ public async saveGame(slot: number, data: object): Promise<boolean> {
 - No new libraries added
 - Uses existing window.fs.createDirectory() API
 - Main process already had create-directory handler
+
+---
+
+### 2025-01-25 - PC Menu and Battle Menu Name Display Fixes
+
+#### Problem 1: PC Menu Showing "???" for Pokemon Names
+The PC menu displayed "???" instead of Pokemon names when viewing stored Pokemon. This occurred because the rendering code at line 436 used `mon.nickname || '???'` fallback, which didn't account for Pokemon without nicknames.
+
+#### Problem 2: Battle Menu Showing "Undefined" for Pokemon Names
+The battle menu displayed "Undefined" instead of the Pokemon's name when showing "What will X do?" text. This occurred because the rendering code at line 1206 used `this.playerPokemon?.nickname` without a fallback for undefined nicknames.
+
+#### Solution
+Fixed both display locations to use the existing `getPokemonDisplayName()` helper methods that were already defined in each file.
+
+#### Code Changes
+
+**Modified** `src/renderer/src/core/ui/PCMenu.ts`
+- Changed line 436 from `ctx.fillText(mon.nickname || '???', cx, y + 90)` to `ctx.fillText(this.getPokemonDisplayName(mon), cx, y + 90)`
+- The `getPokemonDisplayName()` helper (line 31) already handles:
+  - Returns nickname if set (preserves custom names)
+  - Falls back to species name from DataManager (handles undefined nicknames)
+  - Final fallback to speciesId or '???' for safety
+
+**Modified** `src/renderer/src/core/battle/BattleScene.ts`
+- Changed line 1206 from `this.renderTextBox(ctx, width, height, \`What will ${this.playerPokemon?.nickname} do?\`, false)` to `this.renderTextBox(ctx, width, height, \`What will ${this.getPokemonDisplayName(this.playerPokemon)} do?\`, false)`
+- The `getPokemonDisplayName()` helper (line 1493) already handles:
+  - Returns nickname if set (preserves custom names)
+  - Falls back to species name from DataManager (handles undefined nicknames)
+  - Final fallback to speciesId or 'Unknown' for safety
+
+#### Technical Details
+
+**Consistent Name Resolution Pattern**
+Both files follow the same pattern established in previous fixes:
+```typescript
+private getPokemonDisplayName(mon: PokemonInstance): string {
+  if (mon.nickname) return mon.nickname;
+  const species = this.game.dataManager.getPokemonSpecies(mon.speciesId);
+  return species?.name || mon.speciesId || '???';
+}
+```
+
+This ensures:
+- Pokemon WITH nicknames always display their custom name
+- Pokemon WITHOUT nicknames display their current species name
+- No "undefined" or "???" fallbacks unless species data is missing
+
+#### Files Modified
+- src/renderer/src/core/ui/PCMenu.ts
+- src/renderer/src/core/battle/BattleScene.ts
+
+#### Dependencies
+- No new libraries added
+- Uses existing getPokemonDisplayName() helper methods
+- Follows existing name resolution pattern

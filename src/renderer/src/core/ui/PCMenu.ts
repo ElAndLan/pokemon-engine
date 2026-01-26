@@ -433,7 +433,7 @@ export class PCMenu implements Menu {
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
         ctx.font = 'bold 18px monospace';
-        ctx.fillText(mon.nickname || '???', cx, y + 90);
+        ctx.fillText(this.getPokemonDisplayName(mon), cx, y + 90);
         
         ctx.font = '14px monospace';
         ctx.fillText(`Lv.${mon.level} ${mon.gender}`, cx, y + 110);

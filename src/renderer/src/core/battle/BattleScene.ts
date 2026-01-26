@@ -1202,8 +1202,7 @@ export class BattleScene {
           }
           
       } else {
-          // DRAW MAIN MENU
-          this.renderTextBox(ctx, width, height, `What will ${this.playerPokemon?.nickname} do?`, false);
+          this.renderTextBox(ctx, width, height, `What will ${this.getPokemonDisplayName(this.playerPokemon)} do?`, false);
           
           const menuWidth = 300; 
           const menuHeight = boxHeight;
