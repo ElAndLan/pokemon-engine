@@ -155,16 +155,20 @@ Significant progress has been made in the Ability System. 367 abilities have bee
 
 ### Critical for Ability System Completion
 
-1.  **Map/Grid Logic Integration**:
-    - Need to implement a system to query map properties (terrain type, elevation, adjacency) during battle.
-    - Required for: `Nomad`, `Sequence`, `High-rise`, `Climber`, `Sprint`, `Disgust`.
-2.  **PokeAPI Integration**:
+1.  **PokeAPI Integration**:
     - Automated fetching of missing ability descriptions.
     - Currently missing descriptions for: `Disgust`, `Nomad` (and others resolved via aliases).
-3.  **JSON Alias Resolution**:
+2.  **JSON Alias Resolution**:
     - Resolve mismatches in `abilities.json` for aliases like "Mind" (Mind's Eye) and "Dragon" (Dragon's Maw).
-4.  **Complex Move Logic**:
+3.  **Complex Move Logic**:
     - Full implementation for moves that alter movement/positioning (Black Hole, Shackle).
+
+### Deferred / Won't Implement (Grid/Map Dependencies)
+
+The following abilities require tactical grid/map logic (Movement range, Elevation, Adjacency) which is not applicable to this standard 2D Pokemon engine.
+
+- **Abilities**: `Nomad`, `Sequence`, `High-rise`, `Climber`, `Sprint`, `Disgust`.
+- **Reasoning**: Core gameplay is standard turn-based, not tactical strategy (Conquest style). Elevation and terrain type are not tracked in battle.
 
 ### Core Gameplay Missing
 
