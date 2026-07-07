@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "tileset:exterior",
+  "name": "Exterior",
+  "tiles": [
+    { "solid": false, "terrainTag": "path" },
+    { "solid": true, "terrainTag": "wall" },
+    { "solid": false, "grass": true, "terrainTag": "grass" }
+  ]
+}

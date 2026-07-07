@@ -1,0 +1,12 @@
+<Project>
+  <!-- Solution-wide build settings. Per docs/CODING_STANDARDS.md:
+       nullable enabled, warnings-as-errors, file-scoped namespaces, latest C#. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

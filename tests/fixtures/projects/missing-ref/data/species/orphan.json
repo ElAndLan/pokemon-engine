@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "species:orphan",
+  "name": "Orphan",
+  "types": [ "type:ghost" ],
+  "baseStats": { "hp": 45, "atk": 45, "def": 45, "spa": 45, "spd": 45, "spe": 45 },
+  "growthRate": "medium-fast"
+}

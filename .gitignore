@@ -1,0 +1,26 @@
+# .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+.vs/
+artifacts/
+*.binlog
+
+# Project-specific (per docs/ARCHITECTURE_ADDENDUM.md §5)
+exports/
+templates/*.exe
+templates/*.zip
+.cgm-cache/
+.autosave/
+*.cgmpack
+
+# Large local dev-only reference data (official PokeAPI dump, ~13k files).
+# Per ADR-010 it's a design-time mechanics reference, never bundled in releases —
+# kept on disk but not tracked in git (avoids repo bloat and official-content history).
+docs/pokeapi-results/
+
+# OS/editor
+Thumbs.db
+.DS_Store

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "type:grass",
+  "name": "Grass",
+  "doubleDamageTo": [],
+  "halfDamageTo": [ "type:fire", "type:grass" ],
+  "noDamageTo": []
+}

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cgm.Core/Cgm.Core.csproj" />
+    <Project Path="src/Cgm.Creator/Cgm.Creator.csproj" />
+    <Project Path="src/Cgm.Runtime/Cgm.Runtime.csproj" />
+    <Project Path="src/Cgm.Tools/Cgm.Tools.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cgm.Core.Tests/Cgm.Core.Tests.csproj" />
+  </Folder>
+</Solution>

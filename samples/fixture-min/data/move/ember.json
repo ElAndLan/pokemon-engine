@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "move:ember",
+  "name": "Ember",
+  "type": "type:fire",
+  "damageClass": "special",
+  "power": 40,
+  "accuracy": 100,
+  "pp": 25,
+  "priority": 0,
+  "critStage": 0,
+  "target": "selected",
+  "effects": [
+    { "op": "damage" },
+    { "op": "ailment", "chance": 10, "params": { "status": "burn" } }
+  ]
+}

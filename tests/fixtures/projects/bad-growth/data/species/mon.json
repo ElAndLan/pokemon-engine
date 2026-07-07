@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "species:mon",
+  "name": "Mon",
+  "types": [ "type:fire" ],
+  "baseStats": { "hp": 45, "atk": 45, "def": 45, "spa": 45, "spd": 45, "spe": 45 },
+  "growthRate": "turbo"
+}

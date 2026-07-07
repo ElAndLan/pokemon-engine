@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "encounter:test_room_grass",
+  "name": "Test Room Grass",
+  "method": "grass",
+  "baseRate": 0.1,
+  "slots": [
+    { "species": "species:leafcub", "weight": 100, "minLevel": 2, "maxLevel": 4 }
+  ]
+}

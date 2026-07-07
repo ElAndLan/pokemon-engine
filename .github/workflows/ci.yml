@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.301'
+
+      # Build the whole solution (test alone wouldn't compile Creator/Runtime/Tools,
+      # since the test project doesn't reference them).
+      - run: dotnet build CreatureGameMaker.slnx -c Release
+
+      - run: dotnet test CreatureGameMaker.slnx -c Release --no-build

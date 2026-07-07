@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "map:test_room",
+  "name": "Test Room",
+  "width": 4,
+  "height": 3,
+  "tilesets": [ "tileset:exterior" ],
+  "layers": {
+    "ground": [ 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0 ],
+    "decoBelow": [],
+    "decoAbove": []
+  },
+  "encounterZones": [
+    { "index": 5, "table": "encounter:test_room_grass" },
+    { "index": 6, "table": "encounter:test_room_grass" }
+  ],
+  "entities": [
+    { "kind": "player-start", "pos": { "x": 0, "y": 0 }, "facing": "down" },
+    { "kind": "npc", "pos": { "x": 2, "y": 1 }, "facing": "left", "move": "static", "dialogue": "Hi there!" },
+    { "kind": "warp", "pos": { "x": 3, "y": 2 }, "target": "map:test_room", "targetPos": { "x": 0, "y": 0 }, "transition": "door" }
+  ],
+  "indoor": false
+}

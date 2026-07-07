@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "project:main",
+  "name": "Fixture Min",
+  "engineVersion": "0.1",
+  "tileSize": 16,
+  "startMap": "map:test_room",
+  "startPos": { "x": 4, "y": 3 },
+  "startFacing": "down",
+  "starterParty": [ "species:leafcub" ]
+}

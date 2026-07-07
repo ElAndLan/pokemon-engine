@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "item:potion",
+  "name": "Potion",
+  "pocket": "medicine",
+  "price": 200,
+  "flingPower": 30,
+  "consumable": true,
+  "usableInField": true,
+  "usableInBattle": true,
+  "holdable": true,
+  "keyItem": false,
+  "effects": [ { "op": "heal", "params": { "amount": 20 } } ]
+}

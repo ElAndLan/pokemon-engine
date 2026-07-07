@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "encounter:dead",
+  "name": "Dead Zone",
+  "method": "grass",
+  "baseRate": 0.1,
+  "slots": []
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "move:vine_whip",
+  "name": "Vine Whip",
+  "type": "type:grass",
+  "damageClass": "physical",
+  "power": 45,
+  "accuracy": 100,
+  "pp": 25,
+  "priority": 0,
+  "critStage": 0,
+  "target": "selected",
+  "effects": [ { "op": "damage" } ]
+}

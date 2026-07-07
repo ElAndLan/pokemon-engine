@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "move:weird",
+  "name": "Weird",
+  "type": "type:fire",
+  "damageClass": "status",
+  "power": 50,
+  "accuracy": 100,
+  "pp": 10
+}
