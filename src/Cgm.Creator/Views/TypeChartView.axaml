@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Cgm.Creator.ViewModels"
+             x:Class="Cgm.Creator.Views.TypeChartView"
+             x:DataType="vm:TypeChartDocument">
+  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="14" Spacing="2">
+
+      <TextBlock Text="Type chart — click a cell to cycle 1 → 2 → ½ → 0 (attacker rows, defender columns)"
+                 Margin="0,0,0,10" Foreground="#A0A8B0" />
+
+      <!-- Defender header -->
+      <StackPanel Orientation="Horizontal">
+        <Border Width="84" />
+        <ItemsControl ItemsSource="{Binding TypeLabels}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Text="{Binding}" Width="46" TextAlignment="Center" FontSize="10" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- Attacker rows -->
+      <ItemsControl ItemsSource="{Binding Rows}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:TypeChartRow">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="{Binding AttackerLabel}" Width="84" FontSize="10"
+                         VerticalAlignment="Center" />
+              <ItemsControl ItemsSource="{Binding Cells}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:TypeChartCell">
+                    <Button Content="{Binding Display}" Command="{Binding CycleCommand}"
+                            Width="46" Height="28" Padding="0" Margin="0,0,1,1"
+                            HorizontalContentAlignment="Center" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

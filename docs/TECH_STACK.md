@@ -36,6 +36,7 @@ MSI**, xcopy-style, onto D: where the project lives:
 | StbImageSharp | Core-adjacent tools, Runtime, Creator | PNG decode | Pure decoder | SixLabors.ImageSharp |
 | ZstdSharp.Port | Tools, Runtime | Pack blob compression | Codec | Deflate (System.IO.Compression) |
 | System.Text.Json (+ source generators) | Core | Project data, saves, config | BCL | Newtonsoft (last resort) |
+| CommunityToolkit.Mvvm | Creator | MVVM source generators (`[ObservableProperty]`/`[RelayCommand]`) | UI helper library, not a game framework; tiny, Microsoft-maintained, no transitive deps | Hand-rolled `ObservableObject`+`RelayCommand` |
 | xUnit | Tests | Test framework | — | NUnit |
 | Verify.Xunit | Tests | Golden/snapshot tests (battle replays) | — | Hand-rolled file diff |
 

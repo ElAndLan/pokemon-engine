@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Cgm.Creator.ViewModels"
+             x:Class="Cgm.Creator.Views.ItemView"
+             x:DataType="vm:ItemDocument">
+  <ScrollViewer>
+    <StackPanel Margin="20" Spacing="10" MaxWidth="460" HorizontalAlignment="Left">
+
+      <TextBlock Text="Item" FontSize="18" FontWeight="Bold" />
+
+      <TextBlock Text="Name" />
+      <TextBox Text="{Binding Name}" />
+
+      <TextBlock Text="Pocket" />
+      <ComboBox ItemsSource="{Binding AvailablePockets}" SelectedItem="{Binding Pocket}" HorizontalAlignment="Stretch" />
+
+      <TextBlock Text="Price" />
+      <TextBox Text="{Binding Price}" />
+
+      <CheckBox Content="Key item" IsChecked="{Binding KeyItem}" />
+      <CheckBox Content="Consumable" IsChecked="{Binding Consumable}" />
+      <CheckBox Content="Usable in field" IsChecked="{Binding UsableInField}" />
+      <CheckBox Content="Usable in battle" IsChecked="{Binding UsableInBattle}" />
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

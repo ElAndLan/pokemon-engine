@@ -1,35 +1,85 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Cgm.Creator.ViewModels"
+        xmlns:views="using:Cgm.Creator.Views"
+        xmlns:val="using:Cgm.Core.Validation"
         x:Class="Cgm.Creator.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
         Title="Creature Game Maker"
-        Width="1100" Height="720"
-        MinWidth="800" MinHeight="500">
+        Width="1100" Height="720" MinWidth="800" MinHeight="500">
 
-  <!-- Phase 1 shell only: left nav placeholder, central tab area, bottom status bar.
-       No functionality wired yet (see docs/IMPLEMENTATION_PLAN.md Phase 3). -->
+  <Window.DataTemplates>
+    <DataTemplate DataType="vm:MoveDocument"><views:MoveView /></DataTemplate>
+    <DataTemplate DataType="vm:ItemDocument"><views:ItemView /></DataTemplate>
+    <DataTemplate DataType="vm:TypeChartDocument"><views:TypeChartView /></DataTemplate>
+  </Window.DataTemplates>
+
   <DockPanel>
 
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem Header="_New Project…" Command="{Binding NewCommand}" />
+        <MenuItem Header="_Open Project…" Command="{Binding OpenCommand}" />
+        <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
+        <Separator />
+        <MenuItem Header="_Import Sheet…" Command="{Binding ImportSheetCommand}" />
+      </MenuItem>
+      <MenuItem Header="_Edit">
+        <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGesture="Ctrl+Z" />
+        <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGesture="Ctrl+Y" />
+        <Separator />
+        <MenuItem Header="_Duplicate…" Command="{Binding DuplicateActiveCommand}" />
+        <MenuItem Header="De_lete" Command="{Binding DeleteActiveCommand}" />
+      </MenuItem>
+      <MenuItem Header="_Project">
+        <MenuItem Header="_Type Chart" Command="{Binding OpenTypeChartCommand}" />
+      </MenuItem>
+    </Menu>
+
     <Border DockPanel.Dock="Bottom" Background="#1B222B" Height="26">
-      <TextBlock Text="Ready" Foreground="#C8D0D8"
-                 VerticalAlignment="Center" Margin="10,0" FontSize="12" />
+      <TextBlock Text="{Binding StatusText}" Foreground="#C8D0D8" FontSize="12"
+                 VerticalAlignment="Center" Margin="10,0" />
     </Border>
 
-    <Border DockPanel.Dock="Left" Background="#161B22" Width="240"
+    <Expander DockPanel.Dock="Bottom" Header="{Binding ValidationSummary}" ExpandDirection="Up">
+      <ListBox ItemsSource="{Binding Issues}" SelectionChanged="OnIssueSelected" MaxHeight="200">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="val:ValidationIssue">
+            <TextBlock Text="{Binding Message}" TextWrapping="NoWrap" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Expander>
+
+    <Border DockPanel.Dock="Left" Width="240" Background="#161B22"
             BorderBrush="#0D1116" BorderThickness="0,0,1,0">
-      <StackPanel Margin="12">
-        <TextBlock Text="PROJECT" Foreground="#5A6672" FontSize="11" FontWeight="SemiBold" />
-        <TextBlock Text="No project open" Foreground="#8892A0" Margin="0,8,0,0" FontSize="13" />
-      </StackPanel>
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="{Binding ProjectName}" Margin="12,10,12,4"
+                   FontWeight="SemiBold" Foreground="#C8D0D8" />
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,0,8,8" Spacing="6">
+          <ComboBox ItemsSource="{Binding CreatableCategories}" SelectedItem="{Binding NewCategory}"
+                    MinWidth="110" />
+          <Button Content="＋ New" Command="{Binding NewEntityCommand}" />
+        </StackPanel>
+        <TreeView ItemsSource="{Binding Nav}" SelectionChanged="OnNavSelectionChanged">
+          <TreeView.DataTemplates>
+            <TreeDataTemplate DataType="vm:NavCategory" ItemsSource="{Binding Entities}">
+              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+            </TreeDataTemplate>
+            <DataTemplate DataType="vm:NavEntity">
+              <TextBlock Text="{Binding Label}" />
+            </DataTemplate>
+          </TreeView.DataTemplates>
+        </TreeView>
+      </DockPanel>
     </Border>
 
-    <TabControl Margin="4">
-      <TabItem Header="Welcome">
-        <StackPanel Margin="24" Spacing="8">
-          <TextBlock Text="Creature Game Maker" FontSize="22" FontWeight="Bold" />
-          <TextBlock Text="Creator shell — Phase 1 scaffold."
-                     Foreground="#A0A8B0" FontSize="14" />
-        </StackPanel>
-      </TabItem>
+    <TabControl ItemsSource="{Binding Documents}" SelectedItem="{Binding ActiveDocument}" Margin="4">
+      <TabControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:EditorDocument">
+          <TextBlock Text="{Binding TabTitle}" />
+        </DataTemplate>
+      </TabControl.ItemTemplate>
     </TabControl>
 
   </DockPanel>

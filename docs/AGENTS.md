@@ -18,7 +18,7 @@
 | Module boundaries, ADRs | ARCHITECTURE.md + docs/adr/ | Stub — write in Phase 1/3 |
 | Serialized shapes, IDs, migration | DATA_SCHEMA.md | **Frozen v1** (PokeAPI-derived, ADR-010) |
 | Damage formula, type/STAB/crit | BATTLE_DAMAGE_CALC.md | **Reference-frozen v1** |
-| Creator screens, undo, validation UI | CREATOR_APP_SPEC.md | Stub — Phase 3 |
+| Creator screens, undo, validation UI | CREATOR_APP_SPEC.md | Shell + editor pattern + pathfinders written (Phase 3) |
 | Runtime loop, renderer, input, scenes | ENGINE_RUNTIME_SPEC.md | Stub — before Phase 6 |
 | Import/slicing layers, pack format | ASSET_PIPELINE_SPEC.md | Stub — before Phase 4 |
 | Map editor tools & layers | MAP_EDITOR_SPEC.md | Stub — before Phase 5 |

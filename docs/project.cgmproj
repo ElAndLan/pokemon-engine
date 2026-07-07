@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "project:main",
+  "name": "docs",
+  "engineVersion": "",
+  "tileSize": 16,
+  "startPos": {
+    "x": 0,
+    "y": 0
+  },
+  "startFacing": "down",
+  "starterParty": [],
+  "playerSprites": {
+    "walkClips": []
+  },
+  "pockets": [
+    "items",
+    "medicine",
+    "balls",
+    "key"
+  ],
+  "boxes": {
+    "count": 8,
+    "capacity": 30,
+    "names": []
+  },
+  "clock": {
+    "mode": "ingame",
+    "cycleMinutes": 60
+  },
+  "encounterDefaults": {
+    "grassRatePerStep": 0.08
+  }
+}

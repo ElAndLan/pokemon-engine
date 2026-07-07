@@ -16,6 +16,11 @@ public static class CgmJson
 
     public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Options);
 
+    /// <summary>Serializes an entity by its concrete runtime type (not the static/interface type),
+    /// so saving through <c>IEntity</c> writes all of the real record's fields.</summary>
+    public static string SerializeEntity(object entity) =>
+        JsonSerializer.Serialize(entity, entity.GetType(), Options);
+
     public static T Deserialize<T>(string json) =>
         JsonSerializer.Deserialize<T>(json, Options)
         ?? throw new InvalidDataException($"JSON deserialized to null for {typeof(T).Name}.");

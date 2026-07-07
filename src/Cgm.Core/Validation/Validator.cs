@@ -32,6 +32,10 @@ public static class Validator
         new EncounterTableRule(),
         new TrainerPartyRule(),
         new WarpTargetRule(),
+        new AnimationRule(),
+        new SpriteUniquenessRule(),
+        new PlayerStartRule(),
+        new WarpLandingRule(),
     ];
 
     public static ValidationReport Run(Project project, IEnumerable<IValidationRule>? rules = null)

@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Cgm.Creator.Views.PromptWindow"
+        Title="Creature Game Maker"
+        Width="400" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock x:Name="PromptText" TextWrapping="Wrap" />
+    <TextBox x:Name="InputBox" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Cancel" Click="OnCancel" MinWidth="80" />
+      <Button Content="OK" Click="OnOk" IsDefault="True" MinWidth="80" />
+    </StackPanel>
+  </StackPanel>
+</Window>

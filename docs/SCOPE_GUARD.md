@@ -5,12 +5,12 @@ Source of authority: ARCHITECTURE_ADDENDUM.md §3 (wins over MASTER_PLAN.md).
 
 ## Current phase
 
-**Phase: 3 — Creator Shell & Pathfinder Editors (not started).** Phases 0–2 complete: scaffold +
-docs + CI (P1); full data layer — EntityId, byte-stable JSON, all MVP entity records, folder
-loader, migrator, 12-rule validation framework, `cgm validate` CLI (P2, 82 tests, review PASS).
-Buildable work now: the Avalonia Creator shell (project new/open/save, nav/tab/inspector, undo
-stack, validation strip) + the three pathfinder editors (type chart, item, move), per
-IMPLEMENTATION_PLAN Phase 3. Update this line at every gate.
+**Phase: 4 — Asset Import & Sprite Slicer (not started).** Phases 0–3 complete: data layer (P2,
+review PASS) + Creator shell, entity CRUD, validation strip, and the 3 pathfinder editors (P3
+code complete, 120 tests; manual UI run + review outstanding). Buildable work now: flesh out
+ASSET_PIPELINE_SPEC v0–v2 first (doc-gate), then PNG import + slicing (v0 manual grid, v1
+common-size suggestion, v2 gutter detection — all headless-testable) + the slicer canvas
+(compile-verified), per IMPLEMENTATION_PLAN Phase 4. Update this line at every gate.
 
 ## The rule
 

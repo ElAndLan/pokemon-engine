@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Cgm.Creator.ViewModels"
+             x:Class="Cgm.Creator.Views.MoveView"
+             x:DataType="vm:MoveDocument">
+  <ScrollViewer>
+    <StackPanel Margin="20" Spacing="10" MaxWidth="460" HorizontalAlignment="Left">
+
+      <TextBlock Text="Move" FontSize="18" FontWeight="Bold" />
+
+      <TextBlock Text="Name" />
+      <TextBox Text="{Binding Name}" />
+
+      <TextBlock Text="Type" />
+      <ComboBox ItemsSource="{Binding AvailableTypes}" SelectedItem="{Binding Type}" HorizontalAlignment="Stretch" />
+
+      <TextBlock Text="Damage class" />
+      <ComboBox ItemsSource="{Binding DamageClasses}" SelectedItem="{Binding DamageClass}" HorizontalAlignment="Stretch" />
+
+      <TextBlock Text="Power (blank = none)" />
+      <TextBox Text="{Binding Power}" />
+
+      <TextBlock Text="Accuracy (blank = never misses)" />
+      <TextBox Text="{Binding Accuracy}" />
+
+      <TextBlock Text="PP" />
+      <TextBox Text="{Binding Pp}" />
+
+      <TextBlock Text="Priority" />
+      <TextBox Text="{Binding Priority}" />
+
+      <TextBlock Text="Crit stage" />
+      <TextBox Text="{Binding CritStage}" />
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

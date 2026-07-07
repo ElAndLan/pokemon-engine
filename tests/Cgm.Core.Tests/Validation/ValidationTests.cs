@@ -184,4 +184,99 @@ public sealed class ValidationTests
         };
         Assert.NotEmpty(Run(new WarpTargetRule(), Project(source, target)));
     }
+
+    // --- Asset rules -------------------------------------------------------------
+
+    private static SheetCell Cell(string spriteSlug) =>
+        new() { SpriteId = EntityId.Parse($"sprite:{spriteSlug}") };
+
+    [Fact]
+    public void Animation_FlagsEmptyAndNonPositiveDurations()
+    {
+        var empty = new Animation { Id = EntityId.Parse("anim:a"), Frames = [] };
+        var badMs = new Animation
+        {
+            Id = EntityId.Parse("anim:b"),
+            Frames = [new AnimFrame(EntityId.Parse("sprite:x"), 0)],
+        };
+        var ok = new Animation
+        {
+            Id = EntityId.Parse("anim:c"),
+            Frames = [new AnimFrame(EntityId.Parse("sprite:x"), 100)],
+        };
+        Assert.NotEmpty(Run(new AnimationRule(), Project(empty)));
+        Assert.NotEmpty(Run(new AnimationRule(), Project(badMs)));
+        Assert.Empty(Run(new AnimationRule(), Project(ok)));
+    }
+
+    [Fact]
+    public void SpriteUniqueness_FlagsDuplicatesAcrossAndWithinSheets()
+    {
+        var a = new SpriteSheet { Id = EntityId.Parse("sheet:a"), Cells = [Cell("dup"), Cell("a1")] };
+        var b = new SpriteSheet { Id = EntityId.Parse("sheet:b"), Cells = [Cell("dup")] };
+        Assert.NotEmpty(Run(new SpriteUniquenessRule(), Project(a, b))); // across sheets
+
+        var withinDup = new SpriteSheet { Id = EntityId.Parse("sheet:c"), Cells = [Cell("x"), Cell("x")] };
+        Assert.NotEmpty(Run(new SpriteUniquenessRule(), Project(withinDup))); // within one sheet
+
+        var clean = new SpriteSheet { Id = EntityId.Parse("sheet:d"), Cells = [Cell("p"), Cell("q")] };
+        Assert.Empty(Run(new SpriteUniquenessRule(), Project(clean)));
+    }
+
+    // --- Map rules ---------------------------------------------------------------
+
+    [Fact]
+    public void PlayerStart_RequiresExactlyOne()
+    {
+        var none = new Map { Id = EntityId.Parse("map:a"), Width = 1, Height = 1 };
+        Assert.NotEmpty(Run(new PlayerStartRule(), Project(none)));
+
+        var two = new Map
+        {
+            Id = EntityId.Parse("map:b"),
+            Width = 2,
+            Height = 1,
+            Entities =
+            [
+                new PlayerStartEntity { Pos = new GridPos(0, 0) },
+                new PlayerStartEntity { Pos = new GridPos(1, 0) },
+            ],
+        };
+        Assert.NotEmpty(Run(new PlayerStartRule(), Project(two)));
+
+        var one = new Map
+        {
+            Id = EntityId.Parse("map:c"),
+            Width = 1,
+            Height = 1,
+            Entities = [new PlayerStartEntity { Pos = new GridPos(0, 0) }],
+        };
+        Assert.Empty(Run(new PlayerStartRule(), Project(one)));
+    }
+
+    [Fact]
+    public void WarpLanding_FlagsSolidLandingTile()
+    {
+        var tileset = new Tileset
+        {
+            Id = EntityId.Parse("tileset:t"),
+            Tiles = [new Tile(), new Tile { Solid = true }], // 0 open, 1 solid
+        };
+        var target = new Map
+        {
+            Id = EntityId.Parse("map:room"),
+            Width = 2,
+            Height = 1,
+            Tilesets = [EntityId.Parse("tileset:t")],
+            Layers = new MapLayers { Ground = [0, 1] }, // cell 1 is solid
+        };
+        WarpEntity ToCell(int cell) =>
+            new() { Pos = new GridPos(0, 0), Target = EntityId.Parse("map:room"), TargetPos = new GridPos(cell, 0) };
+
+        var solidWarp = new Map { Id = EntityId.Parse("map:h1"), Width = 1, Height = 1, Entities = [ToCell(1)] };
+        var openWarp = new Map { Id = EntityId.Parse("map:h2"), Width = 1, Height = 1, Entities = [ToCell(0)] };
+
+        Assert.NotEmpty(Run(new WarpLandingRule(), Project(solidWarp, target, tileset)));
+        Assert.Empty(Run(new WarpLandingRule(), Project(openWarp, target, tileset)));
+    }
 }

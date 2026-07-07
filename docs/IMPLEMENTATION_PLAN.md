@@ -28,13 +28,13 @@ Conventions used below:
 | 0 | Research & Architecture | — | **Done** (2026-07-06) |
 | 1 | Scaffold & Governance | 1 wk | **Done** (2026-07-06) — GUI apps verified launching |
 | 2 | Project Format, Schemas & Validation | 2 wk | **Done** (2026-07-06, 82 tests, review PASS) |
-| 3 | Creator Shell & Pathfinder Editors | 2 wk | Blocked on 2 |
-| 4 | Asset Import & Sprite Slicer | 2–3 wk | Blocked on 3 |
-| 5 | Tileset & Map Editor | 3–4 wk | Blocked on 4 |
-| 6 | Runtime Foundation | 2–3 wk | Blocked on 2 (parallel-able with 4–5) |
-| 7 | Playable Walking Prototype | 3 wk | Blocked on 5+6 |
-| 8 | Creature Data & Battle Core (v0–v1) | 3–4 wk | Blocked on 7 |
-| 9 | Encounters, Capture & Progression (v2) + Saves | 3 wk | Blocked on 8 — **MVP complete** |
+| 3 | Creator Shell & Pathfinder Editors | 2 wk | **Code complete** (120 tests) — pending manual UI run + review |
+| 4 | Asset Import & Sprite Slicer | 2–3 wk | **Core complete** (151 tests) — slicing/decode/import/validation done; canvas UI deferred |
+| 5 | Tileset & Map Editor | 3–4 wk | **Core complete** (172 tests) — layer ops, collision, map validation done; canvas UI deferred |
+| 6 | Runtime Foundation | 2–3 wk | **In progress** — loop/camera/input/scene/viewport logic done (185 tests); GL renderer deferred |
+| 7 | Playable Walking Prototype | 3 wk | **Core complete** (218 tests) — movement/mover/wander/flags/interaction done; render+dialogue UI deferred |
+| 8 | Creature Data & Battle Core (v0–v1) | 3–4 wk | **Core complete** (290 tests) — deterministic 1v1 battle engine done; battle UI deferred |
+| 9 | Encounters, Capture & Progression (v2) + Saves | 3 wk | **In progress** — capture/exp/encounters/saves/instance-gen/party-box done (347 tests) — **MVP target** |
 | 10 | Inventory, Shops & Storage | 2–3 wk | Blocked on 9 |
 | 11 | Trainer Battles, Statuses & Stages (v3–v4) | 4 wk | Blocked on 10 |
 | 12 | Export Pipeline | 2–3 wk | Blocked on 9 (parallel-able with 11) |
@@ -1141,6 +1141,37 @@ fail-to-load) with a data-driven integration test. **82 tests green, full soluti
 Phase 2 exit gate: `validate samples/fixture-min` → 0 errors ✅; broken fixtures produce expected
 issues ✅; DATA_SCHEMA matches code ✅. **Remaining: Phase 2 review (Addendum §12 Prompt D)** →
 then advance SCOPE_GUARD to Phase 3.
+
+## Phase 3 progress (2026-07-06)
+Done: CREATOR_APP_SPEC written (shell, project lifecycle, editor pattern, undo model, validation
+strip, the 3 pathfinder editors). Dependency decision: **CommunityToolkit.Mvvm 8.4.2** added
+(source-gen MVVM; less boilerplate at scale than hand-rolled — recorded in TECH_STACK). Editor
+infrastructure (headless, tested): `UndoStack`+`IEditCommand`+`SnapshotCommand<T>` (undo/redo,
+dirty-vs-saved, max-depth trim, redo-tail clearing, change event); `ProjectSession` (editable
+working copy — open, Put/Add/Remove with dirty tracking, byte-stable Save via `CgmJson.SerializeEntity`,
+Snapshot→Validator). New `tests/Cgm.Creator.Tests` project (proves the Avalonia exe's non-UI logic
+is testable). **94 tests green (82 Core + 12 Creator), full solution 0-warning.**
+
+Done (increment 2): shell view-model (`MainWindowViewModel` — open/new/save, nav tree, doc tabs,
+live validation strip, undo/redo commands; UI-free, 13 headless tests) via `IDialogService` seam;
+the reusable single-entity editor pattern (`EditorDocument`/`EntityEditorDocument<T>` with undoable
+record-snapshot edits) proven by **Move and Item editors** (VMs tested; item = copy of the move
+pattern); Avalonia XAML — `MainWindow` (menu, nav TreeView, doc TabControl with VM→View
+DataTemplates, status/validation strip), `MoveView`, `ItemView`, `AvaloniaDialogService`, App
+wiring. Compiled bindings type-check all XAML at build. **107 tests green (82 Core + 25 Creator),
+full solution 0-warning.**
+
+Done (increment 3, closes Phase 3 code): entity **create/duplicate/delete** (slug-prompt via
+`PromptWindow`; delete refuses when referenced, via reusable `EntityReferences.Collect` extracted
+from the broken-ref rule); **clickable validation strip** (Expander + issue list → NavigateToIssue);
+**type-chart matrix editor** (`TypeChartDocument` — cell cycle 1→2→½→0, undoable, writes the
+attacker type's damage lists) + `TypeChartView`. **120 tests green (82 Core + 38 Creator), full
+solution 0-warning.**
+
+Deferred to later (per spec, not in Phase 3 done-criteria): shared reference-picker (move/item use
+inline combos) and the effect-list control (no effect-op editing UI yet — lands with Battle v5/UI).
+Outstanding for Phase 3 sign-off: **manual UI script** (user runs via run.bat — needs a display)
+and the Phase 3 review.
 
 ## Review Outcomes
 - **Phase 2 review (2026-07-06) — PASS, go for Phase 3.** Evidence-based audit against
