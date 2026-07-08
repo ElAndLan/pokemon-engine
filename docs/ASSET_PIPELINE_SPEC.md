@@ -42,5 +42,39 @@ runs = cell size, equal interior gaps = spacing. Non-uniform, or fewer than 2 ce
 ### Validation
 Cells within image bounds; unique sprite ids per sheet (enforced by the sheet editor + EntityId).
 
+### Import v5 — atlas packing (`AtlasPacker`)
+Export-time packing of a category's sprite rects into one or more square-bounded atlases
+(≤`maxSize`, default 2048). Pure computation (sizes → placements); pixel copy into the atlas
+bitmap and the `.cgmpack` write are separate, later concerns that consume these placements.
+
+`Pack(sizes: (int W, int H)[], maxSize = 2048) → Atlas[]` where
+`Atlas{ Width, Height, Placements: AtlasPlacement[] }` and
+`AtlasPlacement{ SpriteIndex, Rect }` (`Rect` in atlas-local coords). `SpriteIndex` is the
+input index, so the caller maps index → sprite id and rewrites regions after packing.
+
+**Algorithm — Skyline Bottom-Left** (simple skyline is sufficient at this scale, per Addendum §9):
+- Sprites are placed largest-first: sort input indices by height desc, then width desc, then
+  index asc (the final tie-break makes packing deterministic).
+- Each atlas has a fixed pack width = `maxSize`; the skyline is a left-to-right list of
+  `(x, y, width)` segments spanning `[0, maxSize)`. A rect is placed at the candidate x with the
+  lowest resulting y (ties → lowest x) such that `x+w ≤ maxSize` and `y+h ≤ maxSize`.
+- When a rect fits in no candidate of the current atlas, that atlas is closed and a fresh one is
+  started (overflow split). `Atlas.Width/Height` report the tight used extent (max right / bottom),
+  not `maxSize`.
+- A single rect with `W > maxSize` or `H > maxSize` cannot be placed in any atlas → throws
+  `ArgumentException`. Non-positive `W`/`H` also throw. Empty input → no atlases.
+
+**Guarantees (tested):** no two placements in the same atlas overlap; every input sprite appears
+in exactly one placement; all placements lie within `[0,maxSize)²` and within their atlas extent;
+identical input → identical output (determinism). No padding/gutter between sprites (pixel art is
+nearest-sampled under integer scaling); add a gutter param only if bleeding is ever observed.
+Excludes (Addendum §9): runtime dynamic atlasing, mipmaps, compression formats beyond RGBA.
+
+### Character animation template (`CharacterAnimation`, Phase 13 / Phase 4 deferral)
+Builds walk clips from a standard character sheet: a 3-frame × 4-direction grid, row-major, rows
+ordered Down, Left, Right, Up. `BuildWalkClips(baseSlug, gridSprites[12], frameMs=150)` → one looping
+`Animation` per facing (`anim:<baseSlug>_walk_<dir>`). Pure; throws on a non-12 sprite count, a
+non-positive frame duration, or an invalid base slug (EntityId grammar).
+
 ## Outline (later layers)
-v3 (connected-component) · v4 (animation) · v5 (atlas/pack).
+v3 (connected-component) lands in its phase.

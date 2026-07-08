@@ -27,6 +27,14 @@ public static class EncounterRoll
     public static int RollLevel(EncounterSlot slot, IRng rng) =>
         rng.Next(slot.MinLevel, slot.MaxLevel + 1);
 
+    /// <summary>Whether a step in an encounter zone triggers an encounter (per-step probability).</summary>
+    public static bool Triggers(double perStepRate, IRng rng) => rng.NextDouble() < perStepRate;
+
+    /// <summary>Repel suppresses a wild encounter whose level is below the party lead's, while charges
+    /// remain (Phase 10).</summary>
+    public static bool RepelSuppresses(int repelStepsRemaining, int leadLevel, int wildLevel) =>
+        repelStepsRemaining > 0 && wildLevel < leadLevel;
+
     private static bool Eligible(EncounterSlot s, TimeOfDay? time, Func<string, bool>? flagSet) =>
         (s.TimeOfDay is null || time is null || s.TimeOfDay == time)
         && (s.RequiredFlag is null || (flagSet?.Invoke(s.RequiredFlag) ?? true));

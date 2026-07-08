@@ -84,4 +84,25 @@ public sealed class EncounterRollTests
     {
         Assert.Equal(5, EncounterRoll.RollLevel(Slot("a", 1, min: 5, max: 5), new Rng(1)));
     }
+
+    [Fact]
+    public void Triggers_HonorsRate()
+    {
+        Assert.True(EncounterRoll.Triggers(1.0, new Rng(1)));  // always
+        Assert.False(EncounterRoll.Triggers(0.0, new Rng(1))); // never
+
+        var rng = new Rng(4);
+        int hits = Enumerable.Range(0, 10_000).Count(_ => EncounterRoll.Triggers(0.1, rng));
+        Assert.InRange(hits, 850, 1150); // ~1000
+    }
+
+    [Theory]
+    [InlineData(20, 10, 5, true)]   // repel active, wild below lead → suppressed
+    [InlineData(20, 10, 10, false)] // wild equals lead → not suppressed
+    [InlineData(20, 10, 12, false)] // wild above lead → not suppressed
+    [InlineData(0, 10, 5, false)]   // no repel charges → not suppressed
+    public void RepelSuppresses_Logic(int steps, int lead, int wild, bool expected)
+    {
+        Assert.Equal(expected, EncounterRoll.RepelSuppresses(steps, lead, wild));
+    }
 }

@@ -19,8 +19,56 @@ internal static class Program
         return args[0] switch
         {
             "validate" => Validate(args[1..]),
+            "export" => Export(args[1..]),
             _ => UnknownCommand(args[0]),
         };
+    }
+
+    // Exit codes: 0 = exported, 1 = validation errors blocked it, 2 = usage/load failure.
+    private static int Export(string[] args)
+    {
+        string[] positional = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
+        if (positional.Length < 2)
+        {
+            Console.Error.WriteLine("export: usage is 'cgm export <project> <out> [--name X] [--debug] [--force]'.");
+            return 2;
+        }
+
+        Project project;
+        try
+        {
+            project = ProjectLoader.Load(positional[0]);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException)
+        {
+            Console.Error.WriteLine($"Could not load project: {ex.Message}");
+            return 2;
+        }
+
+        var options = new ExportOptions(
+            GameName: ValueOf(args, "--name"),
+            Debug: args.Contains("--debug"),
+            OverrideValidation: args.Contains("--force"));
+
+        try
+        {
+            ExportResult result = Exporter.ExportData(project, options, positional[1]);
+            Console.WriteLine($"Exported {result.PackPath} and {result.ConfigPath}.");
+            if (result.Validation.WarningCount > 0)
+                Console.WriteLine($"({result.Validation.WarningCount} warning(s) — see 'cgm validate'.)");
+            return 0;
+        }
+        catch (InvalidOperationException ex) // validation hard gate
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    private static string? ValueOf(string[] args, string flag)
+    {
+        int i = Array.IndexOf(args, flag);
+        return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
     }
 
     private static int Validate(string[] args)

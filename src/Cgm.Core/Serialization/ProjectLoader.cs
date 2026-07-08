@@ -10,32 +10,13 @@ namespace Cgm.Core.Serialization;
 /// </summary>
 public static class ProjectLoader
 {
-    private static readonly IReadOnlyDictionary<EntityCategory, Type> Registry =
-        new Dictionary<EntityCategory, Type>
-        {
-            [EntityCategory.Type] = typeof(TypeDef),
-            [EntityCategory.Species] = typeof(Species),
-            [EntityCategory.Move] = typeof(Move),
-            [EntityCategory.Item] = typeof(Item),
-            [EntityCategory.Encounter] = typeof(EncounterTable),
-            [EntityCategory.Trainer] = typeof(Trainer),
-            [EntityCategory.Flag] = typeof(StoryFlag),
-            [EntityCategory.Sheet] = typeof(SpriteSheet),
-            [EntityCategory.Anim] = typeof(Animation),
-            [EntityCategory.Tileset] = typeof(Tileset),
-            [EntityCategory.Object] = typeof(MapObject),
-            [EntityCategory.Map] = typeof(Map),
-        };
-    // Note: sprite/tile ids are defined inside sheet/tileset files (projections), not standalone
-    // files, so those categories are not loaded here (DATA_SCHEMA.md §4.6/§4.9).
-
     public static Project Load(string projectFolder)
     {
         ProjectSettings settings = ProjectFile.Load(projectFolder);
         var entities = new Dictionary<EntityId, IEntity>();
         string dataRoot = Path.Combine(projectFolder, "data");
 
-        foreach ((EntityCategory category, Type type) in Registry)
+        foreach ((EntityCategory category, Type type) in EntityRegistry.ByCategory)
         {
             string dir = Path.Combine(dataRoot, category.ToString().ToLowerInvariant());
             if (!Directory.Exists(dir))

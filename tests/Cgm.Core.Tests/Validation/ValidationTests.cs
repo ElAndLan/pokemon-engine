@@ -171,6 +171,67 @@ public sealed class ValidationTests
     }
 
     [Fact]
+    public void TrainerParty_FlagsSightRangeAndDialogue()
+    {
+        Trainer negRange = Trainer("neg") with { SightRange = -1 };
+        Assert.Contains(Run(new TrainerPartyRule(), Project(negRange)),
+            i => i.Severity == ValidationSeverity.Error);
+
+        Trainer sightedNoText = Trainer("s") with { SightRange = 3 }; // default dialogue is empty
+        Assert.Contains(Run(new TrainerPartyRule(), Project(sightedNoText)),
+            i => i.Severity == ValidationSeverity.Warning);
+
+        Trainer sightedOk = Trainer("s2") with
+        {
+            SightRange = 3,
+            Dialogue = new TrainerDialogue { Sight = "Hey, you!" },
+        };
+        Assert.Empty(Run(new TrainerPartyRule(), Project(sightedOk)));
+    }
+
+    [Fact]
+    public void TrainerParty_WarnsOnUnlearnableMoveOverride()
+    {
+        Species mon = Species("mon") with { Learnset = [new LearnsetEntry(3, EntityId.Parse("move:hit"))] };
+        EntityId monId = EntityId.Parse("species:mon");
+
+        Trainer unlearnable = Trainer("u") with
+        {
+            Party = [new PartyMember { Species = monId, Level = 5, Moves = [EntityId.Parse("move:tackle")] }],
+        };
+        Assert.Contains(Run(new TrainerPartyRule(), Project(unlearnable, mon)),
+            i => i.Severity == ValidationSeverity.Warning);
+
+        // Learned at level 3, member is level 2 → too early → warning.
+        Trainer tooEarly = Trainer("e") with
+        {
+            Party = [new PartyMember { Species = monId, Level = 2, Moves = [EntityId.Parse("move:hit")] }],
+        };
+        Assert.Contains(Run(new TrainerPartyRule(), Project(tooEarly, mon)),
+            i => i.Severity == ValidationSeverity.Warning);
+
+        // Learned at level 3, member is level 5 → fine, no issues.
+        Trainer legal = Trainer("l") with
+        {
+            Party = [new PartyMember { Species = monId, Level = 5, Moves = [EntityId.Parse("move:hit")] }],
+        };
+        Assert.Empty(Run(new TrainerPartyRule(), Project(legal, mon)));
+    }
+
+    [Fact]
+    public void TrainerParty_FlagsTooManyMoves()
+    {
+        Species mon = Species("mon");
+        var five = Enumerable.Range(0, 5).Select(i => EntityId.Parse($"move:m{i}")).ToList();
+        Trainer t = Trainer("x") with
+        {
+            Party = [new PartyMember { Species = EntityId.Parse("species:mon"), Level = 5, Moves = five }],
+        };
+        Assert.Contains(Run(new TrainerPartyRule(), Project(t, mon)),
+            i => i.Severity == ValidationSeverity.Error);
+    }
+
+    [Fact]
     public void WarpTarget_FlagsOutOfBoundsLanding()
     {
         var target = new Map { Id = EntityId.Parse("map:room"), Name = "Room", Width = 4, Height = 3 };

@@ -29,7 +29,9 @@ public sealed class EncounterTableRule : IValidationRule
     }
 }
 
-/// <summary>Trainers need a 1–6 party with each member's level in 1–100.</summary>
+/// <summary>Trainer party legality (Phase 11): 1–6 members, levels 1–100, non-negative sight range,
+/// sight dialogue on sighted trainers, and explicit moves the species can actually learn at that level
+/// (a warning — the editor allows move overrides). Reference existence is covered by broken-reference.</summary>
 public sealed class TrainerPartyRule : IValidationRule
 {
     public string Id => "trainer-party";
@@ -38,15 +40,48 @@ public sealed class TrainerPartyRule : IValidationRule
     {
         foreach (Trainer t in project.All<Trainer>())
         {
+            if (t.SightRange < 0)
+                yield return new ValidationIssue(Id, ValidationSeverity.Error, t.Id,
+                    $"Sight range {t.SightRange} is negative (0 = interact-only).");
+
             if (t.Party.Count is < 1 or > 6)
                 yield return new ValidationIssue(Id, ValidationSeverity.Error, t.Id,
                     $"Party has {t.Party.Count} members; must be 1–6.");
 
+            if (t.SightRange > 0 && string.IsNullOrWhiteSpace(t.Dialogue.Sight))
+                yield return new ValidationIssue(Id, ValidationSeverity.Warning, t.Id,
+                    "Sighted trainer has no sight dialogue.", "Add dialogue.sight so the approach shows text.");
+
             foreach (PartyMember m in t.Party)
+            {
                 if (m.Level is < 1 or > 100)
                     yield return new ValidationIssue(Id, ValidationSeverity.Error, t.Id,
                         $"Party member '{m.Species}' level {m.Level} is out of 1–100.");
+
+                foreach (ValidationIssue issue in CheckMoves(t, m, project))
+                    yield return issue;
+            }
         }
+    }
+
+    private IEnumerable<ValidationIssue> CheckMoves(Trainer t, PartyMember m, Project project)
+    {
+        if (m.Moves is null)
+            yield break; // unspecified → auto-generated from the learnset, nothing to check
+
+        if (m.Moves.Count is < 1 or > 4)
+            yield return new ValidationIssue(Id, ValidationSeverity.Error, t.Id,
+                $"Party member '{m.Species}' has {m.Moves.Count} moves; must be 1–4.");
+
+        Species? species = project.Find<Species>(m.Species);
+        if (species is null)
+            yield break; // missing species is reported by broken-reference
+
+        foreach (EntityId move in m.Moves)
+            if (!species.Learnset.Any(e => e.Move == move && e.Level <= m.Level))
+                yield return new ValidationIssue(Id, ValidationSeverity.Warning, t.Id,
+                    $"'{species.Id}' can't learn '{move}' by level {m.Level}.",
+                    "Allowed as an override; confirm it's intentional.");
     }
 }
 
