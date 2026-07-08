@@ -44,4 +44,19 @@ public static class EffectMath
 
     /// <summary>HP restored by a fixed-fraction heal (default ½ maxHp), ≥1.</summary>
     public static int HealAmount(int maxHp, int num = 1, int den = 2) => Math.Max(1, maxHp * num / den);
+
+    /// <summary>Spikes-style entry-hazard damage on switch-in, scaling with layers: 1→1/8, 2→1/6,
+    /// 3→1/4 of max HP (Gen III/IV). ≥1; 0 layers → no damage.</summary>
+    public static int HazardDamage(int maxHp, int layers) => layers switch
+    {
+        1 => Math.Max(1, maxHp / 8),
+        2 => Math.Max(1, maxHp / 6),
+        >= 3 => Math.Max(1, maxHp / 4),
+        _ => 0,
+    };
+
+    /// <summary>Stealth-Rock-style entry hazard: 1/8 max HP scaled by the hazard type's effectiveness
+    /// against the switch-in (¼×–4×), so a 4×-weak creature loses ½ HP. ≥1.</summary>
+    public static int TypeScaledHazardDamage(int maxHp, double effectiveness) =>
+        Math.Max(1, (int)(maxHp / 8.0 * effectiveness));
 }

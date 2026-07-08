@@ -94,11 +94,11 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
-    public void StatefulV5Op_ThrowsUntilControllerSupport()
+    public void UnimplementedOp_ThrowsUntilControllerSupport()
     {
-        // protect is a stateful v5 op not yet wired into the controller.
+        // transformForm is a v6/post-slice op the compiler doesn't handle yet — it must not silently drop.
         Assert.Throws<NotSupportedException>(() =>
-            MoveCompiler.ToBattleMove(Move(DamageClass.Status, null, Op("protect"))));
+            MoveCompiler.ToBattleMove(Move(DamageClass.Physical, 100, Op("transformForm"))));
     }
 
     [Fact]

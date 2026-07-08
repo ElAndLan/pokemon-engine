@@ -16,4 +16,8 @@ public static class VolatileEffects
         DamageCalc.Compute(level, 40, atk, def, effectiveness: 1.0, stab: 1.0, crit: false, roll: 100, burn: false);
 
     public static bool Flinches(int flinchChance, IRng rng) => flinchChance > 0 && rng.Next(100) < flinchChance;
+
+    /// <summary>Protect/Detect success (catalog §7.2): 1/2^chain, so the first use always succeeds and each
+    /// consecutive use halves. Always draws so the roll order is stable.</summary>
+    public static bool ProtectSucceeds(int chain, IRng rng) => rng.NextDouble() < 1.0 / (1 << Math.Min(chain, 20));
 }

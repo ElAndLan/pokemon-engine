@@ -18,7 +18,11 @@ public sealed class BattleMove
         Fraction? drain = null, Fraction? recoil = null, bool recoilOnMiss = false, Fraction? heal = null,
         int multiHitMin = 0, int multiHitMax = 0,
         int? fixedDamage = null, bool fixedDamageLevel = false, bool ohko = false,
-        int critBoost = 0, bool selfDestruct = false, bool leechSeed = false)
+        int critBoost = 0, bool selfDestruct = false, bool leechSeed = false, bool setsSpikes = false,
+        Weather setsWeather = Weather.None, bool setsStealthRock = false, bool binds = false,
+        bool isProtect = false, bool forcesSwitch = false,
+        DamageClass? counterCategory = null, bool bypassAccuracy = false, bool chargeTurn = false,
+        bool multiTurnLock = false)
     {
         Move = move;
         Type = type;
@@ -45,6 +49,64 @@ public sealed class BattleMove
         CritBoost = critBoost;
         SelfDestruct = selfDestruct;
         LeechSeed = leechSeed;
+        SetsSpikes = setsSpikes;
+        SetsWeather = setsWeather;
+        SetsStealthRock = setsStealthRock;
+        Binds = binds;
+        IsProtect = isProtect;
+        ForcesSwitch = forcesSwitch;
+        CounterCategory = counterCategory;
+        BypassAccuracy = bypassAccuracy;
+        ChargeTurn = chargeTurn;
+        MultiTurnLock = multiTurnLock;
+        SecondaryEffects = BuildSecondaryEffects();
+    }
+
+    /// <summary>The move's chance-gated secondary effects as an ordered primitive list (the resolver
+    /// iterates and dispatches these). Built from the typed params in the historical resolution order —
+    /// migration step toward fully data-defined effects (EFFECT_TYPES_CATALOG).</summary>
+    private IReadOnlyList<MoveEffect> BuildSecondaryEffects()
+    {
+        var effects = new List<MoveEffect>();
+
+        // Chance-gated target effects (historical order: ailment, stat stage, confusion, flinch).
+        if (Ailment is { } ail && AilmentChance > 0)
+            effects.Add(new AilmentEffect(ail) { Chance = AilmentChance });
+        if (StageEffect is { } st && st.Chance > 0)
+            effects.Add(new StatChangeEffect(st.Stat, st.Delta, st.OnSelf) { Chance = st.Chance });
+        if (ConfuseChance > 0)
+            effects.Add(new ConfusionEffect { Chance = ConfuseChance });
+        if (FlinchChance > 0)
+            effects.Add(new FlinchEffect { Chance = FlinchChance });
+        if (Binds)
+            effects.Add(new BindEffect());
+        if (IsProtect)
+            effects.Add(new ProtectEffect());
+        if (ForcesSwitch)
+            effects.Add(new ForceSwitchEffect());
+
+        // Post-damage, deterministic effects (historical order: hazard, leech, drain, heal, recoil, crit, faint).
+        // On-miss crash recoil stays in the miss branch, not here.
+        if (SetsSpikes)
+            effects.Add(new EntryHazardEffect());
+        if (SetsStealthRock)
+            effects.Add(new StealthRockEffect());
+        if (SetsWeather != Weather.None)
+            effects.Add(new SetWeatherEffect(SetsWeather));
+        if (LeechSeed)
+            effects.Add(new LeechSeedEffect());
+        if (Drain is { } dr)
+            effects.Add(new DrainEffect(dr));
+        if (Heal is { } hl)
+            effects.Add(new HealEffect(hl));
+        if (Recoil is { } rc && !RecoilOnMiss)
+            effects.Add(new RecoilEffect(rc));
+        if (CritBoost > 0)
+            effects.Add(new CritBoostEffect(CritBoost));
+        if (SelfDestruct)
+            effects.Add(new SelfDestructEffect());
+
+        return effects;
     }
 
     public EntityId Move { get; }
@@ -61,6 +123,10 @@ public sealed class BattleMove
     public StageEffect? StageEffect { get; }
     public int ConfuseChance { get; }
     public int FlinchChance { get; }
+
+    /// <summary>Ordered secondary effects driving resolution (EFFECT_TYPES_CATALOG). The typed fields
+    /// above remain for compilation/inspection; this list is what the resolver dispatches.</summary>
+    public IReadOnlyList<MoveEffect> SecondaryEffects { get; }
 
     /// <summary>Battle v5 numeric ops: drain/heal fractions, recoil (on-hit from damage, or on-miss crash
     /// from max HP when <see cref="RecoilOnMiss"/>).</summary>
@@ -84,6 +150,36 @@ public sealed class BattleMove
     public int CritBoost { get; }
     public bool SelfDestruct { get; }
     public bool LeechSeed { get; }
+
+    /// <summary>Spikes-style entry hazard set on the target's side (catalog §7.3 side condition).</summary>
+    public bool SetsSpikes { get; }
+
+    /// <summary>Battlefield weather this move sets (catalog §7.6 field condition); None = not a weather move.</summary>
+    public Weather SetsWeather { get; }
+
+    /// <summary>Stealth-Rock-style type-scaled entry hazard set on the target's side (catalog §7.3).</summary>
+    public bool SetsStealthRock { get; }
+
+    /// <summary>Partial-trap move (Bind/Wrap/Fire Spin) — traps the target with a residual (catalog §7.2).</summary>
+    public bool Binds { get; }
+
+    /// <summary>Protect/Detect — shields the user this turn with success-chain decay (catalog §7.2).</summary>
+    public bool IsProtect { get; }
+
+    /// <summary>Roar/Whirlwind — forces the target out (random reserve, or ends a wild battle; catalog §9.6).</summary>
+    public bool ForcesSwitch { get; }
+
+    /// <summary>Counter/Mirror Coat — deals 2× the damage of this category taken this turn (catalog §9.2).</summary>
+    public DamageClass? CounterCategory { get; }
+
+    /// <summary>Sure-hit: skip the accuracy roll (Swift/Aerial Ace-style accuracyBypass).</summary>
+    public bool BypassAccuracy { get; }
+
+    /// <summary>Two-turn move (Solar Beam-style): charges turn 1, strikes turn 2 (catalog §7.2 charge).</summary>
+    public bool ChargeTurn { get; }
+
+    /// <summary>Thrash/Outrage — locks the user into this move for 2–3 turns, then self-confuses (catalog §9.3).</summary>
+    public bool MultiTurnLock { get; }
 
     public bool HasPp => Pp > 0;
     public void UsePp() => Pp = Math.Max(0, Pp - 1);
@@ -131,6 +227,28 @@ public sealed class BattleCreature
     /// <summary>Leech Seed volatile (v5): drained each end-of-turn to the opposing active.</summary>
     public bool Seeded { get; private set; }
 
+    /// <summary>Partial-trap volatile (v5, catalog §7.2): residual each turn + can't switch while &gt; 0.</summary>
+    public int TrapTurns { get; private set; }
+    public bool IsTrapped => TrapTurns > 0;
+
+    /// <summary>Protect volatile (v5, catalog §7.2 protect_family): shielded this turn, with a chain
+    /// counter that halves success on consecutive uses. <see cref="Protected"/> clears each turn.</summary>
+    public bool Protected { get; private set; }
+    public int ProtectChain { get; private set; }
+
+    /// <summary>Damage taken this turn by category, for Counter/Mirror Coat (catalog §9.2). Reset each turn.</summary>
+    public int PhysicalDamageTaken { get; private set; }
+    public int SpecialDamageTaken { get; private set; }
+
+    /// <summary>Two-turn move mid-charge (catalog §7.2 charge): the move index locked in until it fires.</summary>
+    public int? ChargingMoveIndex { get; private set; }
+    public bool IsCharging => ChargingMoveIndex is not null;
+
+    /// <summary>Thrash/Outrage rampage lock (catalog §9.3 outrage_family): forced move + turns left.</summary>
+    public int LockedMoveIndex { get; private set; }
+    public int LockTurns { get; private set; }
+    public bool IsLocked => LockTurns > 0;
+
     private readonly int[] _stages = new int[5]; // atk, def, spa, spd, spe
 
     public bool IsFainted => CurrentHp <= 0;
@@ -153,6 +271,30 @@ public sealed class BattleCreature
     public void ClearFlinch() => Flinched = false;
     public void RaiseCrit(int stages) => CritStageBonus += Math.Max(0, stages);
     public void SetSeeded(bool seeded) => Seeded = seeded;
+    public void SetTrap(int turns) => TrapTurns = Math.Max(0, turns);
+    /// <summary>Counts down the partial trap (0 = released).</summary>
+    public void TickTrap() { if (TrapTurns > 0) TrapTurns--; }
+
+    public void SetProtected() { Protected = true; ProtectChain++; }
+    public void ClearProtected() => Protected = false;
+    /// <summary>Breaks the protect chain (used a different move, or protect failed).</summary>
+    public void ResetProtectChain() => ProtectChain = 0;
+
+    /// <summary>Records damage taken this turn for Counter/Mirror Coat (status hits contribute nothing).</summary>
+    public void RecordDamageTaken(DamageClass damageClass, int amount)
+    {
+        if (damageClass == DamageClass.Physical) PhysicalDamageTaken += amount;
+        else if (damageClass == DamageClass.Special) SpecialDamageTaken += amount;
+    }
+
+    public void ResetDamageTaken() { PhysicalDamageTaken = 0; SpecialDamageTaken = 0; }
+
+    public void StartCharging(int moveIndex) => ChargingMoveIndex = moveIndex;
+    public void StopCharging() => ChargingMoveIndex = null;
+
+    public void StartLock(int moveIndex, int turns) { LockedMoveIndex = moveIndex; LockTurns = Math.Max(0, turns); }
+    /// <summary>Counts down the rampage lock (0 = the rampage ends this turn → self-confusion).</summary>
+    public void TickLock() { if (LockTurns > 0) LockTurns--; }
 
     /// <summary>Clears volatile state on switch-out / battle end (stages handled separately).</summary>
     public void ClearVolatiles()
@@ -161,6 +303,11 @@ public sealed class BattleCreature
         Flinched = false;
         CritStageBonus = 0;
         Seeded = false;
+        TrapTurns = 0;
+        Protected = false;
+        ProtectChain = 0;
+        ChargingMoveIndex = null;
+        LockTurns = 0;
     }
 
     private static int StageIndex(StatKind stat) => stat switch

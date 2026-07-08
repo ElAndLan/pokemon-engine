@@ -2,27 +2,33 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Battle;
 
-/// <summary>Persistent-status mechanics (Battle v4, BATTLE_SYSTEM_SPEC): end-of-turn residuals,
-/// stat modifiers, action-blocking rolls, application rules, and the capture status bonus. Target:
-/// Gen III/IV.</summary>
+/// <summary>Persistent-status mechanics (Battle v4, BATTLE_SYSTEM_SPEC): a thin reader over the
+/// data-defined <see cref="StatusConditions"/> registry (EFFECT_TYPES_CATALOG §7.1) — end-of-turn
+/// residuals, stat/damage modifiers, action-blocking rolls, application rules, and the capture bonus.
+/// Behavior data lives in the registry; this class applies it. Target: Gen III/IV.</summary>
 public static class StatusEffects
 {
     /// <summary>End-of-turn HP loss: burn/poison 1/8 of max, toxic ramps n/16 (n = 1..15). Min 1.</summary>
-    public static int ResidualDamage(PersistentStatus status, int maxHp, int toxicCounter) => status switch
+    public static int ResidualDamage(PersistentStatus status, int maxHp, int toxicCounter)
     {
-        PersistentStatus.Burn or PersistentStatus.Poison => Math.Max(1, maxHp / 8),
-        PersistentStatus.Toxic => Math.Max(1, maxHp * Math.Clamp(toxicCounter, 1, 15) / 16),
-        _ => 0,
-    };
+        StatusConditionDef def = StatusConditions.For(status);
+        if (def.ResidualDenominator == 0)
+            return 0;
+        int numerator = def.ResidualRamps ? Math.Clamp(toxicCounter, 1, 15) : 1;
+        return Math.Max(1, maxHp * numerator / def.ResidualDenominator);
+    }
 
     public static double SpeedMultiplier(PersistentStatus? status) =>
-        status == PersistentStatus.Paralysis ? 0.25 : 1.0;
+        status is { } s ? StatusConditions.For(s).SpeedMultiplier : 1.0;
 
     public static double BurnAttackMultiplier(PersistentStatus? status) =>
-        status == PersistentStatus.Burn ? 0.5 : 1.0;
+        status is { } s ? StatusConditions.For(s).PhysicalDamageMultiplier : 1.0;
 
-    public static bool FullyParalyzed(IRng rng) => rng.NextDouble() < 0.25;
-    public static bool Thaws(IRng rng) => rng.NextDouble() < 0.20;
+    public static bool FullyParalyzed(IRng rng) =>
+        rng.NextDouble() < StatusConditions.For(PersistentStatus.Paralysis).FullBlockChance;
+
+    public static bool Thaws(IRng rng) =>
+        rng.NextDouble() < StatusConditions.For(PersistentStatus.Freeze).ThawChance;
 
     /// <summary>Only one persistent status at a time.</summary>
     public static bool CanApplyStatus(PersistentStatus? current) => current is null;
@@ -31,21 +37,11 @@ public static class StatusEffects
     // ponytail: keyed on standard type slugs; fine for PokeAPI-derived and typical original types.
     public static bool TypeImmuneToStatus(PersistentStatus status, IReadOnlyList<EntityId> defenderTypes)
     {
-        var slugs = defenderTypes.Select(t => t.Slug).ToHashSet();
-        return status switch
-        {
-            PersistentStatus.Burn => slugs.Contains("fire"),
-            PersistentStatus.Freeze => slugs.Contains("ice"),
-            PersistentStatus.Poison or PersistentStatus.Toxic => slugs.Contains("poison") || slugs.Contains("steel"),
-            _ => false,
-        };
+        IReadOnlyList<string> immune = StatusConditions.For(status).ImmuneTypes;
+        return immune.Count > 0 && defenderTypes.Any(t => immune.Contains(t.Slug));
     }
 
     /// <summary>Capture rate bonus by status (sleep/freeze ×2, others ×1.5).</summary>
-    public static double CaptureStatusBonus(PersistentStatus? status) => status switch
-    {
-        PersistentStatus.Sleep or PersistentStatus.Freeze => 2.0,
-        PersistentStatus.Burn or PersistentStatus.Poison or PersistentStatus.Toxic or PersistentStatus.Paralysis => 1.5,
-        _ => 1.0,
-    };
+    public static double CaptureStatusBonus(PersistentStatus? status) =>
+        status is { } s ? StatusConditions.For(s).CaptureBonus : 1.0;
 }

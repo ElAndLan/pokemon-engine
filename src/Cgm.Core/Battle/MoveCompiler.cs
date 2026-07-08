@@ -20,8 +20,12 @@ public static class MoveCompiler
         bool recoilOnMiss = false;
         int multiHitMin = 0, multiHitMax = 0;
         int? fixedDamage = null;
-        bool fixedDamageLevel = false, ohko = false, selfDestruct = false, leechSeed = false;
+        bool fixedDamageLevel = false, ohko = false, selfDestruct = false, leechSeed = false, setsSpikes = false;
+        bool setsStealthRock = false, binds = false, isProtect = false, forcesSwitch = false, bypassAccuracy = false;
+        bool chargeTurn = false, multiTurnLock = false;
         int critBoost = 0;
+        Weather setsWeather = Weather.None;
+        DamageClass? counterCategory = null;
 
         foreach (Effect e in move.Effects)
         {
@@ -73,6 +77,46 @@ public static class MoveCompiler
                     leechSeed = true;
                     break;
 
+                case "spikes": // preset for apply_condition(side:entry_hazard_damage) (catalog §9.4)
+                    setsSpikes = true;
+                    break;
+
+                case "weather": // apply_condition(field:weather) (catalog §7.6)
+                    setsWeather = Parse<Weather>(Str(e, "weather"), "weather");
+                    break;
+
+                case "stealthRock": // apply_condition(side:entry_hazard_damage, type_scaled) (catalog §9.4)
+                    setsStealthRock = true;
+                    break;
+
+                case "bind": // apply_condition(volatile:partial_trap) (catalog §7.2)
+                    binds = true;
+                    break;
+
+                case "protect": // apply_condition(volatile:protect_family) (catalog §7.2)
+                    isProtect = true;
+                    break;
+
+                case "forceSwitch": // switch_flow(force_target_switch) (catalog §9.6)
+                    forcesSwitch = true;
+                    break;
+
+                case "counterDamage": // deal_damage(counter_received_damage) (catalog §9.2)
+                    counterCategory = Parse<DamageClass>(Str(e, "category"), "category");
+                    break;
+
+                case "accuracyBypass": // sure-hit (catalog §3.3 accuracy_check bypass)
+                    bypassAccuracy = true;
+                    break;
+
+                case "chargeTurn": // two-turn move (catalog §7.2 charge)
+                    chargeTurn = true;
+                    break;
+
+                case "multiTurnLock": // Thrash/Outrage rampage lock (catalog §9.3)
+                    multiTurnLock = true;
+                    break;
+
                 case "ailment":
                     string a = Str(e, "ailment");
                     if (a.Equals("confusion", StringComparison.OrdinalIgnoreCase))
@@ -103,7 +147,9 @@ public static class MoveCompiler
         return new BattleMove(move.Id, move.Type, move.DamageClass, move.Power, move.Accuracy, move.Pp,
             move.Priority, move.CritStage, ailment, ailmentChance, stageEffect, confuseChance, flinchChance,
             drain, recoil, recoilOnMiss, heal, multiHitMin, multiHitMax,
-            fixedDamage, fixedDamageLevel, ohko, critBoost, selfDestruct, leechSeed);
+            fixedDamage, fixedDamageLevel, ohko, critBoost, selfDestruct, leechSeed, setsSpikes, setsWeather,
+            setsStealthRock, binds, isProtect, forcesSwitch, counterCategory, bypassAccuracy, chargeTurn,
+            multiTurnLock);
     }
 
     /// <summary>Reads a <c>{ num, den }</c> fraction, defaulting either component when absent.</summary>

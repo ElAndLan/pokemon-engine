@@ -13,6 +13,10 @@ public sealed class BattleController
 {
     private readonly List<BattleCreature>[] _parties;
     private readonly int[] _active = [0, 0];
+    private readonly int[] _spikeLayers = [0, 0];    // entry-hazard side condition (catalog §7.3), per side
+    private readonly bool[] _stealthRock = [false, false]; // type-scaled entry hazard, per side
+    private Weather _weather = Weather.None;          // field condition (catalog §7.6)
+    private int _weatherTurns;
     private readonly TypeChart _chart;
     private readonly IRng _rng;
     private readonly List<BattleEvent> _log = [];
@@ -90,6 +94,12 @@ public sealed class BattleController
                     throw new ArgumentException($"{side} is already on party member {sw.PartyIndex}.");
                 if (party[sw.PartyIndex].IsFainted)
                     throw new ArgumentException($"{side} cannot switch to a fainted member.");
+                if (Active(side).IsTrapped)
+                    throw new ArgumentException($"{side} is trapped and cannot switch.");
+                if (Active(side).IsCharging)
+                    throw new ArgumentException($"{side} is charging a move and cannot switch.");
+                if (Active(side).IsLocked)
+                    throw new ArgumentException($"{side} is locked into a move and cannot switch.");
                 break;
 
             case ThrowBall when side != BattleSide.Player:
@@ -106,24 +116,38 @@ public sealed class BattleController
 
     private void ApplySwitch(BattleSide side, BattleAction action)
     {
-        if (action is not Switch sw)
-            return;
-        Active(side).ResetStages();     // stat stages don't carry across a switch
-        Active(side).ClearVolatiles();  // confusion/flinch clear on switch-out
-        _active[(int)side] = sw.PartyIndex;
-        _log.Add(new SwitchedIn(side, sw.PartyIndex));
+        if (action is Switch sw)
+            SwitchTo(side, sw.PartyIndex);
+    }
+
+    /// <summary>Brings a side's party member into play — the shared path for voluntary, forced (Roar),
+    /// and faint-replacement switches: outgoing loses stat stages + volatiles, then the on_switch_in
+    /// hazards fire on the incoming creature.</summary>
+    private void SwitchTo(BattleSide side, int index)
+    {
+        BattleCreature outgoing = Active(side);
+        outgoing.ResetStages();     // stat stages don't carry across a switch
+        outgoing.ClearVolatiles();  // confusion/flinch/trap/etc. clear on switch-out
+        _active[(int)side] = index;
+        _log.Add(new SwitchedIn(side, index));
+        OnSwitchIn(side);
     }
 
     private void ResolveMoves(BattleAction playerAction, BattleAction enemyAction)
     {
-        // Flinch lasts only until the flincher's next action window; clear before this turn's moves.
+        // Flinch and Protect last only for a turn; clear last turn's before this turn's moves resolve.
         Active(BattleSide.Player).ClearFlinch();
         Active(BattleSide.Enemy).ClearFlinch();
+        Active(BattleSide.Player).ClearProtected();
+        Active(BattleSide.Enemy).ClearProtected();
+        Active(BattleSide.Player).ResetDamageTaken(); // Counter/Mirror Coat only see this turn's hits
+        Active(BattleSide.Enemy).ResetDamageTaken();
 
         bool pMove = playerAction is UseMove;
         bool eMove = enemyAction is UseMove;
-        int pIndex = (playerAction as UseMove)?.MoveIndex ?? -1;
-        int eIndex = (enemyAction as UseMove)?.MoveIndex ?? -1;
+        // A charging creature is locked into its two-turn move, so its effective action is that move.
+        int pIndex = EffectiveMoveIndex(BattleSide.Player, (playerAction as UseMove)?.MoveIndex ?? -1);
+        int eIndex = EffectiveMoveIndex(BattleSide.Enemy, (enemyAction as UseMove)?.MoveIndex ?? -1);
 
         if (pMove && eMove)
         {
@@ -137,15 +161,34 @@ public sealed class BattleController
             int secondIdx = playerFirst ? eIndex : pIndex;
 
             ResolveMove(first, firstIdx);
+            TickRampageLock(first);
             ResolveMove(second, secondIdx);
+            TickRampageLock(second);
         }
         else if (pMove)
         {
             ResolveMove(BattleSide.Player, pIndex);
+            TickRampageLock(BattleSide.Player);
         }
         else if (eMove)
         {
             ResolveMove(BattleSide.Enemy, eIndex);
+            TickRampageLock(BattleSide.Enemy);
+        }
+    }
+
+    /// <summary>Counts a rampage (Thrash/Outrage) down after its move resolved — whether it hit, missed,
+    /// or was blocked. When the lock ends, the user confuses itself.</summary>
+    private void TickRampageLock(BattleSide side)
+    {
+        BattleCreature c = Active(side);
+        if (!c.IsLocked)
+            return;
+        c.TickLock();
+        if (!c.IsLocked && !c.IsFainted && !c.IsConfused)
+        {
+            c.SetConfusion(VolatileEffects.ConfusionDuration(_rng));
+            _log.Add(new Confused(side));
         }
     }
 
@@ -154,6 +197,15 @@ public sealed class BattleController
         BattleCreature c = Active(side);
         double m = StatusEffects.SpeedMultiplier(c.Status) * StatStages.Multiplier(c.Stage(StatKind.Spe));
         return (int)(c.Stats.Spe * m);
+    }
+
+    /// <summary>A charging or rampaging creature is locked into its move; otherwise the submitted index stands.</summary>
+    private int EffectiveMoveIndex(BattleSide side, int submitted)
+    {
+        BattleCreature c = Active(side);
+        if (c.IsCharging) return c.ChargingMoveIndex!.Value;
+        if (c.IsLocked) return c.LockedMoveIndex;
+        return submitted;
     }
 
     private void ResolveMove(BattleSide side, int moveIndex)
@@ -178,12 +230,41 @@ public sealed class BattleController
             return; // hurt itself in confusion — no PP, no move
 
         BattleMove move = attacker.Moves[moveIndex];
-        move.UsePp();
+        if (!move.IsProtect)
+            attacker.ResetProtectChain(); // any non-protect move breaks the protect chain
+
+        // Two-turn move: turn 1 charges (PP spent now, no damage); turn 2 fires as a normal hit.
+        bool firing = attacker.IsCharging;
+        if (move.ChargeTurn && !firing)
+        {
+            move.UsePp();
+            attacker.StartCharging(moveIndex);
+            _log.Add(new Charging(side, move.Move));
+            return;
+        }
+        if (firing)
+            attacker.StopCharging();
+
+        // Thrash/Outrage: first use locks the creature in for 2–3 turns; the lock ticks after resolution.
+        bool continuingLock = attacker.IsLocked;
+        if (move.MultiTurnLock && !continuingLock)
+            attacker.StartLock(moveIndex, _rng.Next(2, 4));
+
+        // PP is spent only on the first turn — not while firing a charge or continuing a rampage lock.
+        if (!firing && !continuingLock)
+            move.UsePp();
         _log.Add(new MoveUsed(side, move.Move));
 
-        // OHKO uses a level-scaled accuracy in place of the move's own.
+        // Protect: a move aimed at a shielded target is blocked outright (PP already spent).
+        if (target.Protected && TargetsOpponent(move))
+        {
+            _log.Add(new MoveBlocked(side));
+            return;
+        }
+
+        // OHKO uses a level-scaled accuracy in place of the move's own; accuracyBypass sure-hits.
         int? accuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, target.Level) : move.Accuracy;
-        if (!BattleRolls.Hits(accuracy, _rng))
+        if (!move.BypassAccuracy && !BattleRolls.Hits(accuracy, _rng))
         {
             _log.Add(new MoveMissed(side, move.Move));
             if (move.Recoil is { } crash && move.RecoilOnMiss)
@@ -192,7 +273,25 @@ public sealed class BattleController
         }
 
         int damageDealt = 0;
-        if (move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel)
+        if (move.CounterCategory is { } counterCat)
+        {
+            // Counter/Mirror Coat: return 2× the damage of that category taken this turn (no draw).
+            int received = counterCat == DamageClass.Physical ? attacker.PhysicalDamageTaken : attacker.SpecialDamageTaken;
+            if (received > 0)
+            {
+                int dmg = received * 2;
+                target.TakeDamage(dmg);
+                damageDealt = dmg;
+                _log.Add(new DamageDealt(targetSide, dmg, 1.0, Crit: false));
+                if (target.IsFainted)
+                    _log.Add(new Fainted(targetSide));
+            }
+            else
+            {
+                _log.Add(new MoveMissed(side, move.Move)); // nothing to counter → fizzles
+            }
+        }
+        else if (move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel)
         {
             // Formula-bypassing hit: no crit/STAB/roll (no RNG draws), but type immunity still voids it.
             double eff = _chart.Effectiveness(move.Type, target.Types);
@@ -215,6 +314,7 @@ public sealed class BattleController
             {
                 (int dmg, bool crit, double eff) = ComputeHit(attacker, target, move, power);
                 target.TakeDamage(dmg);
+                target.RecordDamageTaken(move.DamageClass, dmg); // for Counter/Mirror Coat
                 damageDealt += dmg;
                 _log.Add(new DamageDealt(targetSide, dmg, eff, crit));
             }
@@ -223,26 +323,12 @@ public sealed class BattleController
                 _log.Add(new Fainted(targetSide));
         }
 
-        // Secondary effects skip a fainted target (guarded); drain/recoil/heal act on the user.
-        TryInflictAilment(move, target, targetSide);
-        TryApplyStageEffect(move, attacker, side, target, targetSide);
-        TryConfuse(move, target, targetSide);
-        TryFlinch(move, target);
-        TryLeechSeed(move, target, targetSide);
-        ApplyDrainRecoilHeal(move, attacker, side, damageDealt);
-
-        if (move.CritBoost > 0)
-        {
-            attacker.RaiseCrit(move.CritBoost);
-            _log.Add(new CritBoosted(side));
-        }
-
-        // Explosion: the user faints after connecting.
-        if (move.SelfDestruct && !attacker.IsFainted)
-        {
-            attacker.TakeDamage(attacker.MaxHp);
-            _log.Add(new Fainted(side));
-        }
+        // Effect-list-driven resolution (EFFECT_TYPES_CATALOG): iterate the move's ordered effects and
+        // dispatch each to a shared primitive. Order matches the historical pipeline (target secondaries,
+        // then leech/drain/heal/recoil/crit/faint), so the RNG draw order is unchanged.
+        var ctx = new EffectContext(move, attacker, side, target, targetSide, damageDealt);
+        foreach (MoveEffect effect in move.SecondaryEffects)
+            ApplyEffect(ctx, effect);
     }
 
     /// <summary>Confusion pre-move check: counts down, may snap out or force a self-hit.
@@ -270,47 +356,172 @@ public sealed class BattleController
         return false;
     }
 
-    private void TryConfuse(BattleMove move, BattleCreature target, BattleSide targetSide)
+    /// <summary>Dispatches one compiled effect to its shared primitive (ResolvePrimitive,
+    /// EFFECT_TYPES_CATALOG §4.1). Each primitive keeps the historical chance-roll semantics so draw
+    /// order is preserved.</summary>
+    private void ApplyEffect(EffectContext ctx, MoveEffect effect)
     {
-        if (move.ConfuseChance <= 0 || target.IsFainted || target.IsConfused)
-            return;
-        if (_rng.Next(100) < move.ConfuseChance)
+        switch (effect)
         {
-            target.SetConfusion(VolatileEffects.ConfusionDuration(_rng));
-            _log.Add(new Confused(targetSide));
+            case AilmentEffect a: ApplyAilment(ctx, a); break;
+            case StatChangeEffect s: ApplyStatChange(ctx, s); break;
+            case ConfusionEffect c: ApplyConfusion(ctx, c); break;
+            case FlinchEffect f: ApplyFlinch(ctx, f); break;
+            case LeechSeedEffect: ApplyLeechSeed(ctx); break;
+            case BindEffect when !ctx.Target.IsFainted && !ctx.Target.IsTrapped:
+                ctx.Target.SetTrap(_rng.Next(4, 6)); // partial trap lasts 4–5 turns
+                _log.Add(new Bound(ctx.TargetSide));
+                break;
+            case ProtectEffect:
+                if (VolatileEffects.ProtectSucceeds(ctx.Source.ProtectChain, _rng))
+                {
+                    ctx.Source.SetProtected();
+                    _log.Add(new Protected(ctx.SourceSide));
+                }
+                else
+                {
+                    ctx.Source.ResetProtectChain();
+                    _log.Add(new ProtectFailed(ctx.SourceSide));
+                }
+                break;
+            case ForceSwitchEffect when !ctx.Target.IsFainted:
+                ForceSwitch(ctx.TargetSide);
+                break;
+            case DrainEffect d when ctx.DamageDealt > 0:
+                Heal(ctx.Source, ctx.SourceSide, EffectMath.DrainHeal(ctx.DamageDealt, d.Fraction.Num, d.Fraction.Den));
+                break;
+            case HealEffect h:
+                Heal(ctx.Source, ctx.SourceSide, EffectMath.HealAmount(ctx.Source.MaxHp, h.Fraction.Num, h.Fraction.Den));
+                break;
+            case RecoilEffect r when ctx.DamageDealt > 0:
+                Sap(ctx.Source, ctx.SourceSide, EffectMath.RecoilDamage(ctx.DamageDealt, r.Fraction.Num, r.Fraction.Den),
+                    amt => new Recoiled(ctx.SourceSide, amt));
+                break;
+            case CritBoostEffect cb:
+                ctx.Source.RaiseCrit(cb.Stages);
+                _log.Add(new CritBoosted(ctx.SourceSide));
+                break;
+            case SelfDestructEffect when !ctx.Source.IsFainted:
+                ctx.Source.TakeDamage(ctx.Source.MaxHp);
+                _log.Add(new Fainted(ctx.SourceSide));
+                break;
+            case EntryHazardEffect:
+                int layers = _spikeLayers[(int)ctx.TargetSide] = Math.Min(3, _spikeLayers[(int)ctx.TargetSide] + 1);
+                _log.Add(new HazardSet(ctx.TargetSide, layers));
+                break;
+            case StealthRockEffect when !_stealthRock[(int)ctx.TargetSide]:
+                _stealthRock[(int)ctx.TargetSide] = true;
+                _log.Add(new StealthRockSet(ctx.TargetSide));
+                break;
+            case SetWeatherEffect w when w.Weather != _weather:
+                _weather = w.Weather;
+                _weatherTurns = WeatherConditions.DefaultTurns;
+                _log.Add(new WeatherChanged(w.Weather));
+                break;
         }
     }
 
-    private void TryFlinch(BattleMove move, BattleCreature target)
+    private static readonly EntityId RockType = EntityId.Parse("type:rock");
+
+    /// <summary>on_switch_in hook (catalog §7.3): a creature entering a side with entry hazards takes
+    /// damage — Stealth Rock (type-scaled) before Spikes (layer-scaled). Draws no RNG. Battle-start
+    /// actives never trigger it (no hazards yet).</summary>
+    private void OnSwitchIn(BattleSide side)
+    {
+        BattleCreature c = Active(side);
+        if (c.IsFainted)
+            return;
+
+        if (_stealthRock[(int)side])
+        {
+            double eff = _chart.Effectiveness(RockType, c.Types);
+            Sap(c, side, EffectMath.TypeScaledHazardDamage(c.MaxHp, eff), amt => new HurtByHazard(side, amt));
+        }
+        if (!c.IsFainted && _spikeLayers[(int)side] > 0)
+            Sap(c, side, EffectMath.HazardDamage(c.MaxHp, _spikeLayers[(int)side]), amt => new HurtByHazard(side, amt));
+    }
+
+    /// <summary>Whether a move acts on the opposing creature (so Protect can block it). Damage or any
+    /// target-directed secondary counts; self-buffs, heals, weather, and side hazards do not.</summary>
+    private static bool TargetsOpponent(BattleMove move) =>
+        move.Power.HasValue || move.SecondaryEffects.Any(e =>
+            e is AilmentEffect or ConfusionEffect or FlinchEffect or LeechSeedEffect or BindEffect or ForceSwitchEffect
+            || (e is StatChangeEffect s && !s.OnSelf));
+
+    /// <summary>Roar/Whirlwind: a wild target flees (battle ends); a trainer's is dragged out to a random
+    /// healthy reserve. No reserve → no effect.</summary>
+    private void ForceSwitch(BattleSide side)
+    {
+        if (IsWild && side == BattleSide.Enemy)
+        {
+            Outcome = new BattleOutcome(Opponent(side)); // scared the wild creature off
+            _log.Add(new ForcedOut(side));
+            _log.Add(new BattleEnded(Opponent(side)));
+            return;
+        }
+
+        var reserves = new List<int>();
+        for (int i = 0; i < _parties[(int)side].Count; i++)
+            if (i != _active[(int)side] && !_parties[(int)side][i].IsFainted)
+                reserves.Add(i);
+        if (reserves.Count == 0)
+            return; // nothing to drag out
+
+        _log.Add(new ForcedOut(side));
+        SwitchTo(side, reserves[_rng.Next(reserves.Count)]);
+    }
+
+    private void ApplyLeechSeed(EffectContext ctx)
+    {
+        if (ctx.Target.IsFainted || ctx.Target.Seeded)
+            return;
+        if (ctx.Target.Types.Contains(ctx.Move.Type)) // a seed of its own type can't take hold (grass immune to grass Leech Seed)
+            return;
+        ctx.Target.SetSeeded(true);
+        _log.Add(new LeechSeeded(ctx.TargetSide));
+    }
+
+    private void ApplyAilment(EffectContext ctx, AilmentEffect effect)
+    {
+        if (ctx.Target.IsFainted)
+            return;
+        if (!StatusEffects.CanApplyStatus(ctx.Target.Status) || StatusEffects.TypeImmuneToStatus(effect.Status, ctx.Target.Types))
+            return;
+        if (_rng.Next(100) < effect.Chance)
+        {
+            ctx.Target.SetStatus(effect.Status);
+            _log.Add(new StatusApplied(ctx.TargetSide, effect.Status));
+        }
+    }
+
+    private void ApplyStatChange(EffectContext ctx, StatChangeEffect effect)
+    {
+        if (effect.Chance < 100 && _rng.Next(100) >= effect.Chance)
+            return;
+        BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
+        BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
+        if (recipient.IsFainted)
+            return;
+        recipient.ChangeStage(effect.Stat, effect.Delta);
+        _log.Add(new StatStageChanged(recipientSide, effect.Stat, effect.Delta));
+    }
+
+    private void ApplyConfusion(EffectContext ctx, ConfusionEffect effect)
+    {
+        if (ctx.Target.IsFainted || ctx.Target.IsConfused)
+            return;
+        if (_rng.Next(100) < effect.Chance)
+        {
+            ctx.Target.SetConfusion(VolatileEffects.ConfusionDuration(_rng));
+            _log.Add(new Confused(ctx.TargetSide));
+        }
+    }
+
+    private void ApplyFlinch(EffectContext ctx, FlinchEffect effect)
     {
         // Flinch only bites if the target hasn't acted yet — resolution order gives us that for free.
-        if (!target.IsFainted && VolatileEffects.Flinches(move.FlinchChance, _rng))
-            target.SetFlinch();
-    }
-
-    private void TryLeechSeed(BattleMove move, BattleCreature target, BattleSide targetSide)
-    {
-        if (!move.LeechSeed || target.IsFainted || target.Seeded)
-            return;
-        if (target.Types.Contains(move.Type)) // a seed of its own type can't take hold (grass immune to grass Leech Seed)
-            return;
-        target.SetSeeded(true);
-        _log.Add(new LeechSeeded(targetSide));
-    }
-
-    /// <summary>Battle v5 numeric ops on the user: drain (heal from damage), on-hit recoil, and a flat
-    /// heal. These draw no RNG, so v0–v4 goldens are unaffected. Amounts come from <see cref="EffectMath"/>;
-    /// the actual HP changes route through the shared <see cref="Heal"/>/<see cref="Sap"/> primitives.</summary>
-    private void ApplyDrainRecoilHeal(BattleMove move, BattleCreature attacker, BattleSide side, int damageDealt)
-    {
-        if (move.Drain is { } d && damageDealt > 0)
-            Heal(attacker, side, EffectMath.DrainHeal(damageDealt, d.Num, d.Den));
-
-        if (move.Heal is { } h)
-            Heal(attacker, side, EffectMath.HealAmount(attacker.MaxHp, h.Num, h.Den));
-
-        if (move.Recoil is { } r && !move.RecoilOnMiss && damageDealt > 0)
-            Sap(attacker, side, EffectMath.RecoilDamage(damageDealt, r.Num, r.Den), amt => new Recoiled(side, amt));
+        if (!ctx.Target.IsFainted && VolatileEffects.Flinches(effect.Chance, _rng))
+            ctx.Target.SetFlinch();
     }
 
     // ---- Reusable effect primitives (shared by every op that heals or saps HP) ----
@@ -369,7 +580,9 @@ public sealed class BattleController
         double stab = TypeChart.Stab(move.Type, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical;
 
-        return (DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn), crit, eff);
+        int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn);
+        dmg = (int)(dmg * WeatherConditions.DamageMultiplier(_weather, move.Type.Slug)); // on_damage_query weather modifier
+        return (dmg, crit, eff);
     }
 
     private bool CanAct(BattleCreature c, BattleSide side)
@@ -394,37 +607,6 @@ public sealed class BattleController
             default:
                 return true;
         }
-    }
-
-    private void TryInflictAilment(BattleMove move, BattleCreature target, BattleSide targetSide)
-    {
-        if (move.Ailment is not { } ailment || move.AilmentChance <= 0 || target.IsFainted)
-            return;
-        if (!StatusEffects.CanApplyStatus(target.Status) || StatusEffects.TypeImmuneToStatus(ailment, target.Types))
-            return;
-
-        if (_rng.Next(100) < move.AilmentChance)
-        {
-            target.SetStatus(ailment);
-            _log.Add(new StatusApplied(targetSide, ailment));
-        }
-    }
-
-    private void TryApplyStageEffect(BattleMove move, BattleCreature attacker, BattleSide side,
-        BattleCreature target, BattleSide targetSide)
-    {
-        if (move.StageEffect is not { } effect || effect.Chance <= 0)
-            return;
-        if (effect.Chance < 100 && _rng.Next(100) >= effect.Chance)
-            return;
-
-        BattleCreature recipient = effect.OnSelf ? attacker : target;
-        BattleSide recipientSide = effect.OnSelf ? side : targetSide;
-        if (recipient.IsFainted)
-            return;
-
-        recipient.ChangeStage(effect.Stat, effect.Delta);
-        _log.Add(new StatStageChanged(recipientSide, effect.Stat, effect.Delta));
     }
 
     private void ResolveCapture(ThrowBall ball)
@@ -475,6 +657,46 @@ public sealed class BattleController
             if (!c.IsFainted && c.Seeded)
                 DrainLife(c, side, Active(Opponent(side)), Opponent(side), Math.Max(1, c.MaxHp / 8));
         }
+
+        // Partial trap (Bind/Wrap/…): residual chip while trapped, then count down and release.
+        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+        {
+            BattleCreature c = Active(side);
+            if (c.IsFainted || !c.IsTrapped)
+                continue;
+            Sap(c, side, Math.Max(1, c.MaxHp / 8), amt => new BoundHurt(side, amt));
+            c.TickTrap();
+            if (!c.IsTrapped)
+                _log.Add(new BindReleased(side));
+        }
+
+        WeatherTurnEnd();
+    }
+
+    /// <summary>on_turn_end for the weather field condition: residual chip to non-immune actives, then
+    /// the duration counts down and expires. Draws no RNG.</summary>
+    private void WeatherTurnEnd()
+    {
+        if (_weather == Weather.None)
+            return;
+
+        WeatherDef def = WeatherConditions.For(_weather);
+        if (def.ResidualDenominator > 0)
+        {
+            foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+            {
+                BattleCreature c = Active(side);
+                if (c.IsFainted || c.Types.Any(t => def.ResidualImmuneTypes.Contains(t.Slug)))
+                    continue;
+                Sap(c, side, Math.Max(1, c.MaxHp / def.ResidualDenominator), amt => new WeatherDamage(side, amt));
+            }
+        }
+
+        if (--_weatherTurns <= 0)
+        {
+            _log.Add(new WeatherEnded(_weather));
+            _weather = Weather.None;
+        }
     }
 
     /// <summary>After a faint, auto-switch a side to its first healthy reserve.</summary>
@@ -487,11 +709,7 @@ public sealed class BattleController
                 continue;
             int next = _parties[(int)side].FindIndex(c => !c.IsFainted);
             if (next >= 0)
-            {
-                _active[(int)side] = next;
-                Active(side).ResetStages();
-                _log.Add(new SwitchedIn(side, next));
-            }
+                SwitchTo(side, next);
         }
     }
 

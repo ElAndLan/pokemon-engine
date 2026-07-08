@@ -16,6 +16,22 @@ the closed effect-op catalog, status/stage tables, capture, AI scoring, and the 
 - The **closed** effect-op palette (moves are data, not code) — versioned; new ops need a spec edit.
 - `BattleAction`/`BattleEvent` catalog; AI scoring weights (data block); golden-replay workflow.
 
+## Effect architecture — normalization contract (EFFECT_TYPES_CATALOG v0.5)
+
+`docs/EFFECT_TYPES_CATALOG_v0_5.md` is the binding effect-architecture contract. The target model is
+**few primitives + many reusable helpers + data-driven conditions with hooks + presets**, never
+one-function-per-move. A move is an *ordered list of data effects*; a resolver dispatches each to a
+shared primitive (`deal_damage`, `apply_condition`, `modify_stat_stage`, `heal_hp`, `chance_gate`, …);
+statuses/hazards/weather/traps are `ConditionDef`s with scope + hooks (`on_turn_end`, `on_before_move`,
+`on_damage_query`, …). New primitives require the §0 promotion rule (a genuinely new timing/scope model).
+
+**Migration status (in progress).** The engine currently compiles `Move.Effects` → typed `BattleMove`
+fields and resolves them; the shared *primitives* already exist (`DamageCalc`, `ChangeStage`,
+`Heal`/`Sap`/`DrainLife`, `EffectMath`) and no move has bespoke code. The migration converts resolution
+to be **effect-list-driven with a primitive dispatcher** (`EffectContext` + `MoveEffect` records +
+`ApplyEffect`), then converts statuses/volatiles to `ConditionDef`s with hooks, in tested chunks that
+preserve determinism (RNG draw order) at each step. Layer targets follow catalog §12 (v0–v6).
+
 ## Effect-op numeric formulas (Battle v5, Phase 14)
 
 The closed op palette lives on `Move.Effects` (`{ op, chance?, params }`). Ops split into pure numeric
