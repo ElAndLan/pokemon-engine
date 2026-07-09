@@ -13,6 +13,8 @@ public sealed class BattleController
 {
     private readonly List<BattleCreature>[] _parties;
     private readonly int[] _active = [0, 0];
+    private readonly Dictionary<EntityId, int>[] _itemStock = [[], []];
+    private readonly bool[] _temporaryFormUsed = [false, false];
     private readonly int[] _spikeLayers = [0, 0];    // entry-hazard side condition (catalog §7.3), per side
     private readonly bool[] _stealthRock = [false, false]; // type-scaled entry hazard, per side
     private Weather _weather = Weather.None;          // field condition (catalog §7.6)
@@ -20,6 +22,7 @@ public sealed class BattleController
     private readonly TypeChart _chart;
     private readonly IRng _rng;
     private readonly List<BattleEvent> _log = [];
+    private bool _dispatchingWeatherChange;
 
     public BattleController(BattleCreature player, BattleCreature enemy, TypeChart chart, IRng rng, bool isWild = false)
         : this([player], [enemy], chart, rng, isWild) { }
@@ -41,6 +44,30 @@ public sealed class BattleController
 
     public BattleCreature Active(BattleSide side) => _parties[(int)side][_active[(int)side]];
 
+    /// <summary>Entry-hazard state on a side (for AI switch valuation / UI). A creature switching in here
+    /// takes stealth-rock then spikes damage — see <see cref="OnSwitchIn"/>.</summary>
+    public int SpikeLayers(BattleSide side) => _spikeLayers[(int)side];
+    public bool HasStealthRock(BattleSide side) => _stealthRock[(int)side];
+
+    public void SetBattleItemStock(BattleSide side, EntityId item, int count) =>
+        _itemStock[(int)side][item] = Math.Max(0, count);
+
+    public bool CanSubmitAction(BattleSide side, BattleAction action)
+    {
+        if (Outcome is not null)
+            return false;
+
+        try
+        {
+            Validate(side, action);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
     public IReadOnlyList<BattleEvent> ResolveTurn(BattleAction playerAction, BattleAction enemyAction)
     {
         if (Outcome is not null)
@@ -54,15 +81,23 @@ public sealed class BattleController
         ApplySwitch(BattleSide.Player, playerAction);
         ApplySwitch(BattleSide.Enemy, enemyAction);
 
-        // 2. Capture (wild, player only).
+        // 2. Battle form activation happens before that side's selected move.
+        ApplyFormActivation(BattleSide.Player, playerAction);
+        ApplyFormActivation(BattleSide.Enemy, enemyAction);
+
+        // 3. Capture (wild, player only).
         if (playerAction is ThrowBall ball)
             ResolveCapture(ball);
 
-        // 3. Moves, ordered by priority then effective speed.
+        // 4. Battle items resolve before moves, after switches/capture.
+        ApplyBattleItem(BattleSide.Player, playerAction);
+        ApplyBattleItem(BattleSide.Enemy, enemyAction);
+
+        // 5. Moves, ordered by priority then effective speed.
         if (Outcome is null)
             ResolveMoves(playerAction, enemyAction);
 
-        // 4. End-of-turn residuals, then auto-replace any fainted actives with reserves.
+        // 6. End-of-turn residuals, then auto-replace any fainted actives with reserves.
         if (Outcome is null)
         {
             EndOfTurn();
@@ -70,6 +105,7 @@ public sealed class BattleController
         }
 
         Turn++;
+        RevertFaintedBattleForms();
         CheckEnd();
         return _log.GetRange(start, _log.Count - start);
     }
@@ -79,11 +115,16 @@ public sealed class BattleController
         switch (action)
         {
             case UseMove use:
-                BattleCreature c = Active(side);
-                if (use.MoveIndex < 0 || use.MoveIndex >= c.Moves.Count)
-                    throw new ArgumentException($"{side} move index {use.MoveIndex} out of range.");
-                if (!c.Moves[use.MoveIndex].HasPp)
-                    throw new ArgumentException($"{side} move {use.MoveIndex} has no PP.");
+                ValidateMoveUse(side, use.MoveIndex);
+                break;
+
+            case ActivateForm form:
+                ValidateMoveUse(side, form.MoveIndex);
+                BattleCreature active = Active(side);
+                bool temporary = !_temporaryFormUsed[(int)side]
+                    && active.CanActivateTemporaryForm(form.FormId, item => _itemStock[(int)side].TryGetValue(item, out int count) && count > 0);
+                if (!temporary && !active.CanActivateTimedForm(form.FormId))
+                    throw new ArgumentException($"{side} cannot activate form '{form.FormId}'.");
                 break;
 
             case Switch sw:
@@ -109,15 +150,70 @@ public sealed class BattleController
             case ThrowBall:
                 break;
 
+            case UseBattleItem item:
+                if (item.HealAmount <= 0)
+                    throw new ArgumentException("Battle item heal amount must be positive.");
+                if (!_itemStock[(int)side].TryGetValue(item.Item, out int count) || count <= 0)
+                    throw new ArgumentException($"{side} has no stock for item '{item.Item}'.");
+                List<BattleCreature> itemParty = _parties[(int)side];
+                if (item.TargetPartyIndex < 0 || item.TargetPartyIndex >= itemParty.Count)
+                    throw new ArgumentException($"{side} item target {item.TargetPartyIndex} out of range.");
+                BattleCreature target = itemParty[item.TargetPartyIndex];
+                if (target.IsFainted)
+                    throw new ArgumentException($"{side} cannot use a healing item on a fainted creature.");
+                if (target.CurrentHp >= target.MaxHp)
+                    throw new ArgumentException($"{side} cannot use a healing item at full HP.");
+                break;
+
             default:
                 throw new ArgumentException($"Unsupported action for {side}.");
         }
+    }
+
+    private void ValidateMoveUse(BattleSide side, int moveIndex)
+    {
+        BattleCreature c = Active(side);
+        if (moveIndex < 0 || moveIndex >= c.Moves.Count)
+            throw new ArgumentException($"{side} move index {moveIndex} out of range.");
+        if (!c.IsCharging && !c.IsLocked && c.ChoiceLockedMoveIndex is { } locked && moveIndex != locked)
+            throw new ArgumentException($"{side} is locked into move {locked}.");
+        if (!c.Moves[moveIndex].HasPp)
+            throw new ArgumentException($"{side} move {moveIndex} has no PP.");
     }
 
     private void ApplySwitch(BattleSide side, BattleAction action)
     {
         if (action is Switch sw)
             SwitchTo(side, sw.PartyIndex);
+    }
+
+    private void ApplyBattleItem(BattleSide side, BattleAction action)
+    {
+        if (action is not UseBattleItem item)
+            return;
+
+        _itemStock[(int)side][item.Item]--;
+        BattleCreature target = _parties[(int)side][item.TargetPartyIndex];
+        _log.Add(new BattleItemUsed(side, item.Item, item.TargetPartyIndex));
+        Heal(target, side, Math.Min(item.HealAmount, target.MaxHp - target.CurrentHp));
+    }
+
+    private void ApplyFormActivation(BattleSide side, BattleAction action)
+    {
+        if (action is not ActivateForm form)
+            return;
+
+        BattleCreature active = Active(side);
+        if (active.CanActivateTimedForm(form.FormId))
+        {
+            active.ActivateTimedForm(form.FormId);
+        }
+        else
+        {
+            active.ActivateTemporaryForm(form.FormId);
+            _temporaryFormUsed[(int)side] = true;
+        }
+        _log.Add(new FormChanged(side, form.FormId));
     }
 
     /// <summary>Brings a side's party member into play — the shared path for voluntary, forced (Roar),
@@ -143,11 +239,11 @@ public sealed class BattleController
         Active(BattleSide.Player).ResetDamageTaken(); // Counter/Mirror Coat only see this turn's hits
         Active(BattleSide.Enemy).ResetDamageTaken();
 
-        bool pMove = playerAction is UseMove;
-        bool eMove = enemyAction is UseMove;
+        bool pMove = MoveIndex(playerAction) is not null;
+        bool eMove = MoveIndex(enemyAction) is not null;
         // A charging creature is locked into its two-turn move, so its effective action is that move.
-        int pIndex = EffectiveMoveIndex(BattleSide.Player, (playerAction as UseMove)?.MoveIndex ?? -1);
-        int eIndex = EffectiveMoveIndex(BattleSide.Enemy, (enemyAction as UseMove)?.MoveIndex ?? -1);
+        int pIndex = EffectiveMoveIndex(BattleSide.Player, MoveIndex(playerAction) ?? -1);
+        int eIndex = EffectiveMoveIndex(BattleSide.Enemy, MoveIndex(enemyAction) ?? -1);
 
         if (pMove && eMove)
         {
@@ -176,6 +272,13 @@ public sealed class BattleController
             TickRampageLock(BattleSide.Enemy);
         }
     }
+
+    private static int? MoveIndex(BattleAction action) => action switch
+    {
+        UseMove move => move.MoveIndex,
+        ActivateForm form => form.MoveIndex,
+        _ => null,
+    };
 
     /// <summary>Counts a rampage (Thrash/Outrage) down after its move resolved — whether it hit, missed,
     /// or was blocked. When the lock ends, the user confuses itself.</summary>
@@ -238,6 +341,7 @@ public sealed class BattleController
         if (move.ChargeTurn && !firing)
         {
             move.UsePp();
+            ApplyChoiceLock(attacker, moveIndex);
             attacker.StartCharging(moveIndex);
             _log.Add(new Charging(side, move.Move));
             return;
@@ -253,6 +357,8 @@ public sealed class BattleController
         // PP is spent only on the first turn — not while firing a charge or continuing a rampage lock.
         if (!firing && !continuingLock)
             move.UsePp();
+        if (!continuingLock)
+            ApplyChoiceLock(attacker, moveIndex);
         _log.Add(new MoveUsed(side, move.Move));
 
         // Protect: a move aimed at a shielded target is blocked outright (PP already spent).
@@ -280,11 +386,7 @@ public sealed class BattleController
             if (received > 0)
             {
                 int dmg = received * 2;
-                target.TakeDamage(dmg);
-                damageDealt = dmg;
-                _log.Add(new DamageDealt(targetSide, dmg, 1.0, Crit: false));
-                if (target.IsFainted)
-                    _log.Add(new Fainted(targetSide));
+                damageDealt = DealMoveDamage(target, targetSide, dmg, 1.0, crit: false);
             }
             else
             {
@@ -299,11 +401,7 @@ public sealed class BattleController
                 : move.Ohko ? target.CurrentHp
                 : move.FixedDamageLevel ? attacker.Level
                 : move.FixedDamage!.Value;
-            target.TakeDamage(dmg);
-            damageDealt = dmg;
-            _log.Add(new DamageDealt(targetSide, dmg, eff, Crit: false));
-            if (target.IsFainted)
-                _log.Add(new Fainted(targetSide));
+            damageDealt = DealMoveDamage(target, targetSide, dmg, eff, crit: false);
         }
         else if (move.Power is int power)
         {
@@ -312,15 +410,11 @@ public sealed class BattleController
             int hits = move.MultiHitMax >= 2 ? EffectMath.HitCount(_rng, move.MultiHitMin, move.MultiHitMax) : 1;
             for (int h = 0; h < hits && !target.IsFainted; h++)
             {
-                (int dmg, bool crit, double eff) = ComputeHit(attacker, target, move, power);
-                target.TakeDamage(dmg);
-                target.RecordDamageTaken(move.DamageClass, dmg); // for Counter/Mirror Coat
-                damageDealt += dmg;
-                _log.Add(new DamageDealt(targetSide, dmg, eff, crit));
+                (int dmg, bool crit, double eff) = ComputeHit(side, attacker, target, move, power);
+                int dealt = DealMoveDamage(target, targetSide, dmg, eff, crit);
+                target.RecordDamageTaken(move.DamageClass, dealt); // for Counter/Mirror Coat
+                damageDealt += dealt;
             }
-
-            if (target.IsFainted)
-                _log.Add(new Fainted(targetSide));
         }
 
         // Effect-list-driven resolution (EFFECT_TYPES_CATALOG): iterate the move's ordered effects and
@@ -329,6 +423,7 @@ public sealed class BattleController
         var ctx = new EffectContext(move, attacker, side, target, targetSide, damageDealt);
         foreach (MoveEffect effect in move.SecondaryEffects)
             ApplyEffect(ctx, effect);
+        ApplyContactEffects(move, side, attacker, targetSide);
     }
 
     /// <summary>Confusion pre-move check: counts down, may snap out or force a self-hit.
@@ -414,9 +509,7 @@ public sealed class BattleController
                 _log.Add(new StealthRockSet(ctx.TargetSide));
                 break;
             case SetWeatherEffect w when w.Weather != _weather:
-                _weather = w.Weather;
-                _weatherTurns = WeatherConditions.DefaultTurns;
-                _log.Add(new WeatherChanged(w.Weather));
+                SetWeather(w.Weather, WeatherConditions.DefaultTurns, ctx.SourceSide);
                 break;
         }
     }
@@ -431,6 +524,9 @@ public sealed class BattleController
         BattleCreature c = Active(side);
         if (c.IsFainted)
             return;
+
+        ReevaluateConditionForm(side);
+        ApplyHookInvocations(BattleHookDispatcher.SwitchIn(side, HookSources()));
 
         if (_stealthRock[(int)side])
         {
@@ -454,9 +550,8 @@ public sealed class BattleController
     {
         if (IsWild && side == BattleSide.Enemy)
         {
-            Outcome = new BattleOutcome(Opponent(side)); // scared the wild creature off
             _log.Add(new ForcedOut(side));
-            _log.Add(new BattleEnded(Opponent(side)));
+            EndBattle(Opponent(side)); // scared the wild creature off
             return;
         }
 
@@ -486,6 +581,8 @@ public sealed class BattleController
         if (ctx.Target.IsFainted)
             return;
         if (!StatusEffects.CanApplyStatus(ctx.Target.Status) || StatusEffects.TypeImmuneToStatus(effect.Status, ctx.Target.Types))
+            return;
+        if (BlocksStatus(ctx.TargetSide, effect.Status))
             return;
         if (_rng.Next(100) < effect.Chance)
         {
@@ -524,6 +621,42 @@ public sealed class BattleController
             ctx.Target.SetFlinch();
     }
 
+    private void ApplyContactEffects(BattleMove move, BattleSide sourceSide, BattleCreature source, BattleSide targetSide)
+    {
+        if (!move.MakesContact || source.IsFainted)
+            return;
+
+        foreach (BattleHookInvocation invocation in BattleHookDispatcher.ContactReceived(targetSide, HookSources()))
+        {
+            Effect effect = invocation.Effect;
+            if (effect.Op != "contactChanceEffect" || _rng.Next(100) >= (effect.Chance ?? 100))
+                continue;
+
+            string statusName = Str(effect, "status");
+            if (statusName.Length > 0)
+            {
+                PersistentStatus status = Parse<PersistentStatus>(statusName);
+                if (StatusEffects.CanApplyStatus(source.Status)
+                    && !StatusEffects.TypeImmuneToStatus(status, source.Types)
+                    && !BlocksStatus(sourceSide, status))
+                {
+                    source.SetStatus(status);
+                    _log.Add(new StatusApplied(sourceSide, status));
+                }
+                continue;
+            }
+
+            string statName = Str(effect, "stat");
+            if (statName.Length > 0)
+            {
+                StatKind stat = Parse<StatKind>(statName);
+                int delta = Int(effect, "delta") ?? 0;
+                source.ChangeStage(stat, delta);
+                _log.Add(new StatStageChanged(sourceSide, stat, delta));
+            }
+        }
+    }
+
     // ---- Reusable effect primitives (shared by every op that heals or saps HP) ----
 
     /// <summary>Restore HP and log it. No-op if the creature is full or the amount is ≤0. Used by
@@ -532,8 +665,9 @@ public sealed class BattleController
     {
         if (amount <= 0 || c.CurrentHp >= c.MaxHp)
             return;
+        int before = c.CurrentHp;
         c.Heal(amount);
-        _log.Add(new Healed(side, amount));
+        _log.Add(new Healed(side, c.CurrentHp - before));
     }
 
     /// <summary>Deal non-move HP loss (recoil/crash/leech), log it via the supplied event factory, and
@@ -558,7 +692,32 @@ public sealed class BattleController
 
     /// <summary>One hit of a damaging move — draws crit then damage roll (fixed order), applies
     /// crit's stat-stage ignore rule and burn. Returned <c>eff</c> feeds the DamageDealt event.</summary>
-    private (int Dmg, bool Crit, double Eff) ComputeHit(BattleCreature attacker, BattleCreature target, BattleMove move, int power)
+    private int DealMoveDamage(BattleCreature target, BattleSide targetSide, int amount, double effectiveness, bool crit)
+    {
+        int before = target.CurrentHp;
+        amount = ApplySurviveFromFull(target, targetSide, amount);
+        target.TakeDamage(amount);
+        int dealt = before - target.CurrentHp;
+        _log.Add(new DamageDealt(targetSide, dealt, effectiveness, crit));
+        if (target.IsFainted)
+            _log.Add(new Fainted(targetSide));
+        return dealt;
+    }
+
+    private int ApplySurviveFromFull(BattleCreature target, BattleSide targetSide, int amount)
+    {
+        if (amount < target.CurrentHp || target.CurrentHp != target.MaxHp || target.HasConsumedHeldEffect("surviveFromFull"))
+            return amount;
+        if (!target.HeldItemBattleEffects.Any(e => e.Op == "surviveFromFull"))
+            return amount;
+
+        target.ConsumeHeldEffect("surviveFromFull");
+        _log.Add(new HeldItemConsumed(targetSide, "surviveFromFull"));
+        ReevaluateConditionForms();
+        return Math.Max(0, target.CurrentHp - 1);
+    }
+
+    private (int Dmg, bool Crit, double Eff) ComputeHit(BattleSide side, BattleCreature attacker, BattleCreature target, BattleMove move, int power)
     {
         bool physical = move.DamageClass == DamageClass.Physical;
         bool crit = BattleRolls.IsCrit(move.CritStage + attacker.CritStageBonus, _rng);
@@ -574,16 +733,163 @@ public sealed class BattleController
             dStage = Math.Min(0, dStage);
         }
 
-        int a = (int)((physical ? attacker.Stats.Atk : attacker.Stats.Spa) * StatStages.Multiplier(aStage));
-        int d = Math.Max(1, (int)((physical ? target.Stats.Def : target.Stats.Spd) * StatStages.Multiplier(dStage)));
+        int a = ModifiedBattleStat(side, side, offStat,
+            (int)((physical ? attacker.Stats.Atk : attacker.Stats.Spa) * StatStages.Multiplier(aStage)));
+        int d = ModifiedBattleStat(side, Opponent(side), defStat,
+            Math.Max(1, (int)((physical ? target.Stats.Def : target.Stats.Spd) * StatStages.Multiplier(dStage))));
         double eff = _chart.Effectiveness(move.Type, target.Types);
         double stab = TypeChart.Stab(move.Type, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical;
 
         int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn);
-        dmg = (int)(dmg * WeatherConditions.DamageMultiplier(_weather, move.Type.Slug)); // on_damage_query weather modifier
+        double hooks = HookDamageMultiplier(move, side);
+        dmg = (int)(dmg * hooks * WeatherConditions.DamageMultiplier(_weather, move.Type.Slug)); // on_damage_query modifiers
         return (dmg, crit, eff);
     }
+
+    private IEnumerable<BattleHookSource> HookSources()
+    {
+        foreach (BattleSide side in new[] { BattleSide.Player, BattleSide.Enemy })
+        {
+            BattleCreature c = Active(side);
+            foreach (AbilityHook hook in c.AbilityHooks)
+                yield return new BattleHookSource(side, BattleHookSourceKind.Ability, hook.Hook, hook.Effects);
+            foreach (var group in c.HeldItemBattleEffects.Select(e => (Hook: HeldHook(e), Effect: e)).Where(x => x.Hook is not null).GroupBy(x => x.Hook!.Value))
+                yield return new BattleHookSource(side, BattleHookSourceKind.HeldItem, group.Key, group.Select(x => x.Effect).ToList());
+        }
+    }
+
+    private void ApplyHookInvocations(IEnumerable<BattleHookInvocation> invocations)
+    {
+        foreach (BattleHookInvocation invocation in invocations)
+        {
+            if (invocation.Effect.Op == "weatherSummon")
+            {
+                int turns = Int(invocation.Effect, "duration") ?? WeatherConditions.DefaultTurns;
+                SetWeather(Parse<Weather>(Str(invocation.Effect, "weather")), turns + WeatherDurationExtension(invocation.Side), invocation.Side);
+            }
+        }
+    }
+
+    private int WeatherDurationExtension(BattleSide side) =>
+        Active(side).HeldItemBattleEffects
+            .Where(e => e.Op == "weatherDurationExtend")
+            .Sum(e => Int(e, "turns") ?? 0);
+
+    private static void ApplyChoiceLock(BattleCreature creature, int moveIndex)
+    {
+        if (creature.HeldItemBattleEffects.Any(e => e.Op == "choiceLock"))
+            creature.SetChoiceLock(moveIndex);
+    }
+
+    private double HookDamageMultiplier(BattleMove move, BattleSide side)
+    {
+        double multiplier = 1.0;
+        foreach (BattleHookInvocation invocation in BattleHookDispatcher.Damage(side, HookSources()))
+        {
+            Effect effect = invocation.Effect;
+            if (effect.Op is "typeDamageModify" or "typeDamageBoost")
+            {
+                if (!string.Equals(Str(effect, "type"), move.Type.Slug, StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
+            else if (effect.Op == "choiceLock")
+            {
+                if (!Enum.TryParse(Str(effect, "damageClass"), ignoreCase: true, out DamageClass damageClass)
+                    || damageClass != move.DamageClass)
+                    continue;
+            }
+            else
+            {
+                continue;
+            }
+            multiplier *= (Int(effect, "multiplierPercent") ?? 100) / 100.0;
+        }
+        return multiplier;
+    }
+
+    private int ModifiedBattleStat(BattleSide attackerSide, BattleSide statOwnerSide, StatKind stat, int value)
+    {
+        double multiplier = 1.0;
+        int add = 0;
+        foreach (BattleHookInvocation invocation in BattleHookDispatcher.Damage(attackerSide, HookSources()))
+        {
+            Effect effect = invocation.Effect;
+            if (invocation.Side != statOwnerSide || effect.Op != "statModify")
+                continue;
+            if (!string.Equals(Str(effect, "stat"), StatSlug(stat), StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            multiplier *= (Int(effect, "multiplierPercent") ?? 100) / 100.0;
+            add += Int(effect, "add") ?? 0;
+        }
+        return Math.Max(1, (int)(value * multiplier) + add);
+    }
+
+    private static string StatSlug(StatKind stat) => stat switch
+    {
+        StatKind.Atk => "atk",
+        StatKind.Def => "def",
+        StatKind.Spa => "spa",
+        StatKind.Spd => "spd",
+        StatKind.Spe => "spe",
+        _ => stat.ToString().ToLowerInvariant(),
+    };
+
+    private bool BlocksStatus(BattleSide target, PersistentStatus status) =>
+        BattleHookDispatcher.StatusAttempt(target, HookSources())
+            .Any(i => i.Effect.Op == "statusImmunity"
+                && string.Equals(Str(i.Effect, "status"), status.ToString(), StringComparison.OrdinalIgnoreCase));
+
+    private void SetWeather(Weather weather, int turns, BattleSide sourceSide)
+    {
+        if (weather == Weather.None)
+            return;
+        bool changed = _weather != weather;
+        _weather = weather;
+        _weatherTurns = Math.Max(1, turns);
+        if (!changed)
+            return;
+        _log.Add(new WeatherChanged(weather));
+        ReevaluateConditionForms();
+        if (_dispatchingWeatherChange)
+            return;
+
+        _dispatchingWeatherChange = true;
+        try
+        {
+            ApplyHookInvocations(BattleHookDispatcher.WeatherChange(sourceSide, HookSources()));
+        }
+        finally
+        {
+            _dispatchingWeatherChange = false;
+        }
+    }
+
+    private static AbilityHookPoint? HeldHook(Effect effect) => effect.Op switch
+    {
+        "typeDamageBoost" => AbilityHookPoint.OnModifyOutgoingDamage,
+        "choiceLock" => AbilityHookPoint.OnModifyOutgoingDamage,
+        "thresholdHeal" => AbilityHookPoint.OnEndOfTurn,
+        "statusCure" => AbilityHookPoint.OnEndOfTurn,
+        "residualHeal" => AbilityHookPoint.OnEndOfTurn,
+        _ => null,
+    };
+
+    private static string Str(Effect effect, string key) =>
+        effect.Params is not null && effect.Params.TryGetValue(key, out var value)
+            ? value.GetString() ?? ""
+            : "";
+
+    private static int? Int(Effect effect, string key) =>
+        effect.Params is not null && effect.Params.TryGetValue(key, out var value) && value.TryGetInt32(out int n)
+            ? n
+            : null;
+
+    private static T Parse<T>(string value) where T : struct, Enum =>
+        Enum.TryParse(value, ignoreCase: true, out T parsed)
+            ? parsed
+            : throw new ArgumentException($"Unknown {typeof(T).Name} '{value}'.");
 
     private bool CanAct(BattleCreature c, BattleSide side)
     {
@@ -621,9 +927,8 @@ public sealed class BattleController
         if (result.Caught)
         {
             Captured = true;
-            Outcome = new BattleOutcome(BattleSide.Player);
             _log.Add(new Captured(BattleSide.Enemy));
-            _log.Add(new BattleEnded(BattleSide.Player));
+            EndBattle(BattleSide.Player);
         }
         else
         {
@@ -670,7 +975,70 @@ public sealed class BattleController
                 _log.Add(new BindReleased(side));
         }
 
+        ApplyEndOfTurnHooks();
         WeatherTurnEnd();
+        TickTimedForms();
+    }
+
+    private void ApplyEndOfTurnHooks()
+    {
+        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+            foreach (BattleHookInvocation invocation in BattleHookDispatcher.EndOfTurn(side, HookSources()))
+                ApplyEndOfTurnHook(side, invocation.Effect);
+    }
+
+    private void ApplyEndOfTurnHook(BattleSide side, Effect effect)
+    {
+        BattleCreature c = Active(side);
+        if (c.IsFainted)
+            return;
+
+        if (effect.Op == "residualHeal")
+        {
+            Heal(c, side, FractionAmount(c, effect));
+            return;
+        }
+
+        if (effect.Op == "residualDamage")
+        {
+            Sap(c, side, FractionAmount(c, effect), amt => new ResidualDamage(side, amt));
+            return;
+        }
+
+        if (effect.Op == "statusCure" && !c.HasConsumedHeldEffect(effect.Op) && c.Status is { } status
+            && string.Equals(Str(effect, "status"), status.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            c.ConsumeHeldEffect(effect.Op);
+            _log.Add(new HeldItemConsumed(side, effect.Op));
+            c.ClearStatus();
+            _log.Add(new StatusCured(side, status));
+            ReevaluateConditionForms();
+            return;
+        }
+
+        if (effect.Op == "thresholdHeal" && !c.HasConsumedHeldEffect(effect.Op))
+        {
+            int threshold = Int(effect, "thresholdPercent") ?? 50;
+            if (c.CurrentHp * 100 > c.MaxHp * threshold)
+                return;
+
+            int amount = Int(effect, "healAmount")
+                ?? (Int(effect, "healFractionPercent") is { } percent ? Math.Max(1, c.MaxHp * percent / 100) : 0);
+            if (amount <= 0 || c.CurrentHp >= c.MaxHp)
+                return;
+
+            c.ConsumeHeldEffect(effect.Op);
+            _log.Add(new HeldItemConsumed(side, effect.Op));
+            Heal(c, side, Math.Min(amount, c.MaxHp - c.CurrentHp));
+            ReevaluateConditionForms();
+        }
+    }
+
+    private static int FractionAmount(BattleCreature c, Effect effect)
+    {
+        int num = Int(effect, "num") ?? 1;
+        int den = Int(effect, "den") ?? 16;
+        return Math.Max(1, c.MaxHp * num / den);
     }
 
     /// <summary>on_turn_end for the weather field condition: residual chip to non-immune actives, then
@@ -696,7 +1064,47 @@ public sealed class BattleController
         {
             _log.Add(new WeatherEnded(_weather));
             _weather = Weather.None;
+            ReevaluateConditionForms();
         }
+    }
+
+    private void ReevaluateConditionForms()
+    {
+        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+            ReevaluateConditionForm(side);
+    }
+
+    private void ReevaluateConditionForm(BattleSide side)
+    {
+        (bool changed, string? formId) = Active(side).ReevaluateConditionForm(_weather);
+        if (changed)
+            _log.Add(new FormChanged(side, formId));
+    }
+
+    private void TickTimedForms()
+    {
+        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+            if (Active(side).TickTimedForm())
+            {
+                _log.Add(new FormChanged(side, null));
+                ReevaluateConditionForm(side);
+            }
+    }
+
+    private void RevertFaintedBattleForms()
+    {
+        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+            foreach (BattleCreature creature in _parties[(int)side])
+                if (creature.RevertActiveBattleFormIfFainted())
+                    _log.Add(new FormChanged(side, null));
+    }
+
+    private void RevertBattleEndForms()
+    {
+        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+            foreach (BattleCreature creature in _parties[(int)side])
+                if (creature.RevertActiveBattleForm())
+                    _log.Add(new FormChanged(side, null));
     }
 
     /// <summary>After a faint, auto-switch a side to its first healthy reserve.</summary>
@@ -724,7 +1132,13 @@ public sealed class BattleController
             return;
 
         BattleSide winner = playerDown ? BattleSide.Enemy : BattleSide.Player;
+        EndBattle(winner);
+    }
+
+    private void EndBattle(BattleSide winner)
+    {
         Outcome = new BattleOutcome(winner);
+        RevertBattleEndForms();
         _log.Add(new BattleEnded(winner));
     }
 

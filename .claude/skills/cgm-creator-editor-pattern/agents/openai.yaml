@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Creator Editor Pattern"
+  short_description: "Build Creator editors through undoable ViewModel patterns."
+  default_prompt: "Use cgm-creator-editor-pattern before adding or changing Creature Game Maker Creator editor screens, ViewModels, validation UI, or undo behavior."

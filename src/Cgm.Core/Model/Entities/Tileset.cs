@@ -6,7 +6,7 @@ public enum LedgeDir { None, Up, Down, Left, Right }
 /// not standalone files.</summary>
 public sealed record Tileset : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
     public IReadOnlyList<Tile> Tiles { get; init; } = [];

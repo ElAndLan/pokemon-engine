@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 3,
+  "id": "trainer:expert_rematch_mira",
+  "name": "Mira",
+  "class": "Expert Rematch",
+  "sightRange": 3,
+  "aiProfile": "smart",
+  "money": 1800,
+  "party": [
+    {
+      "species": "species:asterling",
+      "level": 24,
+      "moves": [ "move:leaf_jab", "move:root_guard", "move:cinder_burst" ],
+      "heldItem": "item:bloom_stone"
+    },
+    {
+      "species": "species:asterling",
+      "level": 24,
+      "moves": [ "move:leaf_jab", "move:root_guard", "move:cinder_burst" ],
+      "heldItem": "item:storm_band"
+    },
+    {
+      "species": "species:asterling",
+      "level": 24,
+      "moves": [ "move:leaf_jab", "move:root_guard", "move:cinder_burst" ],
+      "heldItem": "item:surge_sash"
+    }
+  ],
+  "dialogue": {
+    "sight": "Let's test the rematch set.",
+    "intro": "Show me how your forms hold up.",
+    "defeat": "Cleanly played.",
+    "postDefeat": "Those items changed the whole tempo."
+  }
+}

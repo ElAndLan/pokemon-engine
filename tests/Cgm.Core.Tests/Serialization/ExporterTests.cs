@@ -71,6 +71,26 @@ public sealed class ExporterTests : IDisposable
         Assert.True(config.Debug);
     }
 
+
+    [Fact]
+    public void ExportData_WithTemplateCopiesAndRenamesRuntimeExe()
+    {
+        string template = Path.Combine(_out, "template");
+        string export = Path.Combine(_out, "export");
+        Directory.CreateDirectory(template);
+        File.WriteAllText(Path.Combine(template, "Cgm.Runtime.exe"), "exe");
+        File.WriteAllText(Path.Combine(template, "Cgm.Runtime.dll"), "dll");
+
+        ExportResult result = Exporter.ExportData(FixtureMin(),
+            new ExportOptions(GameName: "My Game", TemplateFolder: template), export);
+
+        Assert.Equal(Path.Combine(export, "My Game.exe"), result.ExePath);
+        Assert.True(File.Exists(result.ExePath!));
+        Assert.True(File.Exists(Path.Combine(export, "Cgm.Runtime.dll")));
+        Assert.False(File.Exists(Path.Combine(export, "Cgm.Runtime.exe")));
+        Assert.True(File.Exists(result.PackPath));
+        Assert.True(File.Exists(result.ConfigPath));
+    }
     [Fact]
     public void ValidationErrors_BlockExport()
     {

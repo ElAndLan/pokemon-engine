@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "id": "item:storm_band",
+  "name": "Storm Band",
+  "pocket": "items",
+  "price": 900,
+  "consumable": false,
+  "usableInField": false,
+  "usableInBattle": false,
+  "holdable": true,
+  "keyItem": false,
+  "effects": [],
+  "battleEffects": [
+    { "op": "weatherDurationExtend", "params": { "turns": 2 } }
+  ]
+}

@@ -39,8 +39,8 @@ Conventions used below:
 | 11 | Trainer Battles, Statuses & Stages (v3–v4) | 4 wk | **Core complete (510 tests)** — party switching, statuses, stat stages, confusion+flinch, sight-line trigger, trainer party validation, basic + random AI. Remaining: Creator trainer editor + battle/overworld UI (display-dependent, deferred) |
 | 12 | Export Pipeline | 2–3 wk | **In progress** — atlas packer (v5) + `.cgmpack` binary + GameDb pack-vs-folder unity test done, EXPORT/ASSET specs written (531 tests). Codec = stdlib Deflate (no new dep). config.json gen + `Exporter` (validate-gate → pack + config) + `Cgm.Tools export` CLI done, verified end-to-end (544 tests). Remaining: runtime template build, icon patching, export UI, smoke test (build/CI/VM-dependent) |
 | 13 | Vertical Slice & Demo Game | 4 wk (timeboxed) | **Core rules complete (620 tests)** — evolution trigger matrix, happiness (bracketed Gen rates), day/night clock, creature-center recovery, trigger/door-lock condition eval (badge gating), time-conditional encounters, animation-template clip helper, options settings + persistence. Remaining items are display/asset/integration-bound: audio playback (OpenAL), demo-game original assets, evolution/battle scenes, UI screens, input-replay integration test — need the user's machine + original art/audio. Audio crossfade helper deferred (would be a speculative fragment without the audio system). |
-| 14 | Advanced Battle Effects & Smart AI (v5) | 4 wk | **In progress** — v5 op numeric math (`EffectMath`: multiHit dist, drain, recoil, crash, ohko acc, healFraction) spec'd in BATTLE_SYSTEM_SPEC + implemented (647 tests). `MoveCompiler` (`Move.Effects` → `BattleMove`) bridges the data-driven palette for v4 ops (ailment/statStage/flinch/confuse), proven end-to-end. Drain/recoil/crash-on-miss/heal ops now wired into `ResolveMove` + compiled by `MoveCompiler`, no golden regressions. all v5 **numeric/formula-bypassing** ops done: drain, recoil, crash-on-miss, heal, multiHit, fixedDamage (flat/level), ohko (level-scaled acc + immunity) — compiled from data + resolved, no golden regressions (678 tests). v5 ops: drain/recoil/heal/multiHit/fixed/ohko/critBoost/selfDestruct/leechSeed via shared primitives. **Effect-system overhaul → EFFECT_TYPES_CATALOG v0.5 (adopted as the effect-architecture contract).** Chunks 1–2 done: **all** move-effect application is now effect-list-driven through one primitive dispatcher (`ApplyEffect` + `EffectContext` + `MoveEffect` records: ailment/statStage/confusion/flinch/leech/drain/heal/recoil/crit/selfDestruct); `Try*`/`ApplyDrainRecoilHeal` pipeline removed; zero draw-order change (691 tests). Chunk 3a done: statuses are data-defined conditions — `StatusConditionDef` registry holds each status's hook params (residual, damage/speed mult, block/thaw chance, immunity, capture bonus); `StatusEffects` is now a thin reader (6 scattered switches → 1 table), determinism identical (699 tests). Chunk 3b done: **entry hazards (Spikes)** as a side condition with an `on_switch_in` hook (`_spikeLayers` per side, layer-scaled 1/8→1/6→1/4, applied on voluntary + faint-replacement switch-in) — new v5 functionality on the catalog condition model (704 tests). Chunk 4 done: **weather** as a data-defined field condition (`WeatherDef` registry: rain/sun/sand/hail) — `on_turn_end` residual chip (1/16, type-immunity) + `on_damage_query` type mods (×1.5/×0.5) + 5-turn expiry (709 tests). **Stealth Rock** (type-scaled hazard) + **bind/partial-trap** (volatile: 1/8 residual + switch-block for 4–5 turns) added on the condition machinery (715 tests). Condition model now spans persistent/volatile/side/field scopes. **protect/detect** (+4-priority self-shield, 1/2^chain decay) + **forceSwitchOut** (Roar: drags trainer target to a random reserve / ends wild battle; unified `SwitchTo` shared by voluntary/auto/forced switches) added (723 tests). **counterDamage** (Counter/Mirror Coat — 2× per-turn category damage taken, reset each turn) + **accuracyBypass** (sure-hit) added (727 tests). **chargeTurn** + **multiTurnLock** (Thrash/Outrage: 2–3 turn rampage lock → self-confusion, reuses the action-override machinery) added — **the v5 effect-op palette is complete** (25 ops: ailment/statStage/confusion/flinch/damage/drain/recoil/crash/heal/multiHit/fixedDamage/ohko/critBoost/selfDestruct/leechSeed/spikes/stealthRock/weather/bind/protect/forceSwitch/counterDamage/accuracyBypass/chargeTurn/multiTurnLock), all data-compiled + resolved through shared primitives on the 4-scope condition model (736 tests). **Remaining Phase 14: smart AI.** (Terrain is v6/Phase 15 — deferred.) |
-| 15 | Abilities, Held Items, Weather & Forms (v6) | 4–6 wk | Blocked on 14 |
+| 14 | Advanced Battle Effects & Smart AI (v5) | 4 wk | **Verified Core baseline (785 tests, 2026-07-09)** - v5 effect-op palette complete in Core; smart AI dispatch, score tables, memory, finite trainer healing items, bounded switching, hazard-aware/relative switch scoring, minimal repeated-move prediction, and AI-vs-AI deterministic smoke are implemented and tested. Smart-vs-Basic baseline is **69.0% @400** with Smart-vs-Smart side balance **49.2%**. Full tuning is deferred until Phase 15+ mechanics exist; display/debug-console score-table integration moves to presentation/debug tooling. |
+| 15 | Abilities, Held Items, Weather & Forms (v6) | 4-6 wk | **Audit no-go / not closeable (861 tests)** - Core v6 hooks/forms, Creator authoring support, sample showcase data, export template-copy, Runtime `--smoke`, exported config/pack loading, and minimal rendered battle silhouette are green. Blocker: the Addendum v6 done gate requires a Mega-style showcase fight in the demo; current coverage is data + smoke + rectangles, not a real demo showcase fight. |
 | 16 | World Depth & Eventing | 4–6 wk | Blocked on 13 |
 | 17 | Creator at Scale & Data Import | 3–4 wk | Blocked on 13 |
 | 18 | Presentation Polish | 3–4 wk | Blocked on 15+16 |
@@ -48,6 +48,20 @@ Conventions used below:
 
 Critical path: 1→2→3→4→5→7→8→9→11→13→…→19. Phases 6 and 12 can run parallel to editor
 phases if desired; 14–17 can partially interleave after 13.
+
+### Reconciliation note — 2026-07-08
+
+`docs/SCOPE_GUARD.md` was stale and still pointed at Phase 4. The actual codebase is in
+Phase 14: the v5 effect-op palette is implemented in Core, and the local Phase 14 smart-AI Core
+slice now dispatches by trainer profile with legal move/switch actions, named score tables,
+memory, and switch cooldown coverage. As of 2026-07-09, Phase 14 is accepted as a verified Core
+baseline (785 tests); full AI tuning is deferred until Phase 15+ mechanics exist.
+
+Do not treat display-dependent work as done: Runtime is a minimal Silk.NET host with headless
+helpers and a nonblank rectangle battle silhouette, not a rendered playable runtime; Creator
+canvas/editor screens remain deferred where noted; export can copy a local runtime template and run
+`--smoke`, but icon/metadata patching, Creator export UI, CI self-contained templates, clean-VM
+testing, and a real demo showcase fight remain open.
 
 ---
 
@@ -828,9 +842,9 @@ items, full weather interplay, and the forms system (Mega/Gmax-style).
 
 **Features/deliverables (complete list):**
 1. **Ability system (Core):** hook dispatcher with defined ordering — hook points:
-   onSwitchIn, onModifyOutgoingDamage, onModifyIncomingDamage, onModifyStat,
-   onStatusAttempt (immunity), onEndOfTurn, onContactReceived, onWeatherChange,
-   onFaint; ability defs = data (hook + params from a closed ability-op palette
+   onSwitchIn, onModifyOutgoingDamage, onModifyIncomingDamage, onStatusAttempt
+   (immunity), onEndOfTurn, onContactReceived, onWeatherChange; onModifyStat/onFaint
+   remain reserved until a closed op needs those timings; ability defs = data (hook + params from a closed ability-op palette
    mirroring the move-op approach: statModify, typeDamageModify, statusImmunity,
    weatherSummon, contactChanceEffect, residualHeal…); ability editor (Creator);
    species gain ability slots (1–2 + hidden slot); instance rolls ability on creation.
@@ -1173,7 +1187,647 @@ inline combos) and the effect-list control (no effect-op editing UI yet — land
 Outstanding for Phase 3 sign-off: **manual UI script** (user runs via run.bat — needs a display)
 and the Phase 3 review.
 
+## Phase 14 progress (2026-07-08)
+Done: implemented the smart-AI Core slice. Files changed: `src/Cgm.Core/Battle/SmartAi.cs`,
+`src/Cgm.Core/Battle/TrainerAi.cs`, `src/Cgm.Core/Battle/BattleEvents.cs`, `src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/SmartAiTests.cs`, `tests/Cgm.Core.Tests/Battle/BattleItemTests.cs`,
+`docs/SCOPE_GUARD.md`, `docs/BATTLE_SYSTEM_SPEC.md`, `docs/BATTLE_AI_SPEC.md`, and this plan.
+Behavior covered: `TrainerAi` profile dispatch, `SmartAiContext`, named score components for
+score-table/debug visibility, seen/repeated player move memory, legal move/switch action output,
+status/setup/hazard/protect/force-switch/recovery/recoil/self-KO scoring, and voluntary switch
+cooldown.
+
+Tests/checks run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green after rerun with
+AppData access for Avalonia build telemetry), `D:\dotnet\dotnet.exe test tests/Cgm.Core.Tests/Cgm.Core.Tests.csproj --no-build`
+(640 passed), and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (753 passed).
+
+Remaining blockers/next task: Phase 14 review pass; demo/difficulty tuning and win-rate smoke once
+demo teams are available; display/debug-console integration for score tables; trainer item use is
+deferred until enemy item actions exist.
+
+Update (2026-07-09): switch scoring fix landed. `SmartAi` now gates voluntary switches on the
+relative gain over staying, then adds that gain to the best stay/move baseline for final candidate
+ranking. Default `SwitchThreshold` is 100 after the corrected relative formula over-switched at 35.
+Added a regression test proving the threshold is relative, not `bestMove + threshold`. Targeted
+Smart AI + difficulty tests pass (31 tests).
+
+Update (2026-07-09, part 2): minimal prediction hook landed. When `SmartAiMemory` shows the player
+has repeated the same seen move, voluntary switch scoring uses that move's expected damage instead
+of assuming the player's strongest possible damage every turn. This keeps Advanced fair: no selected
+action read, no open-team-sheet logic, and no schema change. Added a regression test for repeated
+move prediction in switch valuation.
+
+Update (2026-07-09, part 3): tuning pass measured current Smart-vs-Basic at **69.0% @400** with
+Smart-vs-Smart side balance **49.2%**. Tested switch thresholds 80/60, noise 0.03, hazard value 45,
+memory-enabled benchmark wiring, and priority-KO scoring; none improved the 400-game win rate, so
+none were kept. Phase 14 is roughly **90% complete for Core** and **80% complete for the whole phase**:
+v5 effects and smart-AI Core are implemented and tested; remaining exit work is full Phase 14 review,
+status/docs cleanup, and display/debug-console integration. Demo/asset/UI-dependent validation remains
+outside the Core slice.
+
+Update (2026-07-09, part 4): per user decision, Phase 14 is **verified for now**. We will revisit
+AI tuning after Phase 15+ battle mechanics are available. Display/debug-console score-table
+integration is no longer a Phase 14 gate; it belongs with later presentation/debug tooling.
+
+## Phase 15 progress (2026-07-09)
+Started the Battle v6 spec-lock slice in `docs/BATTLE_SYSTEM_SPEC.md`: hook dispatch order,
+the initial closed ability-op and held-item-op palettes, weather-change precedence, form
+activation/revert invariants, and the Phase 15 test contract are now pinned before schema/code
+changes. Next slice: schema v2 for `ability:*`, species ability slots, active `forms[]`, and held
+battle effects, with `DATA_SCHEMA.md`, migrator coverage, and serialization tests in the same
+change.
+
+Update (2026-07-09, part 2): completed the schema v2 project-data slice. Changed files:
+`docs/DATA_SCHEMA.md`, `docs/AGENTS.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Model/SchemaVersions.cs`, `src/Cgm.Core/Model/EntityId.cs`,
+`src/Cgm.Core/Model/Entities/Ability.cs`, `src/Cgm.Core/Model/Entities/Species.cs`,
+`src/Cgm.Core/Model/Entities/Item.cs`, `src/Cgm.Core/Serialization/EntityRegistry.cs`,
+`src/Cgm.Core/Serialization/Migrator.cs`, `tests/Cgm.Core.Tests/Model/EntityIdTests.cs`,
+`tests/Cgm.Core.Tests/Serialization/MigratorTests.cs`,
+`tests/Cgm.Core.Tests/Serialization/ProjectLoaderTests.cs`, and
+`tests/Cgm.Core.Tests/Serialization/SchemaV2SerializationTests.cs`.
+Behavior covered: `schemaVersion` current defaults to 2; v1 project files migrate to v2 as a
+no-op; `ability:*` is a loadable entity category; ability hooks serialize; species normal/hidden
+ability slots and active form records serialize; item held `battleEffects` serialize. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (791 passing tests).
+Next slice: v2 validation rules for ability refs, ability hook/op shape, held-item battle-op
+shape, and form completeness/activation invariants before battle resolver code.
+
+Update (2026-07-09, part 3): completed the v2 validation slice. Changed files:
+`src/Cgm.Core/Model/EntityReferences.cs`, `src/Cgm.Core/Validation/Validator.cs`,
+`src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, `docs/SCOPE_GUARD.md`, and this plan.
+Behavior covered: ability hook ops are checked against the closed Phase 15 ability palette;
+held-item battle effects require holdable items and closed held-op names; shared effect validation
+checks chance and common numeric param ranges; form validation covers duplicate/empty form IDs,
+required battle-visible sprites, type/stat override shape, activation-specific requirements, and
+timed/condition incompatibilities. `EntityReferences` now walks dictionary keys and values, so
+form `moveRemap` references are included in the existing broken-reference rule. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (first sandboxed run hit the known Avalonia
+AppData telemetry permission issue; escalated rerun green) and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (795 passing tests).
+Next slice: implement the minimal Battle v6 hook dispatcher skeleton in Core with ordering tests
+for switch-in and damage hooks, without adding bespoke ability or item behavior.
+
+Update (2026-07-09, part 4): completed the minimal Battle v6 hook dispatcher ordering slice.
+Changed files: `src/Cgm.Core/Battle/BattleHookDispatcher.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookDispatcherTests.cs`, `docs/SCOPE_GUARD.md`, and this
+plan. Behavior covered: a pure Core dispatcher now orders Phase 15 hook invocations for switch-in
+(form, active ability, active held item, opposing ability, opposing held item, field/v5 hooks) and
+damage modification (outgoing ability, outgoing held item, incoming ability, incoming held item,
+field/weather), while filtering unrelated hook points. No ability/item behavior was implemented
+yet, and no bespoke ability or item code was added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green) and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (798 passing tests).
+Next slice: wire project ability/held-item data into battle setup minimally, then add the first
+no-bespoke hook op execution tests for `weatherSummon` and `typeDamageModify`.
+
+Update (2026-07-09, part 5): completed the first executable Battle v6 hook-op slice. Changed
+files: `docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`, `src/Cgm.Core/Battle/BattleCreature.cs`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+`BattleCreature.FromInstance` now wires selected/default species ability hooks and held-item
+`battleEffects` from `GameDb`; ability `weatherSummon` executes through the hook dispatcher on
+switch-in; ability `typeDamageModify` multiplies matching damage through the shared damage-query
+path; validation now requires the executable hook params pinned in `BATTLE_SYSTEM_SPEC.md`.
+No named ability/item special-cases or new dependencies were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green) and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (801 passing tests).
+Next slice: held-item hook execution for `typeDamageBoost`, then the first consumable held-item
+state path for `thresholdHeal` with consume-once tests.
+
+Update (2026-07-09, part 6): completed the first held-item execution and consumable-state slice.
+Changed files: `docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Core/Battle/BattleCreature.cs`,
+`src/Cgm.Core/Battle/BattleEvents.cs`, `src/Cgm.Core/Battle/BattleHookDispatcher.cs`,
+`src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookDispatcherTests.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+held-item `typeDamageBoost` now has direct damage-query coverage; held-item `thresholdHeal`
+routes through end-of-turn hooks, heals at or below its configured threshold, emits
+`HeldItemConsumed`, and consumes once per battle after a successful heal. Validation now requires
+`thresholdPercent` plus exactly one of `healAmount` or `healFractionPercent`. No named item
+special-cases or new dependencies were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green) and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (804 passing tests);
+coverage collector run via
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --collect:"XPlat Code Coverage"`
+(Core line coverage 95.57%, branch coverage 88.89%).
+Next slice: implement the next smallest executable Phase 15 op pair: `residualHeal` /
+`residualDamage` on end-of-turn ability hooks, with hook-order and faint/full-HP edge tests.
+
+Update (2026-07-09, part 7): completed the residual end-turn hook-op slice. Changed files:
+`docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Core/Battle/BattleEvents.cs`,
+`src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+ability/held end-turn `residualHeal` heals a `{ num, den }` fraction and caps logged healing at
+actual missing HP; `residualDamage` applies fractional chip, can faint, and later hooks for that
+fainted creature are skipped by the shared hook path. Validation now requires `num` and `den` for
+both residual ops. No named ability/item special-cases or new dependencies were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (807 passing tests), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --collect:"XPlat Code Coverage"`
+(Core line coverage 95.61%, branch coverage 89.12%).
+Next slice: implement the smallest status-attempt hook path for ability `statusImmunity`, with
+hook-order coverage and tests for type/status immunity stacking without adding named abilities.
+
+Update (2026-07-09, part 8): completed the status-attempt immunity slice. Changed files:
+`docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Core/Battle/BattleHookDispatcher.cs`,
+`src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookDispatcherTests.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+`statusImmunity` runs through a status-attempt dispatcher, blocks only matching persistent
+statuses before chance rolls, and leaves built-in type immunity/current-status blockers intact.
+Validation now requires the `status` string param for `statusImmunity`. No named ability
+special-cases or new dependencies were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (811 passing tests), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --collect:"XPlat Code Coverage"`
+(Core line coverage 95.63%, branch coverage 89.12%).
+Next slice: implement the smallest held-item status path for consumable `statusCure`, with
+consume-once tests and validation for its `status` param.
+
+Update (2026-07-09, part 9): completed the consumable held-item `statusCure` slice. Changed
+files: `docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Core/Battle/BattleEvents.cs`,
+`src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+held-item `statusCure` now runs through the existing end-turn held-item hook path, consumes only
+after curing a matching active persistent status, emits `HeldItemConsumed` and `StatusCured`, and
+does not consume on mismatched status. This slice also fixed the previous residual slice's held
+`residualHeal` mapping with direct held-item coverage. Validation now requires a valid `status`
+param for `statusCure` and rejects unknown status names. No named item special-cases or new
+dependencies were added. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (814 passing tests), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --collect:"XPlat Code Coverage"`
+(Core line coverage 95.66%, branch coverage 89.15%).
+Next slice: implement consumable held-item `surviveFromFull` on the shared damage path, with
+full-HP, not-full-HP, multi-hit/once-only, and validation tests.
+
+Update (2026-07-09, part 10): completed the consumable held-item `surviveFromFull` slice.
+Changed files: `docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+move damage now routes through a shared damage helper that applies `surviveFromFull` before HP
+loss, consumes the held item once, leaves the target at 1 HP only when the hit starts from full HP,
+and allows later multi-hit damage to faint after the item is consumed. Validation rejects params on
+`surviveFromFull` because the op takes none. No named item special-cases or new dependencies were
+added. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (817 passing tests), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --collect:"XPlat Code Coverage"`
+(Core line coverage 95.74%, branch coverage 89.35%).
+Next slice: implement held-item `weatherDurationExtend` for holder-summoned weather, with default
+weather duration unchanged without the item and validation for positive `turns`.
+
+Update (2026-07-09, part 11): completed the held-item `weatherDurationExtend` slice. Changed
+files: `docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+holder-summoned `weatherSummon` duration now adds the holder's held-item
+`weatherDurationExtend.turns`; weather without the held item keeps the default duration.
+Validation requires positive numeric `turns`. No named item special-cases or new dependencies
+were added. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests|FullyQualifiedName~ValidationTests"` (46 passed),
+and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (819 passing tests).
+Next slice: implement the smallest remaining held-item op, `choiceLock`, with move-lock legality
+and switch-out reset tests.
+
+Update (2026-07-09, part 12): completed the held-item `choiceLock` slice. Changed files:
+`docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Core/Battle/BattleCreature.cs`,
+`src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+`choiceLock` now multiplies outgoing damage for its configured damage class, records the first
+chosen move, rejects later different move choices, and clears on switch-out through the existing
+volatile reset path. Validation requires `damageClass` physical/special plus positive
+`multiplierPercent`. No named item special-cases or new dependencies were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests|FullyQualifiedName~ValidationTests"` (48 passed),
+and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (821 passing tests).
+Next slice: implement the smallest ability stat-query op, `statModify`, with physical/special
+stat query tests and validation for its params.
+
+Update (2026-07-09, part 13): completed the ability `statModify` slice. Changed files:
+`docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`,
+`src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+ability `statModify` now applies to outgoing and incoming damage stat queries for atk/def/spa/spd,
+with multiplicative and additive modifiers composed through the existing hook dispatcher.
+Validation requires a damage stat plus either `multiplierPercent` or `add`. No named ability
+special-cases, schema changes, or new dependencies were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests|FullyQualifiedName~ValidationTests"` (50 passed),
+and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (823 passing tests).
+Next slice: spec-lock and implement the smallest `contactChanceEffect` execution path, including
+how contact is represented on moves before resolver code changes.
+
+Update (2026-07-09, part 14): completed the ability `contactChanceEffect` slice. Changed files:
+`docs/BATTLE_SYSTEM_SPEC.md`, `docs/DATA_SCHEMA.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Model/SchemaVersions.cs`, `src/Cgm.Core/Model/Entities/Move.cs`,
+`src/Cgm.Core/Serialization/Migrator.cs`, `src/Cgm.Core/Battle/BattleCreature.cs`,
+`src/Cgm.Core/Battle/MoveCompiler.cs`, `src/Cgm.Core/Battle/BattleHookDispatcher.cs`,
+`src/Cgm.Core/Battle/BattleController.cs`,
+`src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`,
+`tests/Cgm.Core.Tests/Battle/MoveCompilerTests.cs`,
+`tests/Cgm.Core.Tests/Serialization/SchemaV2SerializationTests.cs`,
+`tests/Cgm.Core.Tests/Serialization/MigratorTests.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+move data now has `makesContact`, schemaVersion is v3 with a no-op v2→v3 migration,
+`contactChanceEffect` runs from the defender's `onContactReceived` ability hook after a contact
+move connects, and can status or stat-stage the contacting attacker. Validation requires either a
+known status or a non-HP stat plus nonzero delta. No named ability special-cases or new dependencies
+were added. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests|FullyQualifiedName~ValidationTests|FullyQualifiedName~MoveCompilerTests|FullyQualifiedName~SchemaV2SerializationTests|FullyQualifiedName~MigratorTests"`
+(82 passed), and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (828 passing tests).
+Next slice: implement `onWeatherChange` hook dispatch for weather changes, then cover weather-change
+ordering with the smallest ability op that already exists.
+
+Update (2026-07-09, part 15): completed the `onWeatherChange` hook-dispatch slice. Changed files:
+`docs/SCOPE_GUARD.md`, `src/Cgm.Core/Battle/BattleHookDispatcher.cs`,
+`src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookDispatcherTests.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+weather changes now dispatch `OnWeatherChange` hooks immediately after the first
+`WeatherChanged` event, ordered from the side that changed weather through the existing v6
+hook ordering. `weatherSummon` inside a weather-change hook can replace the weather once, with a
+recursion guard to avoid same-turn weather-hook loops. No schema changes, named ability
+special-cases, or new dependencies were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookDispatcherTests|FullyQualifiedName~BattleV6HookExecutionTests"`
+(33 passed), and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (830 passing tests).
+Next slice: start the form activation/revert matrix with the smallest Core-only permanent form
+application path, or tighten the form battle spec first if the current runtime shape is insufficient.
+
+Update (2026-07-09, part 16): completed the permanent-form setup slice. Changed files:
+`docs/SCOPE_GUARD.md`, `src/Cgm.Core/Battle/BattleCreature.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+`BattleCreature.FromInstance` now applies saved permanent form overrides for battle stats, types,
+ability override hooks, and move remaps during battle-state construction. Non-permanent saved form
+activation remains unsupported until its own resolver slice, instead of silently pretending it is
+active. No schema changes, named form special-cases, or new dependencies were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (28 passed), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (831 passing tests).
+Next slice: implement the smallest condition-form re-evaluation path for weather or held-item
+conditions, with HP/stat-stage invariants.
+
+Update (2026-07-09, part 17): completed the weather-condition form re-evaluation slice. Changed
+files: `docs/SCOPE_GUARD.md`, `src/Cgm.Core/Battle/BattleCreature.cs`,
+`src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+weather-conditioned forms now re-evaluate on weather changes, weather expiry, and switch-in.
+The active battle creature swaps form stats/types/ability hooks through the existing battle-state
+object, preserves current HP by percentage, and leaves stat stages intact. This slice intentionally
+keeps held-item condition changes and dynamic move remapping out until their own resolver path, so
+no new item-state model or move-PP remap semantics were invented. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (30 passed), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (833 passing tests).
+Next slice: implement held-item condition form re-evaluation at the existing held-item consume
+points, or add dynamic form move-remap semantics if that is judged the smaller remaining gap.
+
+Update (2026-07-09, part 18): completed the held-item condition form re-evaluation slice. Changed
+files: `docs/SCOPE_GUARD.md`, `src/Cgm.Core/Battle/BattleCreature.cs`,
+`src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+condition forms can now require the active held-item ID, activate on switch-in through the same
+condition-form path as weather forms, and revert when an existing consumable held-item effect fires.
+HP percentage preservation and stat-stage retention continue to use the existing form application
+helper. No schema changes, named item/form special-cases, new dependencies, or new held-item state
+model were added. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (32 passed), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (835 passing tests).
+Next slice: add dynamic condition-form move remapping if the current battle move/PP model can support
+it cleanly; otherwise start the smallest battle-temporary form activation path.
+
+Update (2026-07-09, part 19): completed the battle-temporary form activation slice. Changed files:
+`docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`, `src/Cgm.Core/Battle/BattleEvents.cs`,
+`src/Cgm.Core/Battle/BattleCreature.cs`, `src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+Core now has `ActivateForm(formId, moveIndex)` for battle-temporary forms; activation requires the
+creature's required held item plus the side's required trainer key item, happens before the selected
+move, sets the once-per-battle side flag, emits `FormChanged`, and reverts fainted temporary forms
+through the existing form application helper. The trainer key item is required but not consumed.
+No new schema fields, named form special-cases, dynamic move-remap semantics, or dependencies were
+added. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (36 passed), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (839 passing tests).
+Next slice: implement battle-timed form activation/expiry using the same form application path, or
+tighten dynamic form move-remap PP semantics before coding remaps.
+
+Update (2026-07-09, part 20): completed the battle-timed form activation/expiry slice. Changed
+files: `docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleCreature.cs`, `src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+`ActivateForm(formId, moveIndex)` now also activates battle-timed forms before the selected move,
+stores their remaining turns in battle state, applies `hpMultiplierPercent` through the existing
+form stat path, ticks expiry after weather end-of-turn processing, emits `FormChanged` on activation
+and reversion, and reverts fainted timed forms through the same active battle-form cleanup as
+temporary forms. Dynamic move-remap PP semantics remain intentionally deferred until they are
+specified. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (39 passed), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (842 passing tests).
+Next slice: tighten dynamic form move-remap PP semantics in `BATTLE_SYSTEM_SPEC.md`/schema notes
+before coding move remaps, or continue closing the remaining form activation matrix if a smaller
+gap appears in review.
+
+Update (2026-07-09, part 21): completed the dynamic form move-remap slice. Changed files:
+`docs/BATTLE_SYSTEM_SPEC.md`, `docs/DATA_SCHEMA.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleCreature.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+form `moveRemap` now applies through the existing form application path for active condition,
+battle-temporary, and battle-timed forms. The selected slot's PP remains attached to the original
+move slot while the active move data is remapped, so transformed moves spend original-slot PP and
+reversion preserves that spent PP. No new battle action, resolver branch, schema field, or
+dependency was added. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (40 passed), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (843 passing tests).
+Next slice: review the remaining Phase 15 form activation matrix for missing revert/condition edge
+cases, or start a focused Phase 15 review pass if the matrix is now complete enough to audit.
+
+Update (2026-07-09, part 22): completed the battle-end form reversion slice. Changed files:
+`docs/SCOPE_GUARD.md`, `src/Cgm.Core/Battle/BattleCreature.cs`,
+`src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+temporary and timed battle forms now revert through the shared battle-end path, not only when the
+transformed creature faints or a timed form expires. Party wipe, capture, and wild force-out now use
+the same battle-end helper, emitting `FormChanged(..., null)` before `BattleEnded` when a side is
+still transformed. No new schema fields, battle actions, events, or dependencies were added. Tests
+run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (43 passed), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (846 passing tests).
+Next slice: run a focused Phase 15 review/audit of the remaining form and hook matrix before
+declaring the Core v6 slice ready for broader review.
+
+Update (2026-07-09, part 23): completed the Phase 15 hook validation reconciliation slice. Changed
+files: `docs/AGENTS.md`, `docs/BATTLE_SYSTEM_SPEC.md`, `docs/DATA_SCHEMA.md`,
+`docs/SCOPE_GUARD.md`, `src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, and this plan. Behavior covered:
+`AbilityHookRule` now rejects deferred `OnModifyStat` and `OnFaint` hook points instead of letting
+project data validate for hook timings the battle runtime does not dispatch. The battle spec,
+schema notes, doc map, and Phase 15 deliverable list now match the implemented hook set:
+switch-in, outgoing/incoming damage, status-attempt, end-turn, contact-received, and weather-change.
+No schema field, resolver path, dependency, or bespoke ability code was added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~ValidationTests"` (28 passed), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (847 passing tests).
+Next slice: continue the focused Phase 15 audit by checking hook-op placement rules and held-item
+execution coverage before broader Core v6 review.
+
+Update (2026-07-09, part 24): completed the ability assignment on generated instances slice.
+Changed files: `src/Cgm.Core/Battle/InstanceGen.cs`,
+`tests/Cgm.Core.Tests/Model/SaveTests.cs`, `docs/SCOPE_GUARD.md`, and this plan. Behavior covered:
+`InstanceGen.Create(...)` now persists a chosen normal ability slot for newly generated creatures
+using the injected RNG. It leaves ability empty when a species has no normal ability slots and does
+not include hidden ability selection because no hidden-ability odds or eligibility policy is
+specified. Tests run: `D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --filter
+"FullyQualifiedName~InstanceGenTests"` (6 passed), `D:\dotnet\dotnet.exe build
+CreatureGameMaker.slnx` (green), and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build`
+(849 passing tests). Next slice: focused Core v6 review fixes.
+
+Update (2026-07-09, part 25): completed the focused Core v6 review-fix slice. Changed files:
+`src/Cgm.Core/Battle/BattleCreature.cs`, `src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, `docs/SCOPE_GUARD.md`, and this plan.
+Confirmed gap fixed: condition-form activation/reversion mutated Core battle state but did not emit
+`FormChanged`, unlike temporary/timed form changes. `BattleCreature.ReevaluateConditionForm(...)`
+now reports condition-form transitions and `BattleController` logs `FormChanged` through the shared
+reevaluation path for weather changes, switch-in, held-item consumption, and timed-form expiry.
+Audit found no confirmed bespoke ability/item behavior or unsupported hook dispatch in this slice.
+Tests run: `D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (43 passed), `D:\dotnet\dotnet.exe build
+CreatureGameMaker.slnx` (green), and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build`
+(849 passing tests). Next slice: Phase 15 golden/integration coverage.
+
+Update (2026-07-09, part 26): completed the Phase 15 golden/integration coverage slice. Changed
+files: `docs/BATTLE_SYSTEM_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`tests/Cgm.Core.Tests/Battle/BattleV6HookExecutionTests.cs`, and this plan. Behavior covered:
+added a durable event-stream integration assertion for one switch-in turn involving condition-form
+checks, ability-summoned weather, weather-triggered form change, and held-item consumption. The
+battle spec now documents the intentionally locked visible order:
+`SwitchedIn` -> pre-hook condition-form `FormChanged` -> `WeatherChanged` -> weather-triggered
+condition-form `FormChanged` -> end-turn held-item events. Tests run:
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --filter
+"FullyQualifiedName~BattleV6HookExecutionTests"` (44 passed), `D:\dotnet\dotnet.exe build
+CreatureGameMaker.slnx` (green), and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build`
+(850 passing tests). Next slice: Phase 15 authoring validation hardening.
+
+Update (2026-07-09, part 27): completed the Phase 15 authoring validation hardening slice.
+Changed files: `src/Cgm.Core/Validation/Rules/BattleV6Rules.cs`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, `docs/SCOPE_GUARD.md`, and this plan.
+Behavior covered: `BrokenReferenceRule` now has explicit Phase 15 coverage for species ability
+slots, hidden ability, form ability override, form item gates, and condition held-item refs.
+`FormRule` now rejects battle-temporary forms whose required held item exists but is not holdable,
+whose required trainer item exists but is not a key item, and condition forms whose held-item
+condition exists but is not holdable. Held-item battle-effect validation tests now cover the
+remaining held op params and valid examples. No schema fields or runtime behavior changed. Tests
+run: `D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --filter
+"FullyQualifiedName~ValidationTests"` (29 passed), `D:\dotnet\dotnet.exe build
+CreatureGameMaker.slnx` (green), and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build`
+(851 passing tests). Next slice: Creator authoring surfaces.
+
+Update (2026-07-09, part 28): completed the Creator authoring surfaces slice. Changed files:
+`src/Cgm.Creator/MainWindow.axaml`, `src/Cgm.Creator/ViewModels/MainWindowViewModel.cs`,
+`src/Cgm.Creator/ViewModels/ItemDocument.cs`, `src/Cgm.Creator/ViewModels/AbilityDocument.cs`,
+`src/Cgm.Creator/ViewModels/SpeciesDocument.cs`, `src/Cgm.Creator/Views/ItemView.axaml`,
+`src/Cgm.Creator/Views/AbilityView.axaml`, `src/Cgm.Creator/Views/AbilityView.axaml.cs`,
+`src/Cgm.Creator/Views/SpeciesView.axaml`, `src/Cgm.Creator/Views/SpeciesView.axaml.cs`,
+`tests/Cgm.Creator.Tests/ViewModels/EditorDocumentTests.cs`,
+`tests/Cgm.Creator.Tests/ViewModels/EntityCrudTests.cs`,
+`tests/Cgm.Creator.Tests/ViewModels/MainWindowViewModelTests.cs`, `docs/SCOPE_GUARD.md`, and this
+plan. Behavior covered: the Creator can now create and open ability and species documents, edit
+ability hook JSON, edit species normal/hidden ability slots and forms JSON, and edit held-item
+battle effects from the existing item editor. The implementation reuses the current snapshot undo,
+session validation, and document/template patterns; it adds no new dependencies, schema fields, or
+generic form-builder abstraction. Tests run: `D:\dotnet\dotnet.exe test
+tests\Cgm.Creator.Tests\Cgm.Creator.Tests.csproj` (104 passed; first sandboxed run was blocked by
+Avalonia telemetry writing under `%LOCALAPPDATA%`, then passed with approval),
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (855 passing tests). Next slice:
+Battle presentation/action wiring.
+
+Update (2026-07-09, part 29): attempted the Battle presentation/action wiring slice and stopped on
+a real blocker. Trace covered `docs/ENGINE_RUNTIME_SPEC.md`, `src/Cgm.Runtime/RuntimeHost.cs`,
+`src/Cgm.Runtime/Program.cs`, `src/Cgm.Runtime/Engine/*`, and
+`tests/Cgm.Runtime.Tests/EngineTests.cs`. The current Runtime is still a clear-color Silk.NET host
+with only headless helpers (viewport, camera, input state, scene stack). There is no battle scene,
+menu/action-selection code, UI kit, gameplay event presenter, or dev-mode project loading path to
+wire `ActivateForm(formId, moveIndex)` or display `FormChanged`. Implementing those foundations
+inside this Phase 15 slice would be earlier-phase presentation work, not the smallest Phase 15
+wiring change. No code was changed for item 6. Last verification before this blocker:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green) and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (855 passing tests). Blocker:
+complete or explicitly schedule the deferred Runtime battle UI/scene/event presentation foundation
+from earlier phases before item 6 can proceed.
+
+Update (2026-07-09, part 30): completed the smallest Battle presentation/action wiring slice.
+Changed files: `docs/ENGINE_RUNTIME_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Runtime/Engine/BattleScene.cs`,
+`tests/Cgm.Runtime.Tests/EngineTests.cs`, and this plan. Behavior covered: Core now exposes
+non-mutating action legality for UI filtering; Runtime has a headless battle scene that builds a
+player action menu from legal Core actions, surfaces eligible `ActivateForm(formId, moveIndex)`
+choices, submits the selected action to `BattleController`, and presents `FormChanged` through a
+shared battle event presenter. This intentionally does not add GL text rendering, a UI kit, dev-mode
+project loading, or new battle rules. Tests run: `D:\dotnet\dotnet.exe test
+tests\Cgm.Runtime.Tests\Cgm.Runtime.Tests.csproj` (15 passed),
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (857 passing tests). Next slice:
+demo showcase content.
+
+Update (2026-07-09, part 31): completed the demo showcase content slice. Changed files:
+`samples/demo-game/project.cgmproj`, `samples/demo-game/data/type/grass.json`,
+`samples/demo-game/data/type/fire.json`, `samples/demo-game/data/move/leaf_jab.json`,
+`samples/demo-game/data/move/cinder_burst.json`, `samples/demo-game/data/move/root_guard.json`,
+`samples/demo-game/data/ability/rain_call.json`, `samples/demo-game/data/ability/ember_veil.json`,
+`samples/demo-game/data/ability/thornhide.json`, `samples/demo-game/data/ability/steady_bloom.json`,
+`samples/demo-game/data/item/bloom_stone.json`, `samples/demo-game/data/item/storm_band.json`,
+`samples/demo-game/data/item/surge_sash.json`, `samples/demo-game/data/item/focus_badge.json`,
+`samples/demo-game/data/species/asterling.json`,
+`samples/demo-game/data/trainer/expert_rematch_mira.json`,
+`samples/demo-game/data/sheet/showcase.json`, `samples/demo-game/data/map/showcase_room.json`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`, `docs/SCOPE_GUARD.md`, and this plan.
+Behavior covered: added a small original demo project with one battle-temporary form, one
+battle-timed form, four data-driven abilities, three held battle items carried by an expert rematch
+trainer, and projected placeholder sprite IDs needed by validation. No official names/assets,
+schema changes, new dependencies, or bespoke ability/item code were added. Tests run:
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --filter
+"FullyQualifiedName~DemoGame_HasPhase15ShowcaseContent"` (1 passed),
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green), and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (858 passing tests). Next slice:
+export/showcase verification.
+
+Update (2026-07-09, part 32): attempted the export/showcase verification slice and stopped on a
+real blocker. Trace covered `docs/EXPORT_PIPELINE_SPEC.md`, `docs/ENGINE_RUNTIME_SPEC.md`,
+`src/Cgm.Tools/Program.cs`, `src/Cgm.Core/Serialization/Exporter.cs`,
+`src/Cgm.Runtime/Program.cs`, `src/Cgm.Runtime/RuntimeHost.cs`,
+`src/Cgm.Runtime/Engine/BattleScene.cs`, `tests/Cgm.Core.Tests/Serialization/ExporterTests.cs`,
+`tests/Cgm.Core.Tests/Serialization/CgmPackTests.cs`, and the `templates/` output location.
+The available data-only export for `samples/demo-game` succeeds and writes `game.cgmpack` plus
+`config.json`, but there is no runtime template directory, no exported executable copy/patch step,
+no runtime `--smoke` mode, and the Silk.NET host still does not read `config.json`/`game.cgmpack`
+or present rendered gameplay. Therefore the exported-demo showcase fight path cannot be run yet.
+No code was changed for item 8. Verification run: data-only export with
+`D:\dotnet\dotnet.exe run --project src\Cgm.Tools -- export samples\demo-game <temp>` succeeded;
+the first sandboxed `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` was blocked by Avalonia
+telemetry writing under `%LOCALAPPDATA%`, then the approved build rerun passed; and
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed 858 tests. Blocker: complete
+or explicitly schedule the deferred Phase 12/13 runtime template/export smoke/rendered runtime
+loading path before Phase 15 can reach exit review.
+
+Update (2026-07-09, part 33): resolved the export/showcase verification blocker. Changed files:
+`docs/ENGINE_RUNTIME_SPEC.md`, `docs/EXPORT_PIPELINE_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Serialization/Exporter.cs`, `src/Cgm.Tools/Program.cs`, `src/Cgm.Runtime/Program.cs`,
+`src/Cgm.Runtime/RuntimeHost.cs`, `src/Cgm.Runtime/Engine/BattleScene.cs`,
+`src/Cgm.Runtime/Engine/ExportedGameBoot.cs`, `tests/Cgm.Core.Tests/Serialization/ExporterTests.cs`,
+`tests/Cgm.Runtime.Tests/EngineTests.cs`, `templates/.gitkeep`, and this plan. Behavior covered:
+standalone export now copies a runtime template folder and renames `Cgm.Runtime.exe` to the game
+name, while `--data-only` keeps the old pack/config-only path; `Cgm.Tools export` can find the
+local built Runtime output after `dotnet build`; Runtime `--smoke` reads exported config, verifies
+pack manifest/runtime version/content hash, loads the start map, initializes the showcase battle,
+and submits one legal showcase action; the Silk.NET host loads exported config/pack at normal boot
+and draws a minimal nonblank battle showcase. Icon/version patching, Creator export UI,
+self-contained CI template publishing, clean-VM testing, and the full sprite/text UI renderer remain
+later Phase 12/18/19 work. Tests run: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~ExporterTests"` (7 passed), `D:\dotnet\dotnet.exe test
+tests\Cgm.Runtime.Tests\Cgm.Runtime.Tests.csproj --no-build --filter
+"FullyQualifiedName~ExportedGameBootTests"` (2 passed), `D:\dotnet\dotnet.exe run --project
+src\Cgm.Tools -- export samples\demo-game <temp>` (wrote `Demo Game.exe`, `game.cgmpack`, and
+`config.json`), exported `Demo Game.exe --smoke` (passed), and `D:\dotnet\dotnet.exe test
+CreatureGameMaker.slnx --no-build` (861 passing tests). Next slice: Phase 15 exit review.
+### Phase 15 remaining work priority queue (2026-07-09 audit)
+
+The Core v6 work is green but Phase 15 is not done. Work this list in order; each item must be
+the smallest spec-complete slice, with build/test green and this section updated.
+
+1. **DONE - Ability assignment on generated instances (Core).** `InstanceGen.Create(...)` must choose and
+   persist an ability for new creatures from species normal slots (and hidden slot only if the
+   spec explicitly defines odds/eligibility). Add deterministic tests for seeded selection and the
+   no-ability case. Do not invent hidden-ability policy silently.
+2. **DONE - Focused Core v6 review fixes.** Audit hook-op placement and execution coverage against
+   `BATTLE_SYSTEM_SPEC.md`: supported hook points only, no bespoke ability/item behavior, held item
+   consume-once rules, weather duration extension, choice-lock reset, contact effects, condition
+   forms, timed/temporary reversion, and move-remap PP behavior. Fix only confirmed gaps.
+3. **DONE - Golden/integration coverage for Phase 15.** Add the smallest durable battle replay/golden or
+   equivalent event-stream assertions covering multi-system hook ordering in one turn
+   (ability + held item + weather + form) and document any intentional event-order lock.
+4. **DONE - Phase 15 authoring validation hardening.** Fill any missing validation tests found by the
+   review, especially ability refs, held-item battle op params, form override completeness, and
+   once-per-battle key-item pairing. Do not add new schema fields unless `DATA_SCHEMA.md` and the
+   migrator change in the same slice.
+5. **DONE - Creator authoring surfaces.** Add the minimal editor support required by the phase: ability
+   editor, held-item battle-effects editing in the item editor, forms tab in the creature editor,
+   and validation wiring. Reuse the existing pathfinder editor/undo patterns; no new UI framework
+   or generic form-builder abstraction.
+6. **DONE - Battle presentation/action wiring.** Surface eligible `ActivateForm(formId, moveIndex)` from
+   battle UI/menu code and display `FormChanged` through the existing battle event presentation path.
+   Keep battle rules in Core; UI submits actions only. Done as a headless Runtime battle scene and
+   event presenter; rendered GL text/menu drawing remains a separate Runtime display gap.
+7. **DONE - Demo showcase content.** Add original, non-official demo data for one battle-temporary form,
+   one battle-timed form, four abilities, and three held items on an expert rematch trainer. Keep
+   sample data neutral and original; no PokeAPI names/assets in shipped samples.
+8. **DONE - Export/smoke verification.** `templates/.gitkeep` now keeps the template location
+   present, `Exporter` can copy and rename a runtime template folder, `Cgm.Tools export` defaults to
+   a found template or local built Runtime output, Runtime supports `--smoke`, and the Silk.NET host
+   loads exported `config.json`/`game.cgmpack` and renders a minimal battle showcase. Verified with
+   `samples/demo-game` exported to a temp folder, then the exported `Demo Game.exe --smoke` path.
+9. **BLOCKED - Real demo showcase fight.** Addendum v6 says Phase 15 is done when a Mega-style
+   showcase fight exists in the demo. The current sample data and smoke battle prove load/action
+   plumbing only; they do not provide a playable/rendered demo fight with real battle presentation.
+   Build the smallest real showcase path before closeout.
+10. **NEXT AFTER BLOCKER - Phase 15 exit review.** Run a focused review against the full Phase 15
+   deliverables and log the outcome in Review Outcomes. Only then advance `SCOPE_GUARD.md`/Status
+   Board beyond Phase 15.
+
 ## Review Outcomes
+- **Phase 15 audit (2026-07-09) - NO-GO, keep Phase 15 open.** Core v6 mechanics are materially
+  implemented and tested: hook dispatch/execution, held-item effects, weather integration, form
+  activation/reversion, schema v3 migration, validation hardening, Creator authoring surfaces, and
+  exported-pack smoke coverage are green locally at 861 tests. The blocker is the demo-showcase
+  gate: `samples/demo-game` contains original v6 showcase data and Runtime can smoke-submit one
+  legal action, but the executable still draws only a minimal GL rectangle battle silhouette and
+  has no real battle UI/text/sprite showcase. That does not satisfy Addendum v6's "Mega-style
+  showcase fight in the demo" done criterion. Audit verification run:
+  `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+  `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (861 passed), and
+  `Cgm.Tools export samples\demo-game <temp>` plus exported `Demo Game.exe --smoke` (passed).
+  Phase 15 is not ready to close.
+- **Phase 14 verification (2026-07-09) — PASS, go for Phase 15.** Core v5 effect ops and smart-AI
+  baseline are accepted with 785 passing tests. The measured Smart-vs-Basic benchmark is 69.0% @400
+  and Smart-vs-Smart side balance is 49.2%. Full balance tuning is explicitly deferred until the
+  missing battle mechanics exist.
+- **Phase 14 focused AI review (2026-07-09) — PASS for switch/prediction slices.** Checked
+  `SmartAi` switch scoring, prediction memory use, and new tests against `BATTLE_AI_SPEC`.
+  FIX-NOW found and fixed: the prediction regression test used duplicate move IDs via the shared
+  damage helper, weakening the memory assertion. The helper now allows distinct test move IDs.
+  `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` and
+  `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` are green (785 tests).
 - **Phase 2 review (2026-07-06) — PASS, go for Phase 3.** Evidence-based audit against
   DATA_SCHEMA + SCOPE_GUARD. No correctness bugs; no scope creep (no post-slice fields beyond the
   sanctioned empty `forms[]`; no battle/pack/UI logic in Core; `heldItem` appears only as an

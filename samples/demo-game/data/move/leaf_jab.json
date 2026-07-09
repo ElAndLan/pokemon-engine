@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 3,
+  "id": "move:leaf_jab",
+  "name": "Leaf Jab",
+  "type": "type:grass",
+  "damageClass": "physical",
+  "power": 45,
+  "accuracy": 100,
+  "pp": 25,
+  "priority": 0,
+  "critStage": 0,
+  "makesContact": true,
+  "target": "selected",
+  "effects": [ { "op": "damage" } ]
+}

@@ -1,0 +1,357 @@
+using System.Text.Json;
+using Cgm.Core.Battle;
+using Cgm.Core.Model;
+
+namespace Cgm.Core.Validation.Rules;
+
+public sealed class AbilityHookRule : IValidationRule
+{
+    public string Id => "ability-hooks";
+
+    private static readonly IReadOnlySet<AbilityHookPoint> SupportedHooks = new HashSet<AbilityHookPoint>
+    {
+        AbilityHookPoint.OnSwitchIn,
+        AbilityHookPoint.OnModifyOutgoingDamage,
+        AbilityHookPoint.OnModifyIncomingDamage,
+        AbilityHookPoint.OnStatusAttempt,
+        AbilityHookPoint.OnEndOfTurn,
+        AbilityHookPoint.OnContactReceived,
+        AbilityHookPoint.OnWeatherChange,
+    };
+
+    public IEnumerable<ValidationIssue> Check(Project project)
+    {
+        foreach (Ability ability in project.All<Ability>())
+            foreach (AbilityHook hook in ability.Hooks)
+            {
+                if (!SupportedHooks.Contains(hook.Hook))
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                        $"Ability hook '{hook.Hook}' is not a Phase 15 supported hook point.");
+
+                foreach (ValidationIssue issue in Phase15EffectRules.Check(
+                    Id, ability.Id, hook.Effects, Phase15EffectRules.AbilityOps, "ability"))
+                    yield return issue;
+            }
+    }
+}
+
+public sealed class HeldItemBattleEffectRule : IValidationRule
+{
+    public string Id => "held-item-battle-effects";
+
+    public IEnumerable<ValidationIssue> Check(Project project)
+    {
+        foreach (Item item in project.All<Item>())
+        {
+            if (item.BattleEffects.Count > 0 && !item.Holdable)
+                yield return new ValidationIssue(Id, ValidationSeverity.Error, item.Id,
+                    "Item has held battle effects but holdable is false.");
+
+            foreach (ValidationIssue issue in Phase15EffectRules.Check(
+                Id, item.Id, item.BattleEffects, Phase15EffectRules.HeldItemOps, "held-item"))
+                yield return issue;
+        }
+    }
+}
+
+public sealed class FormRule : IValidationRule
+{
+    public string Id => "forms";
+
+    public IEnumerable<ValidationIssue> Check(Project project)
+    {
+        foreach (Species species in project.All<Species>())
+        {
+            foreach (var group in species.Forms.GroupBy(f => f.FormId))
+                if (string.IsNullOrWhiteSpace(group.Key) || group.Count() > 1)
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, species.Id,
+                        $"Form id '{group.Key}' is empty or duplicated.");
+
+            foreach (Form form in species.Forms)
+            {
+                foreach (ValidationIssue issue in CheckShape(species.Id, form))
+                    yield return issue;
+                foreach (ValidationIssue issue in CheckActivation(species.Id, form, project))
+                    yield return issue;
+            }
+        }
+    }
+
+    private IEnumerable<ValidationIssue> CheckShape(EntityId speciesId, Form form)
+    {
+        if (form.StatOverrides is { } stats)
+            foreach ((string name, int value) in Named(stats))
+                if (value is < 1 or > 255)
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Form '{form.FormId}' base {name} is {value}; must be 1-255.");
+
+        if (form.TypeOverrides is { Count: < 1 or > 2 })
+            yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                $"Form '{form.FormId}' has {form.TypeOverrides.Count} type overrides; must be 1-2.");
+        else if (form.TypeOverrides is { Count: 2 } types && types[0] == types[1])
+            yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                $"Form '{form.FormId}' has duplicate type overrides.");
+
+        if (form.Sprites.Front is null || form.Sprites.Back is null || form.Sprites.Icon is null)
+            yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                $"Form '{form.FormId}' must define front, back, and icon sprites.");
+
+        if (form.HpMultiplierPercent is <= 0)
+            yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                $"Form '{form.FormId}' hpMultiplierPercent must be > 0.");
+    }
+
+    private IEnumerable<ValidationIssue> CheckActivation(EntityId speciesId, Form form, Project project)
+    {
+        switch (form.Activation)
+        {
+            case FormActivation.BattleTemporary:
+                if (form.RequiredHeldItem is null || form.RequiredTrainerItem is null)
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Battle-temporary form '{form.FormId}' requires held and trainer key items.");
+                if (form.RequiredHeldItem is { } heldItem && project.Find<Item>(heldItem) is { Holdable: false })
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Battle-temporary form '{form.FormId}' requiredHeldItem must be holdable.");
+                if (form.RequiredTrainerItem is { } trainerItem && project.Find<Item>(trainerItem) is { KeyItem: false })
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Battle-temporary form '{form.FormId}' requiredTrainerItem must be a key item.");
+                if (form.Turns is not null || form.Condition is not null)
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Battle-temporary form '{form.FormId}' must not set turns or condition.");
+                break;
+
+            case FormActivation.BattleTimed:
+                if (form.Turns is not > 0)
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Battle-timed form '{form.FormId}' requires turns > 0.");
+                if (form.Condition is not null)
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Battle-timed form '{form.FormId}' must not set condition.");
+                break;
+
+            case FormActivation.Condition:
+                if (form.Condition is null || (string.IsNullOrWhiteSpace(form.Condition.Weather) && form.Condition.HeldItem is null))
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Condition form '{form.FormId}' requires weather or heldItem condition.");
+                if (form.Condition?.HeldItem is { } conditionHeldItem && project.Find<Item>(conditionHeldItem) is { Holdable: false })
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Condition form '{form.FormId}' heldItem condition must be holdable.");
+                if (form.Turns is not null || form.RequiredTrainerItem is not null)
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, speciesId,
+                        $"Condition form '{form.FormId}' must not set turns or requiredTrainerItem.");
+                break;
+        }
+    }
+
+    private static IEnumerable<(string, int)> Named(Stats s) =>
+    [
+        ("HP", s.Hp), ("Attack", s.Atk), ("Defense", s.Def),
+        ("Sp.Atk", s.Spa), ("Sp.Def", s.Spd), ("Speed", s.Spe),
+    ];
+}
+
+internal static class Phase15EffectRules
+{
+    public static readonly IReadOnlySet<string> AbilityOps = new HashSet<string>
+    {
+        "statModify", "typeDamageModify", "statusImmunity", "weatherSummon",
+        "contactChanceEffect", "residualHeal", "residualDamage",
+    };
+
+    public static readonly IReadOnlySet<string> HeldItemOps = new HashSet<string>
+    {
+        "thresholdHeal", "statusCure", "typeDamageBoost", "choiceLock",
+        "residualHeal", "surviveFromFull", "weatherDurationExtend",
+    };
+
+    public static IEnumerable<ValidationIssue> Check(
+        string ruleId,
+        EntityId owner,
+        IEnumerable<Effect> effects,
+        IReadOnlySet<string> allowedOps,
+        string label)
+    {
+        foreach (Effect effect in effects)
+        {
+            if (!allowedOps.Contains(effect.Op))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' is not a Phase 15 {label} op.");
+
+            if (effect.Chance is < 1 or > 100)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' chance {effect.Chance} must be 1-100.");
+
+            foreach (ValidationIssue issue in CheckNumericParams(ruleId, owner, effect))
+                yield return issue;
+            foreach (ValidationIssue issue in CheckRequiredParams(ruleId, owner, effect))
+                yield return issue;
+        }
+    }
+
+    private static IEnumerable<ValidationIssue> CheckRequiredParams(string ruleId, EntityId owner, Effect effect)
+    {
+        if (effect.Op == "weatherSummon" && !HasString(effect, "weather"))
+            yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                "Effect op 'weatherSummon' requires string param 'weather'.");
+
+        if (effect.Op is "statusImmunity" or "statusCure")
+        {
+            if (!HasString(effect, "status"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' requires string param 'status'.");
+            else if (!Enum.TryParse(Str(effect, "status"), ignoreCase: true, out PersistentStatus _))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' has unknown status '{Str(effect, "status")}'.");
+        }
+
+        if (effect.Op is "typeDamageModify" or "typeDamageBoost")
+        {
+            if (!HasString(effect, "type"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' requires string param 'type'.");
+            if (!HasNumber(effect, "multiplierPercent"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' requires numeric param 'multiplierPercent'.");
+        }
+
+        if (effect.Op == "statModify")
+        {
+            if (!HasString(effect, "stat"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'statModify' requires string param 'stat'.");
+            else if (!IsDamageStat(Str(effect, "stat")))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'statModify' has unknown stat '{Str(effect, "stat")}'.");
+            if (!HasNumber(effect, "multiplierPercent") && !HasNumber(effect, "add"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'statModify' requires numeric param 'multiplierPercent' or 'add'.");
+        }
+
+        if (effect.Op == "contactChanceEffect")
+        {
+            bool hasStatus = HasString(effect, "status");
+            bool hasStat = HasString(effect, "stat");
+            bool hasDelta = HasNumber(effect, "delta");
+
+            if (!hasStatus && !(hasStat && hasDelta))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'contactChanceEffect' requires 'status' or both 'stat' and 'delta'.");
+            if (hasStatus && (hasStat || hasDelta))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'contactChanceEffect' requires only one of status or stat-stage params.");
+            if (hasStatus && !Enum.TryParse(Str(effect, "status"), ignoreCase: true, out PersistentStatus _))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'contactChanceEffect' has unknown status '{Str(effect, "status")}'.");
+            if (hasStat && !IsBattleStat(Str(effect, "stat")))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'contactChanceEffect' has unknown stat '{Str(effect, "stat")}'.");
+            if (hasDelta && Int(effect, "delta") == 0)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'contactChanceEffect' param 'delta' must not be 0.");
+        }
+
+        if (effect.Op == "choiceLock")
+        {
+            if (!HasString(effect, "damageClass"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'choiceLock' requires string param 'damageClass'.");
+            else if (!Enum.TryParse(Str(effect, "damageClass"), ignoreCase: true, out DamageClass damageClass)
+                || damageClass == DamageClass.Status)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'choiceLock' has unknown damageClass '{Str(effect, "damageClass")}'.");
+            if (!HasNumber(effect, "multiplierPercent"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'choiceLock' requires numeric param 'multiplierPercent'.");
+        }
+
+        if (effect.Op == "thresholdHeal")
+        {
+            bool hasHealAmount = HasNumber(effect, "healAmount");
+            bool hasHealFraction = HasNumber(effect, "healFractionPercent");
+            if (!HasNumber(effect, "thresholdPercent"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'thresholdHeal' requires numeric param 'thresholdPercent'.");
+            if (!hasHealAmount && !hasHealFraction)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'thresholdHeal' requires numeric param 'healAmount' or 'healFractionPercent'.");
+            if (hasHealAmount && hasHealFraction)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'thresholdHeal' requires only one of 'healAmount' or 'healFractionPercent'.");
+        }
+
+        if (effect.Op is "residualHeal" or "residualDamage")
+        {
+            if (!HasNumber(effect, "num"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' requires numeric param 'num'.");
+            if (!HasNumber(effect, "den"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' requires numeric param 'den'.");
+        }
+
+        if (effect.Op == "surviveFromFull" && effect.Params is { Count: > 0 })
+            yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                "Effect op 'surviveFromFull' does not take params.");
+
+        if (effect.Op == "weatherDurationExtend" && !HasNumber(effect, "turns"))
+            yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                "Effect op 'weatherDurationExtend' requires numeric param 'turns'.");
+    }
+
+    private static IEnumerable<ValidationIssue> CheckNumericParams(string ruleId, EntityId owner, Effect effect)
+    {
+        if (effect.Params is null)
+            yield break;
+
+        foreach ((string key, JsonElement value) in effect.Params)
+        {
+            if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out int n))
+                continue;
+
+            bool invalid = key switch
+            {
+                "den" => n == 0,
+                "thresholdPercent" or "chance" => n is < 1 or > 100,
+                "num" or "amount" or "duration" or "turns" or "multiplierPercent" or "hpMultiplierPercent"
+                    or "healAmount" or "healFractionPercent" => n <= 0,
+                _ => false,
+            };
+
+            if (invalid)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op '{effect.Op}' param '{key}' has invalid value {n}.");
+        }
+    }
+
+    private static bool HasString(Effect effect, string key) =>
+        effect.Params is not null
+        && effect.Params.TryGetValue(key, out JsonElement value)
+        && value.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(value.GetString());
+
+    private static bool HasNumber(Effect effect, string key) =>
+        effect.Params is not null
+        && effect.Params.TryGetValue(key, out JsonElement value)
+        && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt32(out _);
+
+    private static bool IsDamageStat(string value) =>
+        Enum.TryParse(value, ignoreCase: true, out StatKind stat)
+        && stat is StatKind.Atk or StatKind.Def or StatKind.Spa or StatKind.Spd;
+
+    private static bool IsBattleStat(string value) =>
+        Enum.TryParse(value, ignoreCase: true, out StatKind stat) && stat != StatKind.Hp;
+
+    private static int? Int(Effect effect, string key) =>
+        effect.Params is not null
+        && effect.Params.TryGetValue(key, out JsonElement value)
+        && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt32(out int n)
+            ? n
+            : null;
+
+    private static string Str(Effect effect, string key) =>
+        effect.Params is not null && effect.Params.TryGetValue(key, out JsonElement value)
+            ? value.GetString() ?? ""
+            : "";
+}

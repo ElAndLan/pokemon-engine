@@ -17,7 +17,8 @@ public static class InstanceGen
     }
 
     public static CreatureInstance Create(EntityId species, Stats baseStats, string growthRate,
-        int level, IReadOnlyList<MoveSlot> moves, IRng rng, string otName = "")
+        int level, IReadOnlyList<MoveSlot> moves, IRng rng, IReadOnlyList<EntityId>? normalAbilities = null,
+        string otName = "")
     {
         Stats ivs = RandomIvs(rng);
         string nature = RandomNature(rng);
@@ -34,6 +35,7 @@ public static class InstanceGen
             Nature = nature,
             CurHp = computed.Hp,
             Moves = moves,
+            Ability = normalAbilities is { Count: > 0 } ? normalAbilities[rng.Next(normalAbilities.Count)].ToString() : null,
             OtName = otName,
         };
     }

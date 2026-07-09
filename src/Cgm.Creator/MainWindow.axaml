@@ -11,6 +11,8 @@
   <Window.DataTemplates>
     <DataTemplate DataType="vm:MoveDocument"><views:MoveView /></DataTemplate>
     <DataTemplate DataType="vm:ItemDocument"><views:ItemView /></DataTemplate>
+    <DataTemplate DataType="vm:AbilityDocument"><views:AbilityView /></DataTemplate>
+    <DataTemplate DataType="vm:SpeciesDocument"><views:SpeciesView /></DataTemplate>
     <DataTemplate DataType="vm:TypeChartDocument"><views:TypeChartView /></DataTemplate>
   </Window.DataTemplates>
 

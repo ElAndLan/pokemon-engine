@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 3,
+  "id": "species:asterling",
+  "name": "Asterling",
+  "types": [ "type:grass" ],
+  "baseStats": { "hp": 58, "atk": 64, "def": 52, "spa": 70, "spd": 60, "spe": 66 },
+  "evYield": { "hp": 0, "atk": 0, "def": 0, "spa": 1, "spd": 0, "spe": 1 },
+  "baseExp": 96,
+  "growthRate": "medium-fast",
+  "catchRate": 90,
+  "baseHappiness": 70,
+  "genderFemaleEighths": 4,
+  "eggCycles": 20,
+  "eggGroups": [ "field", "plant" ],
+  "learnset": [
+    { "level": 1, "move": "move:leaf_jab" },
+    { "level": 8, "move": "move:root_guard" },
+    { "level": 14, "move": "move:cinder_burst" }
+  ],
+  "evolutions": [],
+  "abilities": [ "ability:rain_call", "ability:ember_veil" ],
+  "hiddenAbility": "ability:thornhide",
+  "forms": [
+    {
+      "formId": "bloom_guard",
+      "activation": "battleTemporary",
+      "statOverrides": { "hp": 58, "atk": 84, "def": 72, "spa": 82, "spd": 74, "spe": 66 },
+      "typeOverrides": [ "type:grass", "type:fire" ],
+      "abilityOverride": "ability:steady_bloom",
+      "sprites": {
+        "front": "sprite:asterling_bloom_front",
+        "back": "sprite:asterling_bloom_back",
+        "icon": "sprite:asterling_bloom_icon"
+      },
+      "requiredHeldItem": "item:bloom_stone",
+      "requiredTrainerItem": "item:focus_badge"
+    },
+    {
+      "formId": "storm_bloom",
+      "activation": "battleTimed",
+      "statOverrides": { "hp": 70, "atk": 70, "def": 58, "spa": 88, "spd": 70, "spe": 72 },
+      "typeOverrides": [ "type:grass", "type:fire" ],
+      "abilityOverride": "ability:rain_call",
+      "sprites": {
+        "front": "sprite:asterling_storm_front",
+        "back": "sprite:asterling_storm_back",
+        "icon": "sprite:asterling_storm_icon"
+      },
+      "turns": 3,
+      "hpMultiplierPercent": 150,
+      "moveRemap": { "move:leaf_jab": "move:cinder_burst" }
+    }
+  ],
+  "sprites": {}
+}

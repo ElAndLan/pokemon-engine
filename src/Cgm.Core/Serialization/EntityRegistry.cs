@@ -16,6 +16,7 @@ public static class EntityRegistry
             [EntityCategory.Species] = typeof(Species),
             [EntityCategory.Move] = typeof(Move),
             [EntityCategory.Item] = typeof(Item),
+            [EntityCategory.Ability] = typeof(Ability),
             [EntityCategory.Encounter] = typeof(EncounterTable),
             [EntityCategory.Trainer] = typeof(Trainer),
             [EntityCategory.Flag] = typeof(StoryFlag),

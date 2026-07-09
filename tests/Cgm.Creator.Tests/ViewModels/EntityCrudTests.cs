@@ -60,6 +60,24 @@ public sealed class EntityCrudTests
     }
 
     [Fact]
+    public void CreatePhase15Entities_OpensAbilityAndSpeciesEditors()
+    {
+        MainWindowViewModel vm = OnFixture(out string dir);
+        try
+        {
+            vm.CreateEntity(EntityCategory.Ability, "rain_call");
+            Assert.IsType<AbilityDocument>(vm.ActiveDocument);
+
+            vm.CreateEntity(EntityCategory.Species, "raincub");
+            Assert.IsType<SpeciesDocument>(vm.ActiveDocument);
+            Species species = vm.Session!.Find<Species>(EntityId.Parse("species:raincub"))!;
+            Assert.NotEmpty(species.Types);
+            Assert.Equal(new Stats(45, 45, 45, 45, 45, 45), species.BaseStats);
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
     public void Duplicate_CopiesFieldsUnderNewId()
     {
         MainWindowViewModel vm = OnFixture(out string dir);

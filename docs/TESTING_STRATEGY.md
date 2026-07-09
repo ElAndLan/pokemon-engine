@@ -1,14 +1,16 @@
 # TESTING_STRATEGY
 
-Status: **Stub** — current source is `MASTER_PLAN.md` §13 and each phase's "Testing suite" in
-`IMPLEMENTATION_PLAN.md`. Full write due **Week 2 (Phase 2)**. Blocks: golden-file workflow from Phase 8.
+Status: **Partial.** xUnit suites, fixtures, and deterministic Core tests are active and currently
+green. The formal golden-replay workflow is still not fully written, and Verify is not currently
+referenced by the test projects.
 
 ## Purpose
 The test playbook: what gets tested at each layer, the golden-file (Verify) workflow, fixture
 conventions, and the determinism rules that make battle replays reproducible.
 
 ## Must lock
-- xUnit + Verify; Core is graphics-free so ~90% of gameplay is CI-testable.
+- xUnit is active; Verify remains planned but is not currently installed. Core is graphics-free so
+  most gameplay remains CI-testable.
 - Golden-replay workflow: (seed + team + action script) → event log snapshot; changes only
   intentional, with a stated reason. Unexplained golden diffs fail review.
 - Fixture conventions (`tests/fixtures/`, `samples/`); determinism rules (injected IRng, no

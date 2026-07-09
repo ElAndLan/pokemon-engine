@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 3,
+  "id": "move:cinder_burst",
+  "name": "Cinder Burst",
+  "type": "type:fire",
+  "damageClass": "special",
+  "power": 65,
+  "accuracy": 95,
+  "pp": 15,
+  "priority": 0,
+  "critStage": 0,
+  "target": "selected",
+  "effects": [ { "op": "damage" } ]
+}

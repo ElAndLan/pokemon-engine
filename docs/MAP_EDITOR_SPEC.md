@@ -1,7 +1,8 @@
 # MAP_EDITOR_SPEC
 
-Status: **Stub** — current source is `MASTER_PLAN.md` §10. Full write due **before Phase 5**.
-Blocks: Phase 5.
+Status: **Partial / implemented sections are binding.** Layer model and headless map tool ops
+are written and tested. The Avalonia map canvas, entity placement UI, validation overlays, and
+playtest-from-map workflow are **not** implemented here.
 
 ## Purpose
 The map editor: tile painting tools, layer semantics, collision/encounter overlays, entity

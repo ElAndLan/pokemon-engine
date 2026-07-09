@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "id": "ability:ember_veil",
+  "name": "Ember Veil",
+  "hooks": [
+    {
+      "hook": "onStatusAttempt",
+      "effects": [
+        { "op": "statusImmunity", "params": { "status": "burn" } }
+      ]
+    }
+  ]
+}

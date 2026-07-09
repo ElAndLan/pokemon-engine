@@ -37,6 +37,13 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
+    public void CompilesContactFlag()
+    {
+        BattleMove bm = MoveCompiler.ToBattleMove(Move(DamageClass.Physical, 40, Op("damage")) with { MakesContact = true });
+        Assert.True(bm.MakesContact);
+    }
+
+    [Fact]
     public void CompilesAilmentOp()
     {
         BattleMove bm = MoveCompiler.ToBattleMove(

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 3,
+  "id": "move:root_guard",
+  "name": "Root Guard",
+  "type": "type:grass",
+  "damageClass": "status",
+  "power": null,
+  "accuracy": null,
+  "pp": 20,
+  "priority": 0,
+  "critStage": 0,
+  "target": "user",
+  "effects": [ { "op": "protect" } ]
+}

@@ -5,7 +5,7 @@ public enum ObjectLayer { Below, Above }
 /// <summary>A multi-tile world object (DATA_SCHEMA.md §4.10). Category <c>object</c>.</summary>
 public sealed record MapObject : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
 

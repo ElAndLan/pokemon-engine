@@ -1,8 +1,9 @@
 # EXPORT_PIPELINE_SPEC
 
-Status: **Stub** — current source is `MASTER_PLAN.md` §12 and `ARCHITECTURE_ADDENDUM.md` §10.
-Full write due **before Phase 12** (write the `.cgmpack` binary layout before implementing it).
-Blocks: Phase 12.
+Status: **Partial / implemented sections are binding.** `.cgmpack` layout, manifest/hash
+verification, `config.json`, runtime template folder copy/rename, `Cgm.Tools export`, and Runtime
+`--smoke` over exported config/pack are written and tested. CI self-contained template publishing,
+exe icon/metadata patching, Creator export UI, and clean-VM testing are **not** implemented.
 
 ## Purpose
 How a validated project becomes a standalone Windows game: pack format, template-exe patching,
@@ -64,10 +65,19 @@ missing/invalid (Addendum §6). Shape (`RuntimeConfig`, serialized via `CgmJson`
 
 ## Export operation (`Exporter`, Phase 12, implemented)
 
-`Exporter.ExportData(project, options, outFolder)` is the data half of export (the exe template
-copy/patch + smoke test are build/CI concerns): run `Validator` as a **hard gate** (any error aborts
-unless `options.OverrideValidation`), then write `<outFolder>/game.cgmpack` and `<outFolder>/config.json`.
-Returns the validation report + written paths. `Cgm.Tools export <project> <out>` wraps it.
+`Exporter.ExportData(project, options, outFolder)` runs `Validator` as a **hard gate** (any error
+aborts unless `options.OverrideValidation`), optionally copies `options.TemplateFolder`, renames
+`Cgm.Runtime.exe` to `<GameName>.exe`, then writes `<outFolder>/game.cgmpack` and
+`<outFolder>/config.json`. Returns the validation report + written paths. `Cgm.Tools export
+<project> <out>` wraps it; by default it uses `templates/<flavor>/`, `templates/`, or the local
+`src/Cgm.Runtime/bin/Debug/net10.0` build output as the runtime template, and `--data-only` preserves
+the old pack/config-only path.
+
+## Runtime smoke (Phase 12, implemented)
+
+`Cgm.Runtime --smoke` reads `config.json`, verifies the pack manifest/runtime version and content
+hash, loads the start map, initializes the showcase battle path, submits one legal showcase action,
+and exits `0`. Load/smoke failures exit nonzero with a console error.
 
 ## Outline (remaining, Phase 12)
-Template patch · Debug vs release exe flavors · Smoke · Clean-VM.
+CI self-contained template publish · icon/version patch · Creator export UI · clean-VM.

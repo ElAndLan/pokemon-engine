@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Cgm.Creator.ViewModels"
+             x:Class="Cgm.Creator.Views.AbilityView"
+             x:DataType="vm:AbilityDocument">
+  <ScrollViewer>
+    <StackPanel Margin="20" Spacing="10" MaxWidth="620" HorizontalAlignment="Left">
+      <TextBlock Text="Ability" FontSize="18" FontWeight="Bold" />
+
+      <TextBlock Text="Name" />
+      <TextBox Text="{Binding Name}" />
+
+      <TextBlock Text="Hooks" />
+      <TextBox Text="{Binding HooksJson}" AcceptsReturn="True" TextWrapping="Wrap" Height="260" />
+
+      <TextBlock Text="{Binding JsonError}" Foreground="#B00020" TextWrapping="Wrap" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

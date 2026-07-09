@@ -5,12 +5,28 @@ Source of authority: ARCHITECTURE_ADDENDUM.md §3 (wins over MASTER_PLAN.md).
 
 ## Current phase
 
-**Phase: 4 — Asset Import & Sprite Slicer (not started).** Phases 0–3 complete: data layer (P2,
-review PASS) + Creator shell, entity CRUD, validation strip, and the 3 pathfinder editors (P3
-code complete, 120 tests; manual UI run + review outstanding). Buildable work now: flesh out
-ASSET_PIPELINE_SPEC v0–v2 first (doc-gate), then PNG import + slicing (v0 manual grid, v1
-common-size suggestion, v2 gutter detection — all headless-testable) + the slicer canvas
-(compile-verified), per IMPLEMENTATION_PLAN Phase 4. Update this line at every gate.
+**Phase: 15 - Abilities, Held Items, Weather & Forms.** Phase 14 is verified as a Core baseline, not final-tuned. Phases 0-13 are implemented
+mostly as headless/Core logic, with many display-dependent pieces still deferred. Current Core
+work now includes the complete v5 effect palette plus the Phase 14 smart-AI Core slice:
+`TrainerAi` profile dispatch, smart move/switch action selection, named score tables, seen-move
+memory, status/setup/hazard/protect/force-switch/recovery/item scoring, finite trainer healing item actions, switch cooldown tests,
+table-driven decision-branch fringe tests, `TrainerAi` profile-dispatch routing tests, multi-hit per-hit crit-independence coverage, a seeded AI-vs-AI integration smoke (termination + per-seed determinism), item-interaction fringes (KO-over-heal, strongest-item), in-battle item path (bench-heal, no-overheal cap), and a mirror-match difficulty measurement harness (785 tests locally). Smart-vs-Basic mirror win rate tuned from 53.5% → 58.8% @400 (NoiseFraction 0.10→0.05); weight-tuning against greedy Basic is at its ceiling. Benchmark teams then ENRICHED (4 mons; hazards/priority/protect/force-switch/setup/status/recover): Smart-vs-Basic = 52.5% @400 — the full toolkit exposed that a non-switching opponent can't fairly value hazards/force-switch (cutting them "gains" but overfits; setup is validated — cutting it drops to 42%). Self-play tuning then found the big lever: **`SwitchThreshold` 35→50** (default over-switched into hazards/priority because switch scoring is hazard-blind) — Smart-vs-Basic 52.5% → **69.0% @400**, and beats the old behavior ~83% in self-play. Setup validated/kept. Hazard-aware switch scoring added (controller exposes hazard state → SmartAiContext → switch value subtracts expected switch-in damage; unit-tested). Phase 14 is verified for now; full tuning is deferred until Phase 15+ mechanics exist.
+2026-07-09 note: switch scoring now gates on relative gain over staying, then adds that gain to the
+best stay/move baseline for final ranking. Default `SwitchThreshold` is 100 after the corrected
+relative formula over-switched at 35.
+
+2026-07-09 verification note: Phase 14 is accepted for now with 785 passing tests, Smart-vs-Basic
+at 69.0% @400, and Smart-vs-Smart side balance at 49.2%. Further AI tuning is deferred until
+Phase 15+ battle mechanics are available; display/debug-console score-table integration is
+presentation work and not a Phase 14 gate.
+
+2026-07-09 Phase 15 audit note: Core v6 hook/form work, minimal Creator authoring surfaces,
+sample showcase data, standalone export template-copy, Runtime `--smoke`, exported config/pack
+loading, and a minimal rendered battle silhouette are green at 861 tests. Phase 15 is not
+closeable yet: Addendum v6 requires a Mega-style showcase fight in the demo, and the current
+runtime path is data + smoke + rectangles rather than a real demo showcase fight. Use
+`docs/IMPLEMENTATION_PLAN.md` -> "Phase 15 remaining work priority queue" as the authoritative
+next-work order; the next unfinished item is the real demo showcase fight.
 
 ## The rule
 
@@ -38,8 +54,8 @@ Phase assignments are authoritative in IMPLEMENTATION_PLAN.md; this table mirror
 |---|---|
 | Statuses, stat stages, priority | Battle v4 — Phase 11 |
 | Advanced move effect ops (multi-hit, drain, protect, hazards…) | Battle v5 — Phase 14 |
-| `smart` trainer AI (slice ships `basic`) | Phase 14 |
-| Abilities, held items in battle, weather, forms/Mega/Gmax | Battle v6 — Phase 15 |
+| `smart` trainer AI (slice ships `basic`) | Phase 14 — verified baseline |
+| Abilities, held items in battle, weather ability/item/form interactions, forms/Mega/Gmax | Battle v6 — Phase 15 |
 | Auto-slice heuristics beyond manual grid | Import v1–v2 — Phase 4 |
 | Connected-component irregular slicing | Import v3 — Phase 17 |
 | Animation grouping (manual clips Phase 4; character template helper Phase 13) | Import v4 — Phases 4/13 |

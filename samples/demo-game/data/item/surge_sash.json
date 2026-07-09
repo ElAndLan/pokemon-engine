@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "id": "item:surge_sash",
+  "name": "Surge Sash",
+  "pocket": "items",
+  "price": 1500,
+  "consumable": true,
+  "usableInField": false,
+  "usableInBattle": false,
+  "holdable": true,
+  "keyItem": false,
+  "effects": [],
+  "battleEffects": [
+    { "op": "surviveFromFull" }
+  ]
+}

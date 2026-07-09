@@ -9,6 +9,7 @@ public sealed class EntityIdTests
     [InlineData("species:bulbasaur", EntityCategory.Species, "bulbasaur")]
     [InlineData("type:fire", EntityCategory.Type, "fire")]
     [InlineData("move:ember", EntityCategory.Move, "ember")]
+    [InlineData("ability:sturdy_root", EntityCategory.Ability, "sturdy_root")]
     [InlineData("map:route_001", EntityCategory.Map, "route_001")]
     [InlineData("encounter:route_001_grass", EntityCategory.Encounter, "route_001_grass")]
     public void Parse_ValidIds(string text, EntityCategory cat, string slug)

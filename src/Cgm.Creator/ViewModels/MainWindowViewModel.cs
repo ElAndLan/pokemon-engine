@@ -34,7 +34,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     /// <summary>Entity categories the Creator can currently create from the UI (Phase 3).</summary>
     public IReadOnlyList<EntityCategory> CreatableCategories { get; } =
-        [EntityCategory.Type, EntityCategory.Item, EntityCategory.Move];
+        [EntityCategory.Type, EntityCategory.Item, EntityCategory.Move, EntityCategory.Ability, EntityCategory.Species];
 
     [ObservableProperty] private EntityCategory _newCategory = EntityCategory.Move;
 
@@ -304,8 +304,18 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         EntityCategory.Type => new TypeDef { Id = id, Name = id.Slug },
         EntityCategory.Item => new Item { Id = id, Name = id.Slug, Pocket = Session!.Settings.Pockets.FirstOrDefault() ?? "items" },
+        EntityCategory.Ability => new Ability { Id = id, Name = id.Slug },
         EntityCategory.Move when Session!.All<TypeDef>().FirstOrDefault() is { } t =>
             new Move { Id = id, Name = id.Slug, Type = t.Id, DamageClass = DamageClass.Status, Pp = 5 },
+        EntityCategory.Species when Session!.All<TypeDef>().FirstOrDefault() is { } t =>
+            new Species
+            {
+                Id = id,
+                Name = id.Slug,
+                Types = [t.Id],
+                BaseStats = new Stats(45, 45, 45, 45, 45, 45),
+                GrowthRate = "medium-fast",
+            },
         _ => null,
     };
 
@@ -324,6 +334,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         EntityCategory.Move when Session!.Find<Move>(id) is { } m => new MoveDocument(Session, m),
         EntityCategory.Item when Session!.Find<Item>(id) is { } i => new ItemDocument(Session, i),
+        EntityCategory.Ability when Session!.Find<Ability>(id) is { } a => new AbilityDocument(Session, a),
+        EntityCategory.Species when Session!.Find<Species>(id) is { } s => new SpeciesDocument(Session, s),
         _ => null,
     };
 

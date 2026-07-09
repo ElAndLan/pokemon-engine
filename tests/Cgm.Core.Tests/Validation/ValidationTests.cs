@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Cgm.Core.Model;
 using Cgm.Core.Serialization;
 using Cgm.Core.Validation;
@@ -16,6 +17,32 @@ public sealed class ValidationTests
         Project p = ProjectLoader.Load(TestPaths.Sample("fixture-min"));
         ValidationReport report = Validator.Run(p);
         Assert.False(report.HasErrors, string.Join("\n", report.Issues));
+    }
+
+    [Fact]
+    public void DemoGame_HasPhase15ShowcaseContent()
+    {
+        Project p = ProjectLoader.Load(TestPaths.Sample("demo-game"));
+        ValidationReport report = Validator.Run(p);
+        Assert.False(report.HasErrors, string.Join("\n", report.Issues));
+
+        Assert.Equal(4, p.All<Ability>().Count());
+
+        IReadOnlyList<Item> heldItems = p.All<Item>()
+            .Where(i => i.Holdable && i.BattleEffects.Count > 0)
+            .OrderBy(i => i.Id.ToString())
+            .ToList();
+        Assert.Equal(
+            [EntityId.Parse("item:bloom_stone"), EntityId.Parse("item:storm_band"), EntityId.Parse("item:surge_sash")],
+            heldItems.Select(i => i.Id).ToList());
+
+        Species species = p.Find<Species>(EntityId.Parse("species:asterling"))!;
+        Assert.Contains(species.Forms, f => f.Activation == FormActivation.BattleTemporary);
+        Assert.Contains(species.Forms, f => f.Activation == FormActivation.BattleTimed);
+
+        Trainer trainer = p.Find<Trainer>(EntityId.Parse("trainer:expert_rematch_mira"))!;
+        Assert.Equal(AiProfile.Smart, trainer.AiProfile);
+        Assert.Equal(heldItems.Select(i => i.Id), trainer.Party.Select(m => m.HeldItem!.Value));
     }
 
     [Fact]
@@ -52,6 +79,58 @@ public sealed class ValidationTests
         var settings = new ProjectSettings { Name = "T", StartMap = EntityId.Parse("map:ghost") };
         var issues = Run(new BrokenReferenceRule(), Project(settings));
         Assert.Contains(issues, i => i.Message.Contains("map:ghost"));
+    }
+
+    [Fact]
+    public void BrokenReference_ChecksDictionaryKeysAndValues()
+    {
+        Species mon = Species() with
+        {
+            Forms =
+            [
+                ValidForm() with
+                {
+                    MoveRemap = new Dictionary<EntityId, EntityId>
+                    {
+                        [EntityId.Parse("move:old")] = EntityId.Parse("move:new"),
+                    },
+                },
+            ],
+        };
+
+        var issues = Run(new BrokenReferenceRule(), Project(mon));
+
+        Assert.Contains(issues, i => i.Message.Contains("move:old"));
+        Assert.Contains(issues, i => i.Message.Contains("move:new"));
+    }
+
+    [Fact]
+    public void BrokenReference_ChecksPhase15AbilityFormAndItemRefs()
+    {
+        Species mon = Species() with
+        {
+            Abilities = [EntityId.Parse("ability:normal")],
+            HiddenAbility = EntityId.Parse("ability:hidden"),
+            Forms =
+            [
+                ValidForm("burst") with
+                {
+                    AbilityOverride = EntityId.Parse("ability:form"),
+                    RequiredHeldItem = EntityId.Parse("item:held"),
+                    RequiredTrainerItem = EntityId.Parse("item:key"),
+                    Condition = new FormCondition { HeldItem = EntityId.Parse("item:condition") },
+                },
+            ],
+        };
+
+        var issues = Run(new BrokenReferenceRule(), Project(mon));
+
+        Assert.Contains(issues, i => i.Message.Contains("ability:normal"));
+        Assert.Contains(issues, i => i.Message.Contains("ability:hidden"));
+        Assert.Contains(issues, i => i.Message.Contains("ability:form"));
+        Assert.Contains(issues, i => i.Message.Contains("item:held"));
+        Assert.Contains(issues, i => i.Message.Contains("item:key"));
+        Assert.Contains(issues, i => i.Message.Contains("item:condition"));
     }
 
     // --- Project rules -----------------------------------------------------------
@@ -123,6 +202,218 @@ public sealed class ValidationTests
         };
         Assert.NotEmpty(Run(new EvolutionRule(), Project(self)));
         Assert.NotEmpty(Run(new EvolutionRule(), Project(lowLevel)));
+    }
+
+    [Fact]
+    public void AbilityHook_FlagsUnknownOpChanceAndBadFraction()
+    {
+        var ability = new Ability
+        {
+            Id = EntityId.Parse("ability:a"),
+            Name = "A",
+            Hooks =
+            [
+                new AbilityHook
+                {
+                    Hook = AbilityHookPoint.OnEndOfTurn,
+                    Effects =
+                    [
+                        new Effect { Op = "madeUp" },
+                        new Effect { Op = "residualHeal", Chance = 0 },
+                        new Effect { Op = "residualDamage", Params = Params(("den", 0)) },
+                        new Effect { Op = "weatherSummon" },
+                        new Effect { Op = "statusImmunity" },
+                        new Effect { Op = "statusCure" },
+                        new Effect { Op = "statusCure", Params = Params(("status", "dizzy")) },
+                        new Effect { Op = "typeDamageModify", Params = Params(("multiplierPercent", 150)) },
+                        new Effect { Op = "statModify" },
+                        new Effect { Op = "statModify", Params = Params(("stat", "hp"), ("multiplierPercent", 150)) },
+                        new Effect { Op = "contactChanceEffect" },
+                        new Effect { Op = "contactChanceEffect", Params = Params(("status", "dizzy")) },
+                        new Effect { Op = "contactChanceEffect", Params = Params(("stat", "hp"), ("delta", -1)) },
+                        new Effect { Op = "contactChanceEffect", Params = Params(("stat", "atk"), ("delta", 0)) },
+                    ],
+                },
+            ],
+        };
+
+        var issues = Run(new AbilityHookRule(), Project(ability));
+
+        Assert.Contains(issues, i => i.Message.Contains("madeUp"));
+        Assert.Contains(issues, i => i.Message.Contains("chance 0"));
+        Assert.Contains(issues, i => i.Message.Contains("den"));
+        Assert.Contains(issues, i => i.Message.Contains("num"));
+        Assert.Contains(issues, i => i.Message.Contains("weather"));
+        Assert.Contains(issues, i => i.Message.Contains("status"));
+        Assert.Contains(issues, i => i.Message.Contains("unknown status"));
+        Assert.Contains(issues, i => i.Message.Contains("type"));
+        Assert.Contains(issues, i => i.Message.Contains("stat"));
+        Assert.Contains(issues, i => i.Message.Contains("unknown stat"));
+        Assert.Contains(issues, i => i.Message.Contains("multiplierPercent") && i.Message.Contains("add"));
+        Assert.Contains(issues, i => i.Message.Contains("contactChanceEffect") && i.Message.Contains("requires"));
+        Assert.Contains(issues, i => i.Message.Contains("contactChanceEffect") && i.Message.Contains("unknown status"));
+        Assert.Contains(issues, i => i.Message.Contains("contactChanceEffect") && i.Message.Contains("unknown stat"));
+        Assert.Contains(issues, i => i.Message.Contains("contactChanceEffect") && i.Message.Contains("delta"));
+        Assert.Empty(Run(new AbilityHookRule(), Project(ability with
+        {
+            Hooks =
+            [
+                new AbilityHook
+                {
+                    Hook = AbilityHookPoint.OnSwitchIn,
+                    Effects =
+                    [
+                        new Effect { Op = "weatherSummon", Chance = 100, Params = Params(("weather", "rain"), ("duration", 5)) },
+                        new Effect { Op = "residualHeal", Params = Params(("num", 1), ("den", 16)) },
+                        new Effect { Op = "statusImmunity", Params = Params(("status", "burn")) },
+                        new Effect { Op = "statModify", Params = Params(("stat", "atk"), ("multiplierPercent", 150)) },
+                        new Effect { Op = "statModify", Params = Params(("stat", "def"), ("add", -10)) },
+                        new Effect { Op = "contactChanceEffect", Chance = 30, Params = Params(("status", "poison")) },
+                        new Effect { Op = "contactChanceEffect", Params = Params(("stat", "atk"), ("delta", -1)) },
+                    ],
+                },
+            ],
+        })));
+    }
+
+    [Fact]
+    public void AbilityHook_FlagsDeferredHookPoints()
+    {
+        var ability = new Ability
+        {
+            Id = EntityId.Parse("ability:a"),
+            Name = "A",
+            Hooks =
+            [
+                new AbilityHook { Hook = AbilityHookPoint.OnModifyStat },
+                new AbilityHook { Hook = AbilityHookPoint.OnFaint },
+            ],
+        };
+
+        var issues = Run(new AbilityHookRule(), Project(ability));
+
+        Assert.Contains(issues, i => i.Message.Contains("OnModifyStat"));
+        Assert.Contains(issues, i => i.Message.Contains("OnFaint"));
+    }
+
+    [Fact]
+    public void HeldItemBattleEffects_RequireHoldableAndClosedOps()
+    {
+        var item = new Item
+        {
+            Id = EntityId.Parse("item:berry"),
+            Name = "Berry",
+            Holdable = false,
+            BattleEffects =
+            [
+                new Effect { Op = "damage" },
+                new Effect { Op = "thresholdHeal", Params = Params(("thresholdPercent", 101)) },
+                new Effect { Op = "thresholdHeal", Params = Params(("thresholdPercent", 50), ("healAmount", 20), ("healFractionPercent", 25)) },
+                new Effect { Op = "statusCure" },
+                new Effect { Op = "typeDamageBoost", Params = Params(("type", "fire")) },
+                new Effect { Op = "choiceLock" },
+                new Effect { Op = "choiceLock", Params = Params(("damageClass", "status"), ("multiplierPercent", 150)) },
+                new Effect { Op = "residualHeal", Params = Params(("den", 0)) },
+                new Effect { Op = "surviveFromFull", Params = Params(("amount", 1)) },
+                new Effect { Op = "weatherDurationExtend" },
+                new Effect { Op = "weatherDurationExtend", Params = Params(("turns", 0)) },
+            ],
+        };
+
+        var issues = Run(new HeldItemBattleEffectRule(), Project(item));
+
+        Assert.Contains(issues, i => i.Message.Contains("holdable is false"));
+        Assert.Contains(issues, i => i.Message.Contains("damage"));
+        Assert.Contains(issues, i => i.Message.Contains("thresholdPercent"));
+        Assert.Contains(issues, i => i.Message.Contains("healAmount"));
+        Assert.Contains(issues, i => i.Message.Contains("only one"));
+        Assert.Contains(issues, i => i.Message.Contains("status"));
+        Assert.Contains(issues, i => i.Message.Contains("multiplierPercent"));
+        Assert.Contains(issues, i => i.Message.Contains("choiceLock") && i.Message.Contains("damageClass"));
+        Assert.Contains(issues, i => i.Message.Contains("residualHeal") && i.Message.Contains("num"));
+        Assert.Contains(issues, i => i.Message.Contains("residualHeal") && i.Message.Contains("den"));
+        Assert.Contains(issues, i => i.Message.Contains("does not take params"));
+        Assert.Contains(issues, i => i.Message.Contains("weatherDurationExtend") && i.Message.Contains("turns"));
+        Assert.Empty(Run(new HeldItemBattleEffectRule(), Project(item with
+        {
+            Holdable = true,
+            BattleEffects =
+            [
+                new Effect { Op = "thresholdHeal", Params = Params(("thresholdPercent", 50), ("healAmount", 20)) },
+                new Effect { Op = "statusCure", Params = Params(("status", "poison")) },
+                new Effect { Op = "typeDamageBoost", Params = Params(("type", "fire"), ("multiplierPercent", 120)) },
+                new Effect { Op = "choiceLock", Params = Params(("damageClass", "physical"), ("multiplierPercent", 150)) },
+                new Effect { Op = "residualHeal", Params = Params(("num", 1), ("den", 16)) },
+                new Effect { Op = "surviveFromFull" },
+                new Effect { Op = "weatherDurationExtend", Params = Params(("turns", 2)) },
+            ],
+        })));
+    }
+
+    [Fact]
+    public void Forms_FlagShapeAndActivationInvariants()
+    {
+        Form badTimed = ValidForm("timed") with
+        {
+            Activation = FormActivation.BattleTimed,
+            Turns = 0,
+            Sprites = new SpeciesSprites(),
+            TypeOverrides = [EntityId.Parse("type:fire"), EntityId.Parse("type:fire")],
+            StatOverrides = new Stats(0, 45, 45, 45, 45, 45),
+        };
+        Form badCondition = ValidForm("condition") with
+        {
+            Activation = FormActivation.Condition,
+            Condition = new FormCondition(),
+            RequiredTrainerItem = EntityId.Parse("item:key"),
+        };
+        Form badTemporaryItems = ValidForm("temporary_items") with
+        {
+            Activation = FormActivation.BattleTemporary,
+            RequiredHeldItem = EntityId.Parse("item:not_holdable"),
+            RequiredTrainerItem = EntityId.Parse("item:not_key"),
+        };
+        Form badConditionItem = ValidForm("condition_item") with
+        {
+            Activation = FormActivation.Condition,
+            Condition = new FormCondition { HeldItem = EntityId.Parse("item:not_holdable") },
+        };
+        Species bad = Species() with { Forms = [badTimed, badCondition, badTemporaryItems, badConditionItem, ValidForm("dup"), ValidForm("dup")] };
+
+        var issues = Run(new FormRule(), Project(bad,
+            new Item { Id = EntityId.Parse("item:not_holdable"), Name = "Not Holdable" },
+            new Item { Id = EntityId.Parse("item:not_key"), Name = "Not Key", Holdable = true }));
+
+        Assert.Contains(issues, i => i.Message.Contains("turns > 0"));
+        Assert.Contains(issues, i => i.Message.Contains("front, back, and icon"));
+        Assert.Contains(issues, i => i.Message.Contains("duplicate type"));
+        Assert.Contains(issues, i => i.Message.Contains("base HP"));
+        Assert.Contains(issues, i => i.Message.Contains("requires weather or heldItem"));
+        Assert.Contains(issues, i => i.Message.Contains("requiredTrainerItem"));
+        Assert.Contains(issues, i => i.Message.Contains("requiredHeldItem") && i.Message.Contains("holdable"));
+        Assert.Contains(issues, i => i.Message.Contains("requiredTrainerItem") && i.Message.Contains("key item"));
+        Assert.Contains(issues, i => i.Message.Contains("heldItem condition") && i.Message.Contains("holdable"));
+        Assert.Contains(issues, i => i.Message.Contains("empty or duplicated"));
+        Assert.Empty(Run(new FormRule(), Project(Species() with
+        {
+            Forms =
+            [
+                ValidForm("mega") with
+                {
+                    Activation = FormActivation.BattleTemporary,
+                    RequiredHeldItem = EntityId.Parse("item:stone"),
+                    RequiredTrainerItem = EntityId.Parse("item:key"),
+                },
+                ValidForm("timed") with { Activation = FormActivation.BattleTimed, Turns = 3 },
+                ValidForm("rain") with
+                {
+                    Activation = FormActivation.Condition,
+                    Condition = new FormCondition { Weather = "rain" },
+                },
+            ],
+        },
+            new Item { Id = EntityId.Parse("item:stone"), Name = "Stone", Holdable = true },
+            new Item { Id = EntityId.Parse("item:key"), Name = "Key", KeyItem = true })));
     }
 
     // --- Move rule ---------------------------------------------------------------
@@ -250,6 +541,23 @@ public sealed class ValidationTests
 
     private static SheetCell Cell(string spriteSlug) =>
         new() { SpriteId = EntityId.Parse($"sprite:{spriteSlug}") };
+
+    private static Form ValidForm(string id = "mega") => new()
+    {
+        FormId = id,
+        Sprites = new SpeciesSprites
+        {
+            Front = EntityId.Parse($"sprite:{id}_front"),
+            Back = EntityId.Parse($"sprite:{id}_back"),
+            Icon = EntityId.Parse($"sprite:{id}_icon"),
+        },
+    };
+
+    private static IReadOnlyDictionary<string, JsonElement> Params(params (string Key, int Value)[] values) =>
+        values.ToDictionary(v => v.Key, v => JsonDocument.Parse(v.Value.ToString()).RootElement.Clone());
+
+    private static IReadOnlyDictionary<string, JsonElement> Params(params (string Key, object Value)[] values) =>
+        values.ToDictionary(v => v.Key, v => JsonSerializer.SerializeToElement(v.Value));
 
     [Fact]
     public void Animation_FlagsEmptyAndNonPositiveDurations()

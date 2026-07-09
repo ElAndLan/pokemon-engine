@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "id": "map:showcase_room",
+  "name": "Showcase Room",
+  "width": 3,
+  "height": 3,
+  "entities": [
+    { "kind": "player-start", "pos": { "x": 1, "y": 1 }, "facing": "down" },
+    {
+      "kind": "npc",
+      "pos": { "x": 1, "y": 0 },
+      "facing": "down",
+      "move": "static",
+      "trainer": "trainer:expert_rematch_mira"
+    }
+  ]
+}

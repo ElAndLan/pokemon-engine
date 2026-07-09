@@ -149,7 +149,7 @@ public static class MoveCompiler
             drain, recoil, recoilOnMiss, heal, multiHitMin, multiHitMax,
             fixedDamage, fixedDamageLevel, ohko, critBoost, selfDestruct, leechSeed, setsSpikes, setsWeather,
             setsStealthRock, binds, isProtect, forcesSwitch, counterCategory, bypassAccuracy, chargeTurn,
-            multiTurnLock);
+            multiTurnLock, move.MakesContact);
     }
 
     /// <summary>Reads a <c>{ num, den }</c> fraction, defaulting either component when absent.</summary>

@@ -10,7 +10,7 @@ public readonly record struct GridPos(int X, int Y);
 /// <summary>The project root record (DATA_SCHEMA.md §4.1), stored as <c>project.cgmproj</c>.</summary>
 public sealed record ProjectSettings
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; } = new(EntityCategory.Project, "main");
     public string Name { get; init; } = "";
     public string EngineVersion { get; init; } = "";

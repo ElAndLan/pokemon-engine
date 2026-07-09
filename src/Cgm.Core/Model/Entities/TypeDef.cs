@@ -4,7 +4,7 @@ namespace Cgm.Core.Model;
 /// "…To" lists; "…From" lists are their inverse and not stored.</summary>
 public sealed record TypeDef : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
     public IReadOnlyList<EntityId> DoubleDamageTo { get; init; } = [];

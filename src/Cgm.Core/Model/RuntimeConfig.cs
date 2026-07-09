@@ -6,7 +6,7 @@ namespace Cgm.Core.Model;
 /// </summary>
 public sealed record RuntimeConfig
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public string GameName { get; init; } = "";
     public string WindowTitle { get; init; } = "";
     public int VirtualWidth { get; init; } = 240;

@@ -1,19 +1,20 @@
 # DATA_SCHEMA
 
-Status: **Frozen v1 (2026-07-06)** — the single source of truth for all serialized shapes.
+Status: **Schema v3 (2026-07-09)** — the single source of truth for all serialized shapes.
 Derived from the local PokeAPI corpus per [ADR-010](adr/ADR-010-pokeapi-derived-schema.md).
 Changes require a `schemaVersion` bump + migration + this doc edited in the same change
-(CLAUDE.md §2). Post-slice fields (abilities, held-item battle data, weather, breeding) are
-NOT added until their phase — only the empty `forms[]` placeholder exists now.
+(CLAUDE.md §2). v3 adds the move contact marker used by Phase 15 contact hooks. Save-file
+ability/form progression remains under `saveFormatVersion`.
 
-Scope of v1: the MVP + vertical-slice entities. Numbers in `(PokeAPI: x)` note the source field.
+Scope of v3: the MVP + vertical-slice entities plus Battle v6 authoring data. Numbers in
+`(PokeAPI: x)` note the source field.
 
 ---
 
 ## 1. Conventions
 - One JSON file per entity: `data/<category>/<id-slug>.json`. UTF-8, `\n`, 2-space indent,
   **stable property order** (byte-stable output so git diffs and fixtures stay honest).
-- Every file starts: `{ "schemaVersion": 1, "id": "<category:slug>", "name": "<display>", ... }`.
+- Every file starts: `{ "schemaVersion": 3, "id": "<category:slug>", "name": "<display>", ... }`.
 - Unknown fields tolerated on read (forward-compat); never written back.
 - All numbers are integers unless the field says otherwise. `null` = "not applicable" (e.g. a
   status move has `power: null`), distinct from `0`.
@@ -23,7 +24,7 @@ Scope of v1: the MVP + vertical-slice entities. Numbers in `(PokeAPI: x)` note t
 ## 2. EntityId
 - Format `category:slug`. `slug` matches `^[a-z0-9_]+$`. Immutable after creation (rename edits
   `name`, never `id`). Value-equal, sortable, case-sensitive (always lower).
-- **Closed category registry:** `project, type, species, move, item, tileset, tile, object,
+- **Closed category registry:** `project, type, species, move, item, ability, tileset, tile, object,
   sheet, sprite, anim, map, encounter, trainer, flag, box`. Adding a category = a schema change.
 - Cross-entity references are always the string ID (`"type:fire"`), never a nested object.
 
@@ -79,7 +80,9 @@ The full effectiveness matrix is **derived** from these lists (see BATTLE_DAMAGE
 | eggGroups | string[] | `pokemon-species.egg_groups[].name` (stored, unused now) |
 | learnset | `{level:int, move:id}[]` | from `pokemon.moves` level-up entries, dedup/sorted |
 | evolutions | Evolution[] | denormalized from `evolution-chain` (§4.3a) |
-| forms | Form[] | **empty []** in v1 (Mega/Gmax land Phase 15) |
+| abilities | id[0..2] `ability:*` | normal ability slots; empty means no authored abilities |
+| hiddenAbility | id `ability:*`? | optional hidden ability slot |
+| forms | Form[] | active in v2 (Phase 15) |
 | sprites | `{front,back,icon}` | our `sprite:*` IDs (filled when art imported) |
 | spriteUrls | `{frontDefault,backDefault,frontShiny,backShiny,officialArtwork}`? | **import-staging** PokeAPI URLs kept for later download (ADR-010); stripped once art lands |
 | cry | id `sprite:*`?/path? | audio ref (optional) |
@@ -100,6 +103,22 @@ The full effectiveness matrix is **derived** from these lists (see BATTLE_DAMAGE
 Unused-in-v1 conditions may be stored but the engine only executes: level, item, trade-flag,
 happiness, time-of-day, known-move, held-item (per Phase 13 scope).
 
+**4.3b Form**
+| field | type | notes |
+|---|---|---|
+| formId | string | stable within the species; saved creatures reference this string |
+| activation | enum | `permanent`\|`battleTemporary`\|`battleTimed`\|`condition` |
+| statOverrides | `{hp,atk,def,spa,spd,spe}`? | full replacement stat block when present |
+| typeOverrides | id[1..2] `type:*`? | full replacement type list when present |
+| abilityOverride | id `ability:*`? | replaces the selected ability while in form |
+| sprites | `{front,back,icon}` | required by validation when the form is battle-visible |
+| requiredHeldItem | id `item:*`? | battle-temporary/condition held-item gate |
+| requiredTrainerItem | id `item:*`? | battle-temporary side key-item gate |
+| turns | int? | battle-timed duration |
+| hpMultiplierPercent | int? | battle-timed max-HP multiplier, e.g. 200 |
+| moveRemap | `{move:*: move:*}`? | optional move substitution while transformed; battle PP remains on the original move slot |
+| condition | `{weather?: string, heldItem?: id}`? | condition-form trigger data |
+
 ### 4.4 move  (`move:ember`)  ← PokeAPI `move/*`
 | field | type | PokeAPI source |
 |---|---|---|
@@ -111,6 +130,7 @@ happiness, time-of-day, known-move, held-item (per Phase 13 scope).
 | pp | int | `pp` |
 | priority | int -7..7 | `priority` |
 | critStage | int | `meta.crit_rate` (0 baseline) |
+| makesContact | bool | contact marker for `onContactReceived` hooks; default false |
 | target | enum | `selected`\|`user`\|`all-opponents`… (`target`; 1v1 uses selected/user in MVP) |
 | effects | Effect[] | composed from `meta` + `stat_changes` + `effect_chance` (§4.4a) |
 
@@ -134,8 +154,22 @@ Prose `effect_entries` are discarded (ADR-010).
 | holdable | bool | `attributes` contains `holdable` |
 | keyItem | bool | pocket == key / not `countable` |
 | effects | Effect[] | from `short_effect`→ops (heal N, capture ballBonus, cure-status, evolve, repel) |
+| battleEffects | Effect[] | held-item battle ops from BATTLE_SYSTEM_SPEC v6 (`thresholdHeal`, `statusCure`, etc.) |
 | spriteUrl | string? | import-staging item sprite URL (ADR-010) |
 | icon | id `sprite:*`? | our sprite once imported |
+
+### 4.5b ability  (`ability:sturdy_root`)
+| field | type | notes |
+|---|---|---|
+| id, name | | |
+| hooks | AbilityHook[] | data-driven hooks; no bespoke ability code |
+
+**AbilityHook**: `{ hook, effects[] }`, where `hook` is one of `onSwitchIn`,
+`onModifyOutgoingDamage`, `onModifyIncomingDamage`, `onStatusAttempt`, `onEndOfTurn`,
+`onContactReceived`, `onWeatherChange`. `onModifyStat` and `onFaint` are reserved/deferred enum
+values and are rejected by Phase 15 validation until BATTLE_SYSTEM_SPEC.md assigns closed ops to
+those timings. `effects[]` uses the shared `Effect` shape with the closed ability-op palette in
+BATTLE_SYSTEM_SPEC.md.
 
 ### 4.6 spritesheet (`sheet:overworld`) & 4.7 sprite (`sprite:*`) & 4.8 animation (`anim:*`)
 - **spritesheet**: `{ asset: "assets/x.png", contentHash, mode: grid|rects, cellW, cellH,
@@ -208,3 +242,6 @@ Volatile battle state (stat stages, confusion, flinch) is NOT saved — it lives
 - `schemaVersion` (project data) and `saveFormatVersion` (saves) version independently.
 - A shape change: bump the version, add `Migrator` step `v(n)→v(n+1)`, commit an old-shape
   fixture under `tests/fixtures/`, never delete a field (deprecate). Old saves/exports keep loading.
+- v1→v2: no-op data migration. New Phase 15 fields default to empty/null and old v1 files load as
+  v2 records.
+- v2→v3: no-op data migration. `move.makesContact` defaults to false for old moves.

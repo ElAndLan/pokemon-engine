@@ -8,7 +8,7 @@ public enum TextSpeed { Slow, Medium, Fast }
 /// </summary>
 public sealed record GameOptions
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public int BgmVolume { get; init; } = 100;
     public int SfxVolume { get; init; } = 100;
     public TextSpeed TextSpeed { get; init; } = TextSpeed.Medium;

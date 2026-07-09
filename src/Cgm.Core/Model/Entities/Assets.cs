@@ -11,7 +11,7 @@ public readonly record struct Rect(int X, int Y, int W, int H);
 /// its <see cref="Cells"/> (there are no standalone sprite files).</summary>
 public sealed record SpriteSheet : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
 
@@ -39,7 +39,7 @@ public sealed record SheetCell
 /// <summary>An animation clip referencing sprite ids (DATA_SCHEMA.md §4.8).</summary>
 public sealed record Animation : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
     public IReadOnlyList<AnimFrame> Frames { get; init; } = [];

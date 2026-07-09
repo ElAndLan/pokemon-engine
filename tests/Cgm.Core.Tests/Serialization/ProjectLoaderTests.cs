@@ -107,6 +107,18 @@ public sealed class ProjectLoaderTests
         Assert.Throws<InvalidDataException>(() => ProjectLoader.Load(t.Dir));
     }
 
+    [Fact]
+    public void Load_ReadsAbilityEntities()
+    {
+        using var t = new TempProject();
+        t.WriteData("ability", "sturdy_root.json",
+            """{ "schemaVersion":2, "id":"ability:sturdy_root", "name":"Sturdy Root", "hooks":[{"hook":"onSwitchIn","effects":[{"op":"weatherSummon"}]}] }""");
+
+        Ability ability = ProjectLoader.Load(t.Dir).Find<Ability>(EntityId.Parse("ability:sturdy_root"))!;
+        Assert.Equal(AbilityHookPoint.OnSwitchIn, ability.Hooks.Single().Hook);
+        Assert.Equal("weatherSummon", ability.Hooks.Single().Effects.Single().Op);
+    }
+
     /// <summary>A throwaway project folder with a minimal valid settings file.</summary>
     private sealed class TempProject : IDisposable
     {

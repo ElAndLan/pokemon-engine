@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Scope Gate"
+  short_description: "Check Creature Game Maker phase scope before work."
+  default_prompt: "Use cgm-scope-gate to decide whether this request is in scope for the current Creature Game Maker phase."

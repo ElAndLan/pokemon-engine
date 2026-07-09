@@ -6,11 +6,12 @@ public readonly record struct Stats(int Hp, int Atk, int Def, int Spa, int Spd, 
 public enum EvolutionTrigger { LevelUp, UseItem, Trade, Other }
 public enum TimeOfDay { Day, Night }
 public enum Gender { Male, Female }
+public enum FormActivation { Permanent, BattleTemporary, BattleTimed, Condition }
 
 /// <summary>A creature species: merge of PokeAPI pokemon + pokemon-species (DATA_SCHEMA.md §4.3).</summary>
 public sealed record Species : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
 
@@ -27,7 +28,9 @@ public sealed record Species : IEntity
 
     public IReadOnlyList<LearnsetEntry> Learnset { get; init; } = [];
     public IReadOnlyList<Evolution> Evolutions { get; init; } = [];
-    public IReadOnlyList<Form> Forms { get; init; } = []; // empty in v1 (Phase 15)
+    public IReadOnlyList<EntityId> Abilities { get; init; } = [];
+    public EntityId? HiddenAbility { get; init; }
+    public IReadOnlyList<Form> Forms { get; init; } = [];
 
     public SpeciesSprites Sprites { get; init; } = new();
     public SpeciesSpriteUrls? SpriteUrls { get; init; } // import-staging (ADR-010)
@@ -54,6 +57,23 @@ public sealed record Evolution
 public sealed record Form
 {
     public string FormId { get; init; } = "";
+    public FormActivation Activation { get; init; } = FormActivation.Permanent;
+    public Stats? StatOverrides { get; init; }
+    public IReadOnlyList<EntityId>? TypeOverrides { get; init; }
+    public EntityId? AbilityOverride { get; init; }
+    public SpeciesSprites Sprites { get; init; } = new();
+    public EntityId? RequiredHeldItem { get; init; }
+    public EntityId? RequiredTrainerItem { get; init; }
+    public int? Turns { get; init; }
+    public int? HpMultiplierPercent { get; init; }
+    public IReadOnlyDictionary<EntityId, EntityId>? MoveRemap { get; init; }
+    public FormCondition? Condition { get; init; }
+}
+
+public sealed record FormCondition
+{
+    public string? Weather { get; init; }
+    public EntityId? HeldItem { get; init; }
 }
 
 public sealed record SpeciesSprites

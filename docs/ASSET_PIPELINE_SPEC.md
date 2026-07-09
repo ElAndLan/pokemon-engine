@@ -1,8 +1,9 @@
 # ASSET_PIPELINE_SPEC
 
-Status: **Stub** — current source is `MASTER_PLAN.md` §9 and `ARCHITECTURE_ADDENDUM.md` §9
-(import layers v0–v5). Full write due **before Phase 4** (v0–v2), extended at Phases 12/17.
-Blocks: Phases 4, 12, 17.
+Status: **Partial / implemented sections are binding.** v0 manual grid, v1 common-size
+suggestions, v2 transparent-gutter detection, character animation helper, and v5 atlas packing
+are written and have matching code/tests. The slicer canvas/import browser UI, audio import UI,
+and v3 connected-component slicing are **not** implemented here.
 
 ## Purpose
 How art becomes runtime assets: PNG import, the slicing layers (manual grid → common-size →

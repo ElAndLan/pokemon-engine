@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "id": "sheet:showcase",
+  "name": "Showcase Sprites",
+  "asset": "assets/showcase-placeholder.png",
+  "mode": "grid",
+  "cellW": 16,
+  "cellH": 16,
+  "cells": [
+    { "index": 0, "spriteId": "sprite:asterling_bloom_front", "class": "creatureFront" },
+    { "index": 1, "spriteId": "sprite:asterling_bloom_back", "class": "creatureBack" },
+    { "index": 2, "spriteId": "sprite:asterling_bloom_icon", "class": "icon" },
+    { "index": 3, "spriteId": "sprite:asterling_storm_front", "class": "creatureFront" },
+    { "index": 4, "spriteId": "sprite:asterling_storm_back", "class": "creatureBack" },
+    { "index": 5, "spriteId": "sprite:asterling_storm_icon", "class": "icon" }
+  ]
+}

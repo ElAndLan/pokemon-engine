@@ -8,8 +8,10 @@ public enum BattleSide { Player, Enemy }
 /// Switch/item/run join in later battle layers.</summary>
 public abstract record BattleAction;
 public sealed record UseMove(int MoveIndex) : BattleAction;
+public sealed record ActivateForm(string FormId, int MoveIndex) : BattleAction;
 public sealed record Switch(int PartyIndex) : BattleAction;
 public sealed record ThrowBall(double BallBonus, double StatusBonus) : BattleAction;
+public sealed record UseBattleItem(EntityId Item, int TargetPartyIndex, int HealAmount) : BattleAction;
 
 /// <summary>What happened during resolution — the stream the UI renders (BATTLE_SYSTEM_SPEC).
 /// UI consumes these; it never reads or mutates state to infer what happened.</summary>
@@ -19,10 +21,15 @@ public sealed record MoveMissed(BattleSide Side, EntityId Move) : BattleEvent;
 public sealed record DamageDealt(BattleSide Target, int Amount, double Effectiveness, bool Crit) : BattleEvent;
 public sealed record Fainted(BattleSide Side) : BattleEvent;
 public sealed record SwitchedIn(BattleSide Side, int PartyIndex) : BattleEvent;
+public sealed record FormChanged(BattleSide Side, string? FormId) : BattleEvent;
 public sealed record StatusApplied(BattleSide Side, PersistentStatus Status) : BattleEvent;
+public sealed record StatusCured(BattleSide Side, PersistentStatus Status) : BattleEvent;
 public sealed record StatStageChanged(BattleSide Side, StatKind Stat, int Delta) : BattleEvent;
 public sealed record StatusDamage(BattleSide Side, int Amount) : BattleEvent;
+public sealed record ResidualDamage(BattleSide Side, int Amount) : BattleEvent;
 public sealed record Healed(BattleSide Side, int Amount) : BattleEvent;
+public sealed record BattleItemUsed(BattleSide Side, EntityId Item, int TargetPartyIndex) : BattleEvent;
+public sealed record HeldItemConsumed(BattleSide Side, string Op) : BattleEvent;
 public sealed record Recoiled(BattleSide Side, int Amount) : BattleEvent;
 public sealed record CritBoosted(BattleSide Side) : BattleEvent;
 public sealed record LeechSeeded(BattleSide Side) : BattleEvent;

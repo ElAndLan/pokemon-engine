@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "id": "ability:thornhide",
+  "name": "Thornhide",
+  "hooks": [
+    {
+      "hook": "onContactReceived",
+      "effects": [
+        { "op": "contactChanceEffect", "chance": 30, "params": { "status": "poison" } }
+      ]
+    }
+  ]
+}

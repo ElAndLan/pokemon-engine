@@ -35,6 +35,14 @@ public static class EntityReferences
             case EntityId id:
                 yield return id;
                 break;
+            case IDictionary dict:
+                foreach (object? key in dict.Keys)
+                    foreach (EntityId id in FromValue(key))
+                        yield return id;
+                foreach (object? item in dict.Values)
+                    foreach (EntityId id in FromValue(item))
+                        yield return id;
+                break;
             case IEnumerable seq:
                 foreach (object? item in seq)
                     foreach (EntityId id in FromValue(item))

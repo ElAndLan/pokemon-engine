@@ -1,7 +1,8 @@
 # ARCHITECTURE
 
-Status: **Stub** — current source is `MASTER_PLAN.md` §4 and `ARCHITECTURE_ADDENDUM.md` §2 (ADRs)
-and §6 (contracts). Full write due **Phase 3**. Blocks: cross-module work once >1 subsystem exists.
+Status: **Partial** — `ARCHITECTURE_ADDENDUM.md` §2 (ADRs) and §6 (contracts) remain the
+authoritative architecture source. This summary doc still needs the module-boundary digest and
+diagrams; do not treat it as complete.
 
 ## Purpose
 The system-level map: solution layout, module boundaries and dependency rules, the scene stack,

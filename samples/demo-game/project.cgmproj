@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 3,
+  "id": "project:main",
+  "name": "Demo Game",
+  "engineVersion": "0.1",
+  "tileSize": 16,
+  "startMap": "map:showcase_room",
+  "startPos": { "x": 1, "y": 1 },
+  "startFacing": "down",
+  "starterParty": [ "species:asterling" ]
+}

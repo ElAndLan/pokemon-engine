@@ -22,7 +22,7 @@ public sealed class BattleMove
         Weather setsWeather = Weather.None, bool setsStealthRock = false, bool binds = false,
         bool isProtect = false, bool forcesSwitch = false,
         DamageClass? counterCategory = null, bool bypassAccuracy = false, bool chargeTurn = false,
-        bool multiTurnLock = false)
+        bool multiTurnLock = false, bool makesContact = false)
     {
         Move = move;
         Type = type;
@@ -59,7 +59,50 @@ public sealed class BattleMove
         BypassAccuracy = bypassAccuracy;
         ChargeTurn = chargeTurn;
         MultiTurnLock = multiTurnLock;
+        MakesContact = makesContact;
         SecondaryEffects = BuildSecondaryEffects();
+    }
+
+    private BattleMove(BattleMove source, int pp, int maxPp)
+    {
+        Move = source.Move;
+        Type = source.Type;
+        DamageClass = source.DamageClass;
+        Power = source.Power;
+        Accuracy = source.Accuracy;
+        MaxPp = maxPp;
+        Pp = Math.Clamp(pp, 0, maxPp);
+        Priority = source.Priority;
+        CritStage = source.CritStage;
+        Ailment = source.Ailment;
+        AilmentChance = source.AilmentChance;
+        StageEffect = source.StageEffect;
+        ConfuseChance = source.ConfuseChance;
+        FlinchChance = source.FlinchChance;
+        Drain = source.Drain;
+        Recoil = source.Recoil;
+        RecoilOnMiss = source.RecoilOnMiss;
+        Heal = source.Heal;
+        MultiHitMin = source.MultiHitMin;
+        MultiHitMax = source.MultiHitMax;
+        FixedDamage = source.FixedDamage;
+        FixedDamageLevel = source.FixedDamageLevel;
+        Ohko = source.Ohko;
+        CritBoost = source.CritBoost;
+        SelfDestruct = source.SelfDestruct;
+        LeechSeed = source.LeechSeed;
+        SetsSpikes = source.SetsSpikes;
+        SetsWeather = source.SetsWeather;
+        SetsStealthRock = source.SetsStealthRock;
+        Binds = source.Binds;
+        IsProtect = source.IsProtect;
+        ForcesSwitch = source.ForcesSwitch;
+        CounterCategory = source.CounterCategory;
+        BypassAccuracy = source.BypassAccuracy;
+        ChargeTurn = source.ChargeTurn;
+        MultiTurnLock = source.MultiTurnLock;
+        MakesContact = source.MakesContact;
+        SecondaryEffects = source.SecondaryEffects;
     }
 
     /// <summary>The move's chance-gated secondary effects as an ordered primitive list (the resolver
@@ -180,17 +223,34 @@ public sealed class BattleMove
 
     /// <summary>Thrash/Outrage — locks the user into this move for 2–3 turns, then self-confuses (catalog §9.3).</summary>
     public bool MultiTurnLock { get; }
+    public bool MakesContact { get; }
 
     public bool HasPp => Pp > 0;
     public void UsePp() => Pp = Math.Max(0, Pp - 1);
+    public BattleMove WithPpPool(int pp, int maxPp) => new(this, pp, maxPp);
 }
 
 /// <summary>A creature as it exists in battle: computed stats, current HP, and its moves. Mutable
 /// runtime state, distinct from the species definition and the saved instance.</summary>
 public sealed class BattleCreature
 {
+    private sealed record BattleFormRuntime(
+        string FormId,
+        FormActivation Activation,
+        FormCondition? Condition,
+        EntityId? RequiredHeldItem,
+        EntityId? RequiredTrainerItem,
+        int? Turns,
+        int? HpMultiplierPercent,
+        Stats Stats,
+        IReadOnlyList<EntityId> Types,
+        IReadOnlyList<AbilityHook> AbilityHooks,
+        IReadOnlyDictionary<EntityId, BattleMove> MoveRemap);
+
     public BattleCreature(EntityId species, string name, int level,
-        IReadOnlyList<EntityId> types, Stats stats, IReadOnlyList<BattleMove> moves, int catchRate = 45)
+        IReadOnlyList<EntityId> types, Stats stats, IReadOnlyList<BattleMove> moves, int catchRate = 45,
+        IReadOnlyList<AbilityHook>? abilityHooks = null, IReadOnlyList<Effect>? heldItemBattleEffects = null,
+        EntityId? heldItem = null)
     {
         Species = species;
         Name = name;
@@ -201,17 +261,27 @@ public sealed class BattleCreature
         CurrentHp = stats.Hp;
         Moves = moves;
         CatchRate = catchRate;
+        AbilityHooks = abilityHooks ?? [];
+        HeldItemBattleEffects = heldItemBattleEffects ?? [];
+        HeldItem = heldItem;
+        _baseStats = stats;
+        _baseTypes = types;
+        _baseAbilityHooks = AbilityHooks;
+        _baseMoves = moves;
     }
 
     public EntityId Species { get; }
     public string Name { get; }
     public int Level { get; }
-    public IReadOnlyList<EntityId> Types { get; }
-    public Stats Stats { get; }
-    public int MaxHp { get; }
+    public IReadOnlyList<EntityId> Types { get; private set; }
+    public Stats Stats { get; private set; }
+    public int MaxHp { get; private set; }
     public int CurrentHp { get; private set; }
     public int CatchRate { get; }
-    public IReadOnlyList<BattleMove> Moves { get; }
+    public IReadOnlyList<BattleMove> Moves { get; private set; }
+    public IReadOnlyList<AbilityHook> AbilityHooks { get; private set; }
+    public IReadOnlyList<Effect> HeldItemBattleEffects { get; }
+    public EntityId? HeldItem { get; }
 
     public PersistentStatus? Status { get; private set; }
     public int StatusCounter { get; private set; }
@@ -248,10 +318,221 @@ public sealed class BattleCreature
     public int LockedMoveIndex { get; private set; }
     public int LockTurns { get; private set; }
     public bool IsLocked => LockTurns > 0;
+    public int? ChoiceLockedMoveIndex { get; private set; }
 
     private readonly int[] _stages = new int[5]; // atk, def, spa, spd, spe
+    private readonly HashSet<string> _consumedHeldEffects = [];
+    private readonly Stats _baseStats;
+    private readonly IReadOnlyList<EntityId> _baseTypes;
+    private readonly IReadOnlyList<AbilityHook> _baseAbilityHooks;
+    private readonly IReadOnlyList<BattleMove> _baseMoves;
+    private IReadOnlyList<BattleFormRuntime> _forms = [];
+    private string? _activeConditionFormId;
+    private string? _activeTemporaryFormId;
+    private string? _activeTimedFormId;
+    private int _timedFormTurns;
 
     public bool IsFainted => CurrentHp <= 0;
+
+    public static BattleCreature FromInstance(CreatureInstance instance, GameDb db)
+    {
+        Species species = db.Find<Species>(instance.Species)
+            ?? throw new InvalidOperationException($"Unknown species '{instance.Species}'.");
+        Form? form = ActivePermanentForm(instance, species);
+        var moves = instance.Moves.Select(slot =>
+        {
+            EntityId moveId = form?.MoveRemap?.TryGetValue(slot.Move, out EntityId remapped) == true ? remapped : slot.Move;
+            Move move = db.Find<Move>(moveId)
+                ?? throw new InvalidOperationException($"Unknown move '{moveId}'.");
+            BattleMove battleMove = MoveCompiler.ToBattleMove(move);
+            for (int i = battleMove.Pp; i > slot.Pp; i--)
+                battleMove.UsePp();
+            return battleMove;
+        }).ToList();
+
+        EntityId? abilityId = form?.AbilityOverride
+            ?? (instance.Ability is { Length: > 0 } text ? EntityId.Parse(text)
+            : species.Abilities.Count > 0 ? species.Abilities[0]
+            : null);
+        Ability? ability = abilityId is { } id ? db.Find<Ability>(id) : null;
+        Item? held = instance.HeldItem is { } heldId ? db.Find<Item>(heldId) : null;
+
+        Stats stats = StatCalc.Compute(form?.StatOverrides ?? species.BaseStats, instance.Ivs, instance.Evs, instance.Nature, instance.Level);
+        var creature = new BattleCreature(instance.Species, instance.Nickname ?? species.Name, instance.Level,
+            form?.TypeOverrides ?? species.Types, stats, moves, species.CatchRate, ability?.Hooks, held?.BattleEffects, instance.HeldItem);
+        creature._forms = BuildRuntimeForms(species, instance, db, ability?.Hooks ?? []);
+        creature.TakeDamage(stats.Hp - Math.Clamp(instance.CurHp, 0, stats.Hp));
+        if (instance.Status is { } status)
+            creature.SetStatus(status, instance.StatusCounter);
+        return creature;
+    }
+
+    public (bool Changed, string? FormId) ReevaluateConditionForm(Weather weather)
+    {
+        if (_activeTemporaryFormId is not null || _activeTimedFormId is not null)
+            return (false, null);
+
+        BattleFormRuntime? next = _forms.FirstOrDefault(f =>
+            f.Activation == FormActivation.Condition && ConditionMatches(f.Condition, weather));
+        if (next?.FormId == _activeConditionFormId)
+            return (false, null);
+
+        _activeConditionFormId = next?.FormId;
+        ApplyForm(next);
+        return (true, next?.FormId);
+    }
+
+    public bool CanActivateTemporaryForm(string formId, Func<EntityId, bool> hasTrainerItem)
+    {
+        BattleFormRuntime? form = _forms.FirstOrDefault(f => f.FormId == formId && f.Activation == FormActivation.BattleTemporary);
+        return form is not null
+            && _activeTemporaryFormId is null
+            && _activeTimedFormId is null
+            && HeldItem == form.RequiredHeldItem
+            && form.RequiredTrainerItem is { } trainerItem
+            && hasTrainerItem(trainerItem);
+    }
+
+    public void ActivateTemporaryForm(string formId)
+    {
+        BattleFormRuntime form = _forms.First(f => f.FormId == formId && f.Activation == FormActivation.BattleTemporary);
+        _activeTemporaryFormId = form.FormId;
+        _activeConditionFormId = null;
+        ApplyForm(form);
+    }
+
+    public bool CanActivateTimedForm(string formId)
+    {
+        BattleFormRuntime? form = _forms.FirstOrDefault(f => f.FormId == formId && f.Activation == FormActivation.BattleTimed);
+        return form is not null
+            && _activeTemporaryFormId is null
+            && _activeTimedFormId is null
+            && form.Turns is > 0;
+    }
+
+    public void ActivateTimedForm(string formId)
+    {
+        BattleFormRuntime form = _forms.First(f => f.FormId == formId && f.Activation == FormActivation.BattleTimed);
+        _activeTimedFormId = form.FormId;
+        _timedFormTurns = form.Turns!.Value;
+        _activeConditionFormId = null;
+        ApplyForm(form);
+    }
+
+    public bool TickTimedForm()
+    {
+        if (_activeTimedFormId is null || --_timedFormTurns > 0)
+            return false;
+
+        _activeTimedFormId = null;
+        _timedFormTurns = 0;
+        ApplyForm(null);
+        return true;
+    }
+
+    public bool RevertActiveBattleFormIfFainted()
+    {
+        return IsFainted && RevertActiveBattleForm();
+    }
+
+    public bool RevertActiveBattleForm()
+    {
+        if (_activeTemporaryFormId is null && _activeTimedFormId is null)
+            return false;
+
+        _activeTemporaryFormId = null;
+        _activeTimedFormId = null;
+        _timedFormTurns = 0;
+        ApplyForm(null);
+        return true;
+    }
+
+    private void ApplyForm(BattleFormRuntime? form)
+    {
+        int oldMax = MaxHp;
+        int oldHp = CurrentHp;
+
+        Stats stats = form?.Stats ?? _baseStats;
+        if (form?.HpMultiplierPercent is { } hpMultiplier)
+            stats = stats with { Hp = Math.Max(1, stats.Hp * hpMultiplier / 100) };
+
+        Stats = stats;
+        Types = form?.Types ?? _baseTypes;
+        AbilityHooks = form?.AbilityHooks ?? _baseAbilityHooks;
+        ApplyMoveRemap(form);
+        MaxHp = Stats.Hp;
+
+        CurrentHp = oldHp <= 0 ? 0 : Math.Max(1, oldHp * MaxHp / oldMax);
+    }
+
+    private void ApplyMoveRemap(BattleFormRuntime? form)
+    {
+        int[] pp = Moves.Select(m => m.Pp).ToArray();
+        int[] maxPp = Moves.Select(m => m.MaxPp).ToArray();
+        Moves = _baseMoves
+            .Select((move, i) => (form?.MoveRemap.TryGetValue(move.Move, out BattleMove? remapped) == true ? remapped : move)
+                .WithPpPool(pp[i], maxPp[i]))
+            .ToList();
+    }
+
+    private bool ConditionMatches(FormCondition? condition, Weather weather)
+    {
+        if (condition is null)
+            return false;
+
+        bool weatherMatches = string.IsNullOrWhiteSpace(condition.Weather)
+            || string.Equals(condition.Weather, weather.ToString(), StringComparison.OrdinalIgnoreCase);
+        bool heldMatches = condition.HeldItem is null
+            || (HeldItem == condition.HeldItem && _consumedHeldEffects.Count == 0);
+        return weatherMatches && heldMatches;
+    }
+
+    private static Form? ActivePermanentForm(CreatureInstance instance, Species species)
+    {
+        if (string.IsNullOrWhiteSpace(instance.Form))
+            return null;
+
+        Form form = species.Forms.FirstOrDefault(f => f.FormId == instance.Form)
+            ?? throw new InvalidOperationException($"Unknown form '{instance.Form}' for species '{species.Id}'.");
+        if (form.Activation != FormActivation.Permanent)
+            throw new NotSupportedException($"Form '{form.FormId}' activation '{form.Activation}' is not a permanent battle form.");
+        return form;
+    }
+
+    private static IReadOnlyList<BattleFormRuntime> BuildRuntimeForms(
+        Species species, CreatureInstance instance, GameDb db, IReadOnlyList<AbilityHook> baseHooks)
+    {
+        return species.Forms
+            .Where(f => f.Activation is FormActivation.Condition or FormActivation.BattleTemporary or FormActivation.BattleTimed)
+            .Select(f =>
+            {
+                Ability? ability = f.AbilityOverride is { } id ? db.Find<Ability>(id) : null;
+                return new BattleFormRuntime(
+                    f.FormId,
+                    f.Activation,
+                    f.Condition,
+                    f.RequiredHeldItem,
+                    f.RequiredTrainerItem,
+                    f.Turns,
+                    f.HpMultiplierPercent,
+                    StatCalc.Compute(f.StatOverrides ?? species.BaseStats, instance.Ivs, instance.Evs, instance.Nature, instance.Level),
+                    f.TypeOverrides ?? species.Types,
+                    ability?.Hooks ?? baseHooks,
+                    BuildMoveRemap(f.MoveRemap, db));
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyDictionary<EntityId, BattleMove> BuildMoveRemap(IReadOnlyDictionary<EntityId, EntityId>? remap, GameDb db)
+    {
+        if (remap is null || remap.Count == 0)
+            return new Dictionary<EntityId, BattleMove>();
+
+        return remap.ToDictionary(
+            kv => kv.Key,
+            kv => MoveCompiler.ToBattleMove(db.Find<Move>(kv.Value)
+                ?? throw new InvalidOperationException($"Unknown remapped move '{kv.Value}'.")));
+    }
 
     public int Stage(StatKind stat) => _stages[StageIndex(stat)];
 
@@ -289,12 +570,16 @@ public sealed class BattleCreature
 
     public void ResetDamageTaken() { PhysicalDamageTaken = 0; SpecialDamageTaken = 0; }
 
+    public bool HasConsumedHeldEffect(string op) => _consumedHeldEffects.Contains(op);
+    public bool ConsumeHeldEffect(string op) => _consumedHeldEffects.Add(op);
+
     public void StartCharging(int moveIndex) => ChargingMoveIndex = moveIndex;
     public void StopCharging() => ChargingMoveIndex = null;
 
     public void StartLock(int moveIndex, int turns) { LockedMoveIndex = moveIndex; LockTurns = Math.Max(0, turns); }
     /// <summary>Counts down the rampage lock (0 = the rampage ends this turn → self-confusion).</summary>
     public void TickLock() { if (LockTurns > 0) LockTurns--; }
+    public void SetChoiceLock(int moveIndex) => ChoiceLockedMoveIndex ??= moveIndex;
 
     /// <summary>Clears volatile state on switch-out / battle end (stages handled separately).</summary>
     public void ClearVolatiles()
@@ -308,6 +593,7 @@ public sealed class BattleCreature
         ProtectChain = 0;
         ChargingMoveIndex = null;
         LockTurns = 0;
+        ChoiceLockedMoveIndex = null;
     }
 
     private static int StageIndex(StatKind stat) => stat switch

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "id": "ability:rain_call",
+  "name": "Rain Call",
+  "hooks": [
+    {
+      "hook": "onSwitchIn",
+      "effects": [
+        { "op": "weatherSummon", "params": { "weather": "rain", "duration": 5 } }
+      ]
+    }
+  ]
+}

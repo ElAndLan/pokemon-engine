@@ -6,7 +6,7 @@ namespace Cgm.Core.Model;
 /// <summary>The closed set of entity categories (DATA_SCHEMA.md §2). Adding one is a schema change.</summary>
 public enum EntityCategory
 {
-    Project, Type, Species, Move, Item, Tileset, Tile, Object,
+    Project, Type, Species, Move, Item, Ability, Tileset, Tile, Object,
     Sheet, Sprite, Anim, Map, Encounter, Trainer, Flag, Box,
 }
 

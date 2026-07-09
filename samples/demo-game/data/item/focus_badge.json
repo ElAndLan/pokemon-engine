@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 3,
+  "id": "item:focus_badge",
+  "name": "Focus Badge",
+  "pocket": "key",
+  "price": 0,
+  "consumable": false,
+  "usableInField": false,
+  "usableInBattle": false,
+  "holdable": false,
+  "keyItem": true,
+  "effects": [],
+  "battleEffects": []
+}

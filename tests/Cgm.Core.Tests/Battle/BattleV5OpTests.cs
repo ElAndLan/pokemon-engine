@@ -117,6 +117,24 @@ public sealed class BattleV5OpTests
     }
 
     [Fact]
+    public void MultiHit_RollsCritIndependentlyPerHit()
+    {
+        // Each strike rolls its own crit: with crit doubles [crit, no, crit, no], the four
+        // DamageDealt events must carry exactly that crit pattern (not all-or-nothing).
+        var move = new BattleMove(EntityId.Parse("move:fury"), Normal, DamageClass.Physical, 25, 100, 25, 0, 0,
+            multiHitMin: 2, multiHitMax: 5);
+        var player = Fast(300, move);
+        var enemy = Slow(3000, Inert()); // survives all four hits so each one lands
+
+        // ints: accuracy(hit), hit-count(→4), 4 damage rolls. doubles: 4 per-hit crit checks.
+        var rng = new FakeRng(ints: [0, 6, 100, 100, 100, 100], doubles: [0.0, 0.99, 0.0, 0.99]);
+        var events = new BattleController(player, enemy, Chart(), rng).ResolveTurn(new UseMove(0), new UseMove(0));
+
+        var crits = events.OfType<DamageDealt>().Where(d => d.Target == BattleSide.Enemy).Select(d => d.Crit).ToList();
+        Assert.Equal([true, false, true, false], crits);
+    }
+
+    [Fact]
     public void MultiHit_StopsEarlyWhenTargetFaints()
     {
         var move = new BattleMove(EntityId.Parse("move:fury"), Normal, DamageClass.Physical, 200, 100, 25, 0, 0,

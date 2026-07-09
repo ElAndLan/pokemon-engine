@@ -7,7 +7,7 @@ namespace Cgm.Tools;
 
 internal static class Program
 {
-    // Exit codes: 0 = valid, 1 = validation errors, 2 = usage/load failure.
+    // Exit codes: 0 = valid/success, 1 = validation/runtime-template error, 2 = usage/load failure.
     public static int Main(string[] args)
     {
         if (args.Length == 0 || args[0] is "--help" or "-h" or "help")
@@ -24,13 +24,12 @@ internal static class Program
         };
     }
 
-    // Exit codes: 0 = exported, 1 = validation errors blocked it, 2 = usage/load failure.
     private static int Export(string[] args)
     {
         string[] positional = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
         if (positional.Length < 2)
         {
-            Console.Error.WriteLine("export: usage is 'cgm export <project> <out> [--name X] [--debug] [--force]'.");
+            Console.Error.WriteLine("export: usage is 'cgm export <project> <out> [--name X] [--debug] [--force] [--template DIR] [--data-only]'.");
             return 2;
         }
 
@@ -45,17 +44,29 @@ internal static class Program
             return 2;
         }
 
+        bool debug = args.Contains("--debug");
+        bool dataOnly = args.Contains("--data-only");
+        string? template = dataOnly ? null : FindTemplate(args, debug);
+        if (!dataOnly && template is null)
+        {
+            Console.Error.WriteLine("Export failed: no runtime template found. Build Cgm.Runtime, pass --template DIR, or use --data-only.");
+            return 1;
+        }
+
         var options = new ExportOptions(
             GameName: ValueOf(args, "--name"),
-            Debug: args.Contains("--debug"),
-            OverrideValidation: args.Contains("--force"));
+            Debug: debug,
+            OverrideValidation: args.Contains("--force"),
+            TemplateFolder: template);
 
         try
         {
             ExportResult result = Exporter.ExportData(project, options, positional[1]);
-            Console.WriteLine($"Exported {result.PackPath} and {result.ConfigPath}.");
+            Console.WriteLine(result.ExePath is null
+                ? $"Exported {result.PackPath} and {result.ConfigPath}."
+                : $"Exported {result.ExePath}, {result.PackPath}, and {result.ConfigPath}.");
             if (result.Validation.WarningCount > 0)
-                Console.WriteLine($"({result.Validation.WarningCount} warning(s) — see 'cgm validate'.)");
+                Console.WriteLine($"({result.Validation.WarningCount} warning(s) - see 'cgm validate'.)");
             return 0;
         }
         catch (InvalidOperationException ex) // validation hard gate
@@ -63,7 +74,30 @@ internal static class Program
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"Export failed: {ex.Message}");
+            return 1;
+        }
     }
+
+    private static string? FindTemplate(string[] args, bool debug)
+    {
+        if (ValueOf(args, "--template") is { } explicitTemplate)
+            return explicitTemplate;
+
+        string flavor = debug ? "debug" : "release";
+        string[] candidates =
+        [
+            Path.Combine("templates", flavor),
+            "templates",
+            Path.Combine("src", "Cgm.Runtime", "bin", "Debug", "net10.0"),
+        ];
+        return candidates.FirstOrDefault(HasRuntimeTemplateExe);
+    }
+
+    private static bool HasRuntimeTemplateExe(string folder) =>
+        File.Exists(Path.Combine(folder, Exporter.RuntimeTemplateExeName));
 
     private static string? ValueOf(string[] args, string flag)
     {
@@ -117,13 +151,14 @@ internal static class Program
 
     private static void PrintUsage()
     {
-        Console.WriteLine("cgm — Creature Game Maker command-line tools");
+        Console.WriteLine("cgm - Creature Game Maker command-line tools");
         Console.WriteLine();
         Console.WriteLine("Usage: cgm <command> [options]");
         Console.WriteLine();
         Console.WriteLine("Commands:");
-        Console.WriteLine("  validate <project> [--json]   Validate a project folder");
-        Console.WriteLine("  export <project> <out>        Export a standalone game     (Phase 12)");
-        Console.WriteLine("  --help                        Show this help");
+        Console.WriteLine("  validate <project> [--json]                    Validate a project folder");
+        Console.WriteLine("  export <project> <out> [--template DIR]        Export a standalone game");
+        Console.WriteLine("  export <project> <out> --data-only             Write only pack/config");
+        Console.WriteLine("  --help                                         Show this help");
     }
 }

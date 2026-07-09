@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "id": "ability:steady_bloom",
+  "name": "Steady Bloom",
+  "hooks": [
+    {
+      "hook": "onEndOfTurn",
+      "effects": [
+        { "op": "residualHeal", "params": { "num": 1, "den": 16 } }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Cgm.Creator.ViewModels"
+             x:Class="Cgm.Creator.Views.SpeciesView"
+             x:DataType="vm:SpeciesDocument">
+  <ScrollViewer>
+    <StackPanel Margin="20" Spacing="10" MaxWidth="620" HorizontalAlignment="Left">
+      <TextBlock Text="Species" FontSize="18" FontWeight="Bold" />
+
+      <TextBlock Text="Name" />
+      <TextBox Text="{Binding Name}" />
+
+      <TabControl>
+        <TabItem Header="Abilities">
+          <StackPanel Spacing="10" Margin="0,10,0,0">
+            <TextBlock Text="Normal slots" />
+            <TextBox Text="{Binding AbilitiesText}" />
+            <TextBlock Text="Hidden slot" />
+            <TextBox Text="{Binding HiddenAbilityText}" />
+          </StackPanel>
+        </TabItem>
+        <TabItem Header="Forms">
+          <StackPanel Spacing="10" Margin="0,10,0,0">
+            <TextBox Text="{Binding FormsJson}" AcceptsReturn="True" TextWrapping="Wrap" Height="320" />
+          </StackPanel>
+        </TabItem>
+      </TabControl>
+
+      <TextBlock Text="{Binding EditError}" Foreground="#B00020" TextWrapping="Wrap" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

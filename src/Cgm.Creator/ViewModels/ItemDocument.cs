@@ -1,4 +1,5 @@
 using Cgm.Core.Model;
+using Cgm.Core.Serialization;
 
 namespace Cgm.Creator.ViewModels;
 
@@ -7,6 +8,13 @@ namespace Cgm.Creator.ViewModels;
 public sealed class ItemDocument : EntityEditorDocument<Item>
 {
     public ItemDocument(ProjectSession session, Item model) : base(session, model) { }
+
+    private string _jsonError = "";
+    public string JsonError
+    {
+        get => _jsonError;
+        private set { if (value != _jsonError) { _jsonError = value; OnPropertyChanged(); } }
+    }
 
     public string Name
     {
@@ -48,6 +56,30 @@ public sealed class ItemDocument : EntityEditorDocument<Item>
     {
         get => Model.UsableInBattle;
         set { if (value != Model.UsableInBattle) Edit(Model with { UsableInBattle = value }); }
+    }
+
+    public bool Holdable
+    {
+        get => Model.Holdable;
+        set { if (value != Model.Holdable) Edit(Model with { Holdable = value }); }
+    }
+
+    public string BattleEffectsJson
+    {
+        get => CgmJson.Serialize(Model.BattleEffects);
+        set
+        {
+            try
+            {
+                var effects = CgmJson.Deserialize<List<Effect>>(value);
+                Edit(Model with { BattleEffects = effects });
+                JsonError = "";
+            }
+            catch (Exception ex) when (ex is InvalidDataException or System.Text.Json.JsonException)
+            {
+                JsonError = ex.Message;
+            }
+        }
     }
 
     /// <summary>Pockets defined by the project (populates the pocket combo).</summary>

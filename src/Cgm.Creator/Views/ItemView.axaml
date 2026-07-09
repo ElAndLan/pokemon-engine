@@ -21,6 +21,11 @@
       <CheckBox Content="Consumable" IsChecked="{Binding Consumable}" />
       <CheckBox Content="Usable in field" IsChecked="{Binding UsableInField}" />
       <CheckBox Content="Usable in battle" IsChecked="{Binding UsableInBattle}" />
+      <CheckBox Content="Holdable" IsChecked="{Binding Holdable}" />
+
+      <TextBlock Text="Held battle effects" />
+      <TextBox Text="{Binding BattleEffectsJson}" AcceptsReturn="True" TextWrapping="Wrap" Height="220" />
+      <TextBlock Text="{Binding JsonError}" Foreground="#B00020" TextWrapping="Wrap" />
 
     </StackPanel>
   </ScrollViewer>

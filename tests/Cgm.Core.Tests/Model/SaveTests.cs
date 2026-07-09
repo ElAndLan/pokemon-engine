@@ -117,11 +117,38 @@ public sealed class InstanceGenTests
     }
 
     [Fact]
+    public void Create_ChoosesNormalAbilitySlotWithInjectedRng()
+    {
+        var inst = InstanceGen.Create(EntityId.Parse("species:leafcub"), Bases, "medium-slow",
+            level: 10, moves: [], rng: new SequenceRng(0, 0, 0, 0, 0, 0, 0, 1),
+            normalAbilities: [EntityId.Parse("ability:first"), EntityId.Parse("ability:second")]);
+
+        Assert.Equal("ability:second", inst.Ability);
+    }
+
+    [Fact]
+    public void Create_LeavesAbilityEmpty_WhenNoNormalAbilities()
+    {
+        CreatureInstance inst = InstanceGen.Create(EntityId.Parse("species:x"), Bases, "fast", 5, [], new Rng(9));
+
+        Assert.Null(inst.Ability);
+    }
+
+    [Fact]
     public void Create_IsSeedDeterministic()
     {
         CreatureInstance a = InstanceGen.Create(EntityId.Parse("species:x"), Bases, "fast", 5, [], new Rng(9));
         CreatureInstance b = InstanceGen.Create(EntityId.Parse("species:x"), Bases, "fast", 5, [], new Rng(9));
         Assert.Equal(a.Ivs, b.Ivs);
         Assert.Equal(a.Nature, b.Nature);
+    }
+
+    private sealed class SequenceRng(params int[] values) : IRng
+    {
+        private readonly Queue<int> _values = new(values);
+
+        public int Next(int maxExclusive) => _values.Dequeue();
+        public int Next(int minInclusive, int maxExclusive) => minInclusive + Next(maxExclusive - minInclusive);
+        public double NextDouble() => 0;
     }
 }

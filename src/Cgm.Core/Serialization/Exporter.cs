@@ -11,20 +11,22 @@ public sealed record ExportOptions(
     string? SaveDirName = null,
     bool Debug = false,
     bool OverrideValidation = false,
-    DateTime? BuildTimestampUtc = null);
+    DateTime? BuildTimestampUtc = null,
+    string? TemplateFolder = null);
 
-/// <summary>What an export produced: the validation report and the two written artifact paths.</summary>
-public sealed record ExportResult(ValidationReport Validation, string PackPath, string ConfigPath);
+/// <summary>What an export produced: validation report plus written artifact paths.</summary>
+public sealed record ExportResult(ValidationReport Validation, string PackPath, string ConfigPath, string? ExePath = null);
 
 /// <summary>
-/// The data half of export (EXPORT_PIPELINE_SPEC): validate as a hard gate, then write
-/// <c>game.cgmpack</c> + <c>config.json</c> into the output folder. The exe template copy/patch and
-/// smoke test are separate build/CI concerns. Reused by the Creator export screen and the CLI.
+/// Export operation (EXPORT_PIPELINE_SPEC): validate as a hard gate, optionally copy a runtime
+/// template folder, then write <c>game.cgmpack</c> + <c>config.json</c> into the output folder.
+/// Icon/version patching and the smoke-launch wrapper remain Creator/CI concerns.
 /// </summary>
 public static class Exporter
 {
     public const string PackFileName = "game.cgmpack";
     public const string ConfigFileName = "config.json";
+    public const string RuntimeTemplateExeName = "Cgm.Runtime.exe";
 
     public static ExportResult ExportData(Project project, ExportOptions options, string outFolder)
     {
@@ -33,8 +35,11 @@ public static class Exporter
             throw new InvalidOperationException(
                 $"Export blocked: {report.ErrorCount} validation error(s). Fix them or override explicitly.");
 
-        Directory.CreateDirectory(outFolder);
         string gameName = options.GameName ?? project.Settings.Name;
+        Directory.CreateDirectory(outFolder);
+        string? exePath = options.TemplateFolder is null
+            ? null
+            : CopyTemplate(options.TemplateFolder, outFolder, gameName);
 
         string packPath = Path.Combine(outFolder, PackFileName);
         using (FileStream fs = File.Create(packPath))
@@ -52,6 +57,41 @@ public static class Exporter
         string configPath = Path.Combine(outFolder, ConfigFileName);
         File.WriteAllText(configPath, CgmJson.Serialize(config));
 
-        return new ExportResult(report, packPath, configPath);
+        return new ExportResult(report, packPath, configPath, exePath);
+    }
+
+    private static string CopyTemplate(string templateFolder, string outFolder, string gameName)
+    {
+        if (!Directory.Exists(templateFolder))
+            throw new DirectoryNotFoundException($"Runtime template folder not found: {templateFolder}");
+
+        string sourceExe = Path.Combine(templateFolder, RuntimeTemplateExeName);
+        if (!File.Exists(sourceExe))
+            throw new FileNotFoundException($"Runtime template is missing {RuntimeTemplateExeName}.", sourceExe);
+
+        foreach (string source in Directory.EnumerateFiles(templateFolder, "*", SearchOption.AllDirectories))
+        {
+            string relative = Path.GetRelativePath(templateFolder, source);
+            string dest = Path.Combine(outFolder, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+            File.Copy(source, dest, overwrite: true);
+        }
+
+        string copiedExe = Path.Combine(outFolder, RuntimeTemplateExeName);
+        string exePath = Path.Combine(outFolder, SafeExeStem(gameName) + ".exe");
+        if (!string.Equals(copiedExe, exePath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(copiedExe, exePath, overwrite: true);
+            File.Delete(copiedExe);
+        }
+        return exePath;
+    }
+
+    private static string SafeExeStem(string gameName)
+    {
+        string stem = RuntimeConfig.SafeSaveDir(gameName);
+        foreach (char c in Path.GetInvalidFileNameChars())
+            stem = stem.Replace(c, '_');
+        return stem.Length == 0 ? "Game" : stem;
     }
 }

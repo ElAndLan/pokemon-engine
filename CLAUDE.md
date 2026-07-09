@@ -56,8 +56,10 @@ explicitly (update the doc in the same change, with a note) — never silently d
 - New ideas (yours or the user's) mid-phase: append to `docs/SCOPE_GUARD.md` §Idea Ledger
   with one line of context. Do not implement them. Do not "stub them out for later."
 - The deferred lists in ARCHITECTURE_ADDENDUM.md §3 are binding. Forms/Mega/Gmax,
-  abilities, held items, weather, doubles, breeding, event scripting, smart AI, PokeAPI
-  import, localization, multiplayer: **not yet**, each has a designated layer.
+  abilities, held items, weather ability/item/form interactions, doubles, breeding,
+  event scripting, PokeAPI import, localization, multiplayer: **not yet**, each has a
+  designated layer. Smart AI is a Phase 14 verified baseline; full tuning resumes after
+  Phase 15+ battle mechanics exist.
 - Battle work follows the v0–v6 layers (Addendum §8); asset-import work follows v0–v5
   (Addendum §9). A layer's exclusions found in a change = remove them, even if written.
 - If the user asks for something out of scope, say so, point at the relevant section, and

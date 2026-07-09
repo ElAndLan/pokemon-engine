@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 3,
+  "id": "item:bloom_stone",
+  "name": "Bloom Stone",
+  "pocket": "items",
+  "price": 1200,
+  "consumable": false,
+  "usableInField": false,
+  "usableInBattle": false,
+  "holdable": true,
+  "keyItem": false,
+  "effects": [],
+  "battleEffects": [
+    { "op": "typeDamageBoost", "params": { "type": "grass", "multiplierPercent": 120 } }
+  ]
+}

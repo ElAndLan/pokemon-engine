@@ -15,6 +15,8 @@ templates/*.zip
 .cgm-cache/
 .autosave/
 *.cgmpack
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Large local dev-only reference data (official PokeAPI dump, ~13k files).
 # Per ADR-010 it's a design-time mechanics reference, never bundled in releases —

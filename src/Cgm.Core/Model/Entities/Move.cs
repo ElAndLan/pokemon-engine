@@ -10,7 +10,7 @@ public enum MoveTarget { Selected, User, AllOpponents, AllOtherPokemon, UsersFie
 /// <summary>A move (DATA_SCHEMA.md §4.4). Effects are the closed op palette (BATTLE_SYSTEM_SPEC).</summary>
 public sealed record Move : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
 
@@ -21,6 +21,7 @@ public sealed record Move : IEntity
     public int Pp { get; init; }
     public int Priority { get; init; }
     public int CritStage { get; init; }
+    public bool MakesContact { get; init; }
     public MoveTarget Target { get; init; } = MoveTarget.Selected;
     public IReadOnlyList<Effect> Effects { get; init; } = [];
 }

@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Cgm.Core.Model;
 
 namespace Cgm.Core.Serialization;
 
@@ -18,9 +19,9 @@ public interface IJsonMigration
 /// </summary>
 public static class Migrator
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = SchemaVersions.Current;
 
-    private static readonly IReadOnlyList<IJsonMigration> Registered = [];
+    private static readonly IReadOnlyList<IJsonMigration> Registered = [new V1ToV2(), new V2ToV3()];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
 
@@ -45,4 +46,16 @@ public static class Migrator
 
     private static int ReadVersion(JsonObject json) =>
         json.TryGetPropertyValue("schemaVersion", out JsonNode? v) && v is not null ? v.GetValue<int>() : 1;
+
+    private sealed class V1ToV2 : IJsonMigration
+    {
+        public int FromVersion => 1;
+        public void Apply(JsonObject json) { }
+    }
+
+    private sealed class V2ToV3 : IJsonMigration
+    {
+        public int FromVersion => 2;
+        public void Apply(JsonObject json) { }
+    }
 }

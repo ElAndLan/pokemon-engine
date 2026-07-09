@@ -6,7 +6,7 @@ namespace Cgm.Core.Model;
 /// entities.</summary>
 public sealed record Map : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
 

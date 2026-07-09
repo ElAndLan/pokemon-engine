@@ -5,7 +5,7 @@ public enum EncounterMethod { Grass, Cave, Water, Tile, Interact }
 /// <summary>An encounter table (DATA_SCHEMA.md §4.12), reusable across maps.</summary>
 public sealed record EncounterTable : IEntity
 {
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public EntityId Id { get; init; }
     public string Name { get; init; } = "";
     public EncounterMethod Method { get; init; } = EncounterMethod.Grass;

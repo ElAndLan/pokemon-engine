@@ -16,11 +16,23 @@ public sealed class MigratorTests
         }
     }
 
+    private sealed class NoOpV1ToV2 : IJsonMigration
+    {
+        public int FromVersion => 1;
+        public void Apply(JsonObject json) { }
+    }
+
+    private sealed class NoOpV2ToV3 : IJsonMigration
+    {
+        public int FromVersion => 2;
+        public void Apply(JsonObject json) { }
+    }
+
     [Fact]
     public void Migrate_AppliesStepAndBumpsVersion()
     {
         var json = new JsonObject { ["schemaVersion"] = 0, ["foo"] = 42 };
-        JsonObject result = Migrator.Migrate(json, [new RenameFooToBar()]);
+        JsonObject result = Migrator.Migrate(json, [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3()]);
 
         Assert.Equal(Migrator.CurrentVersion, result["schemaVersion"]!.GetValue<int>());
         Assert.Null(result["foo"]);
@@ -54,6 +66,16 @@ public sealed class MigratorTests
     {
         var json = new JsonObject { ["x"] = 1 };
         Migrator.Migrate(json);
+        Assert.Equal(Migrator.CurrentVersion, json["schemaVersion"]!.GetValue<int>());
         Assert.Equal(1, json["x"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void Migrate_V1ToCurrent_IsRegisteredNoOp()
+    {
+        var json = new JsonObject { ["schemaVersion"] = 1, ["id"] = "item:berry" };
+        Migrator.Migrate(json);
+        Assert.Equal(Migrator.CurrentVersion, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal("item:berry", json["id"]!.GetValue<string>());
     }
 }

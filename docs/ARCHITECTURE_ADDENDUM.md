@@ -3,6 +3,15 @@
 Version 1.0 — 2026-07-06
 Status: Authoritative refinement of MASTER_PLAN.md. Where this addendum and MASTER_PLAN.md conflict, **this addendum wins**. It does not replace the plan; it tightens it.
 
+2026-07-08 status correction: this document was written before implementation advanced past
+the early phases. `TECH_STACK.md` is the source of truth for currently referenced packages.
+`SCOPE_GUARD.md` and `IMPLEMENTATION_PLAN.md` are the source of truth for current phase status.
+Smart AI is a verified Phase 14 Core baseline. Phase 15 now owns ability/held-item/form weather
+interactions and remains open until the real demo showcase fight exists. Atlas packing, the data
+half of export, local runtime template copy, and exported `--smoke` exist; CI self-contained
+templates, icon/metadata patching, Creator export UI, clean-VM testing, and the full rendered
+runtime remain open.
+
 ---
 
 ## 1. Final Tech Stack Lock
@@ -248,13 +257,24 @@ The honest path, in order of what exists when:
 
 **Feasible?** Yes — genuinely, not politely — *because* of three structural choices: rules live in a headless, golden-tested Core; the runtime's feature list is closed and small; export is file-copying a prebuilt template, not compilation. Without those, this project would be a multi-year death march. With them, it's an 8–12-month part-time build to a vertical slice.
 
-**Stack still recommended?** Yes, with the one correction applied: **.NET 10 LTS** (not 8), Avalonia 11, Silk.NET bindings (Windowing/Input/OpenGL/OpenAL), StbImageSharp, ZstdSharp, System.Text.Json, xUnit+Verify. Nothing on that list is a game engine; everything above the bindings is this project's code.
+**Stack still recommended?** Yes, with the one correction applied: **.NET 10 LTS** (not 8),
+Avalonia, Silk.NET bindings, StbImageSharp, System.Text.Json, and xUnit. OpenAL, ZstdSharp,
+and Verify remain allowed/planned but are not currently referenced; see TECH_STACK.md for the
+current installed package list. Nothing on that list is a game engine; everything above the
+bindings is this project's code.
 
 **Biggest project-killer:** battle-mechanics scope explosion combined with AI code drift — an agent implementing "just this one move" as bespoke code, fifty times, until the battle system is an untestable swamp. The defenses are the layered v0–v6 plan, the closed effect-op palette, frozen formula specs, golden replays, and the alternating build/review prompt cadence. Enforce them without exception. The second killer is burnout; the dev-mode runtime existing early (playable long before export) is the morale insurance.
 
 **First thing to build:** Week 1 exactly — the .NET 10 scaffold with the FixedStepClock and its test, plus the four priority-1 docs. It retires the only stack unknown (.NET 10 package compatibility) in day one.
 
-**Absolutely not yet:** forms/Mega/Gmax, abilities, held items, weather, doubles, breeding, event scripting, `smart` AI, PokeAPI import wizard, atlas packing, the export pipeline itself, and any renderer feature beyond textured quads. Every one of them has a designated later layer; building any of them before its layer is the definition of failure here.
+**Absolutely not yet:** forms/Mega/Gmax, abilities, held-item battle behavior, weather
+ability/item/form interactions, doubles, breeding, event scripting, PokeAPI import wizard,
+and any renderer feature beyond textured quads. Smart AI is a Phase 14 verified baseline. Atlas
+packing, the export data path, local runtime template copy, and exported `--smoke` exist; CI
+self-contained template publishing, icon/metadata patching, clean-VM testing, and the real demo
+showcase fight remain unfinished.
+Every remaining item has a designated layer; building it before its layer is the definition of
+failure here.
 
 ---
 *End of addendum.*
