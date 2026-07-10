@@ -287,6 +287,13 @@ Primary groups: turn timing/queued gates (64), volatile/status lockouts (49), mo
 
 Exit: timing-sensitive goldens pin selection, execution, duration, failure, RNG, and cleanup order.
 
+Progress (2026-07-10): the first complete generic move-gate handler family is implemented out of
+the written workstream order at the user's direction to prioritize complete data-driven move
+handlers. `moveGate` covers first-action and not-previous-move legality before PP/RNG/effects;
+`queueActionGate` queues a deterministic future action skip that blocks all action kinds. Compiler
+validation, Core events, resolver behavior, and focused tests are complete. Audit rows remain
+uncertified until normalized numeric definitions and per-move conformance vectors are added.
+
 #### 15E — Field, side, slot, and condition completion
 
 Primary groups: field/side conditions (53), cleanup (5), protect variants (8).

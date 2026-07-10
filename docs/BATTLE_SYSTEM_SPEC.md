@@ -375,6 +375,26 @@ therefore preserves the existing single `Next(2)` draw. It owns no legality, tar
 effect resolution. The singles controller uses this path now; a later Phase 15B resolver will
 schedule and execute all doubles submissions through the same contract.
 
+### Queued action gates (Phase 15 move-handler family)
+
+Three generic effect operations govern action timing without any move identity in Core:
+
+- `moveGate` has required `{ kind: "firstAction"|"notPreviousMove" }`. It is a pre-move gate,
+  draws no RNG, and cannot be chance-gated. `firstAction` permits only the creature's first move
+  use after entering battle; `notPreviousMove` rejects a move whose ID equals that creature's last
+  used move. Failure spends no PP, performs no accuracy/damage/effect work, and emits `MoveFailed`
+  with the gate reason.
+- `queueActionGate` has optional `{ turns: positive int }` (default 1). It is a post-effect action
+  queue entry for the source slot, draws no RNG, and cannot be chance-gated. At the start of the
+  due turn it replaces that slot's submitted action with a generic pass, emits `ActionSkipped`, and
+  consumes the entry. It therefore blocks switching, items, forms, and move use uniformly.
+
+The queue is ordered by due turn then insertion order. This first handler family uses only its
+source-slot action gate, but later delayed damage, forced execution, and target-action gates extend
+the same deterministic queue rather than adding per-move booleans. Switch-out clears a creature's
+first-action and last-used-move gate state; queue entries are later given explicit switch cleanup
+policies as their mechanics require.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

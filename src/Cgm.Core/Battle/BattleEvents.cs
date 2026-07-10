@@ -12,12 +12,16 @@ public sealed record ActivateForm(string FormId, int MoveIndex) : BattleAction;
 public sealed record Switch(int PartyIndex) : BattleAction;
 public sealed record ThrowBall(double BallBonus, double StatusBonus) : BattleAction;
 public sealed record UseBattleItem(EntityId Item, int TargetPartyIndex, int HealAmount) : BattleAction;
+public sealed record Pass : BattleAction;
 
 /// <summary>What happened during resolution — the stream the UI renders (BATTLE_SYSTEM_SPEC).
 /// UI consumes these; it never reads or mutates state to infer what happened.</summary>
 public abstract record BattleEvent;
 public sealed record MoveUsed(BattleSide Side, EntityId Move) : BattleEvent;
 public sealed record MoveMissed(BattleSide Side, EntityId Move) : BattleEvent;
+public enum MoveFailureReason { FirstActionOnly, CannotRepeat }
+public sealed record MoveFailed(BattleSide Side, EntityId Move, MoveFailureReason Reason) : BattleEvent;
+public sealed record ActionSkipped(BattleSlot Slot) : BattleEvent;
 public sealed record DamageDealt(BattleSide Target, int Amount, double Effectiveness, bool Crit) : BattleEvent;
 public sealed record Fainted(BattleSide Side) : BattleEvent;
 public sealed record SwitchedIn(BattleSide Side, int PartyIndex) : BattleEvent;

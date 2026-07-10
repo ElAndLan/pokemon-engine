@@ -11,6 +11,8 @@ namespace Cgm.Core.Battle;
 /// </summary>
 public sealed class BattleController
 {
+    private sealed record QueuedActionGate(BattleSlot Slot, int DueTurn);
+
     private readonly List<BattleCreature>[] _parties;
     private readonly BattleActiveSlots _activeSlots;
     private readonly Dictionary<EntityId, int>[] _itemStock = [[], []];
@@ -22,6 +24,7 @@ public sealed class BattleController
     private readonly TypeChart _chart;
     private readonly IRng _rng;
     private readonly List<BattleEvent> _log = [];
+    private readonly List<QueuedActionGate> _queuedActionGates = [];
     private bool _dispatchingWeatherChange;
 
     public BattleController(BattleCreature player, BattleCreature enemy, TypeChart chart, IRng rng, bool isWild = false)
@@ -82,29 +85,31 @@ public sealed class BattleController
             throw new InvalidOperationException("The battle is already over.");
 
         int start = _log.Count;
-        Validate(BattleSide.Player, playerAction);
-        Validate(BattleSide.Enemy, enemyAction);
+        BattleAction resolvedPlayerAction = ApplyQueuedActionGates(new BattleSlot(BattleSide.Player, 0), playerAction);
+        BattleAction resolvedEnemyAction = ApplyQueuedActionGates(new BattleSlot(BattleSide.Enemy, 0), enemyAction);
+        Validate(BattleSide.Player, resolvedPlayerAction);
+        Validate(BattleSide.Enemy, resolvedEnemyAction);
         var actions = new BattleTurnActions(Topology,
         [
-            new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), playerAction),
-            new BattleActionSubmission(new BattleSlot(BattleSide.Enemy, 0), enemyAction),
+            new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), resolvedPlayerAction),
+            new BattleActionSubmission(new BattleSlot(BattleSide.Enemy, 0), resolvedEnemyAction),
         ]);
 
         // 1. Switches happen before anything else.
-        ApplySwitch(BattleSide.Player, playerAction);
-        ApplySwitch(BattleSide.Enemy, enemyAction);
+        ApplySwitch(BattleSide.Player, resolvedPlayerAction);
+        ApplySwitch(BattleSide.Enemy, resolvedEnemyAction);
 
         // 2. Battle form activation happens before that side's selected move.
-        ApplyFormActivation(BattleSide.Player, playerAction);
-        ApplyFormActivation(BattleSide.Enemy, enemyAction);
+        ApplyFormActivation(BattleSide.Player, resolvedPlayerAction);
+        ApplyFormActivation(BattleSide.Enemy, resolvedEnemyAction);
 
         // 3. Capture (wild, player only).
-        if (playerAction is ThrowBall ball)
+        if (resolvedPlayerAction is ThrowBall ball)
             ResolveCapture(ball);
 
         // 4. Battle items resolve before moves, after switches/capture.
-        ApplyBattleItem(BattleSide.Player, playerAction);
-        ApplyBattleItem(BattleSide.Enemy, enemyAction);
+        ApplyBattleItem(BattleSide.Player, resolvedPlayerAction);
+        ApplyBattleItem(BattleSide.Enemy, resolvedEnemyAction);
 
         // 5. Moves, ordered by priority then effective speed.
         if (Outcome is null)
@@ -176,6 +181,9 @@ public sealed class BattleController
                     throw new ArgumentException($"{side} cannot use a healing item on a fainted creature.");
                 if (target.CurrentHp >= target.MaxHp)
                     throw new ArgumentException($"{side} cannot use a healing item at full HP.");
+                break;
+
+            case Pass:
                 break;
 
             default:
@@ -332,6 +340,8 @@ public sealed class BattleController
             return; // hurt itself in confusion — no PP, no move
 
         BattleMove move = attacker.Moves[moveIndex];
+        if (!PassesMoveGates(attacker, side, move))
+            return;
         BattleSide targetSide = BattleTargetResolver.IsSinglesActiveCreatureTarget(move.Target)
             ? BattleTargetResolver.ResolveSinglesActiveCreatureSide(move.Target, side)
             : Opponent(side);
@@ -348,6 +358,7 @@ public sealed class BattleController
         {
             move.UsePp();
             ApplyChoiceLock(attacker, moveIndex);
+            attacker.RecordMoveUse(move.Move);
             attacker.StartCharging(moveIndex);
             _log.Add(new Charging(side, move.Move));
             return;
@@ -366,6 +377,7 @@ public sealed class BattleController
         if (!continuingLock)
             ApplyChoiceLock(attacker, moveIndex);
         _log.Add(new MoveUsed(side, move.Move));
+        attacker.RecordMoveUse(move.Move);
 
         // Protect: a move aimed at a shielded target is blocked outright (PP already spent).
         if (target.Protected && TargetsOpponent(move))
@@ -531,8 +543,45 @@ public sealed class BattleController
             case SetWeatherEffect w when w.Weather != _weather:
                 SetWeather(w.Weather, WeatherConditions.DefaultTurns, ctx.SourceSide);
                 break;
+            case MoveGateEffect:
+                break; // evaluated before PP/RNG in PassesMoveGates.
+            case QueueActionGateEffect gate:
+                QueueActionGate(new BattleSlot(ctx.SourceSide, 0), gate.Turns);
+                break;
         }
         return true;
+    }
+
+    private bool PassesMoveGates(BattleCreature creature, BattleSide side, BattleMove move)
+    {
+        foreach (MoveGateEffect gate in move.SecondaryEffects.OfType<MoveGateEffect>())
+        {
+            MoveFailureReason? failure = gate.Kind switch
+            {
+                MoveGateKind.FirstAction when creature.ActionsSinceSwitch > 0 => MoveFailureReason.FirstActionOnly,
+                MoveGateKind.NotPreviousMove when creature.LastMoveUsed == move.Move => MoveFailureReason.CannotRepeat,
+                _ => null,
+            };
+            if (failure is { } reason)
+            {
+                _log.Add(new MoveFailed(side, move.Move, reason));
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void QueueActionGate(BattleSlot slot, int turns) =>
+        _queuedActionGates.Add(new QueuedActionGate(slot, Turn + turns));
+
+    private BattleAction ApplyQueuedActionGates(BattleSlot slot, BattleAction action)
+    {
+        int removed = _queuedActionGates.RemoveAll(gate => gate.Slot == slot && gate.DueTurn <= Turn);
+        if (removed == 0)
+            return action;
+
+        _log.Add(new ActionSkipped(slot));
+        return new Pass();
     }
 
     private static readonly EntityId RockType = EntityId.Parse("type:rock");

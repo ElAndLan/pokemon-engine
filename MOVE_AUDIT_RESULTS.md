@@ -29,6 +29,12 @@ Supported move primitives found in the current engine: damage, drain, recoil, he
 
 Known ceilings used by this audit: no doubles/ally/full multi-creature handling, no terrain/room/screen side effects beyond supported hazards/weather, no item or ability mutation moves, no type-changing moves, no move copy/call/replace, no substitute/perish/disable/encore/taunt/torment family, no dynamic power formulas except target-HP-threshold and HP-ratio base-power modifiers, no recharge turns, no delayed damage, and no semi-invulnerable charge turns. Multiple stat-stage effects and accuracy/evasion stages are now implemented through the shared statStage path. Authored targets now compile into battle moves, in singles `all-opponents` / `all-other-pokemon` resolve to the active opponent through the shared active-target resolver, and `users-field` / `entire-field` classify as side/field scopes for field-scoped ops.
 
+Update (2026-07-10): the Core now provides generic `moveGate` (`firstAction`,
+`notPreviousMove`) and `queueActionGate` operations. These cover the reusable engine behavior for
+first-action-only, cannot-repeat, and recharge-style action skips. Existing FAIL rows remain FAIL
+until their normalized definitions compile with these operations and per-move conformance tests
+prove the required context and event sequence; capability alone is not certification.
+
 ## Completed Batches
 
 | Batch | Move rows | Status |

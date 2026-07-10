@@ -16,6 +16,7 @@ public abstract record MoveEffect
 
 public enum StageEffectScope { Self, Target, Both }
 public enum StageSwapGroup { All, Offense, Defense }
+public enum MoveGateKind { FirstAction, NotPreviousMove }
 
 /// <summary>apply_condition(persistent status) — burn/poison/paralysis/… on the target.</summary>
 public sealed record AilmentEffect(PersistentStatus Status) : MoveEffect;
@@ -84,3 +85,9 @@ public sealed record SetWeatherEffect(Weather Weather) : MoveEffect;
 /// <summary>apply_condition(side:entry_hazard_damage, type_scaled) — Stealth-Rock-style hazard on the
 /// target's side, dealing type-scaled damage on switch-in (catalog §7.3).</summary>
 public sealed record StealthRockEffect : MoveEffect;
+
+/// <summary>Pre-move legality gate evaluated before PP, RNG, damage, and later effects.</summary>
+public sealed record MoveGateEffect(MoveGateKind Kind) : MoveEffect;
+
+/// <summary>Queues a source-slot action skip for a future turn.</summary>
+public sealed record QueueActionGateEffect(int Turns) : MoveEffect;

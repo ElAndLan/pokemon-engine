@@ -353,6 +353,8 @@ public sealed class BattleCreature
     public int LockTurns { get; private set; }
     public bool IsLocked => LockTurns > 0;
     public int? ChoiceLockedMoveIndex { get; private set; }
+    public int ActionsSinceSwitch { get; private set; }
+    public EntityId? LastMoveUsed { get; private set; }
 
     private readonly int[] _stages = new int[7]; // atk, def, spa, spd, spe, accuracy, evasion
     private readonly HashSet<string> _consumedHeldEffects = [];
@@ -616,6 +618,7 @@ public sealed class BattleCreature
     /// <summary>Counts down the rampage lock (0 = the rampage ends this turn → self-confusion).</summary>
     public void TickLock() { if (LockTurns > 0) LockTurns--; }
     public void SetChoiceLock(int moveIndex) => ChoiceLockedMoveIndex ??= moveIndex;
+    public void RecordMoveUse(EntityId move) { ActionsSinceSwitch++; LastMoveUsed = move; }
 
     /// <summary>Clears volatile state on switch-out / battle end (stages handled separately).</summary>
     public void ClearVolatiles()
@@ -630,6 +633,8 @@ public sealed class BattleCreature
         ChargingMoveIndex = null;
         LockTurns = 0;
         ChoiceLockedMoveIndex = null;
+        ActionsSinceSwitch = 0;
+        LastMoveUsed = null;
     }
 
     private static int StageIndex(StatKind stat) => stat switch

@@ -140,6 +140,23 @@ public static class MoveCompiler
                     multiTurnLock = true;
                     break;
 
+                case "moveGate":
+                    if (chance != 100)
+                        throw new ArgumentException("moveGate does not support chance.");
+                    CheckAllowedParams(e, "kind");
+                    effects.Add(new MoveGateEffect(Parse<MoveGateKind>(Str(e, "kind"), "kind")));
+                    break;
+
+                case "queueActionGate":
+                    if (chance != 100)
+                        throw new ArgumentException("queueActionGate does not support chance.");
+                    CheckAllowedParams(e, "turns");
+                    int turns = e.Params?.ContainsKey("turns") == true ? Int(e, "turns") : 1;
+                    if (turns <= 0)
+                        throw new ArgumentException("queueActionGate turns must be positive.");
+                    effects.Add(new QueueActionGateEffect(turns));
+                    break;
+
                 case "damageStatOverride": // damage stat query override
                     if (chance != 100)
                         throw new ArgumentException("damageStatOverride does not support chance.");
