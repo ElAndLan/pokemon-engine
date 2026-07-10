@@ -366,6 +366,15 @@ existing action API and event stream. A party index remains distinct from a batt
 doubles action collection, forced replacement, and slot conditions must address the slot first and
 then use this mapping. This foundation adds no doubles action behavior or RNG draws.
 
+`BattleTurnActions` collects exactly one submitted action for every active slot and normalizes the
+collection to topology order. It rejects duplicate, missing, out-of-topology, and null actions
+before action legality is evaluated. `BattleTurnOrder` then orders scheduled actions by priority
+descending and effective speed descending. Equal priority/speed groups are shuffled in their stable
+slot order using Fisher-Yates, drawing `Next(k)` for `k = groupCount` down to `2`; a two-action tie
+therefore preserves the existing single `Next(2)` draw. It owns no legality, target selection, or
+effect resolution. The singles controller uses this path now; a later Phase 15B resolver will
+schedule and execute all doubles submissions through the same contract.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

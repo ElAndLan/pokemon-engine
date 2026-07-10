@@ -255,6 +255,15 @@ the existing singles action API and event stream. This is deliberately only the 
 doubles action collection, ordering, replacement, and multi-target execution remain open. Focused
 slot, switch, and force-switch tests pass.
 
+Progress (2026-07-10): action collection and turn ordering now form one reusable slot-based
+package. `BattleTurnActions` requires exactly one action from every topology slot, rejects malformed
+submissions, and normalizes actions to stable topology order. `BattleTurnOrder` orders every
+scheduled action by priority and effective speed, with deterministic Fisher-Yates tie groups that
+preserve the legacy two-way speed-tie RNG mapping. The existing singles controller now resolves
+through this collection/order path, so it is protected by the ordinary battle regression suite.
+The next 15B package is doubles action execution: controller construction/configuration for two
+active slots, per-slot legality, selected/spread target resolution, and slot-aware events.
+
 #### 15C — Query hooks and variable formulas
 
 Primary groups: damage query modifiers (64), special accuracy (36), stat expansion (63).

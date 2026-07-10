@@ -84,6 +84,11 @@ public sealed class BattleController
         int start = _log.Count;
         Validate(BattleSide.Player, playerAction);
         Validate(BattleSide.Enemy, enemyAction);
+        var actions = new BattleTurnActions(Topology,
+        [
+            new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), playerAction),
+            new BattleActionSubmission(new BattleSlot(BattleSide.Enemy, 0), enemyAction),
+        ]);
 
         // 1. Switches happen before anything else.
         ApplySwitch(BattleSide.Player, playerAction);
@@ -103,7 +108,7 @@ public sealed class BattleController
 
         // 5. Moves, ordered by priority then effective speed.
         if (Outcome is null)
-            ResolveMoves(playerAction, enemyAction);
+            ResolveMoves(actions);
 
         // 6. End-of-turn residuals, then auto-replace any fainted actives with reserves.
         if (Outcome is null)
@@ -237,47 +242,36 @@ public sealed class BattleController
         OnSwitchIn(side);
     }
 
-    private void ResolveMoves(BattleAction playerAction, BattleAction enemyAction)
+    private void ResolveMoves(BattleTurnActions actions)
     {
         // Flinch and Protect last only for a turn; clear last turn's before this turn's moves resolve.
-        Active(BattleSide.Player).ClearFlinch();
-        Active(BattleSide.Enemy).ClearFlinch();
-        Active(BattleSide.Player).ClearProtected();
-        Active(BattleSide.Enemy).ClearProtected();
-        Active(BattleSide.Player).ResetDamageTaken(); // Counter/Mirror Coat only see this turn's hits
-        Active(BattleSide.Enemy).ResetDamageTaken();
-
-        bool pMove = MoveIndex(playerAction) is not null;
-        bool eMove = MoveIndex(enemyAction) is not null;
-        // A charging creature is locked into its two-turn move, so its effective action is that move.
-        int pIndex = EffectiveMoveIndex(BattleSide.Player, MoveIndex(playerAction) ?? -1);
-        int eIndex = EffectiveMoveIndex(BattleSide.Enemy, MoveIndex(enemyAction) ?? -1);
-
-        if (pMove && eMove)
+        foreach (BattleSlot slot in actions.Topology.Slots)
         {
-            bool playerFirst = TurnOrder.AFirst(
-                Active(BattleSide.Player).Moves[pIndex].Priority, Speed(BattleSide.Player),
-                Active(BattleSide.Enemy).Moves[eIndex].Priority, Speed(BattleSide.Enemy), _rng);
-
-            BattleSide first = playerFirst ? BattleSide.Player : BattleSide.Enemy;
-            BattleSide second = Opponent(first);
-            int firstIdx = playerFirst ? pIndex : eIndex;
-            int secondIdx = playerFirst ? eIndex : pIndex;
-
-            ResolveMove(first, firstIdx);
-            TickRampageLock(first);
-            ResolveMove(second, secondIdx);
-            TickRampageLock(second);
+            BattleCreature active = Active(slot);
+            active.ClearFlinch();
+            active.ClearProtected();
+            active.ResetDamageTaken(); // Counter/Mirror Coat only see this turn's hits
         }
-        else if (pMove)
+
+        var scheduled = new List<BattleScheduledAction>();
+        foreach (BattleActionSubmission submission in actions.Actions)
         {
-            ResolveMove(BattleSide.Player, pIndex);
-            TickRampageLock(BattleSide.Player);
+            if (MoveIndex(submission.Action) is not { } submittedIndex)
+                continue;
+
+            int moveIndex = EffectiveMoveIndex(submission.Source.Side, submittedIndex);
+            scheduled.Add(new BattleScheduledAction(
+                submission,
+                Active(submission.Source).Moves[moveIndex].Priority,
+                Speed(submission.Source.Side)));
         }
-        else if (eMove)
+
+        foreach (BattleScheduledAction scheduledAction in BattleTurnOrder.Order(scheduled, _rng))
         {
-            ResolveMove(BattleSide.Enemy, eIndex);
-            TickRampageLock(BattleSide.Enemy);
+            BattleSide side = scheduledAction.Submission.Source.Side;
+            int submittedIndex = MoveIndex(scheduledAction.Submission.Action)!.Value;
+            ResolveMove(side, EffectiveMoveIndex(side, submittedIndex));
+            TickRampageLock(side);
         }
     }
 
