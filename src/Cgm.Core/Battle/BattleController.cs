@@ -518,7 +518,12 @@ public sealed class BattleController
                 Heal(ctx.Source, ctx.SourceSide, EffectMath.DrainHeal(ctx.DamageDealt, d.Fraction.Num, d.Fraction.Den));
                 break;
             case HealEffect h:
-                Heal(ctx.Source, ctx.SourceSide, EffectMath.HealAmount(ctx.Source.MaxHp, h.Fraction.Num, h.Fraction.Den));
+                (BattleCreature healRecipient, BattleSide healSide) = FractionRecipient(ctx, h.Recipient);
+                if (!healRecipient.IsFainted)
+                    Heal(healRecipient, healSide, EffectMath.HealAmount(healRecipient.MaxHp, h.Fraction.Num, h.Fraction.Den));
+                break;
+            case HpFractionEffect h:
+                ApplyHpFraction(ctx, h);
                 break;
             case RecoilEffect r when ctx.DamageDealt > 0:
                 Sap(ctx.Source, ctx.SourceSide, EffectMath.RecoilDamage(ctx.DamageDealt, r.Fraction.Num, r.Fraction.Den),
@@ -551,6 +556,31 @@ public sealed class BattleController
         }
         return true;
     }
+
+    private void ApplyHpFraction(EffectContext ctx, HpFractionEffect effect)
+    {
+        (BattleCreature recipient, BattleSide side) = FractionRecipient(ctx, effect.Recipient);
+        if (recipient.IsFainted)
+            return;
+
+        int amount = EffectMath.HpFractionAmount(recipient.CurrentHp, recipient.MaxHp, effect.Basis, effect.Fraction);
+        if (effect.Operation == HpFractionOperation.Heal)
+        {
+            Heal(recipient, side, amount);
+            return;
+        }
+
+        Sap(recipient, side, amount, damaged => new HpFractionDamaged(side, damaged));
+    }
+
+    private static (BattleCreature Creature, BattleSide Side) FractionRecipient(
+        EffectContext ctx,
+        HpFractionRecipient recipient) => recipient switch
+    {
+        HpFractionRecipient.Self => (ctx.Source, ctx.SourceSide),
+        HpFractionRecipient.Target => (ctx.Target, ctx.TargetSide),
+        _ => throw new ArgumentOutOfRangeException(nameof(recipient), recipient, "Unknown HP-fraction recipient."),
+    };
 
     private bool PassesMoveGates(BattleCreature creature, BattleSide side, BattleMove move)
     {

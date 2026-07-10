@@ -35,6 +35,12 @@ first-action-only, cannot-repeat, and recharge-style action skips. Existing FAIL
 until their normalized definitions compile with these operations and per-move conformance tests
 prove the required context and event sequence; capability alone is not certification.
 
+Update (2026-07-10): the HP-mutation handler now supports recipient-aware `heal` and strict
+`hpFraction` operations over current or maximum HP. They reuse the shared healing and non-move
+damage primitives, so the same operations can support self, target, and later ally contexts. As
+with all Phase 15 capabilities, no audit row advances until normalized data and a conformance test
+exercise the exact move behavior.
+
 ## Completed Batches
 
 | Batch | Move rows | Status |

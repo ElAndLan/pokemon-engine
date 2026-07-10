@@ -17,6 +17,9 @@ public abstract record MoveEffect
 public enum StageEffectScope { Self, Target, Both }
 public enum StageSwapGroup { All, Offense, Defense }
 public enum MoveGateKind { FirstAction, NotPreviousMove }
+public enum HpFractionRecipient { Self, Target }
+public enum HpFractionOperation { Heal, Damage }
+public enum HpFractionBasis { MaxHp, CurrentHp }
 
 /// <summary>apply_condition(persistent status) — burn/poison/paralysis/… on the target.</summary>
 public sealed record AilmentEffect(PersistentStatus Status) : MoveEffect;
@@ -66,8 +69,15 @@ public sealed record DrainEffect(Fraction Fraction) : MoveEffect;
 /// <summary>apply_recoil_or_crash(percent_damage_dealt) — the user takes a fraction of the damage dealt.</summary>
 public sealed record RecoilEffect(Fraction Fraction) : MoveEffect;
 
-/// <summary>heal_hp(percent_max_hp) on the user (Recover-style).</summary>
-public sealed record HealEffect(Fraction Fraction) : MoveEffect;
+/// <summary>heal_hp(percent_max_hp) on the user or target.</summary>
+public sealed record HealEffect(Fraction Fraction, HpFractionRecipient Recipient = HpFractionRecipient.Self) : MoveEffect;
+
+/// <summary>Mutates a recipient's current or max-HP fraction through the shared HP primitives.</summary>
+public sealed record HpFractionEffect(
+    HpFractionRecipient Recipient,
+    HpFractionOperation Operation,
+    HpFractionBasis Basis,
+    Fraction Fraction) : MoveEffect;
 
 /// <summary>apply_condition(volatile:focus_energy) — raises the user's crit stage.</summary>
 public sealed record CritBoostEffect(int Stages) : MoveEffect;

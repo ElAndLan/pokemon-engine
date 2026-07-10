@@ -32,6 +32,7 @@ public sealed record StatStageChanged(BattleSide Side, StatKind Stat, int Delta)
 public sealed record StatusDamage(BattleSide Side, int Amount) : BattleEvent;
 public sealed record ResidualDamage(BattleSide Side, int Amount) : BattleEvent;
 public sealed record Healed(BattleSide Side, int Amount) : BattleEvent;
+public sealed record HpFractionDamaged(BattleSide Side, int Amount) : BattleEvent;
 public sealed record HpCostPaid(BattleSide Side, int Amount) : BattleEvent;
 public sealed record BattleItemUsed(BattleSide Side, EntityId Item, int TargetPartyIndex) : BattleEvent;
 public sealed record HeldItemConsumed(BattleSide Side, string Op) : BattleEvent;

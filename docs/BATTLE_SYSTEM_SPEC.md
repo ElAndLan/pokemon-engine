@@ -78,8 +78,16 @@ the ops and their tests are unambiguous. All damage/heal amounts are **≥1** un
   the user's level (Night Shade / Seismic Toss). Type immunity still applies (checked by the resolver).
 - **ohko** — one-hit KO: accuracy = `userLevel − targetLevel + 30`, and the move **fails outright** if
   `targetLevel > userLevel` (accuracy 0). On hit, damage = target's current HP.
-- **healFraction** — user heals `max(1, floor(maxHp × num/den))` (default ½). (Weather-scaled variant is
-  a later slot; v5 is the flat fraction.)
+- **healFraction** — `heal` restores `max(1, floor(maxHp × num/den))` (default ½) to
+  `recipient: self|target` (default self). (Weather-scaled variant is a later slot; v5 is the
+  flat fraction.)
+- **hpFraction** — applies a fractional HP mutation to `recipient: self|target`. Params are
+  `{ recipient, operation: "heal"|"damage", basis: "maxHp"|"currentHp", num, den }`;
+  all are required and `num`/`den` must be positive. The amount is
+  `max(1, floor(selectedBasis × num/den))`; fainted recipients are unaffected, healing clamps at
+  max HP, and damage can faint. It draws no RNG, cannot be chance-gated, and emits the ordinary
+  heal/faint events plus `HpFractionDamaged` for fractional non-move damage. This covers shared
+  fraction-current/max-HP mutation without embedding a named move formula.
 - **ailment** — applies a persistent status or confusion. Params use `{ ailment }`; `{ status }` remains
   accepted as a legacy alias for existing project data.
 - **statStageAll** — expands to five ordered `statStage` changes against Atk, Def, Spa, Spd, and Spe

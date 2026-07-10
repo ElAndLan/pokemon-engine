@@ -45,6 +45,15 @@ public static class EffectMath
     /// <summary>HP restored by a fixed-fraction heal (default ½ maxHp), ≥1.</summary>
     public static int HealAmount(int maxHp, int num = 1, int den = 2) => Math.Max(1, maxHp * num / den);
 
+    public static int HpFractionAmount(int currentHp, int maxHp, HpFractionBasis basis, Fraction fraction)
+    {
+        if (fraction.Num <= 0 || fraction.Den <= 0)
+            throw new ArgumentOutOfRangeException(nameof(fraction), "HP fraction must be positive.");
+
+        int source = basis == HpFractionBasis.MaxHp ? maxHp : currentHp;
+        return Math.Max(1, source * fraction.Num / fraction.Den);
+    }
+
     public static int TargetHpThresholdPower(
         int basePower,
         int currentHp,

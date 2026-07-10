@@ -331,6 +331,12 @@ non-battle/post-battle effects (4).
 
 Exit: every affected move has state-conservation and event-order coverage; UI remains a consumer.
 
+Progress (2026-07-10): HP-mutation handling is expanded through reusable operations. `heal` now
+declares a self or target recipient, and `hpFraction` supports deterministic current/max-HP healing
+or damage through the existing `Heal` and `Sap` primitives. Compiler validation and resolver/event
+tests cover both paths. Team/party healing, cures, revival, HP equalization, switch-linked recovery,
+and the normalized per-move conformance definitions remain open.
+
 #### 15H — Reference-gap closure and full normalization
 
 Primary group: 46 moves with insufficient local English effect data, plus any new gaps found by

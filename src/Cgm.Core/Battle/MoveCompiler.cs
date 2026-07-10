@@ -57,8 +57,28 @@ public static class MoveCompiler
                     break;
 
                 case "heal":
-                    heal = ReadFraction(e, 1, 2);
-                    effects.Add(new HealEffect(heal.Value));
+                    CheckAllowedParams(e, "num", "den", "recipient");
+                    Fraction healFraction = ReadFraction(e, 1, 2);
+                    HpFractionRecipient healRecipient = e.Params?.ContainsKey("recipient") == true
+                        ? Parse<HpFractionRecipient>(Str(e, "recipient"), "recipient")
+                        : HpFractionRecipient.Self;
+                    if (healRecipient == HpFractionRecipient.Self)
+                        heal = healFraction;
+                    effects.Add(new HealEffect(healFraction, healRecipient));
+                    break;
+
+                case "hpFraction":
+                    if (chance != 100)
+                        throw new ArgumentException("hpFraction does not support chance.");
+                    CheckAllowedParams(e, "recipient", "operation", "basis", "num", "den");
+                    Fraction hpFraction = new(Int(e, "num"), Int(e, "den"));
+                    if (hpFraction.Num <= 0 || hpFraction.Den <= 0)
+                        throw new ArgumentException("hpFraction num and den must be positive.");
+                    effects.Add(new HpFractionEffect(
+                        Parse<HpFractionRecipient>(Str(e, "recipient"), "recipient"),
+                        Parse<HpFractionOperation>(Str(e, "operation"), "operation"),
+                        Parse<HpFractionBasis>(Str(e, "basis"), "basis"),
+                        hpFraction));
                     break;
 
                 case "multiHit":
