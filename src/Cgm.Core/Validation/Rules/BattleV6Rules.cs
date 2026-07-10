@@ -340,7 +340,8 @@ internal static class Phase15EffectRules
         && stat is StatKind.Atk or StatKind.Def or StatKind.Spa or StatKind.Spd;
 
     private static bool IsBattleStat(string value) =>
-        Enum.TryParse(value, ignoreCase: true, out StatKind stat) && stat != StatKind.Hp;
+        Enum.TryParse(value, ignoreCase: true, out StatKind stat)
+        && stat is StatKind.Atk or StatKind.Def or StatKind.Spa or StatKind.Spd or StatKind.Spe;
 
     private static int? Int(Effect effect, string key) =>
         effect.Params is not null

@@ -24,9 +24,10 @@ public sealed class ValidationTests
     {
         Project p = ProjectLoader.Load(TestPaths.Sample("demo-game"));
         ValidationReport report = Validator.Run(p);
-        Assert.False(report.HasErrors, string.Join("\n", report.Issues));
+        Assert.Empty(report.Issues);
 
         Assert.Equal(4, p.All<Ability>().Count());
+        Assert.Contains(p.All<Move>(), m => m.Id == EntityId.Parse("move:flare_break"));
 
         IReadOnlyList<Item> heldItems = p.All<Item>()
             .Where(i => i.Holdable && i.BattleEffects.Count > 0)
@@ -42,6 +43,7 @@ public sealed class ValidationTests
 
         Trainer trainer = p.Find<Trainer>(EntityId.Parse("trainer:expert_rematch_mira"))!;
         Assert.Equal(AiProfile.Smart, trainer.AiProfile);
+        Assert.Equal(3, trainer.Party.Count);
         Assert.Equal(heldItems.Select(i => i.Id), trainer.Party.Select(m => m.HeldItem!.Value));
     }
 
@@ -425,11 +427,118 @@ public sealed class ValidationTests
         Move damagingNoPower = Move("b") with { DamageClass = DamageClass.Physical, Power = null };
         Move badAcc = Move("c") with { Accuracy = 200 };
         Move noPp = Move("d") with { Pp = 0 };
+        Move badTarget = Move("e") with { Target = (MoveTarget)999 };
         Assert.NotEmpty(Run(new MoveRule(), Project(statusWithPower)));
         Assert.NotEmpty(Run(new MoveRule(), Project(damagingNoPower)));
         Assert.NotEmpty(Run(new MoveRule(), Project(badAcc)));
         Assert.NotEmpty(Run(new MoveRule(), Project(noPp)));
+        Assert.Contains(Run(new MoveRule(), Project(badTarget)), i => i.Message.Contains("move target"));
         Assert.Empty(Run(new MoveRule(), Project(Move())));
+    }
+
+    [Fact]
+    public void Move_FlagsUnknownEffectOpsAndBadParams()
+    {
+        Move unknown = Move("unknown") with { Effects = [new Effect { Op = "bespokeMoveCode" }] };
+        Move badParam = Move("bad") with
+        {
+            Effects = [new Effect { Op = "statStage", Params = Params(("stat", "hp"), ("delta", 1)) }],
+        };
+        Move badAll = Move("badall") with
+        {
+            Effects = [new Effect { Op = "statStageAll", Params = Params(("delta", 0)) }],
+        };
+        Move badHelper = Move("badhelper") with
+        {
+            Effects = [new Effect { Op = "statStageCopy", Params = Params(("from", "both"), ("to", "self")) }],
+        };
+        Move badDamageStat = Move("badstat") with
+        {
+            Effects = [new Effect { Op = "damageStatOverride", Params = Params(("offensiveStat", "spe")) }],
+        };
+        Move badWeather = Move("badweather") with
+        {
+            Effects = [new Effect { Op = "weather", Params = Params(("weather", "snow")) }],
+        };
+        Move badTargetHpPower = Move("badhppower") with
+        {
+            Effects =
+            [
+                new Effect
+                {
+                    Op = "targetHpThresholdPower",
+                    Params = Params(("thresholdNum", 1), ("thresholdDen", 0), ("multiplierNum", 2), ("multiplierDen", 1)),
+                },
+            ],
+        };
+        Move badHpRatioPower = Move("badratiopower") with
+        {
+            Effects = [new Effect { Op = "hpRatioPower", Params = Params(("source", "bench")) }],
+        };
+        Move multiStage = Move("multi") with
+        {
+            Effects =
+            [
+                new Effect { Op = "statStage", Params = Params(("stat", "atk"), ("delta", 1), ("onSelf", true)) },
+                new Effect { Op = "statStage", Params = Params(("stat", "spa"), ("delta", 1), ("onSelf", true)) },
+            ],
+        };
+        Move allStage = Move("allstage") with
+        {
+            Effects = [new Effect { Op = "statStageAll", Chance = 10, Params = Params(("delta", 1), ("onSelf", true)) }],
+        };
+        Move stageHelper = Move("stagehelper") with
+        {
+            Effects =
+            [
+                new Effect { Op = "hpCost", Params = Params(("num", 1), ("den", 2)) },
+                new Effect { Op = "statStageSwap", Params = Params(("group", "offense")) },
+            ],
+        };
+        Move damageStat = Move("damagestat") with
+        {
+            Effects = [new Effect { Op = "damageStatOverride", Params = Params(("offensiveStat", "def")) }],
+        };
+        Move weather = Move("weather") with
+        {
+            DamageClass = DamageClass.Status,
+            Power = null,
+            Target = MoveTarget.EntireField,
+            Effects = [new Effect { Op = "weather", Params = Params(("weather", "rain")) }],
+        };
+        Move targetHpPower = Move("hppower") with
+        {
+            Effects =
+            [
+                new Effect
+                {
+                    Op = "targetHpThresholdPower",
+                    Params = Params(("thresholdNum", 1), ("thresholdDen", 2), ("multiplierNum", 2), ("multiplierDen", 1)),
+                },
+            ],
+        };
+        Move hpRatioPower = Move("ratiopower") with
+        {
+            Effects = [new Effect { Op = "hpRatioPower", Params = Params(("source", "user")) }],
+        };
+        Move noBattle = Move("nobattle") with { DamageClass = DamageClass.Status, Power = null, Effects = [new Effect { Op = "noBattleEffect" }] };
+
+        Assert.Contains(Run(new MoveRule(), Project(unknown)), i => i.Message.Contains("bespokeMoveCode"));
+        Assert.Contains(Run(new MoveRule(), Project(badParam)), i => i.Message.Contains("HP"));
+        Assert.Contains(Run(new MoveRule(), Project(badAll)), i => i.Message.Contains("statStageAll"));
+        Assert.Contains(Run(new MoveRule(), Project(badHelper)), i => i.Message.Contains("statStageCopy"));
+        Assert.Contains(Run(new MoveRule(), Project(badDamageStat)), i => i.Message.Contains("damageStatOverride"));
+        Assert.Contains(Run(new MoveRule(), Project(badWeather)), i => i.Message.Contains("weather"));
+        Assert.Contains(Run(new MoveRule(), Project(badTargetHpPower)), i => i.Message.Contains("targetHpThresholdPower"));
+        Assert.Contains(Run(new MoveRule(), Project(badHpRatioPower)), i => i.Message.Contains("Unknown source"));
+        Assert.Empty(Run(new MoveRule(), Project(multiStage)));
+        Assert.Empty(Run(new MoveRule(), Project(allStage)));
+        Assert.Empty(Run(new MoveRule(), Project(stageHelper)));
+        Assert.Empty(Run(new MoveRule(), Project(damageStat)));
+        Assert.Empty(Run(new MoveRule(), Project(weather)));
+        Assert.Empty(Run(new MoveRule(), Project(targetHpPower)));
+        Assert.Empty(Run(new MoveRule(), Project(hpRatioPower)));
+        Assert.Empty(Run(new MoveRule(), Project(noBattle)));
     }
 
     // --- World rules -------------------------------------------------------------

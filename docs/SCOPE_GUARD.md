@@ -20,13 +20,11 @@ at 69.0% @400, and Smart-vs-Smart side balance at 49.2%. Further AI tuning is de
 Phase 15+ battle mechanics are available; display/debug-console score-table integration is
 presentation work and not a Phase 14 gate.
 
-2026-07-09 Phase 15 audit note: Core v6 hook/form work, minimal Creator authoring surfaces,
-sample showcase data, standalone export template-copy, Runtime `--smoke`, exported config/pack
-loading, and a minimal rendered battle silhouette are green at 861 tests. Phase 15 is not
-closeable yet: Addendum v6 requires a Mega-style showcase fight in the demo, and the current
-runtime path is data + smoke + rectangles rather than a real demo showcase fight. Use
-`docs/IMPLEMENTATION_PLAN.md` -> "Phase 15 remaining work priority queue" as the authoritative
-next-work order; the next unfinished item is the real demo showcase fight.
+2026-07-09 Phase 15 demo-showcase note: Core v6 hook/form work, minimal Creator authoring
+surfaces, sample showcase data, standalone export template-copy, Runtime `--smoke`, exported
+config/pack loading, and the playable/readable exported 3v3 showcase fight are green at 865 tests.
+Use `docs/IMPLEMENTATION_PLAN.md` -> "Phase 15 remaining work priority queue" as the authoritative
+next-work order; the next unfinished item is the Phase 15 exit review/closeout audit.
 
 ## The rule
 

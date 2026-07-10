@@ -2,7 +2,7 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Battle;
 
-public enum StatKind { Hp, Atk, Def, Spa, Spd, Spe }
+public enum StatKind { Hp, Atk, Def, Spa, Spd, Spe, Accuracy, Evasion }
 
 /// <summary>The 25 natures: each raises one stat by 10% and lowers another by 10% (five are
 /// neutral). HP is never affected. Keyed by lowercase name (matches PokeAPI/DATA_SCHEMA).</summary>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Smart AI"
+  short_description: "Tune and implement Creature Game Maker smart battle AI."
+  default_prompt: "Use cgm-smart-ai before changing SmartAi, TrainerAi, AI scoring, battle memory, switch logic, or difficulty tuning."

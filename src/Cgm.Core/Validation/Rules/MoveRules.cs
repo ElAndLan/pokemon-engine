@@ -1,3 +1,4 @@
+using Cgm.Core.Battle;
 using Cgm.Core.Model;
 
 namespace Cgm.Core.Validation.Rules;
@@ -30,6 +31,25 @@ public sealed class MoveRule : IValidationRule
             if (m.Priority is < -7 or > 7)
                 yield return new ValidationIssue(Id, ValidationSeverity.Error, m.Id,
                     $"Priority {m.Priority} must be -7..7.");
+            if (!Enum.IsDefined(m.Target))
+                yield return new ValidationIssue(Id, ValidationSeverity.Error, m.Id,
+                    $"Target {m.Target} is not a known move target.");
+
+            if (CheckEffects(m) is { } issue)
+                yield return issue;
+        }
+    }
+
+    private ValidationIssue? CheckEffects(Move move)
+    {
+        try
+        {
+            MoveCompiler.ToBattleMove(move);
+            return null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        {
+            return new ValidationIssue(Id, ValidationSeverity.Error, move.Id, ex.Message);
         }
     }
 }

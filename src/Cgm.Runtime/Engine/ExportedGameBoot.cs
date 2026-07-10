@@ -54,16 +54,37 @@ public static class ExportedGameBoot
 
     private static BattleScene BuildShowcaseBattle(GameDb db)
     {
-        BattleCreature player = BuildPlayerCreature(db);
-        Trainer trainer = db.All<Trainer>().FirstOrDefault(t => t.Party.Count > 0)
+        IReadOnlyList<BattleCreature> players = BuildPlayerParty(db);
+        Trainer trainer = db.Find<Trainer>(EntityId.Parse("trainer:expert_rematch_mira"))
+            ?? db.All<Trainer>().FirstOrDefault(t => t.Party.Count > 0)
             ?? throw new InvalidDataException("Smoke battle needs a trainer with a party.");
         IReadOnlyList<BattleCreature> enemies = trainer.Party.Select(p => BuildCreature(db, p)).ToList();
-        var battle = new BattleController([player], enemies, new TypeChart(db.All<TypeDef>()), new Rng(1));
-        AddTemporaryFormTrainerItems(db, battle, player.Species);
-        return new BattleScene(battle, _ => new UseMove(0), FormChoices(db, player.Species));
+        var chart = new TypeChart(db.All<TypeDef>());
+        var battle = new BattleController(players, enemies, chart, new Rng(1));
+        AddTemporaryFormTrainerItems(db, battle, players.Select(p => p.Species));
+
+        var aiRng = new Rng(2);
+        var memory = new SmartAiMemory();
+        BattleAction EnemyAction(BattleController b, BattleAction playerAction)
+        {
+            memory.ObservePlayerAction(playerAction, b.Active(BattleSide.Player));
+            return TrainerAi.ChooseAction(trainer.AiProfile, new SmartAiContext(
+                b.Party(BattleSide.Enemy),
+                b.ActiveIndex(BattleSide.Enemy),
+                b.Party(BattleSide.Player),
+                b.ActiveIndex(BattleSide.Player),
+                chart,
+                aiRng,
+                Turn: b.Turn,
+                Memory: memory,
+                OwnSpikeLayers: b.SpikeLayers(BattleSide.Enemy),
+                OwnStealthRock: b.HasStealthRock(BattleSide.Enemy)));
+        }
+
+        return new BattleScene(battle, EnemyAction, FormChoices(db, players.Select(p => p.Species)), id => NameOf(db, id));
     }
 
-    private static BattleCreature BuildPlayerCreature(GameDb db)
+    private static IReadOnlyList<BattleCreature> BuildPlayerParty(GameDb db)
     {
         EntityId speciesId = db.Settings.StarterParty.FirstOrDefault();
         if (speciesId.Equals(default(EntityId)))
@@ -72,8 +93,38 @@ public static class ExportedGameBoot
 
         Species species = db.Find<Species>(speciesId)
             ?? throw new InvalidDataException($"Starter species '{speciesId}' is missing.");
-        EntityId? held = species.Forms.FirstOrDefault(f => f.RequiredHeldItem is not null)?.RequiredHeldItem;
-        return BuildCreature(db, new PartyMember { Species = speciesId, Level = 24, HeldItem = held });
+        EntityId[] preferredMoves =
+        [
+            EntityId.Parse("move:leaf_jab"),
+            EntityId.Parse("move:root_guard"),
+            EntityId.Parse("move:cinder_burst"),
+        ];
+        IReadOnlyList<EntityId> moves = preferredMoves
+            .Where(id => db.Find<Move>(id) is not null)
+            .ToList();
+        if (moves.Count == 0)
+        {
+            moves = species.Learnset
+                .Where(l => l.Level <= 24)
+                .OrderBy(l => l.Level)
+                .Select(l => l.Move)
+                .TakeLast(4)
+                .ToList();
+        }
+        if (moves.Count == 0)
+            throw new InvalidDataException($"Species '{species.Id}' has no showcase moves.");
+
+        EntityId bloomStone = EntityId.Parse("item:bloom_stone");
+        EntityId stormBand = EntityId.Parse("item:storm_band");
+        EntityId surgeSash = EntityId.Parse("item:surge_sash");
+        EntityId? formItem = species.Forms.FirstOrDefault(f => f.RequiredHeldItem is not null)?.RequiredHeldItem;
+        PartyMember[] party =
+        [
+            new() { Species = speciesId, Level = 24, Moves = moves, HeldItem = db.Find<Item>(formItem ?? bloomStone) is null ? null : formItem ?? bloomStone },
+            new() { Species = speciesId, Level = 24, Moves = moves, HeldItem = db.Find<Item>(stormBand) is null ? null : stormBand },
+            new() { Species = speciesId, Level = 24, Moves = moves, HeldItem = db.Find<Item>(surgeSash) is null ? null : surgeSash },
+        ];
+        return party.Select(p => BuildCreature(db, p)).ToList();
     }
 
     private static BattleCreature BuildCreature(GameDb db, PartyMember partyMember)
@@ -101,20 +152,37 @@ public static class ExportedGameBoot
         return BattleCreature.FromInstance(instance, db);
     }
 
-    private static void AddTemporaryFormTrainerItems(GameDb db, BattleController battle, EntityId speciesId)
+    private static void AddTemporaryFormTrainerItems(GameDb db, BattleController battle, IEnumerable<EntityId> speciesIds)
     {
-        Species? species = db.Find<Species>(speciesId);
-        if (species is null)
-            return;
-
         // ponytail: smoke grants only the key item needed to prove the showcase action path.
-        foreach (EntityId item in species.Forms.Select(f => f.RequiredTrainerItem).OfType<EntityId>())
+        foreach (EntityId item in speciesIds
+            .Select(db.Find<Species>)
+            .OfType<Species>()
+            .SelectMany(s => s.Forms)
+            .Select(f => f.RequiredTrainerItem)
+            .OfType<EntityId>()
+            .Distinct())
             battle.SetBattleItemStock(BattleSide.Player, item, 1);
     }
 
-    private static IReadOnlyList<BattleFormChoice> FormChoices(GameDb db, EntityId speciesId) =>
-        db.Find<Species>(speciesId)?.Forms
+    private static IReadOnlyList<BattleFormChoice> FormChoices(GameDb db, IEnumerable<EntityId> speciesIds) =>
+        speciesIds
+            .Select(db.Find<Species>)
+            .OfType<Species>()
+            .SelectMany(s => s.Forms)
             .Where(f => f.Activation is FormActivation.BattleTemporary or FormActivation.BattleTimed)
             .Select(f => new BattleFormChoice(f.FormId, 0))
-            .ToList() ?? [];
+            .Distinct()
+            .ToList();
+
+    private static string NameOf(GameDb db, EntityId id) => id.Category switch
+    {
+        EntityCategory.Ability => db.Find<Ability>(id)?.Name ?? id.ToString(),
+        EntityCategory.Item => db.Find<Item>(id)?.Name ?? id.ToString(),
+        EntityCategory.Move => db.Find<Move>(id)?.Name ?? id.ToString(),
+        EntityCategory.Species => db.Find<Species>(id)?.Name ?? id.ToString(),
+        EntityCategory.Trainer => db.Find<Trainer>(id)?.Name ?? id.ToString(),
+        EntityCategory.Type => db.Find<TypeDef>(id)?.Name ?? id.ToString(),
+        _ => id.ToString(),
+    };
 }

@@ -10,7 +10,7 @@
     {
       "species": "species:asterling",
       "level": 24,
-      "moves": [ "move:leaf_jab", "move:root_guard", "move:cinder_burst" ],
+      "moves": [ "move:flare_break", "move:root_guard", "move:cinder_burst" ],
       "heldItem": "item:bloom_stone"
     },
     {

@@ -36,6 +36,17 @@ public sealed class StatStagesTests
         Assert.Equal(expected, StatStages.AccEvaMultiplier(stage), precision: 10);
     }
 
+    [Theory]
+    [InlineData(0, 0, 1.0)]
+    [InlineData(1, 0, 4.0 / 3)]
+    [InlineData(0, 1, 3.0 / 4)]
+    [InlineData(6, -6, 3.0)]
+    [InlineData(-6, 6, 1.0 / 3)]
+    public void AccuracyMultiplier_CombinesAccuracyAndEvasion(int accuracyStage, int evasionStage, double expected)
+    {
+        Assert.Equal(expected, StatStages.AccuracyMultiplier(accuracyStage, evasionStage), precision: 10);
+    }
+
     [Fact]
     public void Stages_ClampBeyondRange()
     {

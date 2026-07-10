@@ -41,6 +41,32 @@ public sealed class BattleProtectTests
     }
 
     [Fact]
+    public void Protect_BlocksAllOpponentsTargetInSingles()
+    {
+        var spreadHit = new BattleMove(EntityId.Parse("move:spread"), Normal, DamageClass.Physical, 60, 100, 25, 0, 0,
+            target: MoveTarget.AllOpponents);
+        var player = Slower(200, Protect());
+        var enemy = Faster(200, spreadHit);
+        var events = new BattleController(player, enemy, Chart(), new Rng(1)).ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Equal(200, player.CurrentHp);
+        Assert.Contains(events, e => e is MoveBlocked { Side: BattleSide.Enemy });
+    }
+
+    [Fact]
+    public void Protect_BlocksAllOtherPokemonTargetInSingles()
+    {
+        var spreadHit = new BattleMove(EntityId.Parse("move:spread"), Normal, DamageClass.Physical, 60, 100, 25, 0, 0,
+            target: MoveTarget.AllOtherPokemon);
+        var player = Slower(200, Protect());
+        var enemy = Faster(200, spreadHit);
+        var events = new BattleController(player, enemy, Chart(), new Rng(1)).ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Equal(200, player.CurrentHp);
+        Assert.Contains(events, e => e is MoveBlocked { Side: BattleSide.Enemy });
+    }
+
+    [Fact]
     public void Protect_ExpiresNextTurn()
     {
         var player = Slower(200, Protect(), Inert());

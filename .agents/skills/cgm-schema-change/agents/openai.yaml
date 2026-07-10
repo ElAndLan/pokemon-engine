@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Schema Change"
+  short_description: "Make Creature Game Maker serialized data changes safely."
+  default_prompt: "Use cgm-schema-change before editing serialized models, project JSON, saves, EntityIds, or migrations."

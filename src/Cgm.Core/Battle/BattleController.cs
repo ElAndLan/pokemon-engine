@@ -43,6 +43,8 @@ public sealed class BattleController
     public IReadOnlyList<BattleEvent> Log => _log;
 
     public BattleCreature Active(BattleSide side) => _parties[(int)side][_active[(int)side]];
+    public int ActiveIndex(BattleSide side) => _active[(int)side];
+    public IReadOnlyList<BattleCreature> Party(BattleSide side) => _parties[(int)side];
 
     /// <summary>Entry-hazard state on a side (for AI switch valuation / UI). A creature switching in here
     /// takes stealth-rock then spikes damage — see <see cref="OnSwitchIn"/>.</summary>
@@ -314,10 +316,7 @@ public sealed class BattleController
     private void ResolveMove(BattleSide side, int moveIndex)
     {
         BattleCreature attacker = Active(side);
-        BattleSide targetSide = Opponent(side);
-        BattleCreature target = Active(targetSide);
-
-        if (attacker.IsFainted || target.IsFainted)
+        if (attacker.IsFainted)
             return;
 
         if (!CanAct(attacker, side))
@@ -333,6 +332,13 @@ public sealed class BattleController
             return; // hurt itself in confusion — no PP, no move
 
         BattleMove move = attacker.Moves[moveIndex];
+        BattleSide targetSide = BattleTargetResolver.IsSinglesActiveCreatureTarget(move.Target)
+            ? BattleTargetResolver.ResolveSinglesActiveCreatureSide(move.Target, side)
+            : Opponent(side);
+        BattleCreature target = Active(targetSide);
+        if (target.IsFainted)
+            return;
+
         if (!move.IsProtect)
             attacker.ResetProtectChain(); // any non-protect move breaks the protect chain
 
@@ -365,16 +371,20 @@ public sealed class BattleController
         if (target.Protected && TargetsOpponent(move))
         {
             _log.Add(new MoveBlocked(side));
+            ApplyCrashRecoil(attacker, side, move);
             return;
         }
 
         // OHKO uses a level-scaled accuracy in place of the move's own; accuracyBypass sure-hits.
         int? accuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, target.Level) : move.Accuracy;
-        if (!move.BypassAccuracy && !BattleRolls.Hits(accuracy, _rng))
+        if (!move.BypassAccuracy && !BattleRolls.Hits(
+                accuracy,
+                attacker.Stage(StatKind.Accuracy),
+                target.Stage(StatKind.Evasion),
+                _rng))
         {
             _log.Add(new MoveMissed(side, move.Move));
-            if (move.Recoil is { } crash && move.RecoilOnMiss)
-                Sap(attacker, side, EffectMath.CrashDamage(attacker.MaxHp, crash.Num, crash.Den), amt => new Recoiled(side, amt));
+            ApplyCrashRecoil(attacker, side, move);
             return;
         }
 
@@ -417,12 +427,16 @@ public sealed class BattleController
             }
         }
 
+        if (damageDealt == 0)
+            ApplyCrashRecoil(attacker, side, move);
+
         // Effect-list-driven resolution (EFFECT_TYPES_CATALOG): iterate the move's ordered effects and
         // dispatch each to a shared primitive. Order matches the historical pipeline (target secondaries,
         // then leech/drain/heal/recoil/crit/faint), so the RNG draw order is unchanged.
         var ctx = new EffectContext(move, attacker, side, target, targetSide, damageDealt);
         foreach (MoveEffect effect in move.SecondaryEffects)
-            ApplyEffect(ctx, effect);
+            if (!ApplyEffect(ctx, effect))
+                break;
         ApplyContactEffects(move, side, attacker, targetSide);
     }
 
@@ -454,13 +468,19 @@ public sealed class BattleController
     /// <summary>Dispatches one compiled effect to its shared primitive (ResolvePrimitive,
     /// EFFECT_TYPES_CATALOG §4.1). Each primitive keeps the historical chance-roll semantics so draw
     /// order is preserved.</summary>
-    private void ApplyEffect(EffectContext ctx, MoveEffect effect)
+    private bool ApplyEffect(EffectContext ctx, MoveEffect effect)
     {
         switch (effect)
         {
             case AilmentEffect a: ApplyAilment(ctx, a); break;
             case StatChangeEffect s: ApplyStatChange(ctx, s); break;
-            case ConfusionEffect c: ApplyConfusion(ctx, c); break;
+            case StatChangeAllEffect s: ApplyStatChangeAll(ctx, s); break;
+            case HpCostEffect h: return ApplyHpCost(ctx, h);
+            case StatResetEffect r: ApplyStatReset(ctx, r); break;
+            case StatCopyEffect copy: ApplyStatCopy(ctx, copy); break;
+            case StatSwapEffect s: ApplyStatSwap(ctx, s); break;
+            case StatInvertEffect i: ApplyStatInvert(ctx, i); break;
+            case ConfusionEffect confusion: ApplyConfusion(ctx, confusion); break;
             case FlinchEffect f: ApplyFlinch(ctx, f); break;
             case LeechSeedEffect: ApplyLeechSeed(ctx); break;
             case BindEffect when !ctx.Target.IsFainted && !ctx.Target.IsTrapped:
@@ -512,6 +532,7 @@ public sealed class BattleController
                 SetWeather(w.Weather, WeatherConditions.DefaultTurns, ctx.SourceSide);
                 break;
         }
+        return true;
     }
 
     private static readonly EntityId RockType = EntityId.Parse("type:rock");
@@ -540,9 +561,15 @@ public sealed class BattleController
     /// <summary>Whether a move acts on the opposing creature (so Protect can block it). Damage or any
     /// target-directed secondary counts; self-buffs, heals, weather, and side hazards do not.</summary>
     private static bool TargetsOpponent(BattleMove move) =>
-        move.Power.HasValue || move.SecondaryEffects.Any(e =>
+        move.Target is MoveTarget.Selected or MoveTarget.AllOpponents or MoveTarget.AllOtherPokemon
+        && (move.Power.HasValue || move.SecondaryEffects.Any(e =>
             e is AilmentEffect or ConfusionEffect or FlinchEffect or LeechSeedEffect or BindEffect or ForceSwitchEffect
-            || (e is StatChangeEffect s && !s.OnSelf));
+            || (e is StatChangeEffect s && !s.OnSelf)
+            || (e is StatChangeAllEffect a && !a.OnSelf)
+            || (e is StatResetEffect r && r.Scope != StageEffectScope.Self)
+            || (e is StatCopyEffect c && (c.From == StageEffectScope.Target || c.To == StageEffectScope.Target))
+            || e is StatSwapEffect
+            || (e is StatInvertEffect i && !i.OnSelf)));
 
     /// <summary>Roar/Whirlwind: a wild target flees (battle ends); a trainer's is dragged out to a random
     /// healthy reserve. No reserve → no effect.</summary>
@@ -602,6 +629,116 @@ public sealed class BattleController
         recipient.ChangeStage(effect.Stat, effect.Delta);
         _log.Add(new StatStageChanged(recipientSide, effect.Stat, effect.Delta));
     }
+
+    private static readonly StatKind[] AllStageStats =
+        [StatKind.Atk, StatKind.Def, StatKind.Spa, StatKind.Spd, StatKind.Spe];
+    private static readonly StatKind[] AllStageSlots =
+        [StatKind.Atk, StatKind.Def, StatKind.Spa, StatKind.Spd, StatKind.Spe, StatKind.Accuracy, StatKind.Evasion];
+    private static readonly StatKind[] OffenseStageStats = [StatKind.Atk, StatKind.Spa];
+    private static readonly StatKind[] DefenseStageStats = [StatKind.Def, StatKind.Spd];
+
+    private void ApplyStatChangeAll(EffectContext ctx, StatChangeAllEffect effect)
+    {
+        if (effect.Chance < 100 && _rng.Next(100) >= effect.Chance)
+            return;
+        BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
+        BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
+        if (recipient.IsFainted)
+            return;
+        foreach (StatKind stat in AllStageStats)
+        {
+            recipient.ChangeStage(stat, effect.Delta);
+            _log.Add(new StatStageChanged(recipientSide, stat, effect.Delta));
+        }
+    }
+
+    private bool ApplyHpCost(EffectContext ctx, HpCostEffect effect)
+    {
+        int amount = Math.Max(1, ctx.Source.MaxHp * effect.Fraction.Num / effect.Fraction.Den);
+        if (!effect.AllowFaint && ctx.Source.CurrentHp <= amount)
+            return false;
+        Sap(ctx.Source, ctx.SourceSide, amount, amt => new HpCostPaid(ctx.SourceSide, amt));
+        return !ctx.Source.IsFainted;
+    }
+
+    private void ApplyStatReset(EffectContext ctx, StatResetEffect effect)
+    {
+        if (!ChancePasses(effect.Chance))
+            return;
+        foreach ((BattleCreature creature, BattleSide side) in StageRecipients(ctx, effect.Scope))
+            foreach (StatKind stat in AllStageSlots)
+                SetStage(creature, side, stat, 0);
+    }
+
+    private void ApplyStatCopy(EffectContext ctx, StatCopyEffect effect)
+    {
+        if (!ChancePasses(effect.Chance))
+            return;
+        (BattleCreature from, _) = StageRecipient(ctx, effect.From);
+        (BattleCreature to, BattleSide toSide) = StageRecipient(ctx, effect.To);
+        foreach (StatKind stat in AllStageSlots)
+            SetStage(to, toSide, stat, from.Stage(stat));
+    }
+
+    private void ApplyStatSwap(EffectContext ctx, StatSwapEffect effect)
+    {
+        if (!ChancePasses(effect.Chance))
+            return;
+        foreach (StatKind stat in SwapStats(effect.Group))
+        {
+            int sourceStage = ctx.Source.Stage(stat);
+            int targetStage = ctx.Target.Stage(stat);
+            SetStage(ctx.Source, ctx.SourceSide, stat, targetStage);
+            SetStage(ctx.Target, ctx.TargetSide, stat, sourceStage);
+        }
+    }
+
+    private void ApplyStatInvert(EffectContext ctx, StatInvertEffect effect)
+    {
+        if (!ChancePasses(effect.Chance))
+            return;
+        BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
+        BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
+        foreach (StatKind stat in AllStageSlots)
+            SetStage(recipient, recipientSide, stat, -recipient.Stage(stat));
+    }
+
+    private void SetStage(BattleCreature creature, BattleSide side, StatKind stat, int value)
+    {
+        if (creature.IsFainted)
+            return;
+        int before = creature.Stage(stat);
+        creature.SetStage(stat, value);
+        int delta = creature.Stage(stat) - before;
+        if (delta != 0)
+            _log.Add(new StatStageChanged(side, stat, delta));
+    }
+
+    private bool ChancePasses(int chance) => chance >= 100 || _rng.Next(100) < chance;
+
+    private static IEnumerable<(BattleCreature Creature, BattleSide Side)> StageRecipients(EffectContext ctx, StageEffectScope scope)
+    {
+        if (scope is StageEffectScope.Self or StageEffectScope.Both)
+            yield return (ctx.Source, ctx.SourceSide);
+        if (scope is StageEffectScope.Target or StageEffectScope.Both)
+            yield return (ctx.Target, ctx.TargetSide);
+    }
+
+    private static (BattleCreature Creature, BattleSide Side) StageRecipient(EffectContext ctx, StageEffectScope scope) =>
+        scope switch
+        {
+            StageEffectScope.Self => (ctx.Source, ctx.SourceSide),
+            StageEffectScope.Target => (ctx.Target, ctx.TargetSide),
+            _ => throw new ArgumentException("Stage copy endpoints must be self or target."),
+        };
+
+    private static IReadOnlyList<StatKind> SwapStats(StageSwapGroup group) => group switch
+    {
+        StageSwapGroup.All => AllStageSlots,
+        StageSwapGroup.Offense => OffenseStageStats,
+        StageSwapGroup.Defense => DefenseStageStats,
+        _ => throw new ArgumentException($"Unknown stage swap group '{group}'."),
+    };
 
     private void ApplyConfusion(EffectContext ctx, ConfusionEffect effect)
     {
@@ -682,6 +819,13 @@ public sealed class BattleController
             _log.Add(new Fainted(side));
     }
 
+    private void ApplyCrashRecoil(BattleCreature attacker, BattleSide side, BattleMove move)
+    {
+        if (move.Recoil is not { } crash || !move.RecoilOnMiss)
+            return;
+        Sap(attacker, side, EffectMath.CrashDamage(attacker.MaxHp, crash.Num, crash.Den), amt => new Recoiled(side, amt));
+    }
+
     /// <summary>Sap HP from a victim and heal it to a beneficiary — the shared "drain life" primitive
     /// behind Leech Seed (Absorb/Mega Drain use <see cref="Heal"/> against damage already dealt).</summary>
     private void DrainLife(BattleCreature victim, BattleSide victimSide, BattleCreature beneficiary, BattleSide beneficiarySide, int amount)
@@ -719,12 +863,27 @@ public sealed class BattleController
 
     private (int Dmg, bool Crit, double Eff) ComputeHit(BattleSide side, BattleCreature attacker, BattleCreature target, BattleMove move, int power)
     {
+        if (move.TargetHpThresholdPower is { } hpPower)
+            power = EffectMath.TargetHpThresholdPower(
+                power,
+                target.CurrentHp,
+                target.MaxHp,
+                hpPower.Threshold.Num,
+                hpPower.Threshold.Den,
+                hpPower.Multiplier.Num,
+                hpPower.Multiplier.Den);
+        if (move.HpRatioPower is { } ratioPower)
+        {
+            BattleCreature ratioSource = ratioPower.Source == HpRatioPowerSource.User ? attacker : target;
+            power = EffectMath.HpRatioPower(power, ratioSource.CurrentHp, ratioSource.MaxHp);
+        }
+
         bool physical = move.DamageClass == DamageClass.Physical;
         bool crit = BattleRolls.IsCrit(move.CritStage + attacker.CritStageBonus, _rng);
         int roll = BattleRolls.DamageRoll(_rng);
 
-        StatKind offStat = physical ? StatKind.Atk : StatKind.Spa;
-        StatKind defStat = physical ? StatKind.Def : StatKind.Spd;
+        StatKind offStat = move.OffensiveStatOverride ?? (physical ? StatKind.Atk : StatKind.Spa);
+        StatKind defStat = move.DefensiveStatOverride ?? (physical ? StatKind.Def : StatKind.Spd);
         int aStage = attacker.Stage(offStat);
         int dStage = target.Stage(defStat);
         if (crit)
@@ -734,9 +893,9 @@ public sealed class BattleController
         }
 
         int a = ModifiedBattleStat(side, side, offStat,
-            (int)((physical ? attacker.Stats.Atk : attacker.Stats.Spa) * StatStages.Multiplier(aStage)));
+            (int)(StatValue(attacker.Stats, offStat) * StatStages.Multiplier(aStage)));
         int d = ModifiedBattleStat(side, Opponent(side), defStat,
-            Math.Max(1, (int)((physical ? target.Stats.Def : target.Stats.Spd) * StatStages.Multiplier(dStage))));
+            Math.Max(1, (int)(StatValue(target.Stats, defStat) * StatStages.Multiplier(dStage))));
         double eff = _chart.Effectiveness(move.Type, target.Types);
         double stab = TypeChart.Stab(move.Type, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical;
@@ -746,6 +905,15 @@ public sealed class BattleController
         dmg = (int)(dmg * hooks * WeatherConditions.DamageMultiplier(_weather, move.Type.Slug)); // on_damage_query modifiers
         return (dmg, crit, eff);
     }
+
+    private static int StatValue(Stats stats, StatKind stat) => stat switch
+    {
+        StatKind.Atk => stats.Atk,
+        StatKind.Def => stats.Def,
+        StatKind.Spa => stats.Spa,
+        StatKind.Spd => stats.Spd,
+        _ => throw new ArgumentException($"Stat {stat} is not valid for damage calculation."),
+    };
 
     private IEnumerable<BattleHookSource> HookSources()
     {
@@ -833,6 +1001,8 @@ public sealed class BattleController
         StatKind.Spa => "spa",
         StatKind.Spd => "spd",
         StatKind.Spe => "spe",
+        StatKind.Accuracy => "accuracy",
+        StatKind.Evasion => "evasion",
         _ => stat.ToString().ToLowerInvariant(),
     };
 

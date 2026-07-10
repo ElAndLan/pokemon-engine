@@ -3,9 +3,10 @@
 Status: **Partial / implemented sections are binding.** Headless runtime helpers are written
 and tested (`FixedStepClock`, virtual resolution, camera, input state, scene stack, raw-folder
 `GameDb`, battle action menu, battle event presenter, exported config/pack boot, Runtime
-`--smoke`). The Silk.NET host loads exported `config.json`/`game.cgmpack` and renders a minimal
-battle showcase with GL clear/scissor rectangles. Full sprite-batch renderer, text/UI drawing,
-audio, and dev-mode project loading in the host are **not** implemented.
+`--smoke`). The Silk.NET host loads exported `config.json`/`game.cgmpack` and renders a playable
+showcase battle with GL clear/scissor rectangles plus a tiny built-in bitmap text drawer. Full
+sprite-batch renderer, asset-backed sprites, reusable UI kit, audio, and dev-mode project loading
+in the host are **not** implemented.
 
 ## Purpose
 The engine contract: loop timing, renderer boundary, virtual resolution, input mapping, scene
@@ -28,16 +29,19 @@ stack, UI kit primitives, audio, dev-mode data loading, and debug tooling.
 - **Scene stack**: `SceneStack<T>` — push/pop/replace/active; only the top scene is active.
 - **Data**: dev-mode `GameDb` = `ProjectLoader.Load(folder)` (Core, Phase 2).
 - **Battle action presentation**: `BattleScene` builds a player action menu from Core legality,
-  including eligible `ActivateForm(formId, moveIndex)` actions, submits selected actions to
-  `BattleController`, and presents `BattleEvent`s through `BattleEventPresenter`.
+  including moves, eligible `ActivateForm(formId, moveIndex)` actions, and legal party switches.
+  It submits selected actions to `BattleController`, presents `BattleEvent`s through
+  `BattleEventPresenter`, and exposes a render snapshot of active creatures, party HP, menu state,
+  recent log lines, and outcome.
 - **Exported boot/smoke**: `ExportedGameBoot` reads exported `config.json`, verifies the pack
   manifest/runtime version/content hash, loads the configured start map, initializes the showcase
   battle, and smoke-submits one legal action.
 - **Window wiring**: `RuntimeHost` still owns the Silk.NET loop and Esc-to-close behavior. When an
-  exported config exists beside the executable, it uses the exported window title/resolution and
-  draws a minimal nonblank battle showcase with clear/scissor rectangles.
+  exported config exists beside the executable, it uses the exported window title/resolution, maps
+  Up/Down/Confirm keyboard state into `InputState`, updates the showcase battle, and draws a
+  readable battle screen with clear/scissor rectangles and built-in bitmap text.
 
 ## Outline (later)
 
-Renderer (sprite batch, tilemap chunks) · UI kit text/menu drawing · Audio · Debug overlays ·
+Renderer (sprite batch, tilemap chunks) · reusable UI kit/menu drawing · Audio · Debug overlays ·
 dev-mode project loading in the host.

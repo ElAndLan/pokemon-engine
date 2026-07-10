@@ -39,6 +39,15 @@ public sealed class BattleRollsTests
     }
 
     [Theory]
+    [InlineData(50, 6, 0, 99, true)]
+    [InlineData(100, 0, 6, 50, false)]
+    [InlineData(100, -6, 6, 34, false)]
+    public void Hits_AppliesAccuracyAndEvasionStages(int accuracy, int accuracyStage, int evasionStage, int roll, bool expected)
+    {
+        Assert.Equal(expected, BattleRolls.Hits(accuracy, accuracyStage, evasionStage, new FakeRng(ints: [roll])));
+    }
+
+    [Theory]
     [InlineData(0, 1.0 / 16)]
     [InlineData(-3, 1.0 / 16)] // clamped low
     [InlineData(1, 1.0 / 8)]

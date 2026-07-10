@@ -25,4 +25,7 @@ public static class StatStages
         stage = Clamp(stage);
         return stage >= 0 ? (3.0 + stage) / 3.0 : 3.0 / (3 - stage);
     }
+
+    public static double AccuracyMultiplier(int accuracyStage, int evasionStage) =>
+        AccEvaMultiplier(Clamp(accuracyStage - evasionStage));
 }

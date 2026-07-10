@@ -32,7 +32,33 @@ statuses/hazards/weather/traps are `ConditionDef`s with scope + hooks (`on_turn_
 the shared dispatcher (`EffectContext` + `MoveEffect` records + `ApplyEffect`) and reusable
 primitives (`DamageCalc`, stage changes, `Heal`/`Sap`/`DrainLife`, `EffectMath`). Statuses,
 entry hazards, weather, traps, protect, force-switch, counter, charge, and rampage behavior are
-covered by the condition/effect machinery. No move should have bespoke resolver code.
+covered by the condition/effect machinery. Multiple `statStage` ops remain as ordered effects
+instead of collapsing to one stage change; `accuracy`/`evasion` stages use the existing
+accuracy/evasion stage table during hit checks. Authored `Move.Target` now survives compilation
+into `BattleMove`; in the current singles topology, `selected`, `all-opponents`, and
+`all-other-pokemon` resolve to the opposing active creature for existing damage/secondary logic,
+while ally, side-field, entire-field, and true multi-creature doubles resolution remain outside
+this slice. No move should have bespoke resolver code.
+
+**Singles active-target resolver.** `BattleTargetResolver.ResolveSinglesActiveCreatureSide`
+is the generic Core helper for current one-active-per-side battle topology. It accepts an authored
+`MoveTarget` plus the source side and returns the active creature side for creature-scoped effects:
+`user` resolves to the source active creature; `selected`, `all-opponents`, and `all-other-pokemon`
+resolve to the opposing active creature. `users-field` and `entire-field` are legal move scopes but
+are not active creature targets; callers must handle their field/side ops explicitly instead of
+pretending they select a creature. The helper emits no events and performs no battle mutation.
+Validation: every defined `MoveTarget` is classified; requesting an active creature side for a
+field scope throws an invalid-operation error; an unknown enum value throws an out-of-range error.
+Promotion rationale: spread-target aliases unblock single-battle exactness without adding
+move-name-specific branches or doubles topology.
+
+**Singles field-target scope.** `BattleTargetResolver.ResolveSinglesScope` classifies the same
+authored target into a generic scope before effect dispatch: `user`, `selected`, `all-opponents`,
+and `all-other-pokemon` are active-creature scopes; `users-field` is the source side scope; and
+`entire-field` is the whole battlefield scope. The helper emits no events and mutates no state.
+Validation: every defined `MoveTarget` must classify, and unknown enum values throw an
+out-of-range error. Promotion rationale: field-scoped effects such as weather can be expressed as
+field/side effects without requiring a fake active creature target or full doubles topology.
 
 ## Effect-op numeric formulas (Battle v5, Phase 14)
 
@@ -44,14 +70,69 @@ the ops and their tests are unambiguous. All damage/heal amounts are **≥1** un
 - **multiHit** — hits 2–5 times, Gen III/IV distribution: 2→3/8, 3→3/8, 4→1/8, 5→1/8. A fixed-N variant
   hits exactly N (params `{ min, max }` equal → fixed). Each hit rolls damage (and crit) independently.
 - **drain** — user heals `max(1, floor(damageDealt × num/den))` (default ½). No heal if 0 damage dealt.
-- **recoil** — user takes `max(1, floor(damageDealt × num/den))` (¼ or ⅓). `crashOnMiss`: on a **miss**,
-  the user instead takes `floor(maxHp × num/den)` crash damage (Gen IV: ½ maxHp), independent of drain.
+- **recoil** — user takes `max(1, floor(damageDealt × num/den))` (¼ or ⅓). `onMiss: true`: if the move
+  misses, is blocked by Protect, or has no effect, the user instead takes `floor(maxHp × num/den)` crash
+  damage (Gen IV: ½ maxHp), independent of drain.
 - **fixedDamage** — ignores the damage formula: `flat` deals exactly `params.amount`; `levelBased` deals
   the user's level (Night Shade / Seismic Toss). Type immunity still applies (checked by the resolver).
 - **ohko** — one-hit KO: accuracy = `userLevel − targetLevel + 30`, and the move **fails outright** if
   `targetLevel > userLevel` (accuracy 0). On hit, damage = target's current HP.
 - **healFraction** — user heals `max(1, floor(maxHp × num/den))` (default ½). (Weather-scaled variant is
   a later slot; v5 is the flat fraction.)
+- **ailment** — applies a persistent status or confusion. Params use `{ ailment }`; `{ status }` remains
+  accepted as a legacy alias for existing project data.
+- **statStageAll** — expands to five ordered `statStage` changes against Atk, Def, Spa, Spd, and Spe
+  (never HP, Accuracy, or Evasion). Params: `{ delta: int, onSelf?: bool }`, where `delta` is nonzero
+  and within -6..6. The chance gate belongs to the whole all-stat bundle: one chance roll decides
+  whether all five stage changes apply. Targeting follows `onSelf`, or defaults to self when
+  `Move.Target == user`; otherwise it targets the selected opposing active. Events are emitted in
+  Atk, Def, Spa, Spd, Spe order. Promotion rationale: this covers all-stat boost/drop archetypes
+  without requiring five authored effects with duplicated chance rolls.
+- **hpCost** — user pays `max(1, floor(maxHp * num/den))` before later authored effects. Params:
+  `{ num: int, den: int, allowFaint?: bool }`; `num` and `den` must be positive and `chance` is not
+  allowed. If `allowFaint` is false and the user has HP less than or equal to the cost, the move's later
+  effects do not resolve and no HP is paid. If `allowFaint` is true, the cost may faint the user and
+  later effects stop because the source fainted. Emits `HpCostPaid` when HP is paid.
+- **statStageReset** — resets stat stages to 0. Params: `{ scope: "self"|"target"|"both" }`. Affects all
+  seven stage slots: Atk, Def, Spa, Spd, Spe, Accuracy, and Evasion. Emits one `StatStageChanged` event
+  per changed slot, using the delta needed to return that slot to 0.
+- **statStageCopy** — copies all seven stage slots from one active creature to the other. Params:
+  `{ from: "self"|"target", to: "self"|"target" }`; `from` and `to` must differ. Emits one
+  `StatStageChanged` event per changed destination slot.
+- **statStageSwap** — swaps stage slots between the user and target. Params: `{ group?: "all"|"offense"|"defense" }`.
+  `all` means all seven stage slots, `offense` means Atk/Spa, and `defense` means Def/Spd. Emits one
+  `StatStageChanged` event for each changed side/stat.
+- **statStageInvert** — multiplies all seven stage slots by -1 for one active creature. Params:
+  `{ onSelf?: bool }`; targeting follows `onSelf`, or defaults to self when `Move.Target == user`, otherwise
+  target. Emits one `StatStageChanged` event per changed slot.
+  Promotion rationale: these helpers cover generic stage reset/copy/swap/invert and HP-cost setup moves
+  without per-move resolver branches. They intentionally do not cover average-actual-stat effects or
+  pass-stages-on-switch effects, which require separate stat overlay and switch-flow primitives.
+- **noBattleEffect** / **postBattleReward** — explicit no-op/reward markers for moves whose visible effect
+  is outside battle-state mutation. They compile successfully and emit no battle effect by themselves.
+- **weather** — sets battlefield weather. Params: `{ weather: "rain"|"sun"|"sandstorm"|"hail" }`;
+  `weather` is required, unknown params are rejected, and no events are emitted by the compiler. At
+  resolution the shared field-condition path emits `WeatherChanged` when the weather changes.
+- **damageStatOverride** — changes which battle stats feed the normal damage formula. Params:
+  `{ offensiveStat?: "atk"|"def"|"spa"|"spd", defensiveStat?: "def"|"spd" }`; at least one param is
+  required, `chance` is not allowed, and no events are emitted. The move's authored damage class still
+  controls physical/special bookkeeping, burn handling, and counter-style memory; this op only changes
+  the queried attacking/defending stat values before existing stage, hook, crit, weather, STAB, and type
+  logic run. Promotion rationale: this covers stat-query damage archetypes without forking
+  `DamageCalc` or adding per-move damage branches.
+- **targetHpThresholdPower** — multiplies base power when the active target's current HP is at or
+  below a max-HP fraction. Params: `{ thresholdNum: int, thresholdDen: int, multiplierNum: int,
+  multiplierDen: int }`; all values must be positive, `chance` is not allowed, unknown params are
+  rejected, and no events are emitted. The power query runs once per hit before `DamageCalc`; the
+  multiplied power is floored and clamped to at least 1. Promotion rationale: this covers
+  target-HP-threshold power archetypes through the normal damage formula without a move-name branch.
+- **hpRatioPower** — scales base power by a battler's current HP ratio. Params:
+  `{ source: "user"|"target" }`; `source` is required, `chance` is not allowed, unknown params are
+  rejected, and no events are emitted. The selected battler is the move user for `user` and the
+  active target for `target`. The power query runs once per hit before `DamageCalc` as
+  `max(1, floor(basePower * currentHp / maxHp))`; if the selected battler has no positive max HP,
+  base power is left unchanged. Promotion rationale: this covers HP-ratio base-power archetypes
+  through the normal damage formula without forking damage calculation or adding move-name branches.
 
 Rounding is floor throughout (matches Gen III/IV integer math and BATTLE_DAMAGE_CALC).
 

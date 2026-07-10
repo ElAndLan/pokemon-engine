@@ -15,7 +15,8 @@
   "learnset": [
     { "level": 1, "move": "move:leaf_jab" },
     { "level": 8, "move": "move:root_guard" },
-    { "level": 14, "move": "move:cinder_burst" }
+    { "level": 14, "move": "move:cinder_burst" },
+    { "level": 20, "move": "move:flare_break" }
   ],
   "evolutions": [],
   "abilities": [ "ability:rain_call", "ability:ember_veil" ],

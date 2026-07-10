@@ -85,6 +85,41 @@ public sealed class BattleV5OpTests
     }
 
     [Fact]
+    public void CrashOnFailure_HurtsAttackerWhenBlockedByProtect()
+    {
+        var jumpKick = new BattleMove(EntityId.Parse("move:jumpkick"), Normal, DamageClass.Physical, 100, 100, 25, 0, 0,
+            recoil: new Fraction(1, 2), recoilOnMiss: true);
+        var protect = new BattleMove(EntityId.Parse("move:protect"), Normal, DamageClass.Status, null, null, 25, priority: 4, 0,
+            isProtect: true);
+        var player = Fast(200, jumpKick);
+        var enemy = Slow(300, protect);
+
+        var events = new BattleController(player, enemy, Chart(), new Rng(1)).ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Contains(events, e => e is MoveBlocked { Side: BattleSide.Player });
+        Assert.Equal(100, player.CurrentHp);
+        Assert.Contains(events, e => e is Recoiled { Side: BattleSide.Player });
+    }
+
+    [Fact]
+    public void CrashOnFailure_HurtsAttackerWhenMoveHasNoEffect()
+    {
+        EntityId ghost = EntityId.Parse("type:ghost");
+        var chart = new TypeChart([new TypeDef { Id = Normal, NoDamageTo = [ghost] }, new TypeDef { Id = ghost }]);
+        var jumpKick = new BattleMove(EntityId.Parse("move:jumpkick"), Normal, DamageClass.Physical, 100, 100, 25, 0, 0,
+            recoil: new Fraction(1, 2), recoilOnMiss: true);
+        var player = Fast(200, jumpKick);
+        var enemy = new BattleCreature(EntityId.Parse("species:g"), "G", 50, [ghost],
+            new Stats(300, 100, 100, 100, 100, 1), [Inert()]);
+
+        var events = new BattleController(player, enemy, chart, new Rng(1)).ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Equal(300, enemy.CurrentHp);
+        Assert.Equal(100, player.CurrentHp);
+        Assert.Contains(events, e => e is Recoiled { Side: BattleSide.Player });
+    }
+
+    [Fact]
     public void Heal_RestoresUserHp()
     {
         var recover = new BattleMove(EntityId.Parse("move:recover"), Normal, DamageClass.Status, null, null, 25, 0, 0,

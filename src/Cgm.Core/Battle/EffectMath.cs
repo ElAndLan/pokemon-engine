@@ -45,8 +45,27 @@ public static class EffectMath
     /// <summary>HP restored by a fixed-fraction heal (default ½ maxHp), ≥1.</summary>
     public static int HealAmount(int maxHp, int num = 1, int den = 2) => Math.Max(1, maxHp * num / den);
 
+    public static int TargetHpThresholdPower(
+        int basePower,
+        int currentHp,
+        int maxHp,
+        int thresholdNum,
+        int thresholdDen,
+        int multiplierNum,
+        int multiplierDen)
+    {
+        if (maxHp <= 0)
+            return basePower;
+        return currentHp * thresholdDen <= maxHp * thresholdNum
+            ? Math.Max(1, basePower * multiplierNum / multiplierDen)
+            : basePower;
+    }
+
     /// <summary>Spikes-style entry-hazard damage on switch-in, scaling with layers: 1→1/8, 2→1/6,
     /// 3→1/4 of max HP (Gen III/IV). ≥1; 0 layers → no damage.</summary>
+    public static int HpRatioPower(int basePower, int currentHp, int maxHp) =>
+        maxHp <= 0 ? basePower : Math.Max(1, basePower * currentHp / maxHp);
+
     public static int HazardDamage(int maxHp, int layers) => layers switch
     {
         1 => Math.Max(1, maxHp / 8),

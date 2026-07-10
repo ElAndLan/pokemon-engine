@@ -167,6 +167,17 @@ public sealed class BattleSceneTests
     }
 
     [Fact]
+    public void Menu_ListsLegalSwitchesAfterMoveAndFormActions()
+    {
+        var scene = new BattleScene(TimedFormBattle(), _ => new UseMove(0),
+            [new BattleFormChoice("giant", 0)], id => id.Slug);
+
+        Assert.IsType<UseMove>(scene.Menu[0].Action);
+        Assert.IsType<ActivateForm>(scene.Menu[1].Action);
+        Assert.Contains(scene.Menu, i => i.Action is Switch { PartyIndex: 1 });
+    }
+
+    [Fact]
     public void Confirm_SubmitsActivateFormAndPresentsFormChanged()
     {
         var scene = new BattleScene(TimedFormBattle(), _ => new UseMove(0),
@@ -179,6 +190,37 @@ public sealed class BattleSceneTests
         scene.Update(input);
 
         Assert.Contains(scene.Presented, line => line == "Player changed form to giant");
+    }
+
+    [Fact]
+    public void SelectingSwitchSubmitsSwitchAndPresentsSwitchedIn()
+    {
+        var scene = new BattleScene(TimedFormBattle(), _ => new UseMove(0),
+            [new BattleFormChoice("giant", 0)]);
+
+        BattleMenuItem switchItem = scene.Menu.Single(i => i.Action is Switch { PartyIndex: 1 });
+        scene.Submit(switchItem.Action);
+
+        Assert.Contains(scene.Events, e => e is SwitchedIn { Side: BattleSide.Player, PartyIndex: 1 });
+        Assert.Contains(scene.Presented, line => line == "Player switched in");
+    }
+
+    [Fact]
+    public void Snapshot_ExposesHpMenuLogPartyAndOutcome()
+    {
+        var scene = new BattleScene(TimedFormBattle(), _ => new UseMove(0),
+            [new BattleFormChoice("giant", 0)], id => id.Slug);
+
+        BattleSceneSnapshot before = scene.Snapshot();
+        Assert.Equal("flareling", before.PlayerName);
+        Assert.True(before.PlayerHp > 0);
+        Assert.Equal(2, before.PlayerParty.Count);
+        Assert.Contains(before.Menu, i => i.Action is ActivateForm);
+        Assert.Null(before.Outcome);
+
+        scene.Submit(new ActivateForm("giant", 0));
+        BattleSceneSnapshot after = scene.Snapshot();
+        Assert.Contains(after.RecentLog, line => line.Contains("changed form"));
     }
 
     private static BattleController TimedFormBattle()
@@ -237,6 +279,13 @@ public sealed class BattleSceneTests
             CurHp = 120,
             Moves = [new MoveSlot(MoveA, 10)],
         }, db);
+        var reserve = BattleCreature.FromInstance(new CreatureInstance
+        {
+            Species = SpeciesA,
+            Level = 50,
+            CurHp = 120,
+            Moves = [new MoveSlot(MoveA, 10)],
+        }, db);
         var enemy = BattleCreature.FromInstance(new CreatureInstance
         {
             Species = SpeciesB,
@@ -245,7 +294,7 @@ public sealed class BattleSceneTests
             Moves = [new MoveSlot(MoveA, 10)],
         }, db);
 
-        return new BattleController(player, enemy, new TypeChart([new TypeDef { Id = Normal }]), new Rng(1));
+        return new BattleController([player, reserve], [enemy], new TypeChart([new TypeDef { Id = Normal }]), new Rng(1));
     }
 }
 
@@ -270,6 +319,9 @@ public sealed class ExportedGameBootTests : IDisposable
         Assert.Equal("Demo Game", game.Config.GameName);
         Assert.Equal(EntityId.Parse("map:showcase_room"), game.StartMap.Id);
         Assert.Contains(game.ShowcaseBattle.Menu, i => i.Action is ActivateForm);
+        Assert.Contains(game.ShowcaseBattle.Menu, i => i.Action is Switch);
+        Assert.Equal(3, game.ShowcaseBattle.Snapshot().PlayerParty.Count);
+        Assert.Equal(3, game.ShowcaseBattle.Snapshot().EnemyParty.Count);
     }
 
     [Fact]
@@ -279,6 +331,25 @@ public sealed class ExportedGameBootTests : IDisposable
         Exporter.ExportData(project, new ExportOptions(), _out);
 
         ExportedGameBoot.Smoke(_out);
+    }
+
+    [Fact]
+    public void ShowcaseScript_ProducesPhase15DemoEvents()
+    {
+        Project project = ProjectLoader.Load(Sample("demo-game"));
+        Exporter.ExportData(project, new ExportOptions(), _out);
+        BattleScene scene = ExportedGameBoot.Load(_out).ShowcaseBattle;
+
+        scene.Submit(new ActivateForm("bloom_guard", 0));
+        scene.Submit(new Switch(2));
+        for (int i = 0; i < 8 && scene.Snapshot().Outcome is null; i++)
+            scene.Submit(scene.Menu.First(i => i.Action is UseMove).Action);
+
+        Assert.Contains(scene.Events, e => e is WeatherChanged);
+        Assert.Contains(scene.Events, e => e is FormChanged { FormId: "bloom_guard" });
+        Assert.Contains(scene.Events, e => e is SwitchedIn { Side: BattleSide.Player });
+        Assert.Contains(scene.Events, e => e is HeldItemConsumed { Op: "surviveFromFull" });
+        Assert.Contains(scene.Events, e => e is BattleEnded);
     }
 
     private static string Sample(string name) => Path.Combine(RepoRoot(), "samples", name);

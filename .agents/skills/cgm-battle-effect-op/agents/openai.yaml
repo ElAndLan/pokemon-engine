@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Battle Effect Op"
+  short_description: "Implement battle move effects as data-driven ops."
+  default_prompt: "Use cgm-battle-effect-op before changing battle effects, move compilation, statuses, hazards, weather, or BattleController resolution."

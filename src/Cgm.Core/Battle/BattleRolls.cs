@@ -9,6 +9,9 @@ public static class BattleRolls
     /// <summary>Null accuracy (e.g. Swift) always hits; otherwise a d100 under the accuracy value.</summary>
     public static bool Hits(int? accuracy, IRng rng) => accuracy is not int acc || rng.Next(100) < acc;
 
+    public static bool Hits(int? accuracy, int accuracyStage, int evasionStage, IRng rng) =>
+        accuracy is not int acc || rng.Next(100) < acc * StatStages.AccuracyMultiplier(accuracyStage, evasionStage);
+
     /// <summary>Gen III/IV crit chance by stage: 1/16, 1/8, 1/4, 1/3, then 1/2.</summary>
     public static double CritChance(int stage) => stage switch
     {

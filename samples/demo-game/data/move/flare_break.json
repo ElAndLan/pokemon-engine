@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 3,
+  "id": "move:flare_break",
+  "name": "Flare Break",
+  "type": "type:fire",
+  "damageClass": "special",
+  "power": 1,
+  "accuracy": 100,
+  "pp": 5,
+  "priority": 0,
+  "critStage": 0,
+  "target": "selected",
+  "effects": [ { "op": "fixedDamage", "params": { "amount": 999 } } ]
+}

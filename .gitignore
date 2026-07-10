@@ -7,6 +7,7 @@ obj/
 .vs/
 artifacts/
 *.binlog
+TestResults/
 
 # Project-specific (per docs/ARCHITECTURE_ADDENDUM.md §5)
 exports/

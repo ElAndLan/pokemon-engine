@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Review Pass"
+  short_description: "Review CGM changes for correctness, scope, and spec drift."
+  default_prompt: "Use cgm-review-pass to review Creature Game Maker changes, phase gates, PRs, or suspected spec drift."

@@ -14,6 +14,9 @@ public abstract record MoveEffect
     public int Chance { get; init; } = 100;
 }
 
+public enum StageEffectScope { Self, Target, Both }
+public enum StageSwapGroup { All, Offense, Defense }
+
 /// <summary>apply_condition(persistent status) — burn/poison/paralysis/… on the target.</summary>
 public sealed record AilmentEffect(PersistentStatus Status) : MoveEffect;
 
@@ -22,6 +25,24 @@ public sealed record ConfusionEffect : MoveEffect;
 
 /// <summary>modify_stat_stage on the user (<paramref name="OnSelf"/>) or target.</summary>
 public sealed record StatChangeEffect(StatKind Stat, int Delta, bool OnSelf) : MoveEffect;
+
+/// <summary>modify_stat_stage bundle for Atk/Def/SpA/SpD/Spe. One chance roll gates the whole bundle.</summary>
+public sealed record StatChangeAllEffect(int Delta, bool OnSelf) : MoveEffect;
+
+/// <summary>pay_cost(percent_max_hp) before later authored effects.</summary>
+public sealed record HpCostEffect(Fraction Fraction, bool AllowFaint) : MoveEffect;
+
+/// <summary>reset_stat_stages over self, target, or both active creatures.</summary>
+public sealed record StatResetEffect(StageEffectScope Scope) : MoveEffect;
+
+/// <summary>copy_stat_stages between active creatures.</summary>
+public sealed record StatCopyEffect(StageEffectScope From, StageEffectScope To) : MoveEffect;
+
+/// <summary>swap_stat_stages between active creatures.</summary>
+public sealed record StatSwapEffect(StageSwapGroup Group) : MoveEffect;
+
+/// <summary>invert_stat_stages on the user or target.</summary>
+public sealed record StatInvertEffect(bool OnSelf) : MoveEffect;
 
 /// <summary>apply_condition(volatile:flinch) on the target.</summary>
 public sealed record FlinchEffect : MoveEffect;

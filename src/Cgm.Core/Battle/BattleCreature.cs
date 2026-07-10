@@ -5,8 +5,15 @@ namespace Cgm.Core.Battle;
 /// <summary>A stat-stage change a move applies — to the user or the target, at a given chance.</summary>
 public sealed record StageEffect(StatKind Stat, int Delta, bool OnSelf, int Chance);
 
+/// <summary>A chance-gated all-stat stage bundle. It expands to Atk/Def/SpA/SpD/Spe at resolution time.</summary>
+public sealed record StageAllEffect(int Delta, bool OnSelf, int Chance);
+
 /// <summary>A rational fraction (num/den) for drain/recoil/heal effect amounts.</summary>
 public readonly record struct Fraction(int Num, int Den);
+
+public sealed record TargetHpThresholdPower(Fraction Threshold, Fraction Multiplier);
+public enum HpRatioPowerSource { User, Target }
+public sealed record HpRatioPower(HpRatioPowerSource Source);
 
 /// <summary>A move as it exists in battle: static data + remaining PP (BATTLE_SYSTEM_SPEC).</summary>
 public sealed class BattleMove
@@ -22,7 +29,11 @@ public sealed class BattleMove
         Weather setsWeather = Weather.None, bool setsStealthRock = false, bool binds = false,
         bool isProtect = false, bool forcesSwitch = false,
         DamageClass? counterCategory = null, bool bypassAccuracy = false, bool chargeTurn = false,
-        bool multiTurnLock = false, bool makesContact = false)
+        bool multiTurnLock = false, bool makesContact = false, IReadOnlyList<StageEffect>? stageEffects = null,
+        MoveTarget target = MoveTarget.Selected, StageAllEffect? stageAllEffect = null,
+        IReadOnlyList<MoveEffect>? secondaryEffects = null,
+        StatKind? offensiveStatOverride = null, StatKind? defensiveStatOverride = null,
+        TargetHpThresholdPower? targetHpThresholdPower = null, HpRatioPower? hpRatioPower = null)
     {
         Move = move;
         Type = type;
@@ -34,7 +45,9 @@ public sealed class BattleMove
         CritStage = critStage;
         Ailment = ailment;
         AilmentChance = ailmentChance;
-        StageEffect = stageEffect;
+        StageEffects = stageEffects ?? (stageEffect is { } singleStage ? [singleStage] : []);
+        StageEffect = StageEffects.FirstOrDefault();
+        StageAllEffect = stageAllEffect;
         ConfuseChance = confuseChance;
         FlinchChance = flinchChance;
         Drain = drain;
@@ -60,7 +73,12 @@ public sealed class BattleMove
         ChargeTurn = chargeTurn;
         MultiTurnLock = multiTurnLock;
         MakesContact = makesContact;
-        SecondaryEffects = BuildSecondaryEffects();
+        Target = target;
+        OffensiveStatOverride = offensiveStatOverride;
+        DefensiveStatOverride = defensiveStatOverride;
+        TargetHpThresholdPower = targetHpThresholdPower;
+        HpRatioPower = hpRatioPower;
+        SecondaryEffects = secondaryEffects ?? BuildSecondaryEffects();
     }
 
     private BattleMove(BattleMove source, int pp, int maxPp)
@@ -76,7 +94,9 @@ public sealed class BattleMove
         CritStage = source.CritStage;
         Ailment = source.Ailment;
         AilmentChance = source.AilmentChance;
+        StageEffects = source.StageEffects;
         StageEffect = source.StageEffect;
+        StageAllEffect = source.StageAllEffect;
         ConfuseChance = source.ConfuseChance;
         FlinchChance = source.FlinchChance;
         Drain = source.Drain;
@@ -102,6 +122,11 @@ public sealed class BattleMove
         ChargeTurn = source.ChargeTurn;
         MultiTurnLock = source.MultiTurnLock;
         MakesContact = source.MakesContact;
+        Target = source.Target;
+        OffensiveStatOverride = source.OffensiveStatOverride;
+        DefensiveStatOverride = source.DefensiveStatOverride;
+        TargetHpThresholdPower = source.TargetHpThresholdPower;
+        HpRatioPower = source.HpRatioPower;
         SecondaryEffects = source.SecondaryEffects;
     }
 
@@ -115,8 +140,10 @@ public sealed class BattleMove
         // Chance-gated target effects (historical order: ailment, stat stage, confusion, flinch).
         if (Ailment is { } ail && AilmentChance > 0)
             effects.Add(new AilmentEffect(ail) { Chance = AilmentChance });
-        if (StageEffect is { } st && st.Chance > 0)
+        foreach (StageEffect st in StageEffects.Where(st => st.Chance > 0))
             effects.Add(new StatChangeEffect(st.Stat, st.Delta, st.OnSelf) { Chance = st.Chance });
+        if (StageAllEffect is { Chance: > 0 } all)
+            effects.Add(new StatChangeAllEffect(all.Delta, all.OnSelf) { Chance = all.Chance });
         if (ConfuseChance > 0)
             effects.Add(new ConfusionEffect { Chance = ConfuseChance });
         if (FlinchChance > 0)
@@ -164,6 +191,8 @@ public sealed class BattleMove
     public PersistentStatus? Ailment { get; }
     public int AilmentChance { get; }
     public StageEffect? StageEffect { get; }
+    public IReadOnlyList<StageEffect> StageEffects { get; }
+    public StageAllEffect? StageAllEffect { get; }
     public int ConfuseChance { get; }
     public int FlinchChance { get; }
 
@@ -224,6 +253,11 @@ public sealed class BattleMove
     /// <summary>Thrash/Outrage — locks the user into this move for 2–3 turns, then self-confuses (catalog §9.3).</summary>
     public bool MultiTurnLock { get; }
     public bool MakesContact { get; }
+    public MoveTarget Target { get; }
+    public StatKind? OffensiveStatOverride { get; }
+    public StatKind? DefensiveStatOverride { get; }
+    public TargetHpThresholdPower? TargetHpThresholdPower { get; }
+    public HpRatioPower? HpRatioPower { get; }
 
     public bool HasPp => Pp > 0;
     public void UsePp() => Pp = Math.Max(0, Pp - 1);
@@ -320,7 +354,7 @@ public sealed class BattleCreature
     public bool IsLocked => LockTurns > 0;
     public int? ChoiceLockedMoveIndex { get; private set; }
 
-    private readonly int[] _stages = new int[5]; // atk, def, spa, spd, spe
+    private readonly int[] _stages = new int[7]; // atk, def, spa, spd, spe, accuracy, evasion
     private readonly HashSet<string> _consumedHeldEffects = [];
     private readonly Stats _baseStats;
     private readonly IReadOnlyList<EntityId> _baseTypes;
@@ -536,6 +570,8 @@ public sealed class BattleCreature
 
     public int Stage(StatKind stat) => _stages[StageIndex(stat)];
 
+    public void SetStage(StatKind stat, int value) => _stages[StageIndex(stat)] = StatStages.Clamp(value);
+
     public void ChangeStage(StatKind stat, int delta)
     {
         int i = StageIndex(stat);
@@ -603,6 +639,8 @@ public sealed class BattleCreature
         StatKind.Spa => 2,
         StatKind.Spd => 3,
         StatKind.Spe => 4,
+        StatKind.Accuracy => 5,
+        StatKind.Evasion => 6,
         _ => throw new ArgumentOutOfRangeException(nameof(stat), "HP has no stat stage."),
     };
 

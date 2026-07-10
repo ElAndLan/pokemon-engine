@@ -40,7 +40,7 @@ Conventions used below:
 | 12 | Export Pipeline | 2–3 wk | **In progress** — atlas packer (v5) + `.cgmpack` binary + GameDb pack-vs-folder unity test done, EXPORT/ASSET specs written (531 tests). Codec = stdlib Deflate (no new dep). config.json gen + `Exporter` (validate-gate → pack + config) + `Cgm.Tools export` CLI done, verified end-to-end (544 tests). Remaining: runtime template build, icon patching, export UI, smoke test (build/CI/VM-dependent) |
 | 13 | Vertical Slice & Demo Game | 4 wk (timeboxed) | **Core rules complete (620 tests)** — evolution trigger matrix, happiness (bracketed Gen rates), day/night clock, creature-center recovery, trigger/door-lock condition eval (badge gating), time-conditional encounters, animation-template clip helper, options settings + persistence. Remaining items are display/asset/integration-bound: audio playback (OpenAL), demo-game original assets, evolution/battle scenes, UI screens, input-replay integration test — need the user's machine + original art/audio. Audio crossfade helper deferred (would be a speculative fragment without the audio system). |
 | 14 | Advanced Battle Effects & Smart AI (v5) | 4 wk | **Verified Core baseline (785 tests, 2026-07-09)** - v5 effect-op palette complete in Core; smart AI dispatch, score tables, memory, finite trainer healing items, bounded switching, hazard-aware/relative switch scoring, minimal repeated-move prediction, and AI-vs-AI deterministic smoke are implemented and tested. Smart-vs-Basic baseline is **69.0% @400** with Smart-vs-Smart side balance **49.2%**. Full tuning is deferred until Phase 15+ mechanics exist; display/debug-console score-table integration moves to presentation/debug tooling. |
-| 15 | Abilities, Held Items, Weather & Forms (v6) | 4-6 wk | **Audit no-go / not closeable (861 tests)** - Core v6 hooks/forms, Creator authoring support, sample showcase data, export template-copy, Runtime `--smoke`, exported config/pack loading, and minimal rendered battle silhouette are green. Blocker: the Addendum v6 done gate requires a Mega-style showcase fight in the demo; current coverage is data + smoke + rectangles, not a real demo showcase fight. |
+| 15 | Abilities, Held Items, Weather & Forms (v6) | 4-6 wk | **Ready for exit review (865 tests)** - Core v6 hooks/forms, Creator authoring support, sample showcase data, export template-copy, Runtime `--smoke`, exported config/pack loading, and the playable/readable exported 3v3 showcase fight are green. Remaining gate: focused Phase 15 closeout audit/review. |
 | 16 | World Depth & Eventing | 4–6 wk | Blocked on 13 |
 | 17 | Creator at Scale & Data Import | 3–4 wk | Blocked on 13 |
 | 18 | Presentation Polish | 3–4 wk | Blocked on 15+16 |
@@ -58,10 +58,10 @@ memory, and switch cooldown coverage. As of 2026-07-09, Phase 14 is accepted as 
 baseline (785 tests); full AI tuning is deferred until Phase 15+ mechanics exist.
 
 Do not treat display-dependent work as done: Runtime is a minimal Silk.NET host with headless
-helpers and a nonblank rectangle battle silhouette, not a rendered playable runtime; Creator
+helpers and a readable exported showcase battle, not a full sprite-backed runtime; Creator
 canvas/editor screens remain deferred where noted; export can copy a local runtime template and run
 `--smoke`, but icon/metadata patching, Creator export UI, CI self-contained templates, clean-VM
-testing, and a real demo showcase fight remain open.
+testing, and presentation polish remain open.
 
 ---
 
@@ -1761,6 +1761,33 @@ tests\Cgm.Runtime.Tests\Cgm.Runtime.Tests.csproj --no-build --filter
 src\Cgm.Tools -- export samples\demo-game <temp>` (wrote `Demo Game.exe`, `game.cgmpack`, and
 `config.json`), exported `Demo Game.exe --smoke` (passed), and `D:\dotnet\dotnet.exe test
 CreatureGameMaker.slnx --no-build` (861 passing tests). Next slice: Phase 15 exit review.
+
+Update (2026-07-09, part 34): resolved the real demo showcase fight blocker. Changed files:
+`docs/ENGINE_RUNTIME_SPEC.md`, `docs/SCOPE_GUARD.md`,
+`src/Cgm.Core/Battle/BattleController.cs`, `src/Cgm.Runtime/RuntimeHost.cs`,
+`src/Cgm.Runtime/Engine/BattleScene.cs`, `src/Cgm.Runtime/Engine/ExportedGameBoot.cs`,
+`samples/demo-game/data/move/flare_break.json`,
+`samples/demo-game/data/species/asterling.json`,
+`samples/demo-game/data/trainer/expert_rematch_mira.json`,
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`,
+`tests/Cgm.Runtime.Tests/EngineTests.cs`, and this plan. Behavior covered: the exported demo now
+boots directly into a curated 3v3 Mira showcase battle with a user-controlled flat menu for legal
+moves, legal form activations, and legal switches; Smart AI chooses enemy actions from Core battle
+state; Runtime maps keyboard Up/Down/Confirm into `InputState`, updates the battle scene, and
+renders HP bars, party pips, selected menu, recent event log, and outcome text with GL
+clear/scissor rectangles plus a tiny built-in bitmap font. The scripted demo path proves weather,
+form change, switch, held-item consumption, and battle end events. This remains intentionally
+below presentation polish: no sprite batch, asset-backed battle sprites, Bag/Run, capture,
+overworld intro, audio, save/load, or reusable UI kit were added. Tests run:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` (green),
+`D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj --no-build --filter
+"FullyQualifiedName~DemoGame_HasPhase15ShowcaseContent"` (1 passed),
+`D:\dotnet\dotnet.exe test tests\Cgm.Runtime.Tests\Cgm.Runtime.Tests.csproj --no-build --filter
+"FullyQualifiedName~BattleSceneTests|FullyQualifiedName~ExportedGameBootTests"` (8 passed),
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (865 passing tests),
+`D:\dotnet\dotnet.exe run --project src\Cgm.Tools -- export samples\demo-game <temp>` (wrote
+`Demo Game.exe`, `game.cgmpack`, and `config.json` with no validation issues), and exported
+`Demo Game.exe --smoke` (passed). Next slice: Phase 15 exit review/closeout audit.
 ### Phase 15 remaining work priority queue (2026-07-09 audit)
 
 The Core v6 work is green but Phase 15 is not done. Work this list in order; each item must be
@@ -1795,13 +1822,13 @@ the smallest spec-complete slice, with build/test green and this section updated
 8. **DONE - Export/smoke verification.** `templates/.gitkeep` now keeps the template location
    present, `Exporter` can copy and rename a runtime template folder, `Cgm.Tools export` defaults to
    a found template or local built Runtime output, Runtime supports `--smoke`, and the Silk.NET host
-   loads exported `config.json`/`game.cgmpack` and renders a minimal battle showcase. Verified with
+   loads exported `config.json`/`game.cgmpack` and renders the showcase battle. Verified with
    `samples/demo-game` exported to a temp folder, then the exported `Demo Game.exe --smoke` path.
-9. **BLOCKED - Real demo showcase fight.** Addendum v6 says Phase 15 is done when a Mega-style
-   showcase fight exists in the demo. The current sample data and smoke battle prove load/action
-   plumbing only; they do not provide a playable/rendered demo fight with real battle presentation.
-   Build the smallest real showcase path before closeout.
-10. **NEXT AFTER BLOCKER - Phase 15 exit review.** Run a focused review against the full Phase 15
+9. **DONE - Real demo showcase fight.** Addendum v6 says Phase 15 is done when a Mega-style
+   showcase fight exists in the demo. The exported demo now boots into a curated, user-controlled
+   3v3 battle against Smart AI with readable HP bars, party summary, flat move/form/switch menu,
+   event log, forms, weather, held-item firing, switching, fainting, and battle end coverage.
+10. **NEXT - Phase 15 exit review.** Run a focused review against the full Phase 15
    deliverables and log the outcome in Review Outcomes. Only then advance `SCOPE_GUARD.md`/Status
    Board beyond Phase 15.
 

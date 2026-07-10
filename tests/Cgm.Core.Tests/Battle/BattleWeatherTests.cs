@@ -1,5 +1,6 @@
 using Cgm.Core.Battle;
 using Cgm.Core.Model;
+using System.Text.Json;
 
 namespace Cgm.Core.Tests.Battle;
 
@@ -26,6 +27,24 @@ public sealed class BattleWeatherTests
     private static BattleMove SandMove() =>
         new(EntityId.Parse("move:sandstorm"), Normal, DamageClass.Status, null, null, 25, 0, 0, setsWeather: Weather.Sandstorm);
 
+    private static Effect Op(string op, params (string Key, object Value)[] ps)
+    {
+        var dict = ps.ToDictionary(p => p.Key, p => JsonSerializer.SerializeToElement(p.Value));
+        return new Effect { Op = op, Params = dict.Count == 0 ? null : dict };
+    }
+
+    private static BattleMove FieldWeatherMove(Weather weather) => MoveCompiler.ToBattleMove(new Move
+    {
+        Id = EntityId.Parse("move:field_weather"),
+        Name = "Field Weather",
+        Type = Normal,
+        DamageClass = DamageClass.Status,
+        Accuracy = null,
+        Pp = 25,
+        Target = MoveTarget.EntireField,
+        Effects = [Op("weather", ("weather", weather.ToString().ToLowerInvariant()))],
+    });
+
     private static BattleCreature Fast(IReadOnlyList<EntityId> types, int hp, params BattleMove[] moves) =>
         new(EntityId.Parse("species:f"), "F", 50, types, new Stats(hp, 100, 100, 100, 100, 100), moves);
 
@@ -39,6 +58,16 @@ public sealed class BattleWeatherTests
         var enemy = Slow([Normal], 300, Inert());
         var events = new BattleController(player, enemy, Chart(), new Rng(1)).ResolveTurn(new UseMove(0), new UseMove(0));
         Assert.Contains(events, e => e is WeatherChanged { Weather: Weather.Rain });
+    }
+
+    [Fact]
+    public void EntireFieldWeatherTarget_SetsWeather()
+    {
+        var player = Fast([Normal], 300, FieldWeatherMove(Weather.Sun));
+        var enemy = Slow([Normal], 300, Inert());
+        var events = new BattleController(player, enemy, Chart(), new Rng(1)).ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Contains(events, e => e is WeatherChanged { Weather: Weather.Sun });
     }
 
     [Fact]
