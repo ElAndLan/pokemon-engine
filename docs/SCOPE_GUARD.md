@@ -1,78 +1,104 @@
-# SCOPE_GUARD.md
+# SCOPE_GUARD — Binding Scope Law
 
-Binding scope law for Creature Game Maker. Read before accepting any task.
-Source of authority: ARCHITECTURE_ADDENDUM.md §3 (wins over MASTER_PLAN.md).
+Version 3.0 — 2026-07-10
+
+Source of current phase truth: `IMPLEMENTATION_PLAN.md` v3. Architecture decisions remain in
+`ARCHITECTURE_ADDENDUM.md`; older phase assignments there are superseded by the explicit
+2026-07-10 user-directed rebase.
 
 ## Current phase
 
-**Phase: 15 - Abilities, Held Items, Weather & Forms.** Phase 14 is verified as a Core baseline, not final-tuned. Phases 0-13 are implemented
-mostly as headless/Core logic, with many display-dependent pieces still deferred. Current Core
-work now includes the complete v5 effect palette plus the Phase 14 smart-AI Core slice:
-`TrainerAi` profile dispatch, smart move/switch action selection, named score tables, seen-move
-memory, status/setup/hazard/protect/force-switch/recovery/item scoring, finite trainer healing item actions, switch cooldown tests,
-table-driven decision-branch fringe tests, `TrainerAi` profile-dispatch routing tests, multi-hit per-hit crit-independence coverage, a seeded AI-vs-AI integration smoke (termination + per-seed determinism), item-interaction fringes (KO-over-heal, strongest-item), in-battle item path (bench-heal, no-overheal cap), and a mirror-match difficulty measurement harness (785 tests locally). Smart-vs-Basic mirror win rate tuned from 53.5% → 58.8% @400 (NoiseFraction 0.10→0.05); weight-tuning against greedy Basic is at its ceiling. Benchmark teams then ENRICHED (4 mons; hazards/priority/protect/force-switch/setup/status/recover): Smart-vs-Basic = 52.5% @400 — the full toolkit exposed that a non-switching opponent can't fairly value hazards/force-switch (cutting them "gains" but overfits; setup is validated — cutting it drops to 42%). Self-play tuning then found the big lever: **`SwitchThreshold` 35→50** (default over-switched into hazards/priority because switch scoring is hazard-blind) — Smart-vs-Basic 52.5% → **69.0% @400**, and beats the old behavior ~83% in self-play. Setup validated/kept. Hazard-aware switch scoring added (controller exposes hazard state → SmartAiContext → switch value subtracts expected switch-in damage; unit-tested). Phase 14 is verified for now; full tuning is deferred until Phase 15+ mechanics exist.
-2026-07-09 note: switch scoring now gates on relative gain over staying, then adds that gain to the
-best stay/move baseline for final ranking. Default `SwitchThreshold` is 100 after the corrected
-relative formula over-switched at 35.
+**Phase 15 — Complete Core Game Logic and Move Conformance**
 
-2026-07-09 verification note: Phase 14 is accepted for now with 785 passing tests, Smart-vs-Basic
-at 69.0% @400, and Smart-vs-Smart side balance at 49.2%. Further AI tuning is deferred until
-Phase 15+ battle mechanics are available; display/debug-console score-table integration is
-presentation work and not a Phase 14 gate.
+Starting baseline:
 
-2026-07-09 Phase 15 demo-showcase note: Core v6 hook/form work, minimal Creator authoring
-surfaces, sample showcase data, standalone export template-copy, Runtime `--smoke`, exported
-config/pack loading, and the playable/readable exported 3v3 showcase fight are green at 865 tests.
-Use `docs/IMPLEMENTATION_PLAN.md` -> "Phase 15 remaining work priority queue" as the authoritative
-next-work order; the next unfinished item is the Phase 15 exit review/closeout audit.
+- 937 move JSON files in `docs/pokeapi-results/move/`.
+- Legacy expressibility audit: 468 PASS / 469 FAIL.
+- Phase 15A manifest: 937/937 inventory-only, corpus digest
+  `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
+- Strict end-to-end conformance certification: 0/937; Phase 15A is complete and Phase 15B is next.
+- Core v0–v6 foundations and 946 tests exist, but the mechanic surface is not complete.
 
-## The rule
+Phase 15 ends only when all 937 moves validate, compile, and behave correctly in every required
+context with reusable data-driven primitives and zero unsupported entries.
 
-If a task is not in the current phase's deliverables (MASTER_PLAN.md §15 +
-ARCHITECTURE_ADDENDUM.md §4), it is not built — regardless of how small, how "almost
-free," or how enthusiastic anyone is. It goes to the Idea Ledger below instead.
+## Scope decision recorded
 
-"Stubbing it out for later," "adding the field now to save time," and "it was easier to
-just implement it" are all violations, not shortcuts. The one sanctioned placeholder is
-the empty `forms[]` array in the species schema.
+On 2026-07-10 the user explicitly replaced two older scope assumptions:
 
-## Never (non-goals — do not ledger these, refuse them)
+1. “Full official move coverage is retired” is no longer true for Core mechanics testing.
+2. Doubles Core topology is no longer post-1.0 when a corpus move requires ally, spread,
+   redirection, multi-slot, or doubles-only behavior.
 
-- Any existing game engine/framework (Unity, Godot, Unreal, MonoGame, Raylib, FNA, …)
-- Shipping official Pokemon assets/names/cries/music/maps in any artifact incl. tests
-- Multiplayer, netcode, real trading (trade evolutions = NPC/flag mechanism)
-- 3D, general-purpose engine features, plugin API pre-1.0, user-facing scripting language
-- Mobile/console export, in-app asset marketplace
+This permits Core mechanics needed for complete move conformance. It does **not** permit official
+content in shipped games or expand the project into multiplayer/netcode.
 
-## Deferred (each has a designated layer — build ONLY at that layer)
+## Allowed in Phase 15
 
-Phase assignments are authoritative in IMPLEMENTATION_PLAN.md; this table mirrors it.
+- Core effect primitives, queries, conditions, targets, queues, ruleset policies, events, traces,
+  battle topology, singles/doubles resolution, move references, snapshot overlays, switch flow,
+  damage memory, and mutation helpers required by at least one corpus move.
+- Core ability/held-item/weather/terrain/form interactions required by move correctness.
+- Core overworld/reward actions when a move has a real non-battle effect.
+- Strict validation, compiler mappings, deterministic tests, goldens, fuzz/property tests, and
+  local audit tooling.
+- Schema changes that follow `DATA_SCHEMA.md`, version bump, migration, and fixture requirements.
+- Smart AI legality/scoring updates required to understand the completed primitive surface.
+- Documentation needed to lock mechanics, RNG, timing, ordering, and failure semantics.
 
-| Item | Earliest layer/phase |
-|---|---|
-| Statuses, stat stages, priority | Battle v4 — Phase 11 |
-| Advanced move effect ops (multi-hit, drain, protect, hazards…) | Battle v5 — Phase 14 |
-| `smart` trainer AI (slice ships `basic`) | Phase 14 — verified baseline |
-| Abilities, held items in battle, weather ability/item/form interactions, forms/Mega/Gmax | Battle v6 — Phase 15 |
-| Auto-slice heuristics beyond manual grid | Import v1–v2 — Phase 4 |
-| Connected-component irregular slicing | Import v3 — Phase 17 |
-| Animation grouping (manual clips Phase 4; character template helper Phase 13) | Import v4 — Phases 4/13 |
-| Atlas packing / pack format | Import v5 — Phase 12 |
-| Storage box UI (MVP = silent auto-deposit) | Phase 10 |
-| Day/night, evolutions, centers/respawn, gyms/badges, audio | Phase 13 |
-| Event system (fixed action vocabulary), surf/fishing, animated tiles, connected maps, NPC trades | Phase 16 |
-| PokeAPI import wizard (private-use, user-initiated), bulk editing, custom pockets, templates | Phase 17 |
-| Battle move animations, trainer approach animation, controller support, dex screen | Phase 18 |
-| Installer (Velopack/MSIX), tutorial, user docs, crash reporting | Phase 19 |
-| Embedded single-exe pack | Post-1.0 unless trivial in Phase 12 spike |
-| Double battles, breeding/eggs, visual event-graph editor, localization, macOS/Linux | Post-1.0 (2.0 planning) |
+## Not allowed in Phase 15
 
-## Idea Ledger (append-only; date + one line; implementing requires a phase decision)
+- Bespoke code for a named move or checks against move IDs/names.
+- Final Creator screens, Runtime rendering, battle animations, audio, or production export work.
+- Shipping or bundling PokeAPI names/data/assets as game content.
+- Building a PokeAPI import wizard or official-content sample pack.
+- Breeding, multiplayer/netcode, trading between players, marketplace, localization, installer,
+  plugin API, or general-purpose scripting.
+- Speculative primitives not required by the corpus or an already-owned Core rule.
+
+## PokeAPI boundary
+
+The corpus is local design-time mechanics reference. Phase 15 tools may read it, and generated
+audit/reference documents may identify its entries. It must never be copied into Runtime packs,
+Creator templates, samples, exports, or releases. Checked-in executable fixtures use original
+neutral content or sanitized numeric conformance keys.
+
+## Phase 15 exit summary
+
+- Corpus manifest: exactly 937 files and hashes.
+- Expressibility: 937 PASS / 0 FAIL.
+- End-to-end certification: 937 certified / 0 unknown, unmapped, disabled, or reference-blocked.
+- Correct singles/doubles contexts and explicit ruleset behavior.
+- Strict validation and typed compilation for every definition.
+- Deterministic events/traces and per-move conformance coverage.
+- No bespoke move branches.
+- All unit, golden, fuzz, schema, and full-solution tests green.
+- Focused review returns GO.
+
+## Later phases
+
+| Work | Phase |
+|---|---:|
+| Content-agnostic Runtime, renderer, overworld, battle/UI/save/audio integration | 16 |
+| Complete Creator authoring workflows and structured effect editor | 17 |
+| Original vertical slice, asset pack, self-contained export, clean-VM verification | 18 |
+| Installer/distribution, docs/tutorial, migration audit, beta, 1.0 release | 19 |
+
+## Permanent non-goals
+
+- Existing game engines/frameworks.
+- Shipping official Pokemon assets, names, cries, music, maps, or content packs.
+- Multiplayer/netcode or real player trading.
+- 3D or a general-purpose game engine.
+- Mobile/console export or an in-app asset marketplace.
+- User-facing programming language or plugin API before 1.0.
+
+## Idea ledger
 
 - (empty)
 
-## Scope-challenge protocol
+## Scope challenge protocol
 
-When anyone (user or agent) proposes out-of-scope work: (1) name the section above that
-covers it, (2) offer to ledger it, (3) proceed per the user's explicit decision. Agents
-flag; the user rules. Silent compliance and silent refusal are both failures.
+For a proposal outside this file: name the conflict, offer the Idea Ledger when appropriate, and
+wait for explicit user direction. The user may amend scope, but the decision must update this file
+and `IMPLEMENTATION_PLAN.md`; silent drift is forbidden.

@@ -12,6 +12,13 @@ half of export, local runtime template copy, and exported `--smoke` exist; CI se
 templates, icon/metadata patching, Creator export UI, clean-VM testing, and the full rendered
 runtime remain open.
 
+2026-07-10 user-directed scope rebase: `IMPLEMENTATION_PLAN.md` v3 and `SCOPE_GUARD.md` v3
+supersede older phase-assignment and deferral statements in this addendum. Phase 15 now owns
+complete Core game logic and exact conformance for all 937 move JSON files in the local
+`docs/pokeapi-results/move/` corpus. This includes doubles Core topology and any reusable timing,
+targeting, condition, query, mutation, or ruleset primitive required by those moves. It does not
+permit bespoke move code, official shipped content, doubles UI, breeding, or multiplayer/netcode.
+
 ---
 
 ## 1. Final Tech Stack Lock
@@ -75,13 +82,18 @@ Decision: Creator edits data and *launches* the runtime process for playtest (de
 
 **Vertical slice required:** Battle v3–v4 (trainers, switching, statuses, stat stages, priority); storage box UI; bag pockets; marts/money; evolutions (level, item, happiness, time-of-day); day/night clock; ledges; trainer sight-line (instant version); audio; validation dashboard; demo game; export smoke + clean-machine test.
 
-**Post-vertical-slice:** Battle v5 (advanced effect ops: multi-hit, drain, recoil, flinch, charge turns, protect, hazards, fixed damage, force-switch); trainer `smart` AI (slice ships `basic`); animated tiles; battle move animations beyond generic flash/shake; trainer approach animation polish; surf/fishing encounter methods; controller support; embedded pack in single exe.
+**Current Core completion target (Phase 15):** every move in the locked local PokeAPI move corpus
+must normalize, validate, compile, and behave correctly using reusable data-driven primitives.
+Abilities, held items, weather, terrain, rooms, forms/gimmicks, and doubles Core topology are built
+when required for move correctness. Every primitive must be reusable by custom-authored moves.
 
-**Long-term maybe:** Battle v6 (abilities, held items in battle, weather, forms/Mega/Gmax); event-graph scripting (until then: a fixed trigger vocabulary — dialogue, flag set/check, warp, battle, give-item covers the slice); doubles; breeding/eggs; localization framework; macOS/Linux; PokeAPI *import wizard* (private-use, user-initiated, never bundled — and **not** an MVP dependency; PokeAPI JSON stays a design-time mechanics reference only).
+**Later product work:** Runtime/Creator integration, move presentation, audio, original demo
+content, production export, eventing, surf/fishing, connected maps, controller support, bulk
+editing, and the private-use import wizard land in Phases 16-19 per IMPLEMENTATION_PLAN v3.
 
-**Explicitly deferred/refused:** full official move coverage as a goal ("all moves" is retired as a commitment — the *effect-op palette* aims to cover archetypes; the demo ships ~30 original moves); procedural generation; multiplayer/trading (trade evolutions use an NPC-trade or flag mechanism — no netcode ever); plugin API; scripting language.
-
-The single biggest scope correction: **MASTER_PLAN.md's "engine must recreate all base mechanics including Mega/Gmax" is a long-term aspiration, not a build target before the vertical slice.** The forms system is designed for in the schema (a `forms[]` array exists from day 1, empty) but not implemented until Battle v6.
+**Still deferred/refused:** procedural generation; breeding/eggs; localization framework;
+macOS/Linux; multiplayer/trading/netcode; plugin API; scripting language; official content packs.
+The local PokeAPI corpus remains design-time mechanics reference and is never shipped.
 
 ---
 
@@ -188,7 +200,15 @@ Each layer ends with green goldens; a layer's exclusions are hard errors if foun
 - **v3 — Trainer battles and switching.** Data: trainer entity (party, dialogue, money), aiProfile `basic`. Systems: no-run/no-catch rules, switch action + free-switch-on-faint, `basic` greedy AI, rewards/flags. Tests: AI picks max-damage move deterministically; switch legality; goldens ×5. Done: full trainer fight with mid-battle switches. Excludes: `smart` AI, statuses.
 - **v4 — Statuses and stat stages.** Data: persistent statuses on creature instance; move effects `ailment`, `statStage`; priority field live. Systems: brn/psn/tox/par/slp/frz with exact Gen 3/4 behavior, stage math −6..+6, accuracy/evasion stages, priority brackets, end-of-turn residuals. Tests: full status matrix (apply/block/persist-after-battle/cure); stage multiplier table; priority ordering goldens. Done: BATTLE_SYSTEM_SPEC status appendix matches implementation exactly. **← End of vertical-slice battle scope.**
 - **v5 — Advanced effect ops.** Data: effect-op palette extension (multiHit, drain, recoil, flinch, chargeTurn, protect, hazards, fixedDamage, ohko, forceSwitch, weatherSet — mechanics only). Systems: resolver pipeline generalization, volatile-state store. Tests: one test file per op; goldens per batch of ~5 ops. Done: 30-move demo set expressible purely in data. Excludes: abilities, held items.
-- **v6 — Abilities, held items, weather integration, forms.** Data: ability defs (event-hook based: onSwitchIn/onModifyDamage/onEndOfTurn…), held-item battle effects, weather damage/residual integration, `forms[]` activation (Mega battle_temporary, Gmax battle_timed). Systems: hook dispatcher, form transformation resolver, per-battle once-flags. Tests: hook ordering goldens; form revert invariants. Done: a Mega-style showcase fight in the demo. Excludes (still): doubles, breeding, netplay.
+- **v6 / Phase 15 — Complete Core mechanics and move conformance.** The implemented
+  ability/held-item/weather/form hook foundations expand only through reusable primitives required
+  by the 937-entry move corpus. Systems include generalized singles/doubles topology, target
+  resolution, ordered effects, scoped conditions, queued intents, query hooks, item/ability/type/
+  form mutation, move references, snapshot overlays, damage memory, switch flow, ruleset policies,
+  deterministic events, and conformance traces. Tests include per-primitive units, per-move
+  compile/resolve cases, family goldens, and seeded singles/doubles fuzzing. Done means 937/937
+  certified, 0 unsupported, and 0 move-name/ID branches. Excludes: final UI/presentation, breeding,
+  official content packs, and netplay.
 
 ---
 
@@ -267,14 +287,11 @@ bindings is this project's code.
 
 **First thing to build:** Week 1 exactly — the .NET 10 scaffold with the FixedStepClock and its test, plus the four priority-1 docs. It retires the only stack unknown (.NET 10 package compatibility) in day one.
 
-**Absolutely not yet:** forms/Mega/Gmax, abilities, held-item battle behavior, weather
-ability/item/form interactions, doubles, breeding, event scripting, PokeAPI import wizard,
-and any renderer feature beyond textured quads. Smart AI is a Phase 14 verified baseline. Atlas
-packing, the export data path, local runtime template copy, and exported `--smoke` exist; CI
-self-contained template publishing, icon/metadata patching, clean-VM testing, and the real demo
-showcase fight remain unfinished.
-Every remaining item has a designated layer; building it before its layer is the definition of
-failure here.
+**Current focus:** complete Phase 15 Core mechanics and certify every move in the local corpus.
+Do not build final Runtime/Creator presentation while Phase 15 is open. Breeding, event scripting,
+the private-use PokeAPI import wizard, official content packs, and netplay remain outside Phase 15.
+Every move behavior must be composed from reusable primitives; a named move branch is a phase-
+blocking architecture defect even if it makes a conformance test pass.
 
 ---
 *End of addendum.*

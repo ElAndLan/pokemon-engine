@@ -1,8 +1,8 @@
 # Move Audit System Plan
 
-Status: future full-move-coverage planning document. This does not close Phase 15 and does not
-make official move coverage part of the current slice. It exists so future agents can iterate
-over the audited failures in `MOVE_AUDIT_RESULTS.md` without adding bespoke per-move code.
+Status: **Active Phase 15 execution companion.** Full move conformance is now the current phase's
+primary exit gate per `IMPLEMENTATION_PLAN.md` v3. This document groups the audited failures into
+reusable Core work; the implementation plan owns sequencing and the final 937/937 criteria.
 
 ## Purpose
 
@@ -10,10 +10,11 @@ over the audited failures in `MOVE_AUDIT_RESULTS.md` without adding bespoke per-
 with PASS/FAIL status and the reason for every failure. This document is the implementation
 handoff that explains how to turn those failures into reusable `Cgm.Core` primitives.
 
-The rule is strict: moves are data. A future implementation may add generic effect ops, query
+The rule is strict: moves are data. An implementation may add generic effect ops, query
 hooks, scoped conditions, target selectors, and battle-state helpers, but it must not add
-resolver branches named after individual moves. If one move appears unique, first ask which
-timing, query, condition, mutation, or targeting primitive it actually needs.
+resolver branches, classes, handlers, helpers, or compiler cases named after or keyed to individual
+moves. If one move appears unique, first ask which reusable timing, query, condition, mutation,
+state scope, ruleset, or targeting primitive it actually needs. Named presets are data only.
 
 ## Inputs
 
@@ -25,6 +26,63 @@ timing, query, condition, mutation, or targeting primitive it actually needs.
 
 The local PokeAPI files are design-time mechanics reference only. Do not copy official names,
 assets, cries, music, maps, or reference JSON into samples, exports, packs, or runtime content.
+
+## Phase 15A Corpus Manifest Contract
+
+`cgm audit-moves <corpus-folder> <manifest.json>` inventories the local reference corpus without
+copying move names or source JSON into the generated artifact. The command is deterministic and
+fails on malformed wrappers, non-move endpoints, missing/invalid source IDs, duplicate IDs,
+duplicate reference keys, or an empty corpus.
+
+Manifest format version 1:
+
+```text
+MoveCorpusManifest
+  formatVersion            = 1
+  corpusDigest             = lowercase SHA-256 over ordered "sourceId:fileHash\n" rows
+  fileCount
+  statusCounts             = count by conformance status
+  entries[]                = ascending sourceId order
+
+MoveCorpusEntry
+  referenceKey             = "move-" + zero-padded numeric PokeAPI id; contains no move name
+  sourceId                 = positive PokeAPI numeric id
+  sourceFileHash           = lowercase SHA-256 of the complete local wrapper file bytes
+  payloadContentHash       = wrapper content_hash, validated as lowercase/uppercase hex
+  sourceTarget             = mechanics target key from payload.target.name, or "unknown"
+  observedMechanicFamilies = conservative tags derived only from structured payload metadata
+  requiredTopology         = "unclassified" until Phase 15B certifies target semantics
+  requiredRuleset          = "unclassified" until the normalized definition declares it
+  status                   = "inventoryOnly" at the Phase 15A baseline
+  normalizedDefinitionHash = omitted until normalization exists
+  testIds                  = empty until conformance tests are registered
+```
+
+The manifest is sanitized mechanics metadata. It must not contain `payload.name`, source filename,
+effect prose, flavor text, URLs, official art/audio, or raw JSON. The local corpus remains ignored
+and is never a build/runtime dependency.
+
+### Conformance statuses
+
+Statuses are monotonic evidence levels, not optimistic labels:
+
+- `inventoryOnly` — source is hashed and structurally inventoried; no behavior claim.
+- `normalized` — a complete generic definition and normalized hash exist.
+- `compiled` — strict validation and typed compilation pass.
+- `certified` — required-context behavioral assertions and deterministic event/trace evidence pass.
+- `blockedReference` — exact mechanics source is insufficient.
+- `blockedEngine` — a named reusable Core capability is missing.
+- `invalid` — source/normalized data violates the contract.
+
+Only `certified` counts toward 937/937. Phase 15A generates `inventoryOnly` for every entry, so the
+strict baseline remains 0/937 even though the legacy expressibility audit reports 468 PASS.
+
+### Structured family observation
+
+Phase 15A may tag only facts directly present in structured PokeAPI fields: standard damage,
+ailment, stat stage, drain, recoil, heal, multi-hit, multi-turn, critical, and flinch. Missing tags
+do not imply missing behavior because prose-only and unique mechanics require later normalization.
+An entry with no structured family receives `unclassified`; it is never treated as a no-op.
 
 ## Current Support Snapshot
 
@@ -782,7 +840,8 @@ A group is not complete until:
 
 - The generic op/query/condition is documented in `BATTLE_SYSTEM_SPEC.md`.
 - The compiler accepts valid params and rejects missing, invalid, or unknown params.
-- Core tests cover at least one representative move from the group.
+- Core tests cover the primitive boundaries and every affected move has a generated conformance
+  case; one representative move is not enough for Phase 15 certification.
 - Deterministic tests cover any RNG, ordering, queue, copy, or multi-target behavior.
 - `MOVE_AUDIT_RESULTS.md` rows are updated only for moves that are exactly expressible.
 - `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` passes.
@@ -790,10 +849,16 @@ A group is not complete until:
 
 ## Final Closeout Criteria
 
-Full move coverage is ready to claim only when every one of the 937 audited rows is either:
+Full move coverage is ready to claim only when every one of the 937 audited rows is certified:
 
-- PASS because it compiles to supported generic Core data behavior, or
-- explicitly marked as intentional non-battle/post-battle behavior through supported data ops.
+- its source hash is locked;
+- it normalizes into reusable generic Core data;
+- it validates and compiles strictly;
+- it resolves correctly in every required singles/doubles and ruleset context;
+- its mechanic families and meaningful events are asserted by conformance tests; and
+- intentional non-battle/post-battle behavior is explicit and reviewed.
 
-There must be no bespoke move-name resolver branches, no official content copied into samples or
-exports, and no untested generic primitive in the battle path.
+There must be 937 certified, 0 FAIL/unknown/unmapped/disabled/reference-blocked, no bespoke
+move-name/ID code anywhere in Core, no official content copied into samples or exports, and no
+untested generic primitive in the battle path. A static review/search gate must inspect compiler,
+resolver, helper, and type names for move-specific special cases before Phase 15 closes.

@@ -28,11 +28,17 @@ public sealed class MigratorTests
         public void Apply(JsonObject json) { }
     }
 
+    private sealed class NoOpV3ToV4 : IJsonMigration
+    {
+        public int FromVersion => 3;
+        public void Apply(JsonObject json) { }
+    }
+
     [Fact]
     public void Migrate_AppliesStepAndBumpsVersion()
     {
         var json = new JsonObject { ["schemaVersion"] = 0, ["foo"] = 42 };
-        JsonObject result = Migrator.Migrate(json, [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3()]);
+        JsonObject result = Migrator.Migrate(json, [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4()]);
 
         Assert.Equal(Migrator.CurrentVersion, result["schemaVersion"]!.GetValue<int>());
         Assert.Null(result["foo"]);

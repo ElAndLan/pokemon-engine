@@ -1,11 +1,12 @@
 # BATTLE_SYSTEM_SPEC
 
-Status: **Partial / implemented sections are binding.** Damage formula lives in
-`BATTLE_DAMAGE_CALC.md`; battle v0–v5 Core mechanics and the v5 effect-op palette are implemented
-through the shared effect dispatcher. This document is still incomplete as a full battle spec:
-event catalog, golden workflow, and final smart-AI scoring contract still need tightening before
-1.0. Phase 14 smart AI is accepted as a verified Core baseline; full tuning is deferred until
-Phase 15+ mechanics exist.
+Status: **Partial / implemented sections are binding; Phase 15 completion contract rebased
+2026-07-10.** Damage formula lives in `BATTLE_DAMAGE_CALC.md`; substantial v0–v6 Core mechanics
+exist through the shared effect dispatcher. Phase 15 now completes the reusable Core mechanic
+surface and certifies all 937 entries in `docs/pokeapi-results/move/` per
+`IMPLEMENTATION_PLAN.md` v3. This document must be expanded during Phase 15A to lock the full
+event/trace catalog, target topology, ruleset policies, condition/queue contracts, and golden
+workflow before the corresponding code slices land.
 
 ## Purpose
 The exact, testable battle contract: state model, turn flow, every formula with rounding order,
@@ -267,6 +268,121 @@ Required tests: hook-ordering goldens for switch-in, damage, status-attempt, wea
 end-turn; one unit file per ability/held op; weather-summon precedence; held-item consume-once;
 choice-lock legality; form activation matrix; form HP/stat/stage invariants; and schema v1-to-v2
 migration coverage when the serialized shapes land.
+
+## Phase 15 rebase — complete move conformance
+
+The v6 ability/held-item/weather/form contract above is the implemented foundation, not the Phase
+15 ceiling. The 2026-07-10 user scope decision makes full local-corpus move conformance the phase
+exit gate.
+
+### No hard-coded moves
+
+Core must not contain:
+
+- a branch keyed by a move `EntityId`, slug, display name, PokeAPI name, or source file;
+- a resolver/compiler/helper/type whose only purpose is one named move;
+- an enum case or boolean field that hides a single-move special case;
+- a move-specific fallback when generic validation/compiler/resolution fails; or
+- a move-specific AI scoring branch.
+
+Reusable code is organized by behavior: target selection, query modification, condition scope,
+timing hook, queue action, state mutation, damage/heal model, switch flow, snapshot overlay, move
+reference, ruleset policy, or event emission. A named preset may exist only as data that expands to
+those reusable primitives. Custom-authored moves must be able to use the same primitives.
+
+Legacy implementation shapes such as named hazard/seed booleans or typed effects that encode one
+content preset are Phase 15 architecture debt. They may remain temporarily while tests protect
+behavior, but Phase 15 cannot close until they are represented by generic condition/effect data
+where the behavior is shared (for example: type-scaled entry hazard rather than a named hazard
+effect, and source-linked recurring drain rather than a named seed effect).
+
+### Conformance contract
+
+For each of the 937 locked source entries, the Phase 15 harness records a neutral reference key,
+source hash, mechanic families, normalized definition hash, required ruleset/topology, and tests.
+A move is certified only when it:
+
+1. normalizes completely into generic data;
+2. passes strict validation;
+3. compiles into typed reusable effects;
+4. resolves correctly in every required singles/doubles and ruleset context;
+5. emits deterministic events and effect traces;
+6. has assertions for every declared mechanic family and failure condition; and
+7. has no unknown, disabled, unsupported, or reference-blocked requirement.
+
+An inapplicable-context failure is tested but does not certify the move unless its valid context
+also works. Intentional visual-only, no-battle, post-battle, and overworld effects must be explicit
+data operations and manually reviewed; a silent no-op never counts.
+
+### Required architecture expansion
+
+Phase 15 adds only capabilities demanded by the corpus: complete target/doubles topology, ordered
+per-target effects, query hooks, scoped condition stores, queued intents, item/ability/type/form
+mutation, move references, snapshot overlays, damage memory, switch/state transfer, ruleset
+policies, and deterministic event/trace output. Detailed sequencing and the 937/937 exit checklist
+live in `IMPLEMENTATION_PLAN.md`; failure group handoff lives in `MOVE_AUDIT_SYSTEM_PLAN.md`.
+
+### Target topology contract (Phase 15B foundation)
+
+`BattleTopology` defines immutable active slots in stable order: Player slots by ascending position,
+then Enemy slots by ascending position. Only one- and two-slot topologies are valid. `BattleSlot`
+is the stable `(side, position)` identity used by targeting, action selection, events, and later
+replacement flow; it is not a party index.
+
+`BattleTargetResolver.ResolveScope` is a pure resolver. Given a topology, source slot, authored
+target shape, and a required explicit selection where applicable, it returns an ordered target
+scope. It does not consult battle HP, mutate state, draw RNG, redirect, or apply effects. The
+returned active-slot order is always topology order; `randomOpponent` returns the eligible opponent
+slots together with the `RandomOpponent` selection policy, leaving the single RNG draw to the action
+resolver.
+
+The normalized target vocabulary is: `selected`, `user`, `allOpponents`,
+`allOtherPokemon`, `usersField`, `entireField`, `allAllies`, `allPokemon`, `ally`,
+`opponentsField`, `randomOpponent`, `selectedPokemonMeFirst`, `specificMove`,
+`userAndAllies`, `userOrAlly`, and `faintingPokemon`.
+
+- Active-slot targets resolve as follows: self; all opponents; all slots except self; all slots;
+  allies except self; all own slots; or the explicitly selected valid slot. `ally` requires a
+  selected non-source own slot. `userOrAlly` requires a selected own slot in doubles and resolves
+  to self in singles. `selected` and `selectedPokemonMeFirst` require a caller selection, except
+  that the legacy singles adapter supplies the opposing active slot.
+- `usersField` and `opponentsField` resolve to a side scope; `entireField` resolves to the field.
+- `randomOpponent` exposes all opposing active slots plus a random-selection policy. Exactly one
+  draw occurs later, only after normal action legality and redirection filters are applied.
+- `faintingPokemon` resolves to the user's fainted-party scope; a later action supplies the party
+  member. `specificMove` resolves to a move-reference scope; a later move-reference resolver
+  supplies the eligible move. Neither invents a party index or move choice at this layer.
+
+The existing singles helper remains a compatibility adapter for already-implemented one-active
+mechanics. It may resolve only the old one-creature targets; attempting to execute a newly added
+topology-dependent target through that adapter fails loudly until the Phase 15B action resolver
+uses `ResolveScope`. This prevents a doubles-only target from silently acting on the opposing
+single creature.
+
+### Event trace contract
+
+`BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also
+requires a deterministic internal effect trace so conformance failures explain how the engine
+arrived there without exposing UI concerns.
+
+Each trace entry conceptually records:
+
+- turn and action sequence;
+- source side/slot and target side/slot or side/field scope;
+- normalized effect/condition/query identifier (behavior ID, never move name);
+- hook/timing point;
+- gate/filter result;
+- RNG draw kind, bound/result, and draw sequence when a draw occurs;
+- before/base/modified/final numeric values for queries and formulas;
+- state mutation summary; and
+- emitted event index range.
+
+Trace ordering follows actual resolution ordering and uses stable numeric/reference IDs. Traces do
+not contain timestamps, memory addresses, filesystem paths, localized display text, or official
+content names. A trace is diagnostic evidence; it never drives simulation or presentation.
+
+Phase 15A locks this conceptual shape and the corpus manifest. The concrete Core trace types land
+with the first resolver slice that needs them, rather than adding unused abstraction now.
 
 ## Outline (remaining, per battle layer v0-v6)
 State · Turn flow · Damage · Type · Status · Stages · Capture · Effect-op interpreter · AI · Events.

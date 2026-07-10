@@ -2,6 +2,7 @@ using System.Text.Json;
 using Cgm.Core.Model;
 using Cgm.Core.Serialization;
 using Cgm.Core.Validation;
+using Cgm.Tools.MoveAudit;
 
 namespace Cgm.Tools;
 
@@ -20,8 +21,31 @@ internal static class Program
         {
             "validate" => Validate(args[1..]),
             "export" => Export(args[1..]),
+            "audit-moves" => AuditMoves(args[1..]),
             _ => UnknownCommand(args[0]),
         };
+    }
+
+    private static int AuditMoves(string[] args)
+    {
+        if (args.Length != 2)
+        {
+            Console.Error.WriteLine("audit-moves: usage is 'cgm audit-moves <corpus-folder> <manifest.json>'.");
+            return 2;
+        }
+
+        try
+        {
+            MoveCorpusManifest manifest = MoveCorpusAuditor.Build(args[0]);
+            MoveCorpusAuditor.Write(manifest, args[1]);
+            Console.WriteLine($"Inventoried {manifest.FileCount} moves; corpus digest {manifest.CorpusDigest}; certified 0.");
+            return 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            Console.Error.WriteLine($"Move audit failed: {ex.Message}");
+            return 2;
+        }
     }
 
     private static int Export(string[] args)
@@ -159,6 +183,7 @@ internal static class Program
         Console.WriteLine("  validate <project> [--json]                    Validate a project folder");
         Console.WriteLine("  export <project> <out> [--template DIR]        Export a standalone game");
         Console.WriteLine("  export <project> <out> --data-only             Write only pack/config");
+        Console.WriteLine("  audit-moves <corpus> <manifest.json>           Inventory the local move corpus");
         Console.WriteLine("  --help                                         Show this help");
     }
 }

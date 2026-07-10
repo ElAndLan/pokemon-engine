@@ -3,6 +3,12 @@
 Version 1.0 — 2026-07-06
 Status: Authoritative planning document. Supersedes PROJECT_BIBLE.md where they conflict.
 
+2026-07-10 scope rebase: `ARCHITECTURE_ADDENDUM.md`, `SCOPE_GUARD.md` v3, and
+`IMPLEMENTATION_PLAN.md` v3 supersede this document's older phase assignments and its treatment of
+full move coverage/doubles as long-term work. Phase 15 now completes reusable Core mechanics and
+certifies all 937 local PokeAPI move entries. The product vision and architecture sections here
+remain binding where the newer documents do not amend them.
+
 ---
 
 ## 1. Executive Summary

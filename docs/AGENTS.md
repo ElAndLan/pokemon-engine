@@ -23,9 +23,9 @@
 | Runtime loop, renderer, input, scenes | ENGINE_RUNTIME_SPEC.md | Partial - headless helpers, export boot/smoke, and minimal GL rectangle showcase written; full renderer/UI/dev-mode host pending |
 | Import/slicing layers, pack format | ASSET_PIPELINE_SPEC.md | Partial — v0–v2 slicing + v5 atlas spec/code; canvas/UI and v3 pending |
 | Map editor tools & layers | MAP_EDITOR_SPEC.md | Partial — layer/tool ops written; canvas/entity UI pending |
-| Battle formulas, effect ops, events, AI | BATTLE_SYSTEM_SPEC.md | Partial — v5 Core + smart AI baseline verified; 1.0 event/golden spec still thin |
+| Battle formulas, effect ops, events, AI | BATTLE_SYSTEM_SPEC.md + MOVE_AUDIT_SYSTEM_PLAN.md | **Phase 15 active** — complete reusable Core mechanics and certify 937/937 local move entries; event/trace/golden contract still to write in 15A |
 | Export & smoke test | EXPORT_PIPELINE_SPEC.md | Partial - pack/config/data export, local template copy, and Runtime `--smoke` written; icon/metadata patch, Creator UI, CI templates, clean-VM pending |
-| Phase status & deviations log | IMPLEMENTATION_PLAN.md | Living |
+| Phase status and current/future work | IMPLEMENTATION_PLAN.md | **Rebased v3; Phase 15 active at 0/937 strict certification** |
 | Test policy, goldens, fixtures | TESTING_STRATEGY.md | Partial — xUnit suites/fixtures active; golden workflow not fully written |
 | Vision & legal boundary | PROJECT_OVERVIEW.md | See MASTER_PLAN §1–2 until written |
 

@@ -21,6 +21,7 @@ dotnet test  CreatureGameMaker.slnx
 dotnet run --project src/Cgm.Creator          # authoring app
 dotnet run --project src/Cgm.Runtime -- --debug   # runtime window (Esc to exit)
 dotnet run --project src/Cgm.Tools -- --help
+dotnet run --project src/Cgm.Tools -- audit-moves docs/pokeapi-results/move docs/move-conformance/manifest.v1.json
 ```
 Or double-click `run.bat` for a launch menu.
 

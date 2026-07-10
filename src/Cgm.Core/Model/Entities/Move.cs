@@ -4,8 +4,26 @@ namespace Cgm.Core.Model;
 
 public enum DamageClass { Physical, Special, Status }
 
-/// <summary>MVP uses Selected/User (1v1); wider targeting lands with doubles (long-term).</summary>
-public enum MoveTarget { Selected, User, AllOpponents, AllOtherPokemon, UsersField, EntireField }
+/// <summary>Authored target shapes normalized from the move corpus (DATA_SCHEMA.md §4.4).</summary>
+public enum MoveTarget
+{
+    Selected,
+    User,
+    AllOpponents,
+    AllOtherPokemon,
+    UsersField,
+    EntireField,
+    AllAllies,
+    AllPokemon,
+    Ally,
+    OpponentsField,
+    RandomOpponent,
+    SelectedPokemonMeFirst,
+    SpecificMove,
+    UserAndAllies,
+    UserOrAlly,
+    FaintingPokemon,
+}
 
 /// <summary>A move (DATA_SCHEMA.md §4.4). Effects are the closed op palette (BATTLE_SYSTEM_SPEC).</summary>
 public sealed record Move : IEntity

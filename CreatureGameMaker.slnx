@@ -9,5 +9,6 @@
     <Project Path="tests/Cgm.Core.Tests/Cgm.Core.Tests.csproj" />
     <Project Path="tests/Cgm.Creator.Tests/Cgm.Creator.Tests.csproj" />
     <Project Path="tests/Cgm.Runtime.Tests/Cgm.Runtime.Tests.csproj" />
+    <Project Path="tests/Cgm.Tools.Tests/Cgm.Tools.Tests.csproj" />
   </Folder>
 </Solution>

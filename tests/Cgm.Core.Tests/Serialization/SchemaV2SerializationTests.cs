@@ -27,6 +27,25 @@ public sealed class SchemaV2SerializationTests
     }
 
     [Fact]
+    public void Move_RoundTripsExpandedTargetVocabulary()
+    {
+        var move = new Move
+        {
+            Id = EntityId.Parse("move:ally_target"),
+            Name = "Ally Target",
+            Type = EntityId.Parse("type:normal"),
+            DamageClass = DamageClass.Status,
+            Pp = 10,
+            Target = MoveTarget.UserOrAlly,
+        };
+
+        Move back = CgmJson.Deserialize<Move>(CgmJson.Serialize(move));
+
+        Assert.Equal(MoveTarget.UserOrAlly, back.Target);
+        Assert.Equal(SchemaVersions.Current, back.SchemaVersion);
+    }
+
+    [Fact]
     public void Ability_RoundTripsHooks()
     {
         var ability = new Ability

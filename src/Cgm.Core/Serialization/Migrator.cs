@@ -21,7 +21,7 @@ public static class Migrator
 {
     public const int CurrentVersion = SchemaVersions.Current;
 
-    private static readonly IReadOnlyList<IJsonMigration> Registered = [new V1ToV2(), new V2ToV3()];
+    private static readonly IReadOnlyList<IJsonMigration> Registered = [new V1ToV2(), new V2ToV3(), new V3ToV4()];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
 
@@ -56,6 +56,12 @@ public static class Migrator
     private sealed class V2ToV3 : IJsonMigration
     {
         public int FromVersion => 2;
+        public void Apply(JsonObject json) { }
+    }
+
+    private sealed class V3ToV4 : IJsonMigration
+    {
+        public int FromVersion => 3;
         public void Apply(JsonObject json) { }
     }
 }

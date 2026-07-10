@@ -1,12 +1,13 @@
 # DATA_SCHEMA
 
-Status: **Schema v3 (2026-07-09)** — the single source of truth for all serialized shapes.
+Status: **Schema v4 (2026-07-10)** — the single source of truth for all serialized shapes.
 Derived from the local PokeAPI corpus per [ADR-010](adr/ADR-010-pokeapi-derived-schema.md).
 Changes require a `schemaVersion` bump + migration + this doc edited in the same change
-(CLAUDE.md §2). v3 adds the move contact marker used by Phase 15 contact hooks. Save-file
+(CLAUDE.md §2). v3 adds the move contact marker used by Phase 15 contact hooks; v4 expands the
+move target vocabulary required by Phase 15B topology. Save-file
 ability/form progression remains under `saveFormatVersion`.
 
-Scope of v3: the MVP + vertical-slice entities plus Battle v6 authoring data. Numbers in
+Scope of v4: the MVP + vertical-slice entities plus Phase 15 Core authoring data. Numbers in
 `(PokeAPI: x)` note the source field.
 
 ---
@@ -14,7 +15,7 @@ Scope of v3: the MVP + vertical-slice entities plus Battle v6 authoring data. Nu
 ## 1. Conventions
 - One JSON file per entity: `data/<category>/<id-slug>.json`. UTF-8, `\n`, 2-space indent,
   **stable property order** (byte-stable output so git diffs and fixtures stay honest).
-- Every file starts: `{ "schemaVersion": 3, "id": "<category:slug>", "name": "<display>", ... }`.
+- Every file starts: `{ "schemaVersion": 4, "id": "<category:slug>", "name": "<display>", ... }`.
 - Unknown fields tolerated on read (forward-compat); never written back.
 - All numbers are integers unless the field says otherwise. `null` = "not applicable" (e.g. a
   status move has `power: null`), distinct from `0`.
@@ -131,7 +132,7 @@ happiness, time-of-day, known-move, held-item (per Phase 13 scope).
 | priority | int -7..7 | `priority` |
 | critStage | int | `meta.crit_rate` (0 baseline) |
 | makesContact | bool | contact marker for `onContactReceived` hooks; default false |
-| target | enum | `selected`\|`user`\|`all-opponents`… (`target`; 1v1 uses selected/user in MVP) |
+| target | enum | `selected`\|`user`\|`all-opponents`\|`all-other-pokemon`\|`users-field`\|`entire-field`\|`all-allies`\|`all-pokemon`\|`ally`\|`opponents-field`\|`random-opponent`\|`selected-pokemon-me-first`\|`specific-move`\|`user-and-allies`\|`user-or-ally`\|`fainting-pokemon`; target resolution is defined by BATTLE_SYSTEM_SPEC Phase 15B |
 | effects | Effect[] | composed from `meta` + `stat_changes` + `effect_chance` (§4.4a) |
 
 **4.4a Effect** — closed op palette (full catalog in BATTLE_SYSTEM_SPEC.md; v1 subset here):
@@ -245,3 +246,5 @@ Volatile battle state (stat stages, confusion, flinch) is NOT saved — it lives
 - v1→v2: no-op data migration. New Phase 15 fields default to empty/null and old v1 files load as
   v2 records.
 - v2→v3: no-op data migration. `move.makesContact` defaults to false for old moves.
+- v3→v4: no-op data migration. This is an additive target-enum expansion; every prior target
+  value remains valid and older files require no rewritten fields.
