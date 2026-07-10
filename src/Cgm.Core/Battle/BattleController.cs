@@ -12,7 +12,7 @@ namespace Cgm.Core.Battle;
 public sealed class BattleController
 {
     private readonly List<BattleCreature>[] _parties;
-    private readonly int[] _active = [0, 0];
+    private readonly BattleActiveSlots _activeSlots;
     private readonly Dictionary<EntityId, int>[] _itemStock = [[], []];
     private readonly bool[] _temporaryFormUsed = [false, false];
     private readonly int[] _spikeLayers = [0, 0];    // entry-hazard side condition (catalog §7.3), per side
@@ -31,6 +31,9 @@ public sealed class BattleController
         TypeChart chart, IRng rng, bool isWild = false)
     {
         _parties = [[.. playerParty], [.. enemyParty]];
+        _activeSlots = new BattleActiveSlots(BattleTopology.Singles);
+        _activeSlots.Assign(new BattleSlot(BattleSide.Player, 0), 0);
+        _activeSlots.Assign(new BattleSlot(BattleSide.Enemy, 0), 0);
         _chart = chart;
         _rng = rng;
         IsWild = isWild;
@@ -42,8 +45,11 @@ public sealed class BattleController
     public BattleOutcome? Outcome { get; private set; }
     public IReadOnlyList<BattleEvent> Log => _log;
 
-    public BattleCreature Active(BattleSide side) => _parties[(int)side][_active[(int)side]];
-    public int ActiveIndex(BattleSide side) => _active[(int)side];
+    public BattleTopology Topology => _activeSlots.Topology;
+    public BattleCreature Active(BattleSide side) => Active(new BattleSlot(side, 0));
+    public BattleCreature Active(BattleSlot slot) => _parties[(int)slot.Side][_activeSlots.PartyIndex(slot)];
+    public int ActiveIndex(BattleSide side) => ActiveIndex(new BattleSlot(side, 0));
+    public int ActiveIndex(BattleSlot slot) => _activeSlots.PartyIndex(slot);
     public IReadOnlyList<BattleCreature> Party(BattleSide side) => _parties[(int)side];
 
     /// <summary>Entry-hazard state on a side (for AI switch valuation / UI). A creature switching in here
@@ -133,7 +139,7 @@ public sealed class BattleController
                 List<BattleCreature> party = _parties[(int)side];
                 if (sw.PartyIndex < 0 || sw.PartyIndex >= party.Count)
                     throw new ArgumentException($"{side} switch index {sw.PartyIndex} out of range.");
-                if (sw.PartyIndex == _active[(int)side])
+                if (_activeSlots.IsActive(side, sw.PartyIndex))
                     throw new ArgumentException($"{side} is already on party member {sw.PartyIndex}.");
                 if (party[sw.PartyIndex].IsFainted)
                     throw new ArgumentException($"{side} cannot switch to a fainted member.");
@@ -226,7 +232,7 @@ public sealed class BattleController
         BattleCreature outgoing = Active(side);
         outgoing.ResetStages();     // stat stages don't carry across a switch
         outgoing.ClearVolatiles();  // confusion/flinch/trap/etc. clear on switch-out
-        _active[(int)side] = index;
+        _activeSlots.Assign(new BattleSlot(side, 0), index);
         _log.Add(new SwitchedIn(side, index));
         OnSwitchIn(side);
     }
@@ -584,7 +590,7 @@ public sealed class BattleController
 
         var reserves = new List<int>();
         for (int i = 0; i < _parties[(int)side].Count; i++)
-            if (i != _active[(int)side] && !_parties[(int)side][i].IsFainted)
+            if (!_activeSlots.IsActive(side, i) && !_parties[(int)side][i].IsFainted)
                 reserves.Add(i);
         if (reserves.Count == 0)
             return; // nothing to drag out

@@ -359,6 +359,13 @@ topology-dependent target through that adapter fails loudly until the Phase 15B 
 uses `ResolveScope`. This prevents a doubles-only target from silently acting on the opposing
 single creature.
 
+`BattleActiveSlots` owns the mutable slot-to-party assignment. Its topology is immutable; each
+active slot is assigned exactly one non-negative party index, and a party member cannot occupy two
+slots on the same side. Singles controllers initialize position zero for each side, preserving the
+existing action API and event stream. A party index remains distinct from a battle slot, so later
+doubles action collection, forced replacement, and slot conditions must address the slot first and
+then use this mapping. This foundation adds no doubles action behavior or RNG draws.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

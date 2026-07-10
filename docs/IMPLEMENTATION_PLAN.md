@@ -248,6 +248,13 @@ resolver lands. Schema v4 records the compatible enum expansion and v3-to-v4 mig
 Focused target and migration/serialization tests pass; the next 15B slice is to move active-party
 state and submitted actions from one active index per side to the stable slot model.
 
+Progress (2026-07-10): active-party storage now uses `BattleActiveSlots`, a reusable stable-slot
+to party-index mapping with duplicate-assignment guards. `BattleController` initializes the
+singles slot assignments through that mapping and exposes slot-based active lookup while retaining
+the existing singles action API and event stream. This is deliberately only the state migration:
+doubles action collection, ordering, replacement, and multi-target execution remain open. Focused
+slot, switch, and force-switch tests pass.
+
 #### 15C — Query hooks and variable formulas
 
 Primary groups: damage query modifiers (64), special accuracy (36), stat expansion (63).
