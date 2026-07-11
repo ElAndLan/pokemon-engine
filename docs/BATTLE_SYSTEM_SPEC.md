@@ -142,6 +142,15 @@ the ops and their tests are unambiguous. All damage/heal amounts are **≥1** un
   `max(1, floor(basePower * currentHp / maxHp))`; if the selected battler has no positive max HP,
   base power is left unchanged. Promotion rationale: this covers HP-ratio base-power archetypes
   through the normal damage formula without forking damage calculation or adding move-name branches.
+- **statusPower** - conditionally multiplies base power when either the move user or active target has
+  a matching persistent status. Params: `{ subject: "user"|"target", status: "any"|persistentStatus,
+  multiplierNum: int, multiplierDen: int, ignoreSourceBurnPenalty?: bool }`; subject, status, and both
+  multiplier values are required, multiplier values must be positive, `chance` is not allowed, unknown
+  params are rejected, and a move may declare at most one. The query runs once per hit before
+  `DamageCalc`; when the subject has no status or a nonmatching status, base power is unchanged.
+  `ignoreSourceBurnPenalty` takes effect only when the condition matches, and only suppresses the normal
+  physical burn penalty for the source. Promotion rationale: this covers user/target status base-power
+  archetypes through the normal damage formula without a move-name branch.
 
 Rounding is floor throughout (matches Gen III/IV integer math and BATTLE_DAMAGE_CALC).
 

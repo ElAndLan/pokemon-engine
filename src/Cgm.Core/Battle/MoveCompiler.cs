@@ -208,6 +208,26 @@ public static class MoveCompiler
                     hpRatioPower = new HpRatioPower(Parse<HpRatioPowerSource>(Str(e, "source"), "source"));
                     break;
 
+                case "statusPower": // base-power query modifier
+                    if (chance != 100)
+                        throw new ArgumentException("statusPower does not support chance.");
+                    CheckAllowedParams(e, "subject", "status", "multiplierNum", "multiplierDen", "ignoreSourceBurnPenalty");
+                    if (effects.OfType<StatusPowerEffect>().Any())
+                        throw new ArgumentException("A move can declare only one statusPower effect.");
+                    string statusValue = Str(e, "status");
+                    PersistentStatus? status = statusValue.Equals("any", StringComparison.OrdinalIgnoreCase)
+                        ? null
+                        : Parse<PersistentStatus>(statusValue, "status");
+                    Fraction statusMultiplier = new(Int(e, "multiplierNum"), Int(e, "multiplierDen"));
+                    if (statusMultiplier.Num <= 0 || statusMultiplier.Den <= 0)
+                        throw new ArgumentException("statusPower multiplier params must be positive.");
+                    effects.Add(new StatusPowerEffect(
+                        Parse<StatusPowerSubject>(Str(e, "subject"), "subject"),
+                        status,
+                        statusMultiplier,
+                        Bool(e, "ignoreSourceBurnPenalty")));
+                    break;
+
                 case "ailment":
                     string a = Str(e, "ailment", "status");
                     if (a.Equals("confusion", StringComparison.OrdinalIgnoreCase))

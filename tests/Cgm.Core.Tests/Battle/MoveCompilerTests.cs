@@ -330,6 +330,20 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
+    public void CompilesStatusPowerOp()
+    {
+        BattleMove bm = MoveCompiler.ToBattleMove(Move(DamageClass.Physical, 70,
+            Op("damage"),
+            Op("statusPower", null,
+                ("subject", "user"), ("status", "any"),
+                ("multiplierNum", 2), ("multiplierDen", 1),
+                ("ignoreSourceBurnPenalty", true))));
+
+        Assert.Contains(bm.SecondaryEffects, effect => effect == new StatusPowerEffect(
+            StatusPowerSubject.User, null, new Fraction(2, 1), IgnoreSourceBurnPenalty: true));
+    }
+
+    [Fact]
     public void MissingParam_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
@@ -415,6 +429,26 @@ public sealed class MoveCompilerTests
             MoveCompiler.ToBattleMove(Move(DamageClass.Special, 150, Op("hpRatioPower", null, ("source", "bench")))));
         Assert.Throws<ArgumentException>(() =>
             MoveCompiler.ToBattleMove(Move(DamageClass.Special, 150, Op("hpRatioPower", null, ("source", "user"), ("extra", 1)))));
+    }
+
+    [Fact]
+    public void StatusPower_InvalidParamsThrow()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            MoveCompiler.ToBattleMove(Move(DamageClass.Special, 70, Op("statusPower"))));
+        Assert.Throws<ArgumentException>(() =>
+            MoveCompiler.ToBattleMove(Move(DamageClass.Special, 70, Op("statusPower", chance: 50,
+                ("subject", "target"), ("status", "poison"), ("multiplierNum", 2), ("multiplierDen", 1)))));
+        Assert.Throws<ArgumentException>(() =>
+            MoveCompiler.ToBattleMove(Move(DamageClass.Special, 70, Op("statusPower", null,
+                ("subject", "target"), ("status", "drowsy"), ("multiplierNum", 2), ("multiplierDen", 1)))));
+        Assert.Throws<ArgumentException>(() =>
+            MoveCompiler.ToBattleMove(Move(DamageClass.Special, 70, Op("statusPower", null,
+                ("subject", "target"), ("status", "poison"), ("multiplierNum", 2), ("multiplierDen", 0)))));
+        Assert.Throws<ArgumentException>(() =>
+            MoveCompiler.ToBattleMove(Move(DamageClass.Special, 70,
+                Op("statusPower", null, ("subject", "target"), ("status", "poison"), ("multiplierNum", 2), ("multiplierDen", 1)),
+                Op("statusPower", null, ("subject", "user"), ("status", "any"), ("multiplierNum", 2), ("multiplierDen", 1)))));
     }
 
     [Fact]

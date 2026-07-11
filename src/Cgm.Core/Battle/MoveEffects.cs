@@ -20,6 +20,7 @@ public enum MoveGateKind { FirstAction, NotPreviousMove }
 public enum HpFractionRecipient { Self, Target }
 public enum HpFractionOperation { Heal, Damage }
 public enum HpFractionBasis { MaxHp, CurrentHp }
+public enum StatusPowerSubject { User, Target }
 
 /// <summary>apply_condition(persistent status) — burn/poison/paralysis/… on the target.</summary>
 public sealed record AilmentEffect(PersistentStatus Status) : MoveEffect;
@@ -78,6 +79,13 @@ public sealed record HpFractionEffect(
     HpFractionOperation Operation,
     HpFractionBasis Basis,
     Fraction Fraction) : MoveEffect;
+
+/// <summary>Changes base power when the move user or target has a matching persistent status.</summary>
+public sealed record StatusPowerEffect(
+    StatusPowerSubject Subject,
+    PersistentStatus? Status,
+    Fraction Multiplier,
+    bool IgnoreSourceBurnPenalty) : MoveEffect;
 
 /// <summary>apply_condition(volatile:focus_energy) — raises the user's crit stage.</summary>
 public sealed record CritBoostEffect(int Stages) : MoveEffect;

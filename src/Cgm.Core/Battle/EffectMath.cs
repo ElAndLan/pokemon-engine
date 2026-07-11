@@ -75,6 +75,10 @@ public static class EffectMath
     public static int HpRatioPower(int basePower, int currentHp, int maxHp) =>
         maxHp <= 0 ? basePower : Math.Max(1, basePower * currentHp / maxHp);
 
+    /// <summary>Applies a status-conditioned base-power multiplier when its condition is met.</summary>
+    public static int StatusPower(int basePower, bool conditionMet, Fraction multiplier) =>
+        !conditionMet ? basePower : Math.Max(1, basePower * multiplier.Num / multiplier.Den);
+
     public static int HazardDamage(int maxHp, int layers) => layers switch
     {
         1 => Math.Max(1, maxHp / 8),

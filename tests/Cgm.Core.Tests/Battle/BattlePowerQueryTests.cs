@@ -79,6 +79,50 @@ public sealed class BattlePowerQueryTests
         Assert.Equal(300 - expected, enemy.CurrentHp);
     }
 
+    [Theory]
+    [InlineData(false, 65)]
+    [InlineData(true, 130)]
+    public void StatusPower_ScalesOnlyWhenTheStatusConditionMatches(bool conditionMet, int expected)
+    {
+        Assert.Equal(expected, EffectMath.StatusPower(65, conditionMet, new Fraction(2, 1)));
+    }
+
+    [Fact]
+    public void StatusPower_TargetSubject_UsesMatchingTargetStatusInDamageFormula()
+    {
+        var move = new BattleMove(EntityId.Parse("move:status_target_strike"), Grass, DamageClass.Special, 65, 100, 25, 0, 0,
+            secondaryEffects: [new StatusPowerEffect(StatusPowerSubject.Target, PersistentStatus.Sleep, new Fraction(2, 1), false)]);
+        var player = new BattleCreature(EntityId.Parse("species:a"), "A", 50, [Normal],
+            new Stats(200, 100, 100, 100, 100, 100), [move]);
+        var enemy = new BattleCreature(EntityId.Parse("species:b"), "B", 50, [Normal],
+            new Stats(400, 100, 100, 100, 100, 1), [Inert()]);
+        enemy.SetStatus(PersistentStatus.Sleep, 3);
+
+        new BattleController(player, enemy, Chart(), new FakeRng(ints: [0, 15], doubles: [0.99]))
+            .ResolveTurn(new UseMove(0), new UseMove(0));
+
+        int expected = DamageCalc.Compute(50, 130, 100, 100, effectiveness: 1.0, stab: 1.0, crit: false, roll: 100, burn: false);
+        Assert.Equal(400 - expected, enemy.CurrentHp);
+    }
+
+    [Fact]
+    public void StatusPower_UserSubject_CanSuppressTheMatchingBurnPenalty()
+    {
+        var move = new BattleMove(EntityId.Parse("move:status_user_strike"), Grass, DamageClass.Physical, 100, 100, 25, 0, 0,
+            secondaryEffects: [new StatusPowerEffect(StatusPowerSubject.User, PersistentStatus.Burn, new Fraction(2, 1), true)]);
+        var player = new BattleCreature(EntityId.Parse("species:a"), "A", 50, [Normal],
+            new Stats(200, 100, 100, 100, 100, 100), [move]);
+        player.SetStatus(PersistentStatus.Burn);
+        var enemy = new BattleCreature(EntityId.Parse("species:b"), "B", 50, [Normal],
+            new Stats(400, 100, 100, 100, 100, 1), [Inert()]);
+
+        new BattleController(player, enemy, Chart(), new FakeRng(ints: [0, 15], doubles: [0.99]))
+            .ResolveTurn(new UseMove(0), new UseMove(0));
+
+        int expected = DamageCalc.Compute(50, 200, 100, 100, effectiveness: 1.0, stab: 1.0, crit: false, roll: 100, burn: false);
+        Assert.Equal(400 - expected, enemy.CurrentHp);
+    }
+
     private static BattleMove Inert() =>
         new(EntityId.Parse("move:inert"), Normal, DamageClass.Status, null, null, 25, 0, 0);
 

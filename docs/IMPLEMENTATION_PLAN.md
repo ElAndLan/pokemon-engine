@@ -273,6 +273,12 @@ Primary groups: damage query modifiers (64), special accuracy (36), stat expansi
 - Complete type/class/accuracy/crit/priority/turn-order/stat/effectiveness/final-damage queries.
 - Add HP equalization, HP floors, percent-current/max HP, metric and inventory formulas.
 
+Progress (2026-07-10): reusable status-conditioned base-power handling is in place through
+`statusPower`. It targets the user or active target, matches a specific or any persistent status, and
+can suppress the physical burn penalty only when its authored condition matches. Compiler validation,
+numeric rounding, target/user resolution, and burn interaction are covered by tests. The remaining
+formula families and normalized per-move conformance definitions remain open.
+
 Exit: formula families have table tests, exact rounding, compiler/validation coverage, and all
 affected moves receive conformance cases.
 

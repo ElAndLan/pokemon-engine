@@ -525,6 +525,8 @@ public sealed class BattleController
             case HpFractionEffect h:
                 ApplyHpFraction(ctx, h);
                 break;
+            case StatusPowerEffect:
+                break; // evaluated in ComputeHit before DamageCalc.
             case RecoilEffect r when ctx.DamageDealt > 0:
                 Sap(ctx.Source, ctx.SourceSide, EffectMath.RecoilDamage(ctx.DamageDealt, r.Fraction.Num, r.Fraction.Den),
                     amt => new Recoiled(ctx.SourceSide, amt));
@@ -957,6 +959,16 @@ public sealed class BattleController
             power = EffectMath.HpRatioPower(power, ratioSource.CurrentHp, ratioSource.MaxHp);
         }
 
+        bool ignoreSourceBurnPenalty = false;
+        if (move.SecondaryEffects.OfType<StatusPowerEffect>().SingleOrDefault() is { } statusPower)
+        {
+            BattleCreature statusSubject = statusPower.Subject == StatusPowerSubject.User ? attacker : target;
+            bool conditionMet = statusSubject.Status is { } status
+                && (statusPower.Status is null || statusPower.Status == status);
+            power = EffectMath.StatusPower(power, conditionMet, statusPower.Multiplier);
+            ignoreSourceBurnPenalty = conditionMet && statusPower.IgnoreSourceBurnPenalty;
+        }
+
         bool physical = move.DamageClass == DamageClass.Physical;
         bool crit = BattleRolls.IsCrit(move.CritStage + attacker.CritStageBonus, _rng);
         int roll = BattleRolls.DamageRoll(_rng);
@@ -977,7 +989,7 @@ public sealed class BattleController
             Math.Max(1, (int)(StatValue(target.Stats, defStat) * StatStages.Multiplier(dStage))));
         double eff = _chart.Effectiveness(move.Type, target.Types);
         double stab = TypeChart.Stab(move.Type, attacker.Types);
-        bool burn = attacker.Status == PersistentStatus.Burn && physical;
+        bool burn = attacker.Status == PersistentStatus.Burn && physical && !ignoreSourceBurnPenalty;
 
         int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn);
         double hooks = HookDamageMultiplier(move, side);
