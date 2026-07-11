@@ -52,7 +52,7 @@ files. Adding them still requires the package reference and this doc to change t
 
 | Package | Planned phase/use | Current status |
 |---|---|---|
-| Silk.NET.OpenAL | Phase 13+ audio playback | Not referenced yet |
+| Silk.NET.OpenAL 2.23.0 | Phase 16E audio playback | User-approved 2026-07-11; not referenced until Phase 16E; native clean-machine payload/license verified by the 16E gate |
 | ZstdSharp.Port | Optional pack blob compression | Not referenced; Phase 12 pack uses stdlib Deflate |
 | Verify.Xunit | Golden/snapshot tests | Not referenced; current tests are plain xUnit |
 
@@ -80,3 +80,5 @@ ADR-004.
 - 2026-07-08: Reconciled this file against actual package references. Moved OpenAL,
   ZstdSharp, and Verify.Xunit to planned/not-referenced because they are not currently in
   project files.
+- 2026-07-11: User approved Silk.NET.OpenAL 2.23.0 for the Phase 16E Runtime audio backend.
+  Approval does not authorize adding the reference or audio code before Phase 16E.

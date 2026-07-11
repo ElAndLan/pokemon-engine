@@ -1187,10 +1187,9 @@ adapt presentation and IO around that contract; it may not add or reinterpret ga
 - Runtime owns one top-level scene stack. Only the top scene receives input/update; covered scenes
   render only when the top scene declares overlay. Transitions block input, run in simulation ticks,
   and never load content on a render callback.
-- No unlisted package is authorized. Phase 16E's audio backend is the one predeclared stack candidate,
-  `Silk.NET.OpenAL` matching the pinned Silk.NET line; adding its project reference still requires the
-  repository's explicit dependency-approval step and TECH_STACK update. That approval gates only the
-  audio subpackage—other independent Runtime packages continue. Do not substitute another library.
+- No unlisted package is authorized. `Silk.NET.OpenAL` 2.23.0 is approved for Phase 16E and recorded
+  in `TECH_STACK.md`; add its Runtime project reference only when 16E becomes current. Do not
+  substitute another library or add audio code during Phase 15.
 - Version 1.0 audio source is uncompressed PCM WAV only: RIFF/WAVE, little-endian signed 16-bit,
   mono/stereo, 44.1 or 48 kHz. Other formats, including OGG, fail validation with a conversion hint
   until an explicitly approved decoder is added. Runtime streams music PCM buffers and loads short
@@ -1272,7 +1271,9 @@ adapt presentation and IO around that contract; it may not add or reinterpret ga
      validation/event tail, and collision; compiled out or inaccessible in release flavor.
    - **Acceptance:** save/temp/backup/corrupt/newer-version matrix; full party/storage/shop conservation;
      level/evolution prompt replay; clock rollover/day-night; audio missing/device loss/volume/crossfade;
-     debug release exclusion. Exit: player systems survive save/relaunch identically.
+     published `win-x64` output contains and loads the package-provided native OpenAL implementation
+     on a machine without system OpenAL, with its license/notice recorded; debug release exclusion.
+     Exit: player systems survive save/relaunch identically.
 6. **16F — Event-driven battle presentation (`PLANNED`; prerequisites 16C/E and Phase 15 contract).**
    - **Spec lock:** BattleScene state machine, action/typed-target/replacement menus, Core request/
      response boundary, event-to-presentation catalog, animation queue, skip/fast-forward, and outcome
@@ -1311,7 +1312,7 @@ Phase 16 GO requires all:
 - [ ] Raw and packed fixture replays produce equal Core/save/event outcomes.
 - [ ] No Runtime content ID or game-rule branch exists.
 - [ ] Fixed-step, renderer/resource, input, scene, overworld, player/save/audio, and battle event
-      matrices pass; audio approval/reference is recorded before the audio subpackage is implemented.
+      matrices pass; the approved OpenAL reference is added only in Phase 16E.
 - [ ] The complete fixture route and singles/doubles presentation pass keyboard and gamepad smoke.
 - [ ] Runtime performance/resource budgets and focused review are GO.
 
