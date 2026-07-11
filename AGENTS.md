@@ -160,5 +160,11 @@ When the user says "loop", "continue", "iterate", "run the loop", or asks for au
    - blockers, if any
 9. Stop and report if blocked, out of scope, tests fail for unrelated reasons, or user approval is needed.
 
+A roadmap package may span multiple model turns. Package size or a substantial refactor is not a
+blocker and does not justify a zero-change response. If a context boundary prevents completion, land
+only a normal-path green checkpoint, record the package as `IN PROGRESS` with the exact continuation,
+and resume that package before selecting another. Do not relabel internal checkpoints as new roadmap
+slices or advance certification before the full package exit passes.
+
 Do not advance phases unless the current phase definition of done is met.
 Do not implement ideas from the Idea Ledger unless the user explicitly moves them into scope.
