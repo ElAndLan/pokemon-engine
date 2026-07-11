@@ -121,13 +121,16 @@ public sealed class BattleController
     }
 
     public bool CanSubmitAction(BattleSlot slot, BattleAction action)
+        => CanSubmitAction(slot, action, null);
+
+    public bool CanSubmitAction(BattleSlot slot, BattleAction action, BattleActionSelection? selection)
     {
         if (Outcome is not null || !Topology.Contains(slot))
             return false;
 
         try
         {
-            Validate(slot, action);
+            Validate(slot, action, selection);
             return true;
         }
         catch (ArgumentException)
@@ -222,7 +225,7 @@ public sealed class BattleController
         foreach (BattleActionSubmission submission in submitted.Actions)
         {
             BattleAction effective = PreviewQueuedActionGate(submission.Source, submission.Action);
-            Validate(submission.Source, effective);
+            Validate(submission.Source, effective, submission.Selection);
             BattleCreature actor = Active(submission.Source);
             EntityId? moveId = MoveIndex(effective) is { } moveIndex ? actor.Moves[moveIndex].Move : null;
             admitted.Add(new AdmittedAction(submission with { Action = effective }, ActiveIndex(submission.Source), moveId));
@@ -352,9 +355,54 @@ public sealed class BattleController
         {
             AdmittedAction action = actions.Single(candidate => candidate.Submission == scheduledAction.Submission);
             if (!ActorIsCurrent(action))
+            {
                 InvalidateActor(action);
+                continue;
+            }
+
+            int moveIndex = EffectiveMoveIndex(action.Submission.Source, MoveIndex(action.Submission.Action)!.Value);
+            BattleMove move = Active(action.Submission.Source).Moves[moveIndex];
+            if (!move.HasPp)
+            {
+                _log.Add(new ActionInvalidated(action.Submission.Source, ActionInvalidationReason.ResourceChanged));
+                continue;
+            }
+
+            move.UsePp();
+            _log.Add(new MoveUsed(action.Submission.Source, move.Move));
+            if (!HasLiveTargets(action.Submission, move))
+                _log.Add(new MoveFailed(action.Submission.Source, move.Move, MoveFailureReason.TargetUnavailable));
         }
     }
+
+    private bool HasLiveTargets(BattleActionSubmission submission, BattleMove move)
+    {
+        BattleSlot? selected = (submission.Selection as ActiveSlotSelection)?.Slot;
+        BattleTargetScope scope = BattleTargetResolver.ResolveScope(move.Target, Topology, submission.Source, selected);
+        if (scope.Kind is BattleTargetScopeKind.Side or BattleTargetScopeKind.Field
+            or BattleTargetScopeKind.FaintedParty or BattleTargetScopeKind.MoveReference)
+        {
+            return true;
+        }
+
+        List<BattleSlot> slots = scope.Slots.Where(IsLive).ToList();
+        if ((move.Target is MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst) && slots.Count == 0
+            && selected is { Side: var side } && side != submission.Source.Side)
+        {
+            slots = Topology.SlotsFor(Opponent(submission.Source.Side)).Where(IsLive).ToList();
+            if (slots.Count > 1)
+                slots = [slots[0]];
+        }
+        else if (scope.Selection == BattleTargetSelection.RandomOpponent)
+        {
+            if (slots.Count > 1)
+                slots = [slots[_rng.Next(slots.Count)]];
+        }
+
+        return slots.Count > 0;
+    }
+
+    private bool IsLive(BattleSlot slot) => !Active(slot).IsFainted;
 
     private bool ActorIsCurrent(AdmittedAction action)
     {
@@ -376,9 +424,9 @@ public sealed class BattleController
         _log.Add(new ActionInvalidated(action.Submission.Source, reason));
     }
 
-    private void Validate(BattleSide side, BattleAction action) => Validate(new BattleSlot(side, 0), action);
+    private void Validate(BattleSide side, BattleAction action) => Validate(new BattleSlot(side, 0), action, null);
 
-    private void Validate(BattleSlot slot, BattleAction action)
+    private void Validate(BattleSlot slot, BattleAction action, BattleActionSelection? selection = null)
     {
         if (!Topology.Contains(slot))
             throw new ArgumentException($"Slot {slot} is outside this battle topology.", nameof(slot));
@@ -387,10 +435,12 @@ public sealed class BattleController
         {
             case UseMove use:
                 ValidateMoveUse(slot, use.MoveIndex);
+                ValidateSelection(slot, Active(slot).Moves[use.MoveIndex].Target, selection);
                 break;
 
             case ActivateForm form:
                 ValidateMoveUse(slot, form.MoveIndex);
+                ValidateSelection(slot, Active(slot).Moves[form.MoveIndex].Target, selection);
                 BattleCreature active = Active(slot);
                 bool temporary = !_temporaryFormUsed[(int)side]
                     && active.CanActivateTemporaryForm(form.FormId, item => _itemStock[(int)side].TryGetValue(item, out int count) && count > 0);
@@ -447,6 +497,53 @@ public sealed class BattleController
     }
 
     private void ValidateMoveUse(BattleSide side, int moveIndex) => ValidateMoveUse(new BattleSlot(side, 0), moveIndex);
+
+    private void ValidateSelection(BattleSlot source, MoveTarget target, BattleActionSelection? selection)
+    {
+        bool requiresActive = Topology.ActiveSlotsPerSide > 1
+            && (target is MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst or MoveTarget.Ally);
+        if (target == MoveTarget.UserOrAlly && Topology.ActiveSlotsPerSide > 1)
+            requiresActive = true;
+        if (requiresActive && selection is not ActiveSlotSelection)
+            throw new ArgumentException($"Move target '{target}' requires an active-slot selection.", nameof(selection));
+        if (target == MoveTarget.FaintingPokemon && selection is not PartyMemberSelection)
+            throw new ArgumentException("Fainting-pokemon targets require a party-member selection.", nameof(selection));
+        if (target == MoveTarget.SpecificMove && selection is not MoveReferenceSelection)
+            throw new ArgumentException("Specific-move targets require a move-reference selection.", nameof(selection));
+        if (selection is null)
+            return;
+
+        switch (selection)
+        {
+            case ActiveSlotSelection active:
+                if (!Topology.Contains(active.Slot))
+                    throw new ArgumentException("Selected active slot is outside the battle topology.", nameof(selection));
+                if (target is not (MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst or MoveTarget.Ally or MoveTarget.UserOrAlly))
+                    throw new ArgumentException($"Move target '{target}' does not accept an active-slot selection.", nameof(selection));
+                if (active.Slot == source && target != MoveTarget.UserOrAlly)
+                    throw new ArgumentException("A selected active target cannot be the source slot.", nameof(selection));
+                if (target == MoveTarget.SelectedPokemonMeFirst && active.Slot.Side == source.Side)
+                    throw new ArgumentException("Selected-pokemon-me-first targets must be opposing slots.", nameof(selection));
+                if (target == MoveTarget.Ally && active.Slot.Side != source.Side)
+                    throw new ArgumentException("Ally targets must be own-side slots.", nameof(selection));
+                if (target == MoveTarget.UserOrAlly && active.Slot.Side != source.Side)
+                    throw new ArgumentException("User-or-ally targets must be own-side slots.", nameof(selection));
+                break;
+            case PartyMemberSelection party:
+                if (target != MoveTarget.FaintingPokemon || party.Side != source.Side
+                    || party.PartyIndex < 0 || party.PartyIndex >= _parties[(int)party.Side].Count
+                    || !_parties[(int)party.Side][party.PartyIndex].IsFainted)
+                    throw new ArgumentException("Fainting-pokemon selection must name a fainted member on the source side.", nameof(selection));
+                break;
+            case MoveReferenceSelection move:
+                if (target != MoveTarget.SpecificMove || !Topology.Contains(move.Slot)
+                    || move.MoveIndex < 0 || move.MoveIndex >= Active(move.Slot).Moves.Count)
+                    throw new ArgumentException("Move-reference selection is invalid.", nameof(selection));
+                break;
+            default:
+                throw new ArgumentException("Unknown action selection.", nameof(selection));
+        }
+    }
 
     private void ValidateMoveUse(BattleSlot slot, int moveIndex)
     {

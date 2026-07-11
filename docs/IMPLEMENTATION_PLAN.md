@@ -646,6 +646,26 @@ normalized reference keys affected: none, because 15H vectors have not yet been 
 No schema or dependency change. Files: `BattleController.cs`, `BattleEvents.cs`, and
 `BattleDoublesAdmissionTests.cs`. Next eligible package: **15B-3**.
 
+Progress (2026-07-11): **15B-3 COMPLETE.** `BattleActionSubmission` now carries a typed
+selection union (`ActiveSlotSelection`, `PartyMemberSelection`, or `MoveReferenceSelection`) rather
+than an overloaded integer. Admission validates selection kind, relationship, topology membership,
+party/move ranges, and the fainted-party requirement without mutation or RNG. The doubles move
+checkpoint spends PP and emits slot-aware `MoveUsed` before live materialization; target failure
+then emits `MoveFailed(TargetUnavailable)`. Live active targets follow the locked slot-stable
+rules: selected opponents fall back in topology order, own allies never fall back, spread scopes
+filter fainted slots, and random opponents draw exactly once only with two live candidates.
+Side, field, fainted-party, and move-reference scopes materialize once without fake active targets.
+
+Evidence: `BattleLiveTargetMaterializationTests` covers every authored target shape in doubles,
+invalid selection rejection without PP/events/RNG, selected-opponent fallback, no ally fallback,
+PP/`MoveUsed`/failure order, and 0/1/2 random-candidate draw counts. Focused battle tests passed
+596 tests. Tooling regeneration remained byte-identical: 937 inventory-only entries, digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, 0 certified. Audit group:
+target selection/topology (144 historical rows); normalized reference keys: none until 15H vectors
+are registered. No schema or dependency change. Files: `BattleTurnActions.cs`, `BattleEvents.cs`,
+`BattleController.cs`, `BattleDoublesAdmissionTests.cs`, and
+`BattleLiveTargetMaterializationTests.cs`. Next eligible package: **15B-4**.
+
 #### 15C — Query hooks and variable formulas
 
 Primary groups: damage query modifiers (64), special accuracy (36), stat expansion (63).

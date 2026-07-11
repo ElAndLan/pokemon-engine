@@ -23,8 +23,12 @@ public sealed record MoveUsed(BattleSlot Slot, EntityId Move) : BattleEvent
     public MoveUsed(BattleSide side, EntityId move) : this(new BattleSlot(side, 0), move) { }
 }
 public sealed record MoveMissed(BattleSide Side, EntityId Move) : BattleEvent;
-public enum MoveFailureReason { FirstActionOnly, CannotRepeat }
-public sealed record MoveFailed(BattleSide Side, EntityId Move, MoveFailureReason Reason) : BattleEvent;
+public enum MoveFailureReason { FirstActionOnly, CannotRepeat, TargetUnavailable }
+public sealed record MoveFailed(BattleSlot Slot, EntityId Move, MoveFailureReason Reason) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public MoveFailed(BattleSide side, EntityId move, MoveFailureReason reason) : this(new BattleSlot(side, 0), move, reason) { }
+}
 public sealed record ActionSkipped(BattleSlot Slot) : BattleEvent;
 public enum ActionInvalidationReason { ActorChanged, ActorFainted, MoveChanged, ResourceChanged, TargetStateChanged }
 public sealed record ActionInvalidated(BattleSlot Slot, ActionInvalidationReason Reason) : BattleEvent;

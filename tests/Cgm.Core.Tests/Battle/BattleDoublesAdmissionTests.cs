@@ -95,7 +95,8 @@ public sealed class BattleDoublesAdmissionTests
     {
         BattleController battle = Battle([0, 1], [0, 1]);
 
-        Assert.True(battle.CanSubmitAction(new BattleSlot(BattleSide.Player, 1), new UseMove(0)));
+        Assert.True(battle.CanSubmitAction(new BattleSlot(BattleSide.Player, 1), new UseMove(0),
+            new ActiveSlotSelection(new BattleSlot(BattleSide.Enemy, 0))));
         Assert.False(battle.CanSubmitAction(new BattleSlot(BattleSide.Player, 1), new UseMove(1)));
     }
 

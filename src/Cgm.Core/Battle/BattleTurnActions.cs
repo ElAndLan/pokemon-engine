@@ -2,7 +2,18 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Battle;
 
-public sealed record BattleActionSubmission(BattleSlot Source, BattleAction Action, BattleSlot? Target = null);
+public abstract record BattleActionSelection;
+public sealed record ActiveSlotSelection(BattleSlot Slot) : BattleActionSelection;
+public sealed record PartyMemberSelection(BattleSide Side, int PartyIndex) : BattleActionSelection;
+public sealed record MoveReferenceSelection(BattleSlot Slot, int MoveIndex) : BattleActionSelection;
+
+public sealed record BattleActionSubmission(BattleSlot Source, BattleAction Action, BattleActionSelection? Selection = null)
+{
+    public BattleSlot? Target => (Selection as ActiveSlotSelection)?.Slot;
+
+    public BattleActionSubmission(BattleSlot source, BattleAction action, BattleSlot target)
+        : this(source, action, new ActiveSlotSelection(target)) { }
+}
 
 /// <summary>One complete turn's submitted actions, normalized to immutable topology order.</summary>
 public sealed class BattleTurnActions
@@ -22,7 +33,7 @@ public sealed class BattleTurnActions
                 throw new ArgumentException($"Active slot {slot} must submit exactly one action.", nameof(submitted));
             if (matches[0].Action is null)
                 throw new ArgumentException($"Active slot {slot} submitted a null action.", nameof(submitted));
-            if (matches[0].Target is { } target && !topology.Contains(target))
+            if (matches[0].Selection is ActiveSlotSelection { Slot: var target } && !topology.Contains(target))
                 throw new ArgumentException($"Target slot {target} is outside the battle topology.", nameof(submitted));
             actions.Add(matches[0]);
         }
