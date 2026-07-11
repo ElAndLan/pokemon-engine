@@ -624,6 +624,28 @@ readiness ledger also prevents 15C-15I implementation from entering the immediat
 owning semantic contract is complete. Documentation verification: solution build succeeded with
 0 warnings/errors; full suite passed 979 tests (847 Core, 104 Creator, 21 Runtime, 7 Tools).
 
+Progress (2026-07-11): **15B-2 COMPLETE.** The controller now has topology-aware construction
+with unique living start assignments and a slot-addressed turn API. Side-only active/action APIs
+fail in doubles. Admission is atomic: it normalizes `BattleTurnActions`, previews queue gates,
+validates individual actions, then rejects collective duplicate reserves, overdrawn item stock,
+simultaneous temporary forms, and doubles capture before state, events, PP, stock, queues, or RNG
+change. Doubles execution resolves switch, item, form, and move-scheduling phases in the locked
+order; switches/items use the shared speed/tie shuffle, forms precede move scheduling, and each
+submitted action captures its source slot and actor party index. Actor/resource/target invalidation
+events and slot-aware move/switch/form/item events provide the new identity seam while existing
+singles constructors/properties remain compatible. Live target materialization, PP/`MoveUsed`
+execution boundaries, and target effects are deliberately not implemented here; they are 15B-3/4.
+
+Evidence: `BattleDoublesAdmissionTests` covers construction, side-only API rejection, atomic
+collective rejection, doubles-capture rejection, slot submission validation, speed-ordered switches,
+and exact slot events. `D:\dotnet\dotnet.exe test tests\Cgm.Core.Tests\Cgm.Core.Tests.csproj
+--no-restore --filter Battle` passed 577 tests. The tooling regeneration compared byte-identical:
+937 inventory-only entries, digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`,
+and 0 certified. Audit capability group: target selection/topology (144 historical rows); exact
+normalized reference keys affected: none, because 15H vectors have not yet been registered.
+No schema or dependency change. Files: `BattleController.cs`, `BattleEvents.cs`, and
+`BattleDoublesAdmissionTests.cs`. Next eligible package: **15B-3**.
+
 #### 15C — Query hooks and variable formulas
 
 Primary groups: damage query modifiers (64), special accuracy (36), stat expansion (63).

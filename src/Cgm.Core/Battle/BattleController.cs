@@ -12,6 +12,7 @@ namespace Cgm.Core.Battle;
 public sealed class BattleController
 {
     private sealed record QueuedActionGate(BattleSlot Slot, int DueTurn);
+    private sealed record AdmittedAction(BattleActionSubmission Submission, int ActorPartyIndex, EntityId? MoveId);
 
     private readonly List<BattleCreature>[] _parties;
     private readonly BattleActiveSlots _activeSlots;
@@ -42,6 +43,37 @@ public sealed class BattleController
         IsWild = isWild;
     }
 
+    /// <summary>Creates a slot-addressed battle. The supplied active assignments are party indices, not slots.</summary>
+    public BattleController(
+        IReadOnlyList<BattleCreature> playerParty,
+        IReadOnlyList<BattleCreature> enemyParty,
+        BattleTopology topology,
+        IReadOnlyList<int> playerActivePartyIndexes,
+        IReadOnlyList<int> enemyActivePartyIndexes,
+        TypeChart chart,
+        IRng rng,
+        bool isWild = false)
+    {
+        ArgumentNullException.ThrowIfNull(topology);
+        ArgumentNullException.ThrowIfNull(playerParty);
+        ArgumentNullException.ThrowIfNull(enemyParty);
+        ArgumentNullException.ThrowIfNull(playerActivePartyIndexes);
+        ArgumentNullException.ThrowIfNull(enemyActivePartyIndexes);
+        ArgumentNullException.ThrowIfNull(chart);
+        ArgumentNullException.ThrowIfNull(rng);
+        if (playerActivePartyIndexes.Count != topology.ActiveSlotsPerSide
+            || enemyActivePartyIndexes.Count != topology.ActiveSlotsPerSide)
+            throw new ArgumentException("Every battle-start slot requires one party assignment.");
+
+        _parties = [[.. playerParty], [.. enemyParty]];
+        _activeSlots = new BattleActiveSlots(topology);
+        AssignInitial(BattleSide.Player, playerActivePartyIndexes);
+        AssignInitial(BattleSide.Enemy, enemyActivePartyIndexes);
+        _chart = chart;
+        _rng = rng;
+        IsWild = isWild;
+    }
+
     public int Turn { get; private set; }
     public bool IsWild { get; }
     public bool Captured { get; private set; }
@@ -49,9 +81,17 @@ public sealed class BattleController
     public IReadOnlyList<BattleEvent> Log => _log;
 
     public BattleTopology Topology => _activeSlots.Topology;
-    public BattleCreature Active(BattleSide side) => Active(new BattleSlot(side, 0));
+    public BattleCreature Active(BattleSide side)
+    {
+        RequireSinglesAdapter();
+        return Active(new BattleSlot(side, 0));
+    }
     public BattleCreature Active(BattleSlot slot) => _parties[(int)slot.Side][_activeSlots.PartyIndex(slot)];
-    public int ActiveIndex(BattleSide side) => ActiveIndex(new BattleSlot(side, 0));
+    public int ActiveIndex(BattleSide side)
+    {
+        RequireSinglesAdapter();
+        return ActiveIndex(new BattleSlot(side, 0));
+    }
     public int ActiveIndex(BattleSlot slot) => _activeSlots.PartyIndex(slot);
     public IReadOnlyList<BattleCreature> Party(BattleSide side) => _parties[(int)side];
 
@@ -65,6 +105,7 @@ public sealed class BattleController
 
     public bool CanSubmitAction(BattleSide side, BattleAction action)
     {
+        RequireSinglesAdapter();
         if (Outcome is not null)
             return false;
 
@@ -79,8 +120,25 @@ public sealed class BattleController
         }
     }
 
+    public bool CanSubmitAction(BattleSlot slot, BattleAction action)
+    {
+        if (Outcome is not null || !Topology.Contains(slot))
+            return false;
+
+        try
+        {
+            Validate(slot, action);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
     public IReadOnlyList<BattleEvent> ResolveTurn(BattleAction playerAction, BattleAction enemyAction)
     {
+        RequireSinglesAdapter();
         if (Outcome is not null)
             throw new InvalidOperationException("The battle is already over.");
 
@@ -128,17 +186,212 @@ public sealed class BattleController
         return _log.GetRange(start, _log.Count - start);
     }
 
-    private void Validate(BattleSide side, BattleAction action)
+    /// <summary>
+    /// Admits and resolves a complete slot-addressed turn. Doubles move target materialization is
+    /// intentionally owned by 15B-3; this package owns construction, admission, phase ordering,
+    /// collective conflicts, and actor identity through the move scheduling checkpoint.
+    /// </summary>
+    public IReadOnlyList<BattleEvent> ResolveTurn(BattleTurnActions submitted)
     {
+        ArgumentNullException.ThrowIfNull(submitted);
+        if (Outcome is not null)
+            throw new InvalidOperationException("The battle is already over.");
+        if (submitted.Topology.ActiveSlotsPerSide != Topology.ActiveSlotsPerSide)
+            throw new ArgumentException("Submitted actions use a different battle topology.", nameof(submitted));
+        if (Topology.ActiveSlotsPerSide == 1)
+        {
+            return ResolveTurn(
+                submitted.For(new BattleSlot(BattleSide.Player, 0)).Action,
+                submitted.For(new BattleSlot(BattleSide.Enemy, 0)).Action);
+        }
+
+        int start = _log.Count;
+        IReadOnlyList<AdmittedAction> admitted = Admit(submitted);
+        ConsumePreviewedActionGates(admitted);
+        ResolveSwitchPhase(admitted);
+        ResolveItemPhase(admitted);
+        ResolveFormPhase(admitted);
+        ResolveDoublesMoveScheduling(admitted);
+        Turn++;
+        return _log.GetRange(start, _log.Count - start);
+    }
+
+    private IReadOnlyList<AdmittedAction> Admit(BattleTurnActions submitted)
+    {
+        var admitted = new List<AdmittedAction>(submitted.Actions.Count);
+        foreach (BattleActionSubmission submission in submitted.Actions)
+        {
+            BattleAction effective = PreviewQueuedActionGate(submission.Source, submission.Action);
+            Validate(submission.Source, effective);
+            BattleCreature actor = Active(submission.Source);
+            EntityId? moveId = MoveIndex(effective) is { } moveIndex ? actor.Moves[moveIndex].Move : null;
+            admitted.Add(new AdmittedAction(submission with { Action = effective }, ActiveIndex(submission.Source), moveId));
+        }
+
+        foreach (IGrouping<BattleSide, AdmittedAction> side in admitted.GroupBy(action => action.Submission.Source.Side))
+        {
+            int forms = side.Count(action => action.Submission.Action is ActivateForm form
+                && Active(action.Submission.Source).CanActivateTemporaryForm(form.FormId,
+                    item => _itemStock[(int)side.Key].TryGetValue(item, out int count) && count > 0));
+            if (forms > 1)
+                throw new ArgumentException($"{side.Key} cannot activate more than one temporary form in a turn.");
+
+            foreach (IGrouping<EntityId, UseBattleItem> items in side
+                .Select(action => action.Submission.Action).OfType<UseBattleItem>().GroupBy(item => item.Item))
+            {
+                int stock = _itemStock[(int)side.Key].TryGetValue(items.Key, out int count) ? count : 0;
+                if (items.Count() > stock)
+                    throw new ArgumentException($"{side.Key} requested more '{items.Key}' than its available stock.");
+            }
+
+            int[] switches = side.Select(action => action.Submission.Action).OfType<Switch>().Select(action => action.PartyIndex).ToArray();
+            if (switches.Distinct().Count() != switches.Length)
+                throw new ArgumentException($"{side.Key} cannot switch two slots to the same reserve.");
+        }
+        return admitted;
+    }
+
+    private void ConsumePreviewedActionGates(IEnumerable<AdmittedAction> actions)
+    {
+        foreach (AdmittedAction action in actions)
+        {
+            if (action.Submission.Action is not Pass)
+                continue;
+            int removed = _queuedActionGates.RemoveAll(gate => gate.Slot == action.Submission.Source && gate.DueTurn <= Turn);
+            if (removed > 0)
+                _log.Add(new ActionSkipped(action.Submission.Source));
+        }
+    }
+
+    private BattleAction PreviewQueuedActionGate(BattleSlot slot, BattleAction action) =>
+        _queuedActionGates.Any(gate => gate.Slot == slot && gate.DueTurn <= Turn) ? new Pass() : action;
+
+    private void ResolveSwitchPhase(IReadOnlyList<AdmittedAction> actions)
+    {
+        var scheduled = actions.Where(action => action.Submission.Action is Switch)
+            .Select(action => new BattleScheduledAction(action.Submission, 0, Speed(action.Submission.Source)))
+            .ToList();
+        foreach (BattleScheduledAction scheduledAction in BattleTurnOrder.Order(scheduled, _rng))
+        {
+            AdmittedAction action = actions.Single(candidate => candidate.Submission == scheduledAction.Submission);
+            if (!ActorIsCurrent(action))
+            {
+                InvalidateActor(action);
+                continue;
+            }
+            SwitchTo(action.Submission.Source, ((Switch)action.Submission.Action).PartyIndex);
+        }
+    }
+
+    private void ResolveItemPhase(IReadOnlyList<AdmittedAction> actions)
+    {
+        var scheduled = actions.Where(action => action.Submission.Action is UseBattleItem)
+            .Select(action => new BattleScheduledAction(action.Submission, 0, Speed(action.Submission.Source)))
+            .ToList();
+        foreach (BattleScheduledAction scheduledAction in BattleTurnOrder.Order(scheduled, _rng))
+        {
+            AdmittedAction action = actions.Single(candidate => candidate.Submission == scheduledAction.Submission);
+            if (!ActorIsCurrent(action))
+            {
+                InvalidateActor(action);
+                continue;
+            }
+            UseBattleItem item = (UseBattleItem)action.Submission.Action;
+            if (!_itemStock[(int)action.Submission.Source.Side].TryGetValue(item.Item, out int stock) || stock <= 0)
+            {
+                _log.Add(new ActionInvalidated(action.Submission.Source, ActionInvalidationReason.ResourceChanged));
+                continue;
+            }
+            BattleCreature target = _parties[(int)action.Submission.Source.Side][item.TargetPartyIndex];
+            if (target.IsFainted || target.CurrentHp >= target.MaxHp)
+            {
+                _log.Add(new ActionInvalidated(action.Submission.Source, ActionInvalidationReason.TargetStateChanged));
+                continue;
+            }
+            _itemStock[(int)action.Submission.Source.Side][item.Item]--;
+            _log.Add(new BattleItemUsed(action.Submission.Source, item.Item, item.TargetPartyIndex));
+            Heal(target, action.Submission.Source.Side, Math.Min(item.HealAmount, target.MaxHp - target.CurrentHp));
+        }
+    }
+
+    private void ResolveFormPhase(IReadOnlyList<AdmittedAction> actions)
+    {
+        foreach (AdmittedAction action in actions.Where(action => action.Submission.Action is ActivateForm)
+            .OrderBy(action => action.Submission.Source))
+        {
+            if (!ActorIsCurrent(action))
+            {
+                InvalidateActor(action);
+                continue;
+            }
+            ActivateForm form = (ActivateForm)action.Submission.Action;
+            BattleCreature creature = Active(action.Submission.Source);
+            if (creature.CanActivateTimedForm(form.FormId))
+                creature.ActivateTimedForm(form.FormId);
+            else
+            {
+                creature.ActivateTemporaryForm(form.FormId);
+                _temporaryFormUsed[(int)action.Submission.Source.Side] = true;
+            }
+            _log.Add(new FormChanged(action.Submission.Source, form.FormId));
+        }
+    }
+
+    private void ResolveDoublesMoveScheduling(IReadOnlyList<AdmittedAction> actions)
+    {
+        var scheduled = new List<BattleScheduledAction>();
+        foreach (AdmittedAction action in actions)
+        {
+            if (MoveIndex(action.Submission.Action) is not { } moveIndex || !ActorIsCurrent(action))
+                continue;
+            int effective = EffectiveMoveIndex(action.Submission.Source, moveIndex);
+            scheduled.Add(new BattleScheduledAction(action.Submission, Active(action.Submission.Source).Moves[effective].Priority,
+                Speed(action.Submission.Source)));
+        }
+        foreach (BattleScheduledAction scheduledAction in BattleTurnOrder.Order(scheduled, _rng))
+        {
+            AdmittedAction action = actions.Single(candidate => candidate.Submission == scheduledAction.Submission);
+            if (!ActorIsCurrent(action))
+                InvalidateActor(action);
+        }
+    }
+
+    private bool ActorIsCurrent(AdmittedAction action)
+    {
+        if (ActiveIndex(action.Submission.Source) != action.ActorPartyIndex)
+            return false;
+        BattleCreature actor = Active(action.Submission.Source);
+        if (actor.IsFainted)
+            return false;
+        return action.MoveId is null || MoveIndex(action.Submission.Action) is { } moveIndex
+            && moveIndex < actor.Moves.Count && actor.Moves[moveIndex].Move == action.MoveId;
+    }
+
+    private void InvalidateActor(AdmittedAction action)
+    {
+        ActionInvalidationReason reason = ActiveIndex(action.Submission.Source) != action.ActorPartyIndex
+            ? ActionInvalidationReason.ActorChanged
+            : Active(action.Submission.Source).IsFainted ? ActionInvalidationReason.ActorFainted
+            : ActionInvalidationReason.MoveChanged;
+        _log.Add(new ActionInvalidated(action.Submission.Source, reason));
+    }
+
+    private void Validate(BattleSide side, BattleAction action) => Validate(new BattleSlot(side, 0), action);
+
+    private void Validate(BattleSlot slot, BattleAction action)
+    {
+        if (!Topology.Contains(slot))
+            throw new ArgumentException($"Slot {slot} is outside this battle topology.", nameof(slot));
+        BattleSide side = slot.Side;
         switch (action)
         {
             case UseMove use:
-                ValidateMoveUse(side, use.MoveIndex);
+                ValidateMoveUse(slot, use.MoveIndex);
                 break;
 
             case ActivateForm form:
-                ValidateMoveUse(side, form.MoveIndex);
-                BattleCreature active = Active(side);
+                ValidateMoveUse(slot, form.MoveIndex);
+                BattleCreature active = Active(slot);
                 bool temporary = !_temporaryFormUsed[(int)side]
                     && active.CanActivateTemporaryForm(form.FormId, item => _itemStock[(int)side].TryGetValue(item, out int count) && count > 0);
                 if (!temporary && !active.CanActivateTimedForm(form.FormId))
@@ -153,11 +406,11 @@ public sealed class BattleController
                     throw new ArgumentException($"{side} is already on party member {sw.PartyIndex}.");
                 if (party[sw.PartyIndex].IsFainted)
                     throw new ArgumentException($"{side} cannot switch to a fainted member.");
-                if (Active(side).IsTrapped)
+                if (Active(slot).IsTrapped)
                     throw new ArgumentException($"{side} is trapped and cannot switch.");
-                if (Active(side).IsCharging)
+                if (Active(slot).IsCharging)
                     throw new ArgumentException($"{side} is charging a move and cannot switch.");
-                if (Active(side).IsLocked)
+                if (Active(slot).IsLocked)
                     throw new ArgumentException($"{side} is locked into a move and cannot switch.");
                 break;
 
@@ -165,6 +418,8 @@ public sealed class BattleController
                 throw new ArgumentException("Only the player can throw a ball.");
             case ThrowBall when !IsWild:
                 throw new ArgumentException("Cannot capture in a trainer battle.");
+            case ThrowBall when Topology.ActiveSlotsPerSide != 1:
+                throw new ArgumentException("Capture is not available in doubles.");
             case ThrowBall:
                 break;
 
@@ -191,9 +446,12 @@ public sealed class BattleController
         }
     }
 
-    private void ValidateMoveUse(BattleSide side, int moveIndex)
+    private void ValidateMoveUse(BattleSide side, int moveIndex) => ValidateMoveUse(new BattleSlot(side, 0), moveIndex);
+
+    private void ValidateMoveUse(BattleSlot slot, int moveIndex)
     {
-        BattleCreature c = Active(side);
+        BattleCreature c = Active(slot);
+        BattleSide side = slot.Side;
         if (moveIndex < 0 || moveIndex >= c.Moves.Count)
             throw new ArgumentException($"{side} move index {moveIndex} out of range.");
         if (!c.IsCharging && !c.IsLocked && c.ChoiceLockedMoveIndex is { } locked && moveIndex != locked)
@@ -248,6 +506,19 @@ public sealed class BattleController
         _activeSlots.Assign(new BattleSlot(side, 0), index);
         _log.Add(new SwitchedIn(side, index));
         OnSwitchIn(side);
+    }
+
+    private void SwitchTo(BattleSlot slot, int index)
+    {
+        BattleCreature outgoing = Active(slot);
+        outgoing.ResetStages();
+        outgoing.ClearVolatiles();
+        _activeSlots.Assign(slot, index);
+        _log.Add(new SwitchedIn(slot, index));
+        // ponytail: multi-slot entry-hook dispatch belongs to the scoped-hook package; this package
+        // only establishes the atomic slot switch and preserves the singles hook path.
+        if (Topology.ActiveSlotsPerSide == 1)
+            OnSwitchIn(slot.Side);
     }
 
     private void ResolveMoves(BattleTurnActions actions)
@@ -312,10 +583,25 @@ public sealed class BattleController
         return (int)(c.Stats.Spe * m);
     }
 
+    private int Speed(BattleSlot slot)
+    {
+        BattleCreature c = Active(slot);
+        double m = StatusEffects.SpeedMultiplier(c.Status) * StatStages.Multiplier(c.Stage(StatKind.Spe));
+        return (int)(c.Stats.Spe * m);
+    }
+
     /// <summary>A charging or rampaging creature is locked into its move; otherwise the submitted index stands.</summary>
     private int EffectiveMoveIndex(BattleSide side, int submitted)
     {
         BattleCreature c = Active(side);
+        if (c.IsCharging) return c.ChargingMoveIndex!.Value;
+        if (c.IsLocked) return c.LockedMoveIndex;
+        return submitted;
+    }
+
+    private int EffectiveMoveIndex(BattleSlot slot, int submitted)
+    {
+        BattleCreature c = Active(slot);
         if (c.IsCharging) return c.ChargingMoveIndex!.Value;
         if (c.IsLocked) return c.LockedMoveIndex;
         return submitted;
@@ -1401,6 +1687,24 @@ public sealed class BattleController
         Outcome = new BattleOutcome(winner);
         RevertBattleEndForms();
         _log.Add(new BattleEnded(winner));
+    }
+
+    private void AssignInitial(BattleSide side, IReadOnlyList<int> partyIndexes)
+    {
+        foreach ((int partyIndex, int position) in partyIndexes.Select((index, position) => (index, position)))
+        {
+            if (partyIndex < 0 || partyIndex >= _parties[(int)side].Count)
+                throw new ArgumentOutOfRangeException(nameof(partyIndexes), $"{side} party index {partyIndex} is out of range.");
+            if (_parties[(int)side][partyIndex].IsFainted)
+                throw new ArgumentException($"{side} cannot start with a fainted party member.", nameof(partyIndexes));
+            _activeSlots.Assign(new BattleSlot(side, position), partyIndex);
+        }
+    }
+
+    private void RequireSinglesAdapter()
+    {
+        if (Topology.ActiveSlotsPerSide != 1)
+            throw new InvalidOperationException("This side-only API is a singles adapter. Use the slot-addressed API in doubles.");
     }
 
     private static BattleSide Opponent(BattleSide s) => s == BattleSide.Player ? BattleSide.Enemy : BattleSide.Player;

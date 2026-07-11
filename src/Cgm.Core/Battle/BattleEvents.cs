@@ -17,15 +17,33 @@ public sealed record Pass : BattleAction;
 /// <summary>What happened during resolution — the stream the UI renders (BATTLE_SYSTEM_SPEC).
 /// UI consumes these; it never reads or mutates state to infer what happened.</summary>
 public abstract record BattleEvent;
-public sealed record MoveUsed(BattleSide Side, EntityId Move) : BattleEvent;
+public sealed record MoveUsed(BattleSlot Slot, EntityId Move) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public MoveUsed(BattleSide side, EntityId move) : this(new BattleSlot(side, 0), move) { }
+}
 public sealed record MoveMissed(BattleSide Side, EntityId Move) : BattleEvent;
 public enum MoveFailureReason { FirstActionOnly, CannotRepeat }
 public sealed record MoveFailed(BattleSide Side, EntityId Move, MoveFailureReason Reason) : BattleEvent;
 public sealed record ActionSkipped(BattleSlot Slot) : BattleEvent;
+public enum ActionInvalidationReason { ActorChanged, ActorFainted, MoveChanged, ResourceChanged, TargetStateChanged }
+public sealed record ActionInvalidated(BattleSlot Slot, ActionInvalidationReason Reason) : BattleEvent;
 public sealed record DamageDealt(BattleSide Target, int Amount, double Effectiveness, bool Crit) : BattleEvent;
-public sealed record Fainted(BattleSide Side) : BattleEvent;
-public sealed record SwitchedIn(BattleSide Side, int PartyIndex) : BattleEvent;
-public sealed record FormChanged(BattleSide Side, string? FormId) : BattleEvent;
+public sealed record Fainted(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public Fainted(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record SwitchedIn(BattleSlot Slot, int PartyIndex) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public SwitchedIn(BattleSide side, int partyIndex) : this(new BattleSlot(side, 0), partyIndex) { }
+}
+public sealed record FormChanged(BattleSlot Slot, string? FormId) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public FormChanged(BattleSide side, string? formId) : this(new BattleSlot(side, 0), formId) { }
+}
 public sealed record StatusApplied(BattleSide Side, PersistentStatus Status) : BattleEvent;
 public sealed record StatusCured(BattleSide Side, PersistentStatus Status) : BattleEvent;
 public sealed record StatStageChanged(BattleSide Side, StatKind Stat, int Delta) : BattleEvent;
@@ -34,7 +52,11 @@ public sealed record ResidualDamage(BattleSide Side, int Amount) : BattleEvent;
 public sealed record Healed(BattleSide Side, int Amount) : BattleEvent;
 public sealed record HpFractionDamaged(BattleSide Side, int Amount) : BattleEvent;
 public sealed record HpCostPaid(BattleSide Side, int Amount) : BattleEvent;
-public sealed record BattleItemUsed(BattleSide Side, EntityId Item, int TargetPartyIndex) : BattleEvent;
+public sealed record BattleItemUsed(BattleSlot Slot, EntityId Item, int TargetPartyIndex) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public BattleItemUsed(BattleSide side, EntityId item, int targetPartyIndex) : this(new BattleSlot(side, 0), item, targetPartyIndex) { }
+}
 public sealed record HeldItemConsumed(BattleSide Side, string Op) : BattleEvent;
 public sealed record Recoiled(BattleSide Side, int Amount) : BattleEvent;
 public sealed record CritBoosted(BattleSide Side) : BattleEvent;
