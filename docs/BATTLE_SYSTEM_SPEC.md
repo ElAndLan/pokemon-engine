@@ -4,7 +4,7 @@ Status: **Partial / implemented sections are binding; Phase 15 completion contra
 2026-07-10.** Damage formula lives in `BATTLE_DAMAGE_CALC.md`; substantial v0–v6 Core mechanics
 exist through the shared effect dispatcher. Phase 15 now completes the reusable Core mechanic
 surface and certifies all 937 entries in `docs/pokeapi-results/move/` per
-`IMPLEMENTATION_PLAN.md` v3.1. Phase 15A locked the corpus manifest and conceptual trace contract.
+`IMPLEMENTATION_PLAN.md` v3.2. Phase 15A locked the corpus manifest and conceptual trace contract.
 Each later feature package must finish its exact target, timing, query, condition, mutation,
 ruleset, event, and trace semantics here before the corresponding code lands.
 
@@ -392,8 +392,8 @@ The normalized target vocabulary is: `selected`, `user`, `allOpponents`,
 
 The existing singles helper remains a compatibility adapter for already-implemented one-active
 mechanics. It may resolve only the old one-creature targets; attempting to execute a newly added
-topology-dependent target through that adapter fails loudly until the Phase 15B action resolver
-uses `ResolveScope`. This prevents a doubles-only target from silently acting on the opposing
+topology-dependent target through that adapter fails loudly; the Phase 15B action resolver specified
+below uses `ResolveScope`. This prevents a doubles-only target from silently acting on the opposing
 single creature.
 
 `BattleActiveSlots` owns the mutable slot-to-party assignment. Its topology is immutable; each
@@ -409,8 +409,218 @@ before action legality is evaluated. `BattleTurnOrder` then orders scheduled act
 descending and effective speed descending. Equal priority/speed groups are shuffled in their stable
 slot order using Fisher-Yates, drawing `Next(k)` for `k = groupCount` down to `2`; a two-action tie
 therefore preserves the existing single `Next(2)` draw. It owns no legality, target selection, or
-effect resolution. The singles controller uses this path now; a later Phase 15B resolver will
-schedule and execute all doubles submissions through the same contract.
+effect resolution. The singles controller uses this path now; the Phase 15B resolver specified
+below schedules and executes all doubles submissions through the same contract.
+
+### Phase 15B doubles execution contract
+
+This section closes the execution decisions that the topology foundation intentionally deferred.
+It is the authority for Phase 15B implementation. These are Creature Game Maker rules: when source
+generations differ, this deterministic contract wins until a named `RulesetProfile` explicitly
+overrides a policy. An implementation package must not choose a different behavior locally.
+
+#### Controller state and turn admission
+
+- A controller owns one immutable `BattleTopology`. Singles has one slot per side; doubles has two.
+  Each battle-start slot must be assigned a distinct, non-fainted party member from its side. A side
+  without enough eligible party members cannot start a doubles battle.
+- Slot APIs are authoritative. Existing side-only APIs are singles adapters and must reject a
+  doubles topology instead of assuming position zero.
+- At the selection checkpoint every occupied, non-fainted slot submits exactly one action. Empty or
+  fainted slots submit nothing. Before the next ordinary turn, the replacement checkpoint below
+  must either fill every fillable slot or establish that the battle has ended.
+- Admission is non-mutating and consumes no RNG. Validate structure first; preview due queue gates
+  and form the effective submissions without consuming them; validate effective individual legality
+  in topology order; then validate collective conflicts. If any effective action is invalid, reject
+  the entire turn before state, PP, stock, queues, events, or RNG change. After successful admission,
+  phase 1 consumes exactly the queue entries that were previewed and emits their skip events.
+- Each admitted action captures `(sourceSlot, actorPartyIndex)`. A later creature never inherits an
+  action merely because it occupies the same slot. Immediately before an action phase and again
+  before move execution, an actor that is fainted, no longer assigned to its captured slot, or no
+  longer owns the selected move invalidates that action. Emit `ActionInvalidated`; spend no PP or
+  item stock and draw no RNG.
+
+Collective validation rejects all of the following before mutation:
+
+- two allied switches selecting the same reserve, any destination already active at selection, a
+  switch to an invalid/fainted destination, or a switch submitted by a trapped/locked source;
+- more than one temporary once-per-battle form activation for one side in the same turn;
+- aggregate item requests exceeding the side's stock; and
+- capture in a doubles topology. Capture remains a wild-singles action until a later explicit
+  ruleset contract says otherwise; the move corpus does not require doubles capture.
+
+#### Turn phases and simultaneous action conflicts
+
+One admitted turn executes these checkpoints in order:
+
+1. Consume due pre-action queue gates in topology order and replace blocked submissions with pass.
+2. Resolve voluntary switches before all other actions. Order multiple switches by the captured
+   actor's effective speed descending; shuffle equal-speed groups with the existing
+   `BattleTurnOrder` Fisher-Yates rule. All destinations were reserved during collective validation.
+3. Resolve capture, then battle items. Capture is singles-only. Order multiple item actions by
+   effective speed descending with the same tie rule. Revalidate the target and stock immediately
+   before use; a target made full-HP or otherwise ineligible by an earlier action invalidates the
+   later action without consuming stock.
+4. Apply admitted form activations in topology order. The captured actor must still occupy the
+   source slot. Form changes precede move scheduling, so the activated form's effective speed is
+   used for that turn's move order.
+5. Schedule moves by priority descending and post-form effective speed descending. Shuffle only
+   equal-priority/equal-speed groups using `BattleTurnOrder`. Revalidate captured actor identity
+   immediately before each scheduled move.
+6. After all scheduled moves, resolve end-turn condition hooks from the shared hook order.
+7. Evaluate battle outcome for the full checkpoint, then enter replacement selection for surviving
+   sides, then run switch-in hooks. Replacement-hook faints repeat replacement selection as needed.
+
+Switches and items are deliberately separate action classes, so even the highest-priority move does
+not precede them. A pass produces no event unless it replaced an action through a visible gate. PP
+and move legality are not reserved across actions; they are revalidated at execution for effects
+that may alter moves or PP later in Phase 15.
+
+#### Typed selections and live target materialization
+
+An action selection is a typed value, never an overloaded integer:
+
+- `ActiveSlot(BattleSlot)` for selected active-creature scopes;
+- `PartyMember(BattleSide, partyIndex)` for `faintingPokemon`; or
+- `MoveReference(BattleSlot, moveIndex)` for `specificMove`.
+
+The selection kind, side relationship, topology membership, party range, faint requirement, and
+move range are validated at admission. `selected` accepts any non-source active slot;
+`selectedPokemonMeFirst` accepts an opposing active slot; `ally` accepts a non-source own slot; and
+`userOrAlly` accepts either own slot. `BattleTargetResolver.ResolveScope` remains the pure authored
+shape resolver. At move execution the action resolver converts that scope into live targets in this
+order: authored scope, valid live candidates, applicable redirection hooks, target policy, then
+stable topology order. In a two-by-two topology every distinct active slot is adjacent; no hidden
+distance rule exists.
+
+Active-slot invalidation follows this table:
+
+| Authored target | Execution-time behavior |
+|---|---|
+| `user` | The captured source slot; actor invalidation cancels the action. |
+| `selected`, `selectedPokemonMeFirst` | The selected slot remains the target if its occupant changed. If an opposing selected slot is empty/fainted, choose the first live legal opposing slot in topology order. An empty own-side `selected` slot does not retarget. If no permitted target remains, target failure. |
+| `ally`, `userOrAlly` | The selected own slot remains the target if its occupant changed. If empty/fainted, do not retarget; target failure. |
+| `randomOpponent` | Build live legal opponents after redirection filters. Draw `Next(count)` once only when `count > 1`; use the only candidate without a draw; target failure at zero. |
+| spread active scopes | Recompute all live eligible slots at execution and preserve topology order. Empty/fainted slots are omitted; zero targets is target failure. |
+| side/field scope | Resolve once for that side/field, never once per active creature. |
+| fainted-party/move-reference scope | Resolve the admitted typed selection; no active-slot fallback or random choice. |
+
+Selected targets are slot-stable, not occupant-stable: a voluntary or forced replacement occupying
+the selected slot can receive the action. The only automatic fallback is the selected-opponent rule
+above. It is deterministic and draws no RNG. A ruleset that wants random fallback must define that
+as a target policy and its extra draw explicitly.
+
+Target failure occurs after actor action gates but after the move is announced and its PP is spent;
+emit `MoveUsed` followed by `MoveFailed(TargetUnavailable)`. Admission-time malformed selections,
+actor invalidation, and pre-move action gates spend no PP and emit no `MoveUsed`.
+
+Redirection applies only to a redirectable authored single-opponent scope, including
+`randomOpponent`; an eligible redirector fixes the target and suppresses the random-target draw. It
+never redirects self, ally, party, side, field, spread, or move-reference scopes. Eligible redirect conditions are ordered
+by explicit redirect priority descending, then condition owner's effective speed descending, then
+topology order; exact ties use topology order and draw no RNG. The first eligible hook wins. A
+redirection hook must declare the move tags/classes it accepts and its bypass tags. Position-swap
+effects exchange the two party assignments atomically after legality succeeds; queued slot effects
+stay on their slots and creature-owned effects travel with their creatures.
+
+#### PP, RNG, hit, effect, and event order
+
+A move action has one action context and an ordered target context for every materialized target.
+The action context owns source, move, PP payment, shared hit-count result, action-total damage, and
+action-scoped effects. A target context owns target identity, accuracy/immune/hit results,
+per-hit damage, target-total damage, and target-scoped effects. Side/field effects use one scoped
+context and are never multiplied by the number of active slots.
+
+The exact resolver order is:
+
+1. Revalidate actor identity, move index, lock state, and PP; then run the existing source action-gate
+   and status/volatile action checks in their specified order. Their source-level RNG draws occur
+   here. A blocked actor stops without PP, target, accuracy, hit-count, or effect draws.
+2. Spend one PP and emit one slot-aware `MoveUsed`.
+3. Materialize live targets and redirection. Random targeting draws here. Zero targets emits the
+   target failure and stops.
+4. Snapshot the ordered direct targets and whether spread reduction applies. It applies when at
+   least two live active-creature targets were materialized, even if one later misses or is immune.
+5. Roll accuracy once for each target in topology order and retain the success set. If every target
+   misses, stop without hit-count, critical, damage, or secondary draws.
+6. Determine the action-scoped hit count once when at least one accurate target remains and the move
+   has the standard multi-hit wrapper. The same intended count applies to every accurate target. A
+   future per-target hit-count policy must be an explicit typed parameter, not an implementation
+   accident.
+7. For each accurate target in topology order, check move/effect immunity once. An immune target emits
+   its immunity result and receives no hit RNG. Otherwise resolve hits in ascending hit number: each
+   hit rolls critical then the damage random factor, applies damage, records memory, and emits damage/
+   faint events. Stop remaining hits for that target when it faints; continue the snapshotted direct
+   damage against later targets even if an earlier contact/recoil consequence will eventually faint
+   the source.
+8. After direct damage for all targets, resolve target-scoped non-damage effects and contact
+   consequences in topology order, each effect in compiled order. A standard secondary chance is
+   rolled once per eligible target after that target's damage, not once for the whole spread action.
+9. Resolve action-scoped self, aggregate drain/recoil/crash/cost, field, and side effects once in
+   compiled order. Action-total damage is the sum of actual HP removed from all targets/hits.
+10. Emit action completion trace, evaluate the post-action outcome checkpoint, then continue or end.
+
+No RNG call is made for a deterministic result, a singleton random candidate, an always-hit move,
+an invalidated action, an immune effect whose chance is not consulted, or hits after a target faints.
+The deterministic trace records each performed draw in the order above with action, target, hit,
+bound, and result. Standard spread damage applies the `3/4` target modifier at the damage formula's
+Targets step with integer floor, independently for every damaging hit. One remaining live target
+receives no spread reduction.
+
+Target-scoped effects read that target's damage result. Action-scoped damage-derived effects read
+action-total damage. When a mechanic requires per-target rounding before aggregation, its typed
+effect parameter must say so; the resolver must not infer it from a move identity. Recoil and other
+source costs execute once after all direct targets. Effects that cannot affect a fainted target are
+skipped visibly in trace without a chance draw.
+
+#### Slot-aware events and action identity
+
+Every event about an active creature carries `BattleSlot`; `BattleSide` may remain as a derived
+compatibility property. This includes move use/miss/failure, action invalidation, charging/status
+action failures, damage/healing, status/stage/volatile changes, form changes, faint, switch-in/out,
+and contact consequences. Side/field events remain side/field scoped. Party-target item and
+replacement events carry both slot where applicable and party index.
+
+The minimum new failure identity is:
+
+- `ActionInvalidated(sourceSlot, reason)` with `ActorChanged`, `ActorFainted`, `MoveChanged`,
+  `ResourceChanged`, or `TargetStateChanged`;
+- `MoveFailed(sourceSlot, move, reason)` with `TargetUnavailable` in addition to existing reasons;
+  and
+- `ReplacementRequested(slot)` for every fillable empty slot.
+
+Event order is authoritative and replayable: turn phase order, scheduled action order, target
+topology order, hit number, compiled effect order. `MoveUsed` occurs once; target miss/immunity/
+damage/faint events follow for each target; target effects follow direct damage; source/side/field
+effects follow target effects. The singles adapter constructs position-zero slots, so singles and
+doubles share event types rather than maintaining two event streams.
+
+#### Faint, outcome, and replacement checkpoint
+
+A faint empties the slot logically for later targeting but does not insert a reserve during the
+current move or between scheduled moves. Actions captured for that fainted actor invalidate when
+reached. Outcome is checked after each complete action and after the complete end-turn hook batch:
+
+- if exactly one side has no non-fainted party member, that side loses and remaining actions stop;
+- if both sides have no non-fainted party member at the same checkpoint, the result is a draw; and
+- a side with healthy reserves is not defeated merely because all active slots are empty.
+
+`BattleOutcome` therefore represents either a winner or draw; it must not manufacture a winner for
+a simultaneous wipe. End-turn hooks finish their deterministic batch before this check so a shared
+residual checkpoint can produce a draw.
+
+For every surviving side with empty slots and healthy non-active party members, the controller emits
+`ReplacementRequested` in topology order and waits for one typed party choice per fillable slot.
+Replacement admission is atomic: choices must be in range, non-fainted, non-active, and unique for
+that side. Apply accepted replacements in topology order and run each switch-in hook once. If an
+entry hook immediately faints a replacement, finish that hook batch, check outcome, and request
+another replacement for the slot when a reserve remains. An unfillable slot stays empty. No ordinary
+turn begins while a fillable slot awaits replacement.
+
+Voluntary switch, forced switch, pivot, and faint replacement must ultimately use the same
+slot-addressed switch helper, but Phase 15G adds their transfer and cancellation policies. Phase 15B
+implements the replacement checkpoint and the neutral no-transfer path; it must not guess the later
+passable-state whitelist.
 
 ### Queued action gates (Phase 15 move-handler family)
 

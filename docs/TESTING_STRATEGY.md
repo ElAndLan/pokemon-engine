@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15A contract active.** xUnit suites and deterministic Core tests are active. The
+Status: **Phase 15B execution contract active.** xUnit suites and deterministic Core tests are active. The
 corpus manifest/inventory contract is implemented in Cgm.Tools. Stable JSON/text snapshots use
 existing BCL serialization; Verify remains unnecessary unless a later decision demonstrates value.
 
@@ -70,6 +70,33 @@ An implementation package selects every applicable row; omitting one requires a 
 
 After focused tests, run the full solution. Phase 15 package reports must include commands and pass
 counts; “should pass” and previously green output are not evidence for the current change.
+
+## Phase 15B execution acceptance matrix
+
+The doubles execution packages are not complete until every row owned by that package passes through
+the public controller path. Pure helper tests supplement these rows; they do not replace them.
+
+| Owner | Required vectors |
+|---|---|
+| 15B-2 construction | singles and doubles valid assignments; too-small party; duplicate/out-of-range/fainted active assignment; side-only API rejection in doubles |
+| 15B-2 admission | duplicate/missing/dead-slot submission; individual invalid move/switch/item/form; duplicate reserve; aggregate item shortage; two allied form requests; doubles capture; prove rejection changes no state/PP/stock/RNG |
+| 15B-2 phase order | switch before item before form before move; two switch and two item speed orders; exact equal-speed Fisher-Yates draws; form-adjusted move speed; pass and queued-pass behavior |
+| 15B-2 identity/events | actor switched/fainted/move-changed/resource-changed before execution; no inherited action; active-creature events carry the exact slot; singles compatibility event vector |
+| 15B-3 target shapes | each of the 16 authored targets in every applicable singles/doubles context; active/party/side/field/move scope type; wrong selection kind, side, source, range, or faint state rejected |
+| 15B-3 live invalidation | replacement occupies selected opponent/ally slot; empty selected opponent fallback; empty ally failure; spread filters dead slots; side/field executes once; PP and `MoveUsed` boundary |
+| 15B-3 random | zero candidates fails with no draw after PP; one candidate succeeds with no draw; two candidates use exactly one `Next(2)` after filters; stable candidate order asserted |
+| 15B-4 per-target | independent accuracy and secondary rolls; shared standard hit count; crit/random per hit per target; immunity/miss/faint paths; later target still receives snapshotted direct damage |
+| 15B-4 spread/math | two live targets receive floor-at-Targets `3/4`; one live target receives full power; one later miss/immune still preserves the two-target modifier; action-total and per-target totals asserted |
+| 15B-4 order/trace | action → target → hit → effect event order; exact RNG trace bounds/results/skipped draws; target effects before action-scoped recoil/cost; singles and doubles family goldens |
+| 15B-5 redirect | eligible/ineligible tags and classes; bypass; multiple redirectors ordered by priority/speed/topology; no tie draw; spread/ally/side/field non-redirection; redirection target becomes invalid |
+| 15B-5 position | legal atomic ally swap; singles/invalid rejection; creature-owned state follows creature; slot-owned state remains; subsequent selected-slot resolution asserted |
+| 15B-6 outcome | one-side elimination; healthy reserve is not defeat; simultaneous action wipe draw; end-turn batch draw; remaining scheduled actions stop only on terminal outcome |
+| 15B-6 replacement | one/two empty slots; unique atomic choices; invalid/fainted/active/duplicate choice rejection without mutation; topology event order; entry-hook faint/re-request; unfillable slot; next-turn admission blocked while pending |
+
+Every RNG row supplies a counting scripted `IRng` and asserts both returned values and call bounds.
+Every rejection row snapshots controller state, event count, PP, stock, queues, and RNG calls before
+and after. The cumulative 15B golden records all four slots acting, at least one spread action, one
+invalidation, simultaneous faints with reserves, and deterministic replacements.
 
 ## Golden format
 

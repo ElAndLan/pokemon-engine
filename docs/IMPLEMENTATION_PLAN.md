@@ -1,6 +1,6 @@
 # IMPLEMENTATION_PLAN — Rebased Development Lifecycle
 
-Version 3.1 — 2026-07-11
+Version 3.2 — 2026-07-11
 
 Status: **Authoritative.** This plan replaces the prior phase-completion narrative. Git history
 preserves the old plan and progress log. `ARCHITECTURE_ADDENDUM.md` remains authoritative for
@@ -275,6 +275,73 @@ Append a short progress record under its 15B-15J workstream containing:
 `PARTIAL` never advances corpus counts. `BLOCKED` names the missing decision/reference/capability.
 Do not use “engine supports this” as a synonym for “move certified.”
 
+#### Package admission and specification readiness
+
+The roadmap previously put implementation-shaped work into the immediate queue while its owning
+spec still described that work as deferred. That is a planning defect. From this revision onward,
+every package has two independent states:
+
+- **SPEC READY** means every applicable row in `BATTLE_SYSTEM_SPEC.md`'s feature-package gate has a
+  mechanical answer and the tests that will prove it are named.
+- **IMPLEMENTED** means that locked contract is present in normal Core paths and its required tests
+  pass.
+
+Only a `SPEC READY` package may enter the implementation queue. A goal, capability list, or prose
+description is not specification readiness. If a later package needs a new decision, its first
+roadmap item is a specification-lock package; implementation does not start in the same commit unless
+the completed spec leaves no unresolved behavior and the change remains reviewable.
+
+Current readiness ledger:
+
+| Package | Spec state | Implementation state | Authority / next proof |
+|---|---|---|---|
+| 15B-1 topology and action foundations | SPEC READY | IMPLEMENTED | Battle spec target foundation; existing topology/action tests |
+| 15B-2 doubles controller and per-slot actions | SPEC READY | NOT IMPLEMENTED | Battle spec doubles execution: controller, admission, phases, conflicts |
+| 15B-3 typed selections and target materialization | SPEC READY | PARTIAL | Battle spec live materialization table; active target execution remains |
+| 15B-4 spread and per-target execution | SPEC READY | NOT IMPLEMENTED | Battle spec PP/RNG/hit/effect/event order |
+| 15B-5 redirection and position | SPEC READY | NOT IMPLEMENTED | Battle spec redirection precedence and atomic position swap |
+| 15B-6 faint outcome and replacement | SPEC READY | NOT IMPLEMENTED | Battle spec faint/outcome/replacement checkpoint |
+| 15C query/formula families | SPEC LOCK REQUIRED | NOT IMPLEMENTED | Lock ordered query stages and a formula table before each family |
+| 15D timing/queue/lock families | SPEC LOCK REQUIRED | PARTIAL | Existing move gates are implemented; lock queue payload lifecycle and each remaining timing family |
+| 15E scoped conditions/hooks | SPEC LOCK REQUIRED | NOT IMPLEMENTED | Lock store ownership, hook order, stacking, duration, and cleanup matrix |
+| 15F mutation/snapshots | SPEC LOCK REQUIRED | NOT IMPLEMENTED | Lock overlay precedence, ownership, legality, and reversion matrix |
+| 15G switch/recovery/memory/non-battle | SPEC LOCK REQUIRED | PARTIAL | HP primitives exist; lock switch transfer, memory, recovery rounding, and Core action outputs |
+| 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
+| 15I AI awareness | SPEC LOCK REQUIRED | NOT IMPLEMENTED | Lock legality adapter and primitive scoring contract after mechanics stabilize |
+| 15J certification/closeout | PROCESS READY | NOT COMPLETE | Generated manifest, registered tests, scans, fuzz/soak, and GO review |
+
+For rows marked `SPEC LOCK REQUIRED`, the specification package is fully planned here so an
+autonomous model has a concrete deliverable instead of discovering ambiguity during coding:
+
+1. **15C-SPEC:** publish the exact query stage order; value types and fraction width; rounding/clamp
+   rule at every stage; source/target/action-history inputs; one formula registry row per audited
+   formula with params/defaults/ranges; RNG draw frequency for random tables; failure/fallback rules;
+   and boundary vector IDs. Then mark only the locked formula family `SPEC READY`.
+2. **15D-SPEC:** publish queue entry identity, owner and target snapshot policy, insertion/order,
+   payload union, execution checkpoint, cancellation/transfer on switch/faint/end, PP and RNG rules,
+   lock precedence, called-move recursion budget, and event/trace order. Provide a lifecycle matrix
+   for every audited timing family before marking it ready.
+3. **15E-SPEC:** publish condition instance fields, allowed scopes, hook precedence, duration tick
+   point, refresh/replace/stack rules, source tracking, removal filters, bypass rules, loop guard,
+   switch/faint/end cleanup, and event/AI output. Provide one hook/lifecycle table per condition
+   family; content names may annotate evidence but never select code paths.
+4. **15F-SPEC:** publish immutable-base/effective-overlay precedence for item, ability, types, stats,
+   moves, form, substitute, and snapshots; mutation legality; PP ownership; copy depth; suppression;
+   source/duration; switch/faint/end reversion; recursion limits; and events. Provide the complete
+   mutation/reversion matrix before the first helper lands.
+5. **15G-SPEC:** publish slot-addressed switch intents and transfer whitelist; trapping/escape and
+   replacement failure; bounded damage/action-memory records and aging; healing/cost/revive/cure
+   rounding and conservation; reward/post-battle ownership; overworld Core request payloads; and
+   outcome/event ordering. Separate battle rules from Runtime presentation/map consumption.
+6. **15I-SPEC:** publish legal-action enumeration as a consumer of Core resolvers, target-choice
+   generation, expected-value inputs per primitive, unknown-op failure, delayed/field/switch value,
+   simulation budget, deterministic tie order, memory visibility, and score-trace fields.
+
+Each specification-lock package must cite the exact audit keys that require every rule, reconcile
+generation differences through `RulesetProfile`, add or name neutral acceptance vectors, and update
+this readiness ledger. `TBD`, “later resolver”, “as appropriate”, and an unnamed “generation rule”
+are readiness failures.
+
 #### Complete Phase 15 capability ledger
 
 The following is the exhaustive engine backlog derived from the 20 legacy audit groups. Group
@@ -353,25 +420,82 @@ Primary audit group: target selection and battle topology (144 moves; groups ove
 
 Ordered feature packages:
 
-1. **Doubles controller state** - construct one- or two-slot topologies; map each active slot to a
-   unique party member; expose slot-based state/actions without duplicating the singles controller.
-2. **Per-slot action validation/execution** - accept one action per live slot, validate source/PP/
-   switch/item/form legality independently, preserve stable order, and skip invalidated actions after
-   earlier faints/switches.
-3. **Full target materialization** - turn every `ResolvedTargetScope` into ordered active, party,
-   side, field, or move-reference targets. Explicit selections must be validated against the authored
-   shape; random targets draw exactly once after legality/redirection filters.
-4. **Spread/per-target resolution** - fork an effect context per target; apply spread damage policy;
-   preserve per-target hit, immunity, secondary, drain/recoil, faint, and event ordering.
-5. **Redirection and position changes** - implement redirection filters/precedence, ally position
-   swap, adjacency where required, and interaction with selected/random/spread targets.
-6. **Faint replacement and switching** - request/validate replacements per empty slot, handle
-   simultaneous faints deterministically, and apply slot/side entry effects once.
+1. **15B-2 — Doubles controller and action admission (`SPEC READY`).**
+   - Add topology-aware construction that validates two unique, living party assignments per side;
+     keep the current constructor as a singles adapter.
+   - Make slot lookup authoritative and make every side-only active/action helper reject doubles.
+   - Accept actions for occupied living slots, normalize through `BattleTurnActions`, capture each
+     actor party index, and perform structural, individual, then collective validation without RNG or
+     mutation.
+   - Implement aggregate stock reservation, unique switch destinations, once-per-side form conflict,
+     and doubles-capture rejection.
+   - Execute switch, item, form, and move phases exactly as specified; use the shared speed/tie order
+     and revalidate actor identity before mutation.
+   - Migrate active-creature events to slot identity with singles compatibility constructors/
+     properties. Do not create a parallel doubles event hierarchy.
+   - **Acceptance:** constructor boundary table; malformed/collective action matrix; switch/item tie
+     RNG vectors; actor-changed/fainted/resource invalidation tests; unchanged singles behavior.
 
-Required evidence: target-shape table tests in singles and doubles; malformed action/selection tests;
-multi-target RNG/event golden; spread-reduction damage test; redirection conflict golden; simultaneous
-faint/replacement golden; all existing singles goldens unchanged unless the spec intentionally changes
-their event shape.
+2. **15B-3 — Typed selections and live target materialization (`SPEC READY`).**
+   - Add the typed active-slot/party-member/move-reference selection union and validate selection kind,
+     relationship, range, and faint requirements during admission.
+   - Convert every `ResolvedTargetScope` into one active, party, side, field, or move-reference
+     execution scope; never use an active target as a placeholder for a non-active scope.
+   - Apply the execution-time invalidation table: slot-stable occupants, deterministic opponent
+     fallback, no ally fallback, live spread filtering, and one random-opponent draw only for two or
+     more candidates.
+   - Spend PP and emit `MoveUsed` before an execution-time no-target failure; preserve zero spend for
+     malformed admission, actor invalidation, and pre-move gates.
+   - **Acceptance:** all 16 target shapes in singles and doubles; wrong selection-kind/side/range
+     rejection; switch-occupant and fainted-target cases; 0/1/2 candidate RNG counts; PP/event order.
+
+3. **15B-4 — Per-target action contexts and spread resolution (`SPEC READY`).**
+   - Split the current side-only `EffectContext` into one action context plus ordered target contexts,
+     carrying slot identity, per-hit/per-target damage, and action-total damage.
+   - Run accuracy per target, standard hit-count once per action, critical/random damage per hit per
+     target, then target effects, contact consequences, and action effects in the locked order.
+   - Add the `3/4` spread modifier at the damage Targets stage only when at least two live active
+     targets were snapshotted. Preserve full power with one target.
+   - Record every performed/skipped draw and query/mutation/event link in `EffectTrace`; do not add a
+     draw for deterministic or invalidated paths.
+   - Make target-scoped damage consumers use target totals and action-scoped recoil/cost consumers use
+     action totals. A mechanic needing per-target rounding receives a typed parameter in its owning
+     package.
+   - **Acceptance:** singles+two-target golden; one-target spread boundary; per-target miss/immunity/
+     secondary tests; multi-hit target/hit order; source-faints-from-contact snapshot behavior;
+     exact RNG trace and event sequence.
+
+4. **15B-5 — Redirection and ally position changes (`SPEC READY`).**
+   - Represent redirect eligibility as generic condition hooks with accepted/bypass move tags and an
+     explicit priority; collect by priority, owner speed, then topology order without a tie draw.
+   - Apply redirection only to one redirectable opposing active target and never to self/ally/spread/
+     party/side/field/move scopes.
+   - Implement atomic allied assignment swap. Creature-owned state follows the creature; slot-owned
+     queued/condition state stays with the slot.
+   - Re-run live target validation after redirection and trace rejected hooks and the winning hook.
+   - **Acceptance:** competing redirector golden; accepted/bypassed class/tag table; original target
+     empty/fainted; spread non-redirection; position swap state-ownership and subsequent-target tests.
+
+5. **15B-6 — Faint outcome and replacement checkpoint (`SPEC READY`).**
+   - Mark a fainted occupant unavailable to later actions without inserting a reserve mid-turn;
+     invalidate that actor's captured action when reached.
+   - Evaluate winner/draw only after a complete action or end-turn batch; add a draw-capable outcome
+     and stop manufacturing a winner for simultaneous wipes.
+   - Emit one `ReplacementRequested` per fillable empty slot, accept atomic unique party selections,
+     apply them in topology order, and run each entry hook once.
+   - Repeat replacement requests after entry-hook faints while reserves remain; allow an unfillable
+     slot to stay empty and forbid the next ordinary turn while a fillable request is pending.
+   - Route replacement through the same slot-addressed neutral switch helper used by voluntary
+     switching. Leave Phase 15G transfer whitelists to 15G rather than copying state here.
+   - **Acceptance:** one/both active faint, simultaneous side wipe/draw, reserves-versus-defeat,
+     duplicate/invalid replacement choices, entry-hazard repeat, action invalidation, and event golden.
+
+Package order is mandatory because every later package consumes the previous one's public Core
+contract. A package may be split into reviewable commits only when each commit is used by the normal
+resolver and green; scaffolding-only commits do not count. Required evidence is cumulative: the full
+target-shape table, malformed action/selection matrix, multi-target RNG/event golden, spread damage
+boundaries, redirection conflict golden, simultaneous faint/replacement golden, and all singles
+goldens updated only for the intentional slot-aware event migration.
 
 Exit: every move whose only blocker was topology/targeting compiles and resolves in its valid
 singles/doubles context; old singles tests remain green.
@@ -399,8 +523,19 @@ submissions, and normalizes actions to stable topology order. `BattleTurnOrder` 
 scheduled action by priority and effective speed, with deterministic Fisher-Yates tie groups that
 preserve the legacy two-way speed-tie RNG mapping. The existing singles controller now resolves
 through this collection/order path, so it is protected by the ordinary battle regression suite.
-The next 15B package is doubles action execution: controller construction/configuration for two
-active slots, per-slot legality, selected/spread target resolution, and slot-aware events.
+The next package is 15B-2: doubles controller construction, per-slot action admission/execution,
+collective conflict handling, actor invalidation, and slot-aware events under the now-locked doubles
+execution contract. Typed selection/materialization and spread execution follow as 15B-3 and 15B-4;
+they are no longer combined into an ambiguous implementation slice.
+
+Progress (2026-07-11): Phase 15B execution specification is now locked before further Core work.
+It defines topology-aware construction, atomic action admission, actor identity, simultaneous switch/
+item/form conflicts, typed selections, live-target invalidation and fallback, redirection precedence,
+PP/RNG/hit/effect/event order, spread rounding, slot-aware events, draw outcomes, and replacement
+checkpoints. Packages 15B-2 through 15B-6 now have separate entry/acceptance contracts. A phase-wide
+readiness ledger also prevents 15C-15I implementation from entering the immediate queue before each
+owning semantic contract is complete. Documentation verification: solution build succeeded with
+0 warnings/errors; full suite passed 979 tests (847 Core, 104 Creator, 21 Runtime, 7 Tools).
 
 #### 15C — Query hooks and variable formulas
 
@@ -880,22 +1015,33 @@ and runs it on a clean machine without assistance.
 
 ## 10. Immediate next queue
 
-Always take the first incomplete item whose prerequisites are satisfied:
+Always take the first incomplete **SPEC READY** item. Never combine items across a numbered gate just
+to keep a model busy:
 
-1. Finish Phase 15B doubles controller construction, per-slot action legality/execution, and
-   selected/spread target materialization over the existing topology/action foundations.
-2. Add the concrete per-target effect context and deterministic trace needed to prove a complete
-   multi-target action; commit one singles+doubles family golden.
-3. Normalize and certify the first target/topology cohort end to end; regenerate manifest statuses
-   and test IDs through tooling. Do not hand-edit counts.
-4. Finish the remaining target shapes, random/redirection/position policies, simultaneous faint
-   replacement, and target-only certification cohort before declaring 15B complete.
-5. Continue 15C as complete formula families in this order: HP/status; speed/weight/metrics;
-   history/consecutive; party/resource/random; field/type/class; accuracy/crit/final modifiers.
-6. Then proceed through 15D-15H in written order, except that a blocking prerequisite may be built
-   in the package that first requires it. Record the dependency rather than silently jumping scope.
-7. Run 15I only after primitive semantics stabilize, then 15J closeout. Do not begin Phase 16 until
-   every Phase 15 exit checkbox is generated or evidenced and the review verdict is GO.
+1. Implement **15B-2** completely: doubles construction, slot-authoritative APIs, action admission,
+   collective conflicts, execution phases, actor snapshots/invalidation, and slot-aware events. Run
+   the package's named acceptance matrix and the full suite; update its progress record and commit.
+2. Implement **15B-3** completely: typed selections and all live target scopes, including target
+   invalidation/fallback, PP/event boundary, and exact random-candidate draw counts. Test, record,
+   review, and commit.
+3. Implement **15B-4** completely: action/target contexts, per-target accuracy/hits/effects, spread
+   modifier, aggregate results, trace, and singles+doubles golden. Test, record, review, and commit.
+4. Normalize and certify the first target/topology cohort whose only dependencies are 15B-1 through
+   15B-4. Generate manifest statuses/test IDs through tooling; never hand-edit counts.
+5. Implement **15B-5** redirection/position, then **15B-6** outcome/replacement as separate complete
+   packages with their named goldens. Certify the remaining target-only cohort and run the 15B exit
+   review. Do not mark 15B complete while any target-only blocker remains.
+6. Execute **15C-SPEC** for only the first HP/status formula family. Once its formula table and query
+   order are locked and the readiness ledger says `SPEC READY`, implement and certify that whole
+   family. Repeat specification lock then implementation for speed/weight/metrics; history/
+   consecutive; party/resource/random; field/type/class; and accuracy/crit/final modifiers.
+7. Repeat that same spec-lock → implementation → normalization/conformance → focused review cycle for
+   15D, 15E, 15F, and 15G in their written package order. A cross-workstream prerequisite is added to
+   the first consuming package and both readiness rows are updated; it is never silently improvised.
+8. Run 15H continuously for reference-blocked entries, routing mechanics back to their owner. After
+   15B-15G are complete, finish zero-gap normalization, then perform 15I-SPEC and 15I implementation.
+9. Run 15J only after primitive semantics and normalization stabilize. Do not begin Phase 16 until
+   every Phase 15 exit checkbox is generated/evidenced and the focused review verdict is GO.
 
 ## 11. Change control
 
@@ -911,8 +1057,11 @@ The user may hand the repository to another model with this prompt:
 > Continue Creature Game Maker from the authoritative roadmap. Read `/AGENTS.md`,
 > `docs/SCOPE_GUARD.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE_ADDENDUM.md`,
 > `docs/MASTER_PLAN.md`, `docs/AGENTS.md`, and the owning specs completely before acting. Current
-> work is Phase 15. Take the first eligible feature package from IMPLEMENTATION_PLAN section 10 and
-> complete the whole reusable behavior family. Do not implement a named move, move-ID branch,
+> work is Phase 15. Take the first incomplete `SPEC READY` feature package from IMPLEMENTATION_PLAN
+> section 10 and complete the whole reusable behavior family. If the queue reaches `SPEC LOCK
+> REQUIRED`, complete its named specification package and readiness evidence before implementation;
+> a capability description alone is not permission to invent execution rules. Do not implement a
+> named move, move-ID branch,
 > one-off handler, arbitrary script op, UI, or future-phase feature. Use the promotion ladder in
 > section 5.7; update the battle spec before code; add strict validation, typed compilation, normal
 > resolver behavior, events/traces, cleanup, AI visibility, and every applicable test from
