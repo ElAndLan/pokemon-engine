@@ -79,5 +79,5 @@ the old pack/config-only path.
 hash, loads the start map, initializes the showcase battle path, submits one legal showcase action,
 and exits `0`. Load/smoke failures exit nonzero with a console error.
 
-## Outline (remaining, Phase 12)
+## Outline (remaining, Phase 18)
 CI self-contained template publish · icon/version patch · Creator export UI · clean-VM.

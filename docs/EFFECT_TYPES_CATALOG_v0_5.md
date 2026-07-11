@@ -1,8 +1,13 @@
 # Effect Types Catalog
 
 Version: 0.5
-Status: Final reusable-helper polish pass for Claude handoff
+Status: Final reusable-helper normalization contract for implementation-agent handoff
 Project: Creature Game Maker
+
+2026-07-11 scope note: `IMPLEMENTATION_PLAN.md` v3.1 supersedes this catalog's older placement of
+doubles and rare corpus mechanics in `post_slice`. Phase 15 now implements every reusable Core
+capability required to certify the locked 937-entry move corpus. The primitive-promotion and
+data-over-bespoke-code rules in this catalog remain binding.
 
 Purpose: define the reusable battle, item, ability, form, ruleset, and overworld effect model for a Pokemon-inspired creature-battler. This is not a move encyclopedia and it is not permission to implement everything early. It is the normalization contract that lets moves, items, abilities, forms, weather, terrain, hazards, rulesets, and field interactions compose from shared code.
 
@@ -990,8 +995,8 @@ This catalog is intentionally broad. Implementation must stay phased.
 | `battle_v3` | Switching, trainer restrictions, force switch/self switch, basic side-condition foundation. |
 | `battle_v4` | Persistent statuses, stat stages, priority brackets, confusion, flinch, basic volatile conditions. |
 | `battle_v5` | Hazards, screens, protection families, multi-hit, drain, recoil, fixed/percent/level/counter/OHKO damage, weather/terrain as mechanics-only conditions, advanced volatile conditions. |
-| `battle_v6` | Abilities, held items, form transformations, weather/terrain ability interactions, hook ordering goldens. |
-| `post_slice` | Doubles-specific effects, Z/Max/Tera-style gimmicks, raid shields, Legends-style statuses/actions, rare official edge cases. |
+| `battle_v6` / Phase 15 | Abilities, held items, forms, weather/terrain interactions, doubles Core topology/effects, ruleset/gimmick behavior, and every rare edge case required by the locked corpus; hook/conformance goldens. |
+| `post_slice` | Optional mechanics not required by the locked corpus or already-owned Core rules, such as general boss/raid systems beyond corpus move correctness. |
 
 This file does not override `IMPLEMENTATION_PLAN.md`. It prevents future implementation agents from inventing bespoke resolver code.
 
@@ -1065,7 +1070,8 @@ This file does not override `IMPLEMENTATION_PLAN.md`. It prevents future impleme
 
 Claude or any implementation agent must follow this order:
 
-1. Read `MASTER_PLAN.md`, `ARCHITECTURE_ADDENDUM.md`, `IMPLEMENTATION_PLAN.md`, then this catalog.
+1. Read `/AGENTS.md`, `SCOPE_GUARD.md`, `IMPLEMENTATION_PLAN.md`, `ARCHITECTURE_ADDENDUM.md`,
+   `MASTER_PLAN.md`, then this catalog and the owning battle/testing specs.
 2. Treat this catalog as an **effect normalization contract**, not a build permission slip.
 3. Before adding any new effect primitive, prove that existing primitives + hooks + conditions + tags cannot express it.
 4. Put named official mechanics in preset/alias data, not Core resolver classes.
@@ -1081,8 +1087,8 @@ Claude or any implementation agent must follow this order:
 - `requires:battle_v5.protect_family`
 - `requires:battle_v6.ability_hooks`
 - `requires:battle_v6.form_transform`
-- `requires:post_slice.doubles_targeting`
-- `requires:post_slice.tera_like_ruleset`
+- `requires:battle_v6.doubles_targeting`
+- `requires:battle_v6.tera_like_ruleset`
 - `unsupported:contest_effect`
 - `unsupported:spin_off_only`
 
@@ -1117,4 +1123,3 @@ The recommended long-term Core model is:
 - disabled preserved metadata for unsupported imports.
 
 Do not expand the primitive list unless a mechanic requires a new timing/scope/resolver model. The primary risk is not missing one obscure move. The primary risk is letting obscure moves create one-off code paths.
-

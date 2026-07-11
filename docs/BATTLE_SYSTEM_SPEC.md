@@ -4,9 +4,9 @@ Status: **Partial / implemented sections are binding; Phase 15 completion contra
 2026-07-10.** Damage formula lives in `BATTLE_DAMAGE_CALC.md`; substantial v0–v6 Core mechanics
 exist through the shared effect dispatcher. Phase 15 now completes the reusable Core mechanic
 surface and certifies all 937 entries in `docs/pokeapi-results/move/` per
-`IMPLEMENTATION_PLAN.md` v3. This document must be expanded during Phase 15A to lock the full
-event/trace catalog, target topology, ruleset policies, condition/queue contracts, and golden
-workflow before the corresponding code slices land.
+`IMPLEMENTATION_PLAN.md` v3.1. Phase 15A locked the corpus manifest and conceptual trace contract.
+Each later feature package must finish its exact target, timing, query, condition, mutation,
+ruleset, event, and trace semantics here before the corresponding code lands.
 
 ## Purpose
 The exact, testable battle contract: state model, turn flow, every formula with rounding order,
@@ -338,6 +338,26 @@ per-target effects, query hooks, scoped condition stores, queued intents, item/a
 mutation, move references, snapshot overlays, damage memory, switch/state transfer, ruleset
 policies, and deterministic event/trace output. Detailed sequencing and the 937/937 exit checklist
 live in `IMPLEMENTATION_PLAN.md`; failure group handoff lives in `MOVE_AUDIT_SYSTEM_PLAN.md`.
+
+### Feature-package specification gate
+
+Before a Phase 15 implementation package edits Core, this spec must answer all applicable rows:
+
+| Contract question | Required answer |
+|---|---|
+| Behavior shape | Existing op/condition/query/helper reused, or promotion-ladder proof for a new one |
+| Data | Exact op/params/enums/defaults/ranges; unknown and incompatible values rejected |
+| Scope | Source, selected target, per-target, party, slot, side, field, or ruleset ownership |
+| Timing | Selection, ordering, before move, accuracy, hit, after damage, after move, switch, faint, or end turn |
+| Failure | No-op versus visible failure, PP spend, target invalidation, immunity, faint/full-HP behavior |
+| RNG | Draw kind, bounds, order, per-action/per-target/per-hit frequency, and skipped-draw cases |
+| Math | Formula, integer/fraction width, rounding point, clamps, caps, zero/overflow handling |
+| State | Mutation helper, duration/counter/stacking, source tracking, transfer, and cleanup |
+| Output | Ordered `BattleEvent`s and diagnostic trace fields; AI-visible outcome |
+| Evidence | Pure/compiler/resolver/boundary/golden/conformance tests required for completion |
+
+A package is blocked when one of these answers is mechanically significant but unknown. Do not
+bury an unanswered rule in code or infer it from a source move's name.
 
 ### Target topology contract (Phase 15B foundation)
 

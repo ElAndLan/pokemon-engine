@@ -41,6 +41,10 @@ damage primitives, so the same operations can support self, target, and later al
 with all Phase 15 capabilities, no audit row advances until normalized data and a conformance test
 exercise the exact move behavior.
 
+Update (2026-07-10): `statusPower` now provides reusable user/target persistent-status power
+multipliers with an optional condition-matched burn-penalty exception. This is engine capability,
+not certification; affected rows advance only after normalized definitions and conformance vectors.
+
 ## Completed Batches
 
 | Batch | Move rows | Status |
@@ -1741,14 +1745,18 @@ exercise the exact move behavior.
 | 933 | `yawn` | ailment | meta | delayed sleep is not implemented; ailment 'yawn' is not implemented |
 | 937 | `zippy-zap` | damage-raise | meta | stat stage 'evasion' is not implemented |
 
-## Failure Groups By Required Engine Functionality
+## Historical Failure Groups By Required Engine Functionality
 
-This section groups failed moves by the reusable engine work they need. A move can appear in multiple groups when it has multiple blockers. There is intentionally no generic "unique move" bucket here; every failed move is assigned to at least one concrete engine capability or to a reference-data gap.
+This section preserves the reusable-group inventory generated from an earlier 505-failure baseline.
+The row table above is newer and currently contains 469 FAIL entries. A move can appear in multiple
+groups, and moves that later became legacy PASS remain useful evidence that the generic capability is
+required. These grouped counts are historical planning input only; they are not current FAIL counts
+and never change strict manifest certification status.
 
 | Metric | Count |
 |---|---:|
-| Failed moves represented | 505 |
-| Total failed moves | 505 |
+| Historical failed moves represented | 505 |
+| Historical total failed moves | 505 |
 | Engine work groups | 20 |
 | Category memberships | 692 |
 | Unrepresented failed moves | 0 |
@@ -1788,7 +1796,7 @@ Per-move implementation rule: every failed move row must be implemented by compo
 | Damage Query Modifiers | 64 |
 | Turn Timing, Queued Effects, And Move Gates | 64 |
 | Volatile Conditions, Statuses, And Move Lockouts | 49 |
-| Stat Stage Model Expansion | 68 |
+| Stat Stage Model Expansion | 63 |
 | Field And Side Conditions | 53 |
 | Held Item And Berry Mutation | 19 |
 | Ability Mutation | 8 |

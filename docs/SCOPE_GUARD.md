@@ -1,8 +1,8 @@
 # SCOPE_GUARD — Binding Scope Law
 
-Version 3.0 — 2026-07-10
+Version 3.1 — 2026-07-11
 
-Source of current phase truth: `IMPLEMENTATION_PLAN.md` v3. Architecture decisions remain in
+Source of current phase truth: `IMPLEMENTATION_PLAN.md` v3.1. Architecture decisions remain in
 `ARCHITECTURE_ADDENDUM.md`; older phase assignments there are superseded by the explicit
 2026-07-10 user-directed rebase.
 
@@ -16,8 +16,10 @@ Starting baseline:
 - Legacy expressibility audit: 468 PASS / 469 FAIL.
 - Phase 15A manifest: 937/937 inventory-only, corpus digest
   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
-- Strict end-to-end conformance certification: 0/937; Phase 15A is complete and Phase 15B is next.
-- Core v0–v6 foundations and 946 tests exist, but the mechanic surface is not complete.
+- Strict end-to-end conformance certification: 0/937; Phase 15A is complete and Phase 15B is active.
+  Reusable status-power, queued-gate, and HP-mutation packages have also landed without advancing
+  certification because normalized definitions and per-move conformance vectors remain open.
+- Core v0–v6 foundations and 979 tests exist, but the mechanic surface is not complete.
 
 Phase 15 ends only when all 937 moves validate, compile, and behave correctly in every required
 context with reusable data-driven primitives and zero unsupported entries.

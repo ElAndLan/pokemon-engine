@@ -68,9 +68,10 @@ ADR-004.
 ## Distribution
 - Creator: self-contained zip (`dotnet publish --self-contained`), installer deferred
   to post-vertical-slice.
-- Exported games: planned shape is prebuilt self-contained runtime template exe +
-  `game.cgmpack` + `config.json`. Current implementation only writes the data pack and
-  config; template build/copy/patch/smoke are not done.
+- Exported games: prebuilt self-contained runtime template exe + `game.cgmpack` + `config.json`.
+  Data pack/config generation, local template copy/rename, and Runtime smoke are implemented.
+  CI-published self-contained templates, icon/version patching, Creator export UI, and clean-VM
+  verification remain Phase 18 work.
 - Developer machine: .NET 10 SDK + git only.
 
 ## Decision Log

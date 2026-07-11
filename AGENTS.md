@@ -10,13 +10,15 @@ This file is binding. If anything you are about to do conflicts with it, stop an
 
 ## 1. Reading order (do this before non-trivial work)
 
-1. `AGENTS.md` (this file) — always.
-2. `docs/SCOPE_GUARD.md` — before accepting ANY task. If the task isn't in the current
+1. `AGENTS.md` (this file) - always.
+2. `docs/SCOPE_GUARD.md` - before accepting ANY task. If the task isn't in the current
    phase's deliverables, it does not get built.
-3. `docs/MASTER_PLAN.md` — the full plan.
-4. `docs/ARCHITECTURE_ADDENDUM.md` — **wins over MASTER_PLAN.md on every conflict.**
-5. The spec that owns your task area (see doc map in `docs/AGENTS.md`). If that spec is a
-   stub, the task is blocked — write/complete the spec first, get it confirmed, then code.
+3. `docs/IMPLEMENTATION_PLAN.md` - current phase, ordered work packages, status, and exit gates.
+4. `docs/ARCHITECTURE_ADDENDUM.md` - **wins over MASTER_PLAN.md on every conflict.**
+5. `docs/MASTER_PLAN.md` - product vision and older full plan, as amended by the files above.
+6. `docs/AGENTS.md` - task-area to owning-spec map.
+7. The spec that owns your task area. If that spec is a
+   stub, the task is blocked - write/complete the spec first, get it confirmed, then code.
 
 Documents are the contract. Code that contradicts a spec is a bug in one of them; reconcile
 explicitly (update the doc in the same change, with a note) — never silently diverge.

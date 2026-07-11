@@ -1,7 +1,7 @@
 # Move Audit System Plan
 
 Status: **Active Phase 15 execution companion.** Full move conformance is now the current phase's
-primary exit gate per `IMPLEMENTATION_PLAN.md` v3. This document groups the audited failures into
+primary exit gate per `IMPLEMENTATION_PLAN.md` v3.1. This document groups the audited failures into
 reusable Core work; the implementation plan owns sequencing and the final 937/937 criteria.
 
 ## Purpose
@@ -26,6 +26,17 @@ state scope, ruleset, or targeting primitive it actually needs. Named presets ar
 
 The local PokeAPI files are design-time mechanics reference only. Do not copy official names,
 assets, cries, music, maps, or reference JSON into samples, exports, packs, or runtime content.
+
+### Evidence and count authority
+
+The legacy row table currently contains 468 PASS and 469 FAIL entries. Its later 20-group inventory
+was generated from an older 505-failure baseline and intentionally contains overlapping historical
+memberships; it is a requirements-discovery aid, not a live status report. Do not sum group counts,
+use them to change phase status, or delete a requirement merely because its row later became PASS.
+
+Strict progress comes only from `docs/move-conformance/manifest.v1.json`: 937 inventory-only and
+0 normalized/compiled/certified at the current baseline. Tool-generated manifest status and test IDs
+supersede all legacy PASS/FAIL language. The roadmap owns which feature package runs next.
 
 ## Phase 15A Corpus Manifest Contract
 
@@ -91,8 +102,8 @@ statuses, stat stages including accuracy/evasion, ordered multiple `statStage` e
 recoil, crash recoil via `recoil` plus `onMiss: true`, healing, multi-hit, fixed damage, OHKO,
 crit boost, self destruct, leech seed, spikes, stealth rock, weather, bind, protect, force
 switch, counter damage, accuracy bypass, charge turns, rampage locks, ailment, flinch,
-damage-stat overrides for offensive/defensive damage queries, target-HP-threshold and
-HP-ratio base-power modifiers, explicit `noBattleEffect`, explicit `postBattleReward`,
+damage-stat overrides for offensive/defensive damage queries, target-HP-threshold, HP-ratio,
+and user/target-status base-power modifiers, explicit `noBattleEffect`, explicit `postBattleReward`,
 and the Phase 15 ability/held-item/form hook slice.
 
 Authored `Move.Target` now compiles into `BattleMove`. In singles, `selected`,
@@ -104,14 +115,19 @@ topology support.
 
 ## Iteration Protocol For Future Agents
 
-1. Pick exactly one engine work group below.
-2. Re-read `BATTLE_SYSTEM_SPEC.md` and add the proposed generic op/query/condition contract there
-   before writing Core code.
-3. Implement only the smallest reusable primitive needed for that group.
-4. Add validation for the new op and exact params. Unknown ops must keep failing.
-5. Add focused unit tests for the primitive and one or more representative moves.
-6. Update `MOVE_AUDIT_RESULTS.md` rows only when those exact moves compile to supported data.
-7. Run:
+1. Take the first eligible feature package from `IMPLEMENTATION_PLAN.md` section 10; use the group
+   lists below to collect every affected requirement, not to select one named move.
+2. Re-read `BATTLE_SYSTEM_SPEC.md` and complete the feature-package specification gate before code.
+3. Climb the promotion ladder in `IMPLEMENTATION_PLAN.md` section 5.7 and stop at the first existing
+   helper/op/condition/query level that can express the family exactly.
+4. Implement the complete reusable package: data contract, strict validation, typed compilation,
+   normal resolver/queue/query/mutation path, events/traces, cleanup, and AI visibility as applicable.
+5. Add every applicable test from `TESTING_STRATEGY.md`'s feature-package matrix. Representative
+   tests prove the primitive; per-reference conformance vectors prove the moves.
+6. Regenerate normalization hashes, test IDs, and manifest statuses through tooling. Do not hand-edit
+   certification counts or promote a row because the engine capability merely exists.
+7. Update the package progress record and immediate queue in `IMPLEMENTATION_PLAN.md`.
+8. Run:
    - `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx`
    - `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build`
 

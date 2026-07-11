@@ -72,7 +72,7 @@ Every entity editor is the same four pieces:
 - Strip shows counts by severity; expanding lists `ValidationIssue.ToString()` lines.
 - Clicking an issue with an `EntityId` opens/focuses that entity's document tab.
 - The strip is informational in the editor; the hard zero-error gate is enforced at **export**
-  (Phase 12), not on every edit.
+  (Phase 17/18), not on every edit.
 
 ## 6. Pathfinder editors (Phase 3 deliverables)
 The three simplest editors, chosen to prove the pattern before the hard canvases (slicer/map).
@@ -91,7 +91,7 @@ The three simplest editors, chosen to prove the pattern before the hard canvases
   the effect list (using only the ops that exist: heal amount, capture ballBonus).
 - **UI:** a form; effects as an add/remove list of `{op, chance?, params}` rows.
 - **Validation:** effect param ranges; pocket ∈ project pockets.
-- **MVP:** heal/ball/key items. **Later:** held-item + TM effects (Phase 15).
+- **MVP:** heal/ball/key items. **Later:** held-item + TM authoring (Phase 17; Core mechanics Phase 15).
 
 ### 6.3 Move editor — basic (`move:*`)
 - **Edits:** `Move` fields (DATA_SCHEMA §4.4) — name, type (reference picker), damage class,

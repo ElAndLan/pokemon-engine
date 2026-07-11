@@ -6,13 +6,14 @@ Status: Authoritative refinement of MASTER_PLAN.md. Where this addendum and MAST
 2026-07-08 status correction: this document was written before implementation advanced past
 the early phases. `TECH_STACK.md` is the source of truth for currently referenced packages.
 `SCOPE_GUARD.md` and `IMPLEMENTATION_PLAN.md` are the source of truth for current phase status.
-Smart AI is a verified Phase 14 Core baseline. Phase 15 now owns ability/held-item/form weather
-interactions and remains open until the real demo showcase fight exists. Atlas packing, the data
+Smart AI is a verified Phase 14 Core baseline. Phase 15's current exit is the 937/937 Core move
+conformance gate recorded by the 2026-07-10 rebase below, not an older showcase-fight milestone.
+Atlas packing, the data
 half of export, local runtime template copy, and exported `--smoke` exist; CI self-contained
 templates, icon/metadata patching, Creator export UI, clean-VM testing, and the full rendered
 runtime remain open.
 
-2026-07-10 user-directed scope rebase: `IMPLEMENTATION_PLAN.md` v3 and `SCOPE_GUARD.md` v3
+2026-07-10 user-directed scope rebase: `IMPLEMENTATION_PLAN.md` v3.1 and `SCOPE_GUARD.md` v3.1
 supersede older phase-assignment and deferral statements in this addendum. Phase 15 now owns
 complete Core game logic and exact conformance for all 937 move JSON files in the local
 `docs/pokeapi-results/move/` corpus. This includes doubles Core topology and any reusable timing,
@@ -89,7 +90,7 @@ when required for move correctness. Every primitive must be reusable by custom-a
 
 **Later product work:** Runtime/Creator integration, move presentation, audio, original demo
 content, production export, eventing, surf/fishing, connected maps, controller support, bulk
-editing, and the private-use import wizard land in Phases 16-19 per IMPLEMENTATION_PLAN v3.
+editing, and the private-use import wizard land in Phases 16-19 per IMPLEMENTATION_PLAN v3.1.
 
 **Still deferred/refused:** procedural generation; breeding/eggs; localization framework;
 macOS/Linux; multiplayer/trading/netcode; plugin API; scripting language; official content packs.
@@ -227,13 +228,13 @@ Each layer ends with green goldens; a layer's exclusions are hard errors if foun
 
 The honest path, in order of what exists when:
 
-1. **Dev-mode runtime (exists from Phase 6/7):** `Cgm.Runtime.exe --project <folder>` loads raw JSON + PNGs directly. This is playtest, and it means "export" is *not* on the critical path to a playable game — a major de-risking fact.
-2. **Prebuilt runtime template (Phase 12):** CI runs `dotnet publish -c Release -r win-x64 --self-contained /p:PublishSingleFile=true` for debug & release flavors → `templates/`. The Creator ships these bytes; the user's machine never compiles anything.
+1. **Dev-mode runtime (Phase 16):** Core/raw-project loading helpers exist, but the Runtime host still must wire `Cgm.Runtime.exe --project <folder>` to raw JSON + assets. This becomes playtest and keeps production export off the critical path to a playable game.
+2. **Prebuilt runtime template (Phase 18):** CI runs `dotnet publish -c Release -r win-x64 --self-contained /p:PublishSingleFile=true` for debug & release flavors → `templates/`. The Creator ships these bytes; the user's machine never compiles anything.
 3. **Project data pack:** export runs validation (hard gate) → compiles data + atlases + audio into `game.cgmpack`.
-4. **Icon/name metadata:** copy template → `<GameName>.exe`; patch icon + version resources with a resource-editing step (managed PE resource writer; if patching single-file bundles proves fragile, fallback: publish template *without* single-file and patch the apphost — decided by a Phase 12 spike). Write `config.json`.
+4. **Icon/name metadata:** copy template → `<GameName>.exe`; patch icon + version resources with a resource-editing step (managed PE resource writer; if patching single-file bundles proves fragile, fallback: publish template *without* single-file and patch the apphost — decided by a Phase 18 spike). Write `config.json`.
 5. **Debug vs release:** two templates; debug enables overlays/console/free-warp; release strips them and disables `--project` raw-folder mode.
 6. **Smoke test:** Creator launches `<GameName>.exe --smoke`: boot → verify pack manifest/hash → load start map → instantiate battle system with first species → write+read a temp save → exit 0. Non-zero or timeout = export marked failed.
-7. **Clean-machine test (release ritual, manual/VM):** copy the export folder to a Windows VM with no dev tools; run; play 2 minutes; save; relaunch; load. Do this at every phase-12+ milestone.
+7. **Clean-machine test (release ritual, manual/VM):** copy the export folder to a Windows VM with no dev tools; run; play 2 minutes; save; relaunch; load. Do this at every Phase 18+ milestone.
 8. **Developer machine needs:** .NET 10 SDK, git. **End-user machine needs: nothing** — self-contained publish bundles the runtime; no .NET install, no VC++ redist (OpenGL via OS drivers, OpenAL via bundled soft_oal.dll).
 
 ---
