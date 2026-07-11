@@ -17,8 +17,11 @@ This file is binding. If anything you are about to do conflicts with it, stop an
 4. `docs/ARCHITECTURE_ADDENDUM.md` - **wins over MASTER_PLAN.md on every conflict.**
 5. `docs/MASTER_PLAN.md` - product vision and older full plan, as amended by the files above.
 6. `docs/AGENTS.md` - task-area to owning-spec map.
-7. The spec that owns your task area. If that spec is a
-   stub, the task is blocked - write/complete the spec first, get it confirmed, then code.
+7. The spec that owns your task area. If its relevant section is incomplete, consult
+   `IMPLEMENTATION_PLAN.md` v4's package contract. When that contract supplies locked defaults and
+   marks specification work authorized, complete/reconcile the owning spec first and proceed without
+   another user confirmation. Block only when neither document resolves a mechanically significant
+   decision or v4 §2.1 reserves the decision for the user.
 
 Documents are the contract. Code that contradicts a spec is a bug in one of them; reconcile
 explicitly (update the doc in the same change, with a note) — never silently diverge.
@@ -119,8 +122,9 @@ under-built. Ponytail reinforces SCOPE_GUARD.md; it does not override the specs 
   the reason stated in the change.
 - **Report honestly.** Failing tests, skipped steps, and deviations get stated plainly.
   Never claim done without running the tests. "It should work" is not a status.
-- **Don't invent requirements.** If a spec is silent, ask or propose in one sentence —
-  don't decide silently and bury it in code.
+- **Don't invent requirements.** If a spec is silent, apply IMPLEMENTATION_PLAN v4 §2.1's authority
+  order and locked package defaults, write the decision into the owning spec, and test it. Ask only
+  for a decision v4 expressly reserves for the user; never decide silently and bury it in code.
 
 ## 5. Definition of done (every task)
 
@@ -133,8 +137,8 @@ under-built. Ponytail reinforces SCOPE_GUARD.md; it does not override the specs 
 
 ## 6. When unsure
 
-Blocked on a real decision → ask, with a recommendation. Ambiguity a spec should resolve →
-fix the spec first. Tempted by a "better architecture" than the ADRs → write a proposed
+Blocked on a real user-reserved decision → ask, with a recommendation. Other ambiguity a spec should
+resolve → apply plan v4 §2.1 and fix the spec first. Tempted by a "better architecture" than the ADRs → write a proposed
 ADR in `docs/adr/` and stop; ADRs change by decision, not by drift.
 
 ## 7. Iteration loop command

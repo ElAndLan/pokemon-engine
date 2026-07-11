@@ -1,7 +1,7 @@
 # CREATOR_APP_SPEC
 
-Status: **Shell + editor-pattern + pathfinder editors written (Phase 3).** Map/slicer/creature/
-other editors are added to this doc as their phases land. Source of the big picture: MASTER_PLAN
+Status: **Shell + editor-pattern baseline plus Phase 17 package contracts authorized.** Map/slicer/creature/
+other editors are added to this doc before their packages land. Source of the executable plan: IMPLEMENTATION_PLAN
 §5. Architecture rules: CLAUDE.md, CODING_STANDARDS.md. The Creator edits data only and launches
 the Runtime for playtest (ADR-009) — it never simulates gameplay.
 
@@ -112,3 +112,11 @@ Create a project in the UI → add three types and fill the chart → create an 
 break a reference and see it in the strip → click the issue to navigate → undo → save → reopen →
 state identical. Item editor is demonstrably a copy of the type-chart editor's pattern (proves
 reuse). ViewModel-level tests cover undo/redo, dirty tracking, and the reference picker.
+
+## 9. Phase 17 specification completion contract
+
+`IMPLEMENTATION_PLAN.md` v4 §7 is the user-authorized contract for 17A-17G. Before each package edits
+code, add its exact lifecycle/recovery, asset, world, structured-data, catalog editor, process workflow,
+or verification behavior here using §7's defaults and acceptance criteria. This document's existing
+pathfinder pattern remains mandatory. No additional confirmation is required unless v4 §2.1 reserves
+the decision.

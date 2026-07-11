@@ -6,8 +6,10 @@
 3. `docs/IMPLEMENTATION_PLAN.md` - ordered roadmap, package status, and phase gates
 4. `docs/ARCHITECTURE_ADDENDUM.md` - wins over MASTER_PLAN.md on conflicts
 5. `docs/MASTER_PLAN.md` - product vision and older full plan as amended above
-6. The owning spec for your task (map below). Stub spec = blocked task: complete the
-   spec first, confirm, then implement.
+6. The owning spec for your task (map below). An incomplete section must be completed before code.
+   `IMPLEMENTATION_PLAN.md` v4 package defaults are already user-authorized: reconcile them into the
+   spec and proceed without another confirmation. Block only under v4 §2.1's reserved decisions or
+   when neither the plan nor spec supplies a mechanically significant rule.
 
 ## Doc ownership map
 
@@ -21,13 +23,13 @@
 | Damage formula, type/STAB/crit | BATTLE_DAMAGE_CALC.md | **Reference-frozen v1** |
 | Trainer battle AI tiers/scoring | BATTLE_AI_SPEC.md | Phase 14 verified Core baseline; full tuning deferred until Phase 15+ mechanics |
 | Creator screens, undo, validation UI | CREATOR_APP_SPEC.md | Shell + editor pattern + pathfinders written (Phase 3) |
-| Runtime loop, renderer, input, scenes | ENGINE_RUNTIME_SPEC.md | Partial - headless helpers, export boot/smoke, and minimal GL rectangle showcase written; full renderer/UI/dev-mode host pending |
-| Import/slicing layers, pack format | ASSET_PIPELINE_SPEC.md | Partial — v0–v2 slicing + v5 atlas spec/code; canvas/UI and v3 pending |
-| Map editor tools & layers | MAP_EDITOR_SPEC.md | Partial — layer/tool ops written; canvas/entity UI pending |
+| Runtime loop, renderer, input, scenes | ENGINE_RUNTIME_SPEC.md | Implemented baseline; remaining 16A-16G spec locks authorized by plan v4 §6 |
+| Import/slicing layers, pack format | ASSET_PIPELINE_SPEC.md | v0-v2/v5 implemented; remaining 17B/18C spec locks authorized by plan v4 §§7-8 |
+| Map editor tools & layers | MAP_EDITOR_SPEC.md | Tool baseline implemented; remaining 17C spec lock authorized by plan v4 §7 |
 | Battle formulas, effect ops, events, AI | BATTLE_SYSTEM_SPEC.md + MOVE_AUDIT_SYSTEM_PLAN.md | **Phase 15 active** - complete reusable Core mechanics and certify 937/937 local move entries; conceptual trace/manifest contract is locked and concrete trace/golden implementation remains package-owned |
-| Export & smoke test | EXPORT_PIPELINE_SPEC.md | Partial - pack/config/data export, local template copy, and Runtime `--smoke` written; icon/metadata patch, Creator UI, CI templates, clean-VM pending |
-| Phase status and current/future work | IMPLEMENTATION_PLAN.md | **Rebased v3.1; Phase 15 active at 0/937 strict certification** |
-| Test policy, goldens, fixtures | TESTING_STRATEGY.md | Partial — xUnit suites/fixtures active; golden workflow not fully written |
+| Export & smoke test | EXPORT_PIPELINE_SPEC.md | Data path implemented; remaining 18C-18E/19C spec locks authorized by plan v4 §§8-9 |
+| Phase status and current/future work | IMPLEMENTATION_PLAN.md | **Executable v4.0; Phase 15 active at 0/937 strict certification** |
+| Test policy, goldens, fixtures | TESTING_STRATEGY.md | Active Phase 15 matrices plus authorized Phase 16-19 product evidence contract |
 | Vision & legal boundary | PROJECT_OVERVIEW.md | See MASTER_PLAN §1–2 until written |
 
 ## Build & test
@@ -65,7 +67,8 @@ Certification counts come only from `docs/move-conformance/manifest.v1.json` reg
 The legacy `MOVE_AUDIT_RESULTS.md` row table and group counts are planning input, not certification.
 If a move needs missing engine behavior, climb the promotion ladder in IMPLEMENTATION_PLAN 5.7 and
 add the smallest reusable helper/query/condition/primitive that fully covers the family. If reference
-data is ambiguous, mark it blocked and continue with another eligible package instead of guessing.
+data is ambiguous, apply v4 §2.1's research/profile/conflict rule, record it in the owning registry,
+and proceed. Block only when the decision is explicitly user-reserved.
 
 ## Cadence
 Build passes alternate with review passes (prompts in ARCHITECTURE_ADDENDUM.md §12).

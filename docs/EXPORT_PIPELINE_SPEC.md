@@ -1,6 +1,6 @@
 # EXPORT_PIPELINE_SPEC
 
-Status: **Partial / implemented sections are binding.** `.cgmpack` layout, manifest/hash
+Status: **Implemented data-export baseline plus Phase 18/19 package contracts authorized.** `.cgmpack` layout, manifest/hash
 verification, `config.json`, runtime template folder copy/rename, `Cgm.Tools export`, and Runtime
 `--smoke` over exported config/pack are written and tested. CI self-contained template publishing,
 exe icon/metadata patching, Creator export UI, and clean-VM testing are **not** implemented.
@@ -79,5 +79,10 @@ the old pack/config-only path.
 hash, loads the start map, initializes the showcase battle path, submits one legal showcase action,
 and exits `0`. Load/smoke failures exit nonzero with a console error.
 
-## Outline (remaining, Phase 18)
-CI self-contained template publish · icon/version patch · Creator export UI · clean-VM.
+## Phase 18/19 specification completion contract
+
+`IMPLEMENTATION_PLAN.md` v4 §§8-9 authorize production asset sections, CI templates, transactional
+export/rollback, optional icon handling without a new dependency, smoke exit codes, completeness,
+clean-machine proof, unsigned zip distribution, compatibility, and release artifacts. Reconcile the
+exact package defaults into this spec before 18C/18D/19C code. No additional user confirmation is
+required unless v4 §2.1 reserves a dependency, credential, cost, or destructive compatibility choice.

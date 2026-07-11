@@ -1,6 +1,6 @@
 # ASSET_PIPELINE_SPEC
 
-Status: **Partial / implemented sections are binding.** v0 manual grid, v1 common-size
+Status: **Implemented algorithm baseline plus Phase 17/18 package contracts authorized.** v0 manual grid, v1 common-size
 suggestions, v2 transparent-gutter detection, character animation helper, and v5 atlas packing
 are written and have matching code/tests. The slicer canvas/import browser UI, audio import UI,
 and v3 connected-component slicing are **not** implemented here.
@@ -77,5 +77,9 @@ ordered Down, Left, Right, Up. `BuildWalkClips(baseSlug, gridSprites[12], frameM
 `Animation` per facing (`anim:<baseSlug>_walk_<dir>`). Pure; throws on a non-12 sprite count, a
 non-positive frame duration, or an invalid base slug (EntityId grammar).
 
-## Outline (later layers)
-v3 (connected-component) lands in its phase.
+## Phase 17/18 specification completion contract
+
+`IMPLEMENTATION_PLAN.md` v4 §§7.2/8.2 authorize the remaining import browser/canvas, v3 connected-
+component, reimport, animation/audio metadata, atlas diagnostics, and production pack asset contracts.
+Before 17B or 18C code, copy/reconcile the exact transaction, algorithm, ordering, hashing, rollback,
+and acceptance decisions into this spec. No extra user confirmation is required under v4 §2.1.

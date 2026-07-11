@@ -1,6 +1,6 @@
 # MAP_EDITOR_SPEC
 
-Status: **Partial / implemented sections are binding.** Layer model and headless map tool ops
+Status: **Implemented tool baseline plus Phase 17C package contract authorized.** Layer model and headless map tool ops
 are written and tested. The Avalonia map canvas, entity placement UI, validation overlays, and
 playtest-from-map workflow are **not** implemented here.
 
@@ -29,6 +29,9 @@ placement and per-instance params, validation overlays, and playtest-from-map.
 - **Resize**: new `int[]`, `-1`-padded, preserving the top-left overlap.
   <!-- ponytail: top-left anchor only; add an anchor param when the resize UI needs it. -->
 
-## Outline (later this phase)
-Canvas · Collision derivation (tile flags + `collisionOverrides`) · Encounter zones · Entities ·
-Validation overlays · Playtest.
+## Phase 17C specification completion contract
+
+`IMPLEMENTATION_PLAN.md` v4 §7.2 package 17C authorizes the remaining canvas, chunk, layer/overlay,
+tileset/object, stroke undo, entity/path/warp, validation, resize, and play-from-map behavior. Expand
+this spec with those exact defaults and acceptance rows before code. No additional user confirmation
+is required unless v4 §2.1 reserves the decision.

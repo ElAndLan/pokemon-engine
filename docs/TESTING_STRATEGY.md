@@ -122,3 +122,32 @@ names, prose, assets, URLs, or raw reference JSON.
 - Regenerating the manifest from unchanged files is byte-identical.
 - Generated output contains no payload names or source filenames.
 - Full solution build/tests remain green.
+
+## Phase 16-19 product evidence contract
+
+`IMPLEMENTATION_PLAN.md` v4 supplies the numeric budgets and package-specific vectors. The following
+layers are mandatory when those phases become current; each owning spec copies its applicable rows
+before implementation.
+
+| Area | Automated evidence | Manual/external evidence |
+|---|---|---|
+| Runtime boot/data | raw/pack equality; argument/config/version/hash/asset exit codes; partial-failure disposal | friendly release error on supported Windows |
+| Fixed step/render | synthetic tick/input edges; null-renderer command goldens; viewport/batch/resource tests | hidden/visible GL smoke and representative screenshot |
+| Scenes/UI/input | lifecycle/focus/navigation/typewriter/rebind scripts | keyboard and gamepad complete required flow |
+| Overworld/player/save | deterministic movement/encounter; conservation; save/temp/backup/migration; audio fallback | play/relaunch and device-loss smoke |
+| Battle presentation | Core event-catalog completeness; action/target/replacement scripts; state conservation | singles/doubles readability and fast-forward smoke |
+| Creator lifecycle/editors | headless ViewModel undo/dirty/save/recovery; schema-to-editor coverage; malformed input | keyboard/accessibility/scaling and no-JSON authoring |
+| Assets/maps | algorithm fixtures; transaction rollback; tool/layer/entity undo; large-canvas budget | import/slice/reimport and two-map workflow |
+| Playtest/export | process/quoting/crash/temp cleanup; transactional export; smoke codes/completeness | Creator-to-Runtime workflow and clean VM |
+| Migration/security | every format matrix cell; seeded fuzz; path-root/symlink checks; stress/soak artifacts | backup recovery rehearsal |
+| Release/docs | release manifest/checksums/license/link checks; offline clean-install script | tutorial, beta cohort, RC soak, final stranger test |
+
+Performance tests record hardware/OS/build configuration, warm-up, sample count, p50/p95/max, and
+threshold. A failure is not waived by rerunning until green; investigate and record the cause. Manual
+evidence uses dated checklists committed under `docs/verification/` with version/commit, operator,
+steps, expected/actual, artifacts, and issue links. External-user names may be anonymized.
+
+Every end-to-end input replay records data/asset hashes, runtime/template version, initial save,
+input-by-tick stream, injected RNG seed/state, ordered Core events, scene transitions, final Core/save
+state, and screenshot checkpoints. Presentation timing may change only with an intentional golden
+reason; gameplay state/events must remain identical across raw and packed modes.

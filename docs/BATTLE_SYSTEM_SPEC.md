@@ -4,7 +4,7 @@ Status: **Partial / implemented sections are binding; Phase 15 completion contra
 2026-07-10.** Damage formula lives in `BATTLE_DAMAGE_CALC.md`; substantial v0–v6 Core mechanics
 exist through the shared effect dispatcher. Phase 15 now completes the reusable Core mechanic
 surface and certifies all 937 entries in `docs/pokeapi-results/move/` per
-`IMPLEMENTATION_PLAN.md` v3.2. Phase 15A locked the corpus manifest and conceptual trace contract.
+`IMPLEMENTATION_PLAN.md` v4.0. Phase 15A locked the corpus manifest and conceptual trace contract.
 Each later feature package must finish its exact target, timing, query, condition, mutation,
 ruleset, event, and trace semantics here before the corresponding code lands.
 
@@ -667,5 +667,12 @@ content names. A trace is diagnostic evidence; it never drives simulation or pre
 Phase 15A locks this conceptual shape and the corpus manifest. The concrete Core trace types land
 with the first resolver slice that needs them, rather than adding unused abstraction now.
 
-## Outline (remaining, per battle layer v0-v6)
-State · Turn flow · Damage · Type · Status · Stages · Capture · Effect-op interpreter · AI · Events.
+## Remaining Phase 15 specification completion contract
+
+`IMPLEMENTATION_PLAN.md` v4 §5 supplies the user-authorized package contracts and dependency order
+for 15C-15J. Before each package edits Core, add its exact formula-registry, queue/lifecycle,
+condition/hook, overlay/mutation, switch/memory/recovery, normalization, AI, or closeout rules here
+and in the effect catalog where owned. Apply v4 §2.1's profile/conflict rule and the package's locked
+ordering, rounding, RNG, cleanup, event/trace, and acceptance defaults. No additional user
+confirmation is required unless v4 §2.1 reserves the decision. The former generic outline is not an
+implementation contract and cannot be used to defer a package decision.

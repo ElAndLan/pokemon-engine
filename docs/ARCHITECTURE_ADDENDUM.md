@@ -13,7 +13,8 @@ half of export, local runtime template copy, and exported `--smoke` exist; CI se
 templates, icon/metadata patching, Creator export UI, clean-VM testing, and the full rendered
 runtime remain open.
 
-2026-07-10 user-directed scope rebase: `IMPLEMENTATION_PLAN.md` v3.1 and `SCOPE_GUARD.md` v3.1
+2026-07-10 user-directed scope rebase, expanded by the 2026-07-11 executable-roadmap directive:
+`IMPLEMENTATION_PLAN.md` v4.0 and `SCOPE_GUARD.md` v4.0
 supersede older phase-assignment and deferral statements in this addendum. Phase 15 now owns
 complete Core game logic and exact conformance for all 937 move JSON files in the local
 `docs/pokeapi-results/move/` corpus. This includes doubles Core topology and any reusable timing,
@@ -88,9 +89,10 @@ must normalize, validate, compile, and behave correctly using reusable data-driv
 Abilities, held items, weather, terrain, rooms, forms/gimmicks, and doubles Core topology are built
 when required for move correctness. Every primitive must be reusable by custom-authored moves.
 
-**Later product work:** Runtime/Creator integration, move presentation, audio, original demo
-content, production export, eventing, surf/fishing, connected maps, controller support, bulk
-editing, and the private-use import wizard land in Phases 16-19 per IMPLEMENTATION_PLAN v3.1.
+**Later product work:** Runtime/Creator integration, move presentation, audio, original demo,
+production export, controller support, authoring, and release hardening land only through the exact
+Phase 16-19 packages in IMPLEMENTATION_PLAN v4.0. Older examples not present in those packages remain
+deferred; this paragraph does not independently authorize them.
 
 **Still deferred/refused:** procedural generation; breeding/eggs; localization framework;
 macOS/Linux; multiplayer/trading/netcode; plugin API; scripting language; official content packs.

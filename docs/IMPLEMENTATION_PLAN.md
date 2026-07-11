@@ -1,6 +1,6 @@
 # IMPLEMENTATION_PLAN — Rebased Development Lifecycle
 
-Version 3.2 — 2026-07-11
+Version 4.0 — 2026-07-11
 
 Status: **Authoritative.** This plan replaces the prior phase-completion narrative. Git history
 preserves the old plan and progress log. `ARCHITECTURE_ADDENDUM.md` remains authoritative for
@@ -32,14 +32,90 @@ uses four states and never collapses them into one completion claim:
 
 A phase advances only when its own exit criteria pass. A test count alone never closes a phase.
 
+## 2.1 Roadmap execution law — no foreseeable specification stalls
+
+This plan is an executable work contract, not a list of aspirations. Every package from the current
+state through 1.0 has an owner, prerequisites, locked defaults, ordered implementation work,
+required evidence, and an exit condition. The owning spec remains the authority for detailed
+behavior, but a package may not be queued unless this plan either points to a completed spec section
+or supplies the exact decisions the agent must first copy/reconcile into that spec.
+
+### Package states
+
+- **PLANNED:** scope, dependencies, outputs, acceptance, and decision authority are written here.
+- **SPEC READY:** the owning spec contains all mechanically relevant rules and no unresolved marker.
+- **IMPLEMENTED:** normal production paths and automated tests satisfy the spec.
+- **VERIFIED:** package integration/manual/performance/accessibility/security evidence also passes.
+
+An autonomous iteration always selects the first package whose prerequisites are complete. When it
+is `PLANNED` but not `SPEC READY`, the iteration's first deliverable is the named spec-lock section.
+The exact defaults in this plan are already user-authorized by the 2026-07-11 roadmap directive;
+copying them into the owning spec does **not** require another confirmation. Code begins only after
+that reconciliation is complete and reviewed in the same iteration or a preceding documentation
+commit.
+
+### Decisions an implementing agent owns
+
+Without asking the user, an agent must decide and document ordinary implementation details using
+this order:
+
+1. binding ADR/addendum decision;
+2. locked default or acceptance rule in this plan;
+3. owning-spec rule;
+4. existing pathfinder/helper and current public contract;
+5. BCL/native platform or already-approved dependency behavior;
+6. smallest deterministic, data-driven rule that satisfies all cited requirements.
+
+For battle-reference ambiguity, research and cite the best available mechanics evidence, select the
+applicable `gen4_like` or `modern_reference` behavior, and record the decision in the ruleset/formula/
+condition registry with neutral tests. If sources genuinely conflict and neither profile dictates an
+answer, use the latest behavior supported by the locked corpus as `modern_reference`; preserve the
+classic project behavior as `gen4_like` when it already exists. This is an explicit project rule,
+not permission for a move-ID branch or silent guess.
+
+Only these conditions may block for user input:
+
+- adding/replacing a dependency or game/framework technology;
+- expanding scope into a permanent non-goal or a different product/platform;
+- an irreversible migration or intentional loss of supported project/save data;
+- a paid service, signing certificate, store account, external credential, or legal policy only the
+  owner can provide; or
+- two product behaviors that remain materially different after applying every authority above and
+  neither is covered by a locked default below.
+
+Missing prose, an incomplete spec, a choice of private type/file layout, a test-fixture design, a
+UI microcopy choice, or an implementation technique is not a user blocker. Finish the named spec
+contract, use the locked default, and proceed. If an external/manual gate cannot run locally, finish
+all automatable work, create the exact reproducible checklist/artifact, mark only that gate pending,
+and take the next independent package; do not label the entire phase blocked.
+
+### Universal package completion record
+
+Every package update records in this file:
+
+- state transition and date;
+- prerequisites verified and owning spec sections changed;
+- production files and reusable behavior delivered;
+- schema/migration or dependency impact (`none` when none);
+- focused and full test commands with pass/fail counts;
+- deterministic/golden/performance/accessibility/security evidence as applicable;
+- manual/external evidence completed or the exact pending checklist;
+- deviations, review findings, and their dispositions;
+- next eligible package; and
+- commit hash in the handoff report.
+
+No package advances from representative tests alone when its exit calls for a complete registry,
+matrix, corpus, workflow, or manual proof.
+
 ## 3. Audited baseline
 
-Baseline commit: `5bc0e1a` (`Expand data-driven battle move coverage`).
+Roadmap baseline commit: `b69bcb2` (`Lock Phase 15 doubles execution roadmap`).
 
 - Build: 0 warnings, 0 errors.
-- Tests: 946 passed — 814 Core, 104 Creator, 21 Runtime, 7 Tools (after Phase 15A).
-- Coverage: Core 96.04% line / 90.30% branch; Creator package 66.75% / 66.24%; Runtime
-  package 48.45% / 36.64%.
+- Tests: 979 passed — 847 Core, 104 Creator, 21 Runtime, 7 Tools.
+- Last measured coverage at earlier baseline `5bc0e1a`: Core 96.04% line / 90.30% branch; Creator
+  package 66.75% / 66.24%; Runtime package 48.45% / 36.64%. Coverage was not remeasured for this
+  documentation baseline and is not used as current completion evidence.
 - Core battle: deterministic singles, switching, capture, progression, statuses/stages, v5 effect
   operations, Smart AI baseline, and v6 ability/held-item/weather/form foundations.
 - Creator: project shell plus type/move/item/ability/species editors; several advanced structures
@@ -52,6 +128,15 @@ Baseline commit: `5bc0e1a` (`Expand data-driven battle move coverage`).
 - Existing expressibility audit: 468 PASS / 469 FAIL. PASS means “current generic operations appear
   capable of expressing this move”; it does **not** yet mean end-to-end certification.
 - Certified Phase 15 move coverage: **0/937** until the conformance harness defined below exists.
+
+Roadmap audit (2026-07-11): the prior plan fully locked 15B but still left 15C-15I and Phases 16-19
+as capability summaries or “spec later” outlines. Version 4 replaces those with package IDs,
+prerequisite order, authorized specification locks, deterministic/default decisions, acceptance
+evidence, performance/manual gates, and reserved-decision rules. This is a documentation/governance
+change only; it does not advance any implementation or certification state.
+Verification for the v4 documentation change: solution build passed with 0 warnings/errors; full
+suite passed 979 tests (847 Core, 104 Creator, 21 Runtime, 7 Tools); relative documentation links and
+whitespace checks passed.
 
 ## 4. Rebased phase status
 
@@ -286,8 +371,10 @@ every package has two independent states:
 - **IMPLEMENTED** means that locked contract is present in normal Core paths and its required tests
   pass.
 
-Only a `SPEC READY` package may enter the implementation queue. A goal, capability list, or prose
-description is not specification readiness. If a later package needs a new decision, its first
+Only a `SPEC READY` package may enter the code portion of an iteration. A `PLANNED — SPEC LOCK
+AUTHORIZED` package may enter for its required spec reconciliation and becomes code-eligible only
+after that lock is complete. A goal, capability list, or prose description is not specification
+readiness. If a later package needs a new decision, its first
 roadmap item is a specification-lock package; implementation does not start in the same commit unless
 the completed spec leaves no unresolved behavior and the change remains reviewable.
 
@@ -301,16 +388,16 @@ Current readiness ledger:
 | 15B-4 spread and per-target execution | SPEC READY | NOT IMPLEMENTED | Battle spec PP/RNG/hit/effect/event order |
 | 15B-5 redirection and position | SPEC READY | NOT IMPLEMENTED | Battle spec redirection precedence and atomic position swap |
 | 15B-6 faint outcome and replacement | SPEC READY | NOT IMPLEMENTED | Battle spec faint/outcome/replacement checkpoint |
-| 15C query/formula families | SPEC LOCK REQUIRED | NOT IMPLEMENTED | Lock ordered query stages and a formula table before each family |
-| 15D timing/queue/lock families | SPEC LOCK REQUIRED | PARTIAL | Existing move gates are implemented; lock queue payload lifecycle and each remaining timing family |
-| 15E scoped conditions/hooks | SPEC LOCK REQUIRED | NOT IMPLEMENTED | Lock store ownership, hook order, stacking, duration, and cleanup matrix |
-| 15F mutation/snapshots | SPEC LOCK REQUIRED | NOT IMPLEMENTED | Lock overlay precedence, ownership, legality, and reversion matrix |
-| 15G switch/recovery/memory/non-battle | SPEC LOCK REQUIRED | PARTIAL | HP primitives exist; lock switch transfer, memory, recovery rounding, and Core action outputs |
+| 15C query/formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15C-1 through 15C-7 defaults and publish each exact formula table before implementation |
+| 15D timing/queue/lock families | PLANNED — SPEC LOCK AUTHORIZED | PARTIAL | Existing move gates are implemented; apply 15D-1 through 15D-7 lifecycle defaults |
+| 15E scoped conditions/hooks | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15E-1 through 15E-7 ownership/order/cleanup defaults |
+| 15F mutation/snapshots | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15F-1 through 15F-7 overlay/mutation/reversion defaults |
+| 15G switch/recovery/memory/non-battle | PLANNED — SPEC LOCK AUTHORIZED | PARTIAL | HP primitives exist; apply 15G-1 through 15G-6 defaults |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
-| 15I AI awareness | SPEC LOCK REQUIRED | NOT IMPLEMENTED | Lock legality adapter and primitive scoring contract after mechanics stabilize |
+| 15I AI awareness | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15I-1 through 15I-5 legality/scoring/tuning defaults after mechanics stabilize |
 | 15J certification/closeout | PROCESS READY | NOT COMPLETE | Generated manifest, registered tests, scans, fuzz/soak, and GO review |
 
-For rows marked `SPEC LOCK REQUIRED`, the specification package is fully planned here so an
+For rows marked `PLANNED — SPEC LOCK AUTHORIZED`, the specification package is fully planned here so an
 autonomous model has a concrete deliverable instead of discovering ambiguity during coding:
 
 1. **15C-SPEC:** publish the exact query stage order; value types and fraction width; rounding/clamp
@@ -548,28 +635,69 @@ Primary groups: damage query modifiers (64), special accuracy (36), stat expansi
 
 Ordered feature packages:
 
-1. **Unified query contract** - represent base/current/final values, source/target/field/ruleset,
-   ordered modifiers, rounding point, and trace output for every query. Existing direct fields may
-   remain as compatibility inputs only until normalized to this path.
-2. **HP and status formulas** - finish HP bands, missing/current/max ratios, target/user status and
-   status-specific secondary rules, HP matching/equalization, cannot-KO floors, and self-current-HP
-   damage. Existing threshold/ratio/status power helpers are inputs, not completion of the family.
-3. **Speed, weight, and metric formulas** - ratio/band tables, grounded/airborne metrics, modified
-   weight, target height/size where referenced, exact caps, floors, and zero guards.
-4. **History and consecutive formulas** - prior damage/action/failure, moved-first/last, consecutive
-   use, hit count, times struck, ally faint history, turn number, retaliation, and reset rules.
-5. **Party/resource/formula inputs** - living/fainted party counts, contributing party members,
-   friendship, PP remaining, stat stages, positive-stage totals, stat comparisons, item presence/data,
-   and deterministic random tables.
-6. **Field/type/class queries** - weather/terrain power and type, environment type, move type/class
-   override, offensive/defensive stat selection, unusual type effectiveness, STAB policy, and spread.
-7. **Accuracy/crit/priority/final modifiers** - next-hit/next-crit guarantees, weather/gravity/
-   semi-invulnerable exceptions, turn-order queries, damage floors/caps/multipliers, and healing query.
+1. **15C-1 — Unified query pipeline (`PLANNED`; prerequisite 15B-4).** First lock the battle-spec
+   query registry: query ID; integer or reduced-fraction value type; base source; ordered modifier
+   stages; replace/add/multiply/min/max precedence; floor point after every multiplication; final
+   clamp; source/target/field/ruleset inputs; and trace fields. The locked stage order is move
+   identity → authored base → source/target state → ability/item/condition hooks → ruleset override
+   → final clamp. Hooks at one stage order by hook priority, owner scope order, then insertion order;
+   no dictionary ordering or tie RNG. Implement one query service used by damage, accuracy, speed,
+   healing, AI preview, and trace. Direct legacy fields feed authored-base only. **Acceptance:** one
+   vector per modifier kind, negative/zero/overflow guards, exact intermediate floors, stable hook
+   ordering, unknown query/modifier rejection, and old fixed-damage results unchanged.
+2. **15C-2 — HP and status formula registry (`PLANNED`; prerequisite 15C-1).** Inventory every
+   HP/status audit key and lock rows for current/max/missing HP ratio, exact HP bands, source/target
+   persistent/volatile status predicates, status-count, HP equalization, cannot-KO floor, current-HP
+   and max-HP damage, and status-dependent secondary chance. Every row names numerator/denominator,
+   comparison inclusivity, min/max result, zero behavior, target scope, and whether the formula
+   damages, supplies power, or modifies a query. Reuse `statusPower`, `heal`, and `hpFraction` where
+   exact. **Acceptance:** threshold±1 tables, 1 HP and full-HP boundaries, mismatch/no-status cases,
+   floor/clamp conservation, normal resolver/trace, and all affected neutral conformance vectors.
+3. **15C-3 — Speed, weight, and physical metric formulas (`PLANNED`; prerequisite 15C-1).** Lock
+   ratio bands and inclusivity, effective-versus-base speed/weight choice, zero-denominator behavior,
+   airborne/grounded inputs, height/size units, caps, and ruleset differences for every cited audit
+   key. Weight/speed changes must enter central effective queries rather than mutate definitions.
+   **Acceptance:** every band edge±1, minimum/maximum values, modified versus base inputs, grounded
+   variants, overflow-safe arithmetic, resolver/trace evidence, and affected conformance vectors.
+4. **15C-4 — Action history and consecutive-use formulas (`PLANNED`; prerequisite 15C-1).** Lock
+   attempt/success/connect/fail
+   meanings; turn/action/hit retention; source/target keys; consecutive reset on different action,
+   switch, fail, or miss per formula row; moved-first/last checkpoint; retaliation qualification;
+   ally-faint history; and caps. Implement queries only over bounded typed memory, never event-log
+   parsing. Implement the minimal bounded action-attempt history this family needs; 15G-2 extends the
+   same service with complete per-hit damage records. **Acceptance:** first use, repeat to cap, interruption/reset matrix, switch/faint boundary,
+   doubles source/target isolation, turn aging, and replay-stable traces.
+5. **15C-5 — Party, resource, stage, item, and random-table inputs (`PLANNED`; prerequisites 15C-1
+   and effective-query portion of 15F-1).** Lock living/fainted/contributing party filters,
+   friendship range, PP timing (before or after current spend), positive-stage sum and comparison,
+   item-data lookup failure, and random-table ordered weights. Random tables use cumulative positive
+   integer weights in authored order, one `Next(totalWeight)` draw, half-open ranges, and no draw for
+   one nonzero entry. **Acceptance:** empty/full party, duplicates, PP 0/1/max, stage extremes/ties,
+   missing/suppressed item, random endpoints/frequency-independent deterministic vectors, and trace.
+6. **15C-6 — Field, type, class, stat, and effectiveness queries (`PLANNED`; prerequisites 15C-1
+   and 15E/15F query contracts).** Lock effective move type/class, environment type, attacking and
+   defending stat selectors, STAB source, immunity/effectiveness override, inverse/special charts,
+   grounded state, weather/terrain inputs, and spread flag. Base definitions remain immutable;
+   overlays and conditions provide ordered modifiers. **Acceptance:** single/dual type tables,
+   immunity and override precedence, STAB/no-STAB, alternate stat/class selection, field absent/
+   present, spread one/two target, and identical AI/resolver query results.
+7. **15C-7 — Accuracy, critical, priority, final damage, and healing modifiers (`PLANNED`;
+   prerequisite 15C-1; later condition integrations extend its tables).** Lock always-hit versus
+   accuracy-stage behavior, weather/gravity/semi-invulnerable exceptions, next-hit/next-crit
+   consumption, critical-stage caps, priority and turn-order modifiers, final damage floor/cap,
+   healing multipliers/blocks, and exact skipped-draw rules. Consume one-shot conditions only at
+   their specified successful query checkpoint. **Acceptance:** full stage tables, guaranteed/missed/
+   immune cases, one-shot consumption matrix, priority ties, floor/cap edges, blocked healing, exact
+   RNG bounds/order, and family goldens.
 
 Every formula package requires table-driven boundary tests with exact intermediate rounding, compiler
 validation for params/enums/ranges, resolver tests through the normal damage/heal path, and trace
 assertions showing the base and final values. Never place a formula branch in `DamageCalc` when a
 reusable query/formula helper can supply its input.
+
+For each 15C package, the spec-lock commit must add the complete formula-registry rows before code.
+The plan authorizes the decision hierarchy in §2.1; an implementing model does not stop merely
+because a source generation differs. It records both required profile rows and proceeds.
 
 Progress (2026-07-10): reusable status-conditioned base-power handling is in place through
 `statusPower`. It targets the user or active target, matches a specific or any persistent status, and
@@ -591,19 +719,58 @@ Primary groups: turn timing/queued gates (64), volatile/status lockouts (49), mo
 
 Ordered feature packages:
 
-1. General queue entries with timing point, due turn, owner slot/creature/side, target snapshot or
-   live-target policy, payload, insertion order, and explicit switch/faint/battle-end cleanup.
-2. Recharge, first-action, cannot-repeat, prior-failure, moved-before/after, target-action-category,
-   and interrupt-if-hit gates through normal action validation.
-3. Charge/release actions, semi-invulnerable state, skipped-charge policies, moves that can hit each
-   semi-invulnerable state, and power/effect exceptions.
-4. Delayed slot damage/healing/status and replacement effects with stored source/type/class/ruleset
-   metadata and deterministic target-slot behavior.
-5. Forced repeats, multi-turn locks, ramping sequences, post-lock confusion/cleanup, and cancellation.
-6. Disable/Encore/Taunt/Torment/Imprison/heal/sound/item locks plus Struggle-like legal-action
-   fallback; all selection and execution checks share the same legality service.
-7. Move-reference execution and order manipulation through one resolved action path with recursion/
-   loop limits.
+1. **15D-1 — Typed intent queue (`PLANNED`; prerequisite 15B-6).** Lock one queue record with stable
+   sequence number, due turn, timing checkpoint, owner scope and creature identity, target policy
+   (`snapshotSlot`, `liveSlot`, `source`, `side`, `field`), typed payload, source move metadata,
+   ruleset, and switch/faint/end cleanup. Ordering is due turn → checkpoint order → insertion sequence.
+   Preview entries without mutation during action admission; consume immediately before execution;
+   newly queued work at the current checkpoint waits for the next matching checkpoint. Put a hard
+   per-checkpoint execution cap derived from queue length at entry and trace deferrals. **Acceptance:**
+   ordering, same-checkpoint insertion, snapshot/live replacement, cancellation/transfer matrix,
+   serialization/debug snapshot, no unintended draws, and deterministic replay.
+2. **15D-2 — Action gates and recharge (`PLANNED`; prerequisite 15D-1).** Extend the shared legality
+   service with first-action, cannot-repeat, prior-failure, moved-before/after, target action class,
+   interrupt-if-hit, recharge, and generic next-action block. Selection-time gates reject admission;
+   execution-time invalidation spends no PP unless the locked gate row explicitly occurs after
+   `MoveUsed`. Recharge is creature-owned, blocks every selectable action except forced pass, consumes
+   once, and clears on switch/faint. Preserve the implemented `moveGate`/`queueActionGate` behavior.
+   **Acceptance:** selection/execution boundary, PP/RNG/event matrix, doubles actor isolation,
+   recharge switch/faint cleanup, and conformance vectors.
+3. **15D-3 — Charge and semi-invulnerability (`PLANNED`; prerequisites 15D-1 and 15C-7 query seam).**
+   Lock charge/release payload, source creature ownership, stored target policy, first-turn PP payment,
+   skip-charge predicate, cancellation, and semi-invulnerable tags (`air`, `underground`, `underwater`,
+   `vanished`). A charge action pays PP/announces once; release does not pay again. Hit exceptions are
+   data tags with optional power modifiers, evaluated in accuracy then damage query order. Switch,
+   faint, forced action, and battle end clear the state. **Acceptance:** normal/skip/cancel/release,
+   target replacement, each hit/bypass tag, PP and RNG counts, and charge golden.
+4. **15D-4 — Delayed slot actions (`PLANNED`; prerequisites 15D-1 and 15B-6).** Lock delayed damage,
+   healing, status, and replacement payloads with stored source level/stats/type/class/ruleset where
+   calculation requires a snapshot and live destination slot where replacement should receive it.
+   Delayed work resolves at its timing checkpoint even if the source switched or fainted unless its
+   row declares source-required; failure is eventful and never refunds original PP. Multiple entries
+   on one slot resolve insertion order. **Acceptance:** source gone, target replacement/empty, same-slot
+   multiples, immunity/heal-block at execution, stored-versus-live query proof, and delayed golden.
+5. **15D-5 — Multi-turn locks and forced execution (`PLANNED`; prerequisites 15D-1/2).** Lock duration
+   draw timing/range, selected move/target ownership, ramp step/cap, forced-repeat legality,
+   interruption, post-lock confusion, and cleanup. The first execution pays normal PP; each forced
+   repeat pays PP only when its registry row says so; no legal repeat ends the lock visibly. Conditions
+   cannot recursively force themselves in the same action. **Acceptance:** min/max duration, ramp/cap,
+   miss/fail/disable/no-PP interruption, switch/faint cleanup, exact draws, and termination golden.
+6. **15D-6 — Selection lockouts and legal fallback (`PLANNED`; prerequisites 15D-2 and 15E-1
+   condition store).** Implement Disable, Encore, Taunt, Torment, Imprison, heal/item/sound locks,
+   infatuation and related action filters as data-defined conditions consumed by one legality service.
+   Lock source, duration tick, duplicate policy, affected action tags, bypass, and cleanup per registry
+   row. If no ordinary move is legal, expose one generic fallback action compiled from ruleset data;
+   it is not a named move special case. **Acceptance:** each filter allow/block matrix, overlapping
+   precedence, all-moves-blocked fallback, duration/refresh/switch cleanup, AI legality parity.
+7. **15D-7 — Move references and turn-order intents (`PLANNED`; prerequisites 15B-4, 15C-7, 15D-1).**
+   Lock selectors for known, target-known, last-used, party-known, random pool, environment pool, and
+   explicit move reference; exclusion tags; authored-order candidate list; one draw only for multiple
+   candidates; source versus called move PP ownership; target revalidation; event attribution; and a
+   maximum nested execution depth of 8. After-you/quash/helping/instruct-style intents mutate the
+   current scheduled-action record through typed priority/order flags; executed actions cannot be
+   scheduled again. **Acceptance:** empty/single/multiple pool, exclusion, PP/event ownership, target
+   invalidation, depth/loop termination, doubles order conflicts, and exact RNG/event golden.
 
 Required evidence: queue ordering and serialization/debug snapshots; seeded RNG-order tests; every
 gate proves no unintended PP/RNG spend; switch/faint cancellation matrix; delayed-action and charge
@@ -629,20 +796,54 @@ Primary groups: field/side conditions (53), cleanup (5), protect variants (8).
 
 Ordered feature packages:
 
-1. Generic `ConditionDef`/instance/store support for creature, side, slot, field, weather, terrain,
-   and room scopes, including source, owner, duration, counters, stacking/replacement, tags, and
-   switch/faint/battle-end policy.
-2. One deterministic hook collector/order for action selection, targeting, priority, accuracy,
-   try-hit, damage/healing/status queries, contact, switch, and end turn.
-3. Weather/terrain/room/gravity/sport definitions and their required damage, accuracy, status,
-   healing, type, grounded, and turn-order hooks.
-4. Screens, Safeguard, Mist, Tailwind, Lucky Chant, pledge effects, and side protection filters.
-5. Generic entry-hazard damage/status/stage conditions, layers, grounded checks, absorption,
-   removal, and switch-in order.
-6. Protect-family definitions with chain state, filter/bypass rules, side variants, and reusable
-   contact-block effect lists.
-7. Remove/transfer/swap operations by scope, tag, source, and owner; no cleanup helper may enumerate
-   named content presets.
+1. **15E-1 — Scoped condition model and stores (`PLANNED`; prerequisite 15B-6).** Lock definition and
+   instance fields: generic ID, scope, owner, source slot/creature, applied turn/sequence, duration,
+   counters, tags, hook list, stacking key/policy (`reject`, `refresh`, `replace`, `stack`), maximum
+   stacks, and switch/faint/battle-end cleanup. Stores exist for creature, side, slot, field, weather,
+   terrain, and room; one condition cannot be silently stored in a different scope. Durations decrement
+   at the registry row's named checkpoint and expire after that checkpoint's hooks finish. **Acceptance:**
+   every scope, duplicate policy, duration 1/N, source identity, cleanup/transfer matrix, stable
+   enumeration, strict validation, events/traces, and round-trip if serialized shape changes.
+2. **15E-2 — Hook dispatcher (`PLANNED`; prerequisite 15E-1).** Lock checkpoints from selection through
+   end turn and collect hooks in checkpoint → hook priority descending → scope order (field, side,
+   slot, creature, ability, item, move) → owner topology order → condition sequence. Hooks return typed
+   query modifiers, filters, or intents; they do not mutate while enumeration is active. Enqueue
+   mutations for the checkpoint tail. Limit one hook invocation per `(action, checkpoint, instance,
+   payload)` and cap nested emitted intents at 64 with a visible engine error. **Acceptance:** complete
+   order golden, add/remove during dispatch, duplicate suppression, cap failure, no dictionary drift,
+   and identical resolver/AI query collection.
+3. **15E-3 — Weather, terrain, room, gravity, and sport families (`PLANNED`; prerequisites 15E-1/2
+   and 15C query seam).** Build these as field-scoped condition definitions. Each registry row locks
+   duration/default, replace/coexist rules, damage/accuracy/status/heal/type/grounded/order hooks,
+   residual timing, source, and removal. Weather and terrain each permit one effective instance;
+   room/gravity/sport coexist when tags differ. Reapplying the same instance refreshes only when the
+   row permits. **Acceptance:** start/replace/refresh/expire, every query hook present/absent, residual
+   ordering, field coexistence, ruleset difference vectors, and family goldens.
+4. **15E-4 — Side conditions and guards (`PLANNED`; prerequisites 15E-1/2).** Lock screens, status/
+   stage guards, speed/order modifiers, critical guard, pledges, and side-wide protection as side
+   conditions with exact duration, doubles multiplier, bypass tags, stacking, source, and removal.
+   A side hook evaluates once per affected target but owns one shared duration/counter. **Acceptance:**
+   singles/doubles values, bypass, duplicate/refresh, opponent versus owner scope, removal, expiration,
+   and AI-visible query outcomes.
+5. **15E-5 — Entry hazards (`PLANNED`; prerequisites 15E-1/2 and 15B-6 replacement).** Lock generic
+   hazard layer count/max, grounded filter, switch-in checkpoint, fraction/stage/status payload,
+   type/effectiveness use, absorption predicate, removal tags, and source credit. Entry hooks execute
+   after assignment in slot order and condition sequence; a faint triggers the replacement loop only
+   after the complete entry-hook batch. **Acceptance:** 0/max layers, grounded/airborne, immunity,
+   absorption, removal, two-slot entry order, repeat faint/replacement, and hazard golden.
+6. **15E-6 — Protect and contact-block families (`PLANNED`; prerequisites 15E-1/2).** Lock protect
+   scope, accepted move tags, bypass, chain counter ownership, success fraction and RNG draw point,
+   reset conditions, side variants, and ordered contact-block payloads. Standard chain probability
+   is a ruleset fraction queried once on use; guaranteed first use draws only if the profile requires
+   it. Spread moves evaluate protection per target. **Acceptance:** first/repeated/reset boundaries,
+   exact chance draws, bypass and non-contact cases, spread mixed targets, contact punishment order,
+   source faint handling, and golden.
+7. **15E-7 — Generic condition cleanup/transfer/swap (`PLANNED`; prerequisites 15E-1).** Implement
+   selectors by scope, tag, source, owner, and condition ID plus operations remove, transfer, and
+   atomic side swap. Preserve instance duration/counters/source unless the operation's typed params
+   request reset. Validate incompatible source/destination scopes before mutation. **Acceptance:**
+   no-match visible no-op policy, partial/all tag selection, source filtering, atomic failure,
+   duration/source preservation, slot/side swap, and proof that no helper enumerates content names.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
@@ -663,18 +864,54 @@ overlays (6).
 
 Ordered feature packages:
 
-1. Central effective item/ability/type/stat/move queries over immutable base definitions plus battle
-   overlays; document overlay precedence before adding mutations.
-2. Item helpers for requirement, consume, transfer, removal, destruction, restoration, suppression,
-   consumed-item history, item-derived effects/type/power, and explicit failure reasons.
-3. Ability helpers for copy/swap/replace/suppress/ignore/protect and hook-dispatch integration.
-4. Creature and move type overlays for add/remove/replace/copy, source/duration, grounding, STAB,
-   effectiveness, and switch cleanup.
-5. Stage/derived-stat helpers for set/max/average/split/swap/pass plus creature metric overlays.
-6. Substitute/decoy, Transform/copy-snapshot, temporary move replacement, form/gimmick wrappers,
-   PP ownership, HP-ratio preservation, and reversion.
-7. Move-reference selector/executor for known, target, last, party, random, or environment-selected
-   moves, with exclusions, recursion guards, and temporary/permanent mutation boundaries.
+1. **15F-1 — Effective-value overlays (`PLANNED`; prerequisite 15C-1).** Lock immutable base plus
+   overlay records for held item, ability, creature types, move type/class, derived stats/metrics,
+   move list/PP owner, form, and decoy. Effective precedence is base → permanent instance data →
+   form/snapshot replacement → additive overlays → suppression/ignore filters → query hooks. Later
+   sequence wins only within the same precedence and key. Every overlay has source, owner, duration,
+   cleanup, and trace identity. **Acceptance:** each layer alone/combined, suppression versus replace,
+   stable ordering, definition immutability, switch/faint/end cleanup, and shared resolver/AI result.
+2. **15F-2 — Held-item mutation (`PLANNED`; prerequisites 15F-1 and 15E hooks).** Lock require,
+   consume, give, steal, swap, remove, destroy, restore-last-consumed, and suppress helpers. Validate
+   holdability, empty/occupied targets, unremovable/sticky protection tags, source/target faint state,
+   and one-item capacity before atomic mutation. Consumption records item ID, owner creature, turn,
+   and cause; restore consumes that history only on success. Hook lookup changes at checkpoint tail.
+   **Acceptance:** every success/failure pair, protected/empty/full, atomic swap, history aging,
+   item-derived type/power/effect, hook refresh, events, conservation, and cleanup.
+3. **15F-3 — Ability mutation (`PLANNED`; prerequisites 15F-1 and 15E hooks).** Lock copy, swap,
+   replace, suppress, ignore-for-query, and protect operations over effective abilities. Immutable base
+   ability returns after temporary overlays clear. Validate unchangeable/protected tags and identical/
+   missing ability behavior before atomic mutation. Newly effective hooks start at the next safe
+   checkpoint, never halfway through the hook enumeration that changed them. **Acceptance:** operation
+   matrix, protection, hook activation timing, suppression/ignore distinction, switch/faint/end
+   reversion, doubles identity, and events/traces.
+4. **15F-4 — Creature and move type overlays (`PLANNED`; prerequisites 15F-1 and 15C-6).** Lock
+   replace/add/remove/copy operations, maximum effective type count, duplicate elimination preserving
+   first occurrence, empty-type fallback, source/duration/cleanup, and move-type override precedence.
+   Grounded, STAB, effectiveness, immunity, and type-derived item/field queries consume the same
+   effective list. **Acceptance:** mono/dual/add/remove/copy, duplicates/empty, overlay conflicts,
+   STAB/effectiveness/grounding integration, switch cleanup, and conformance vectors.
+5. **15F-5 — Stage, derived-stat, and metric mutation (`PLANNED`; prerequisites 15F-1 and 15C
+   queries).** Reuse stage bounds and lock set, maximize, average with floor, split, swap, steal,
+   random-stat selection, pass, and temporary derived-stat/metric overlays. Operations calculate all
+   outputs from one pre-mutation snapshot and commit atomically; random eligible stats use enum order
+   and one draw only for multiple choices. **Acceptance:** bounds, odd averages, mixed positive/
+   negative, empty random pool, atomic multi-target state, exact draw, pass whitelist, and cleanup.
+6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
+   prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
+   copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form
+   changes; once-per-battle form ownership; replacement duration; and switch/faint/end reversion.
+   Snapshots copy effective values at application but never share mutable collections or mutate the
+   target definition. Decoy receives eligible damage/status before the owner and emits distinct
+   events. **Acceptance:** insufficient cost, exact decoy break/overflow policy, bypass matrix,
+   snapshot depth/independence, copied PP, form HP ratio edges, nested overlay precedence, and golden.
+7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
+   known, target, last, party, random, environment, and temporarily replaced moves over effective
+   move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and
+   temporary/permanent replacement cleanup. This is the only entry to called/copied move execution;
+   no selector invokes `BattleController` recursively outside the typed execution stack. **Acceptance:**
+   pool and exclusion matrix, one-candidate no draw, multi-candidate exact draw, PP/event attribution,
+   replacement reversion, target invalidation, and recursion golden.
 
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
@@ -695,17 +932,52 @@ non-battle/post-battle effects (4).
 
 Ordered feature packages:
 
-1. One switch-intent service for forced switch, pivot, self switch, escape, trapping, replacement,
-   slot selection, and passable-state transfer.
-2. One bounded battle-memory service recording action attempts and per-hit damage by turn, source,
-   target, class, cause, connection, amount, and faint result.
-3. Counter/revenge/stored-release/final-current-HP/hit-count operations querying that memory; normal
-   failure returns events/results rather than exceptions.
-4. Complete healing/cost/cure/status-transfer/revival/equalization helpers over active, ally, party,
-   fainted-party, side, and slot targets.
-5. Delayed and replacement-slot healing/cure effects integrated with the shared queue/condition path.
-6. Explicit post-battle reward/money operations and content-agnostic overworld action requests for
-   move field effects; presentation and map mutation remain consumers of Core results.
+1. **15G-1 — Unified switch intents (`PLANNED`; prerequisites 15B-6 and 15E condition cleanup).**
+   Lock voluntary, forced-target, random-forced, pivot-after-hit, self-switch, escape, and replacement
+   intent payloads; source/target slot; candidate filter/order; trap/bypass; success checkpoint;
+   failure; and transfer policy. Candidate lists use party index order; random selection draws once
+   only for multiple candidates. All switches use the slot-addressed helper. Passable state is an
+   explicit whitelist of eligible stat stages and registry-tagged creature conditions; identity,
+   persistent status, HP, item, ability, non-passable volatiles, queues, and slot conditions never
+   transfer. **Acceptance:** every intent valid/no-candidate/trapped, pivot miss/faint, random draws,
+   doubles slot, entry hooks, transfer/cleanup matrix, creature conservation, and golden.
+2. **15G-2 — Bounded action and damage memory (`PLANNED`; prerequisite 15B-4).** Extend the minimal
+   history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
+   sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,
+   amount before/after mitigation, actual HP removed, critical/contact/substitute flags, hit number,
+   and faint result. Keep only the current and immediately previous completed turn plus active
+   multi-turn aggregates; expose queries, never mutable lists. **Acceptance:** record completeness,
+   per-hit/order, miss/immune/decoy, doubles isolation, aging/reset, bounded size, replay identity.
+3. **15G-3 — Counter, revenge, stored-release, and damage-memory consumers (`PLANNED`; prerequisite
+   15G-2).** Lock qualifying source/target/class/cause/window for each registry row; last versus sum;
+   multiplier/fixed return; target fallback; cannot-KO floor; and failure event. Stored release owns a
+   bounded accumulator condition and clears on release, switch, faint, or expiration. **Acceptance:**
+   qualifying/nonqualifying damage table, multiple hits/sources, decoy/residual exclusion, target gone,
+   overflow-safe multiplication/clamp, normal failure, and event/trace golden.
+4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`PLANNED`; prerequisites
+   15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
+   HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;
+   revive fraction; and HP match/equalize over active, ally, party, fainted-party, side, and slot.
+   Fractions floor, successful positive healing clamps to max, revival requires fainted and restores
+   at least 1 HP, costs validate affordability before other mutations unless marked sacrificial, and
+   failed atomic composites change nothing. **Acceptance:** 0/1/full/fainted boundaries, odd fractions,
+   heal block, multi-target rounding basis, cost conservation, cure/transfer conflicts, party scope,
+   atomic failure, and family goldens.
+5. **15G-5 — Delayed/replacement healing and cures (`PLANNED`; prerequisites 15D-4, 15E conditions,
+   and 15G-4).** Encode future healing/cure as slot-owned queue/condition payloads with live occupant
+   resolution, stored source metadata, exact due checkpoint, and empty-slot persistence/expiration.
+   Replacement occupants receive live-slot effects; creature-snapshot effects follow only their
+   creature. **Acceptance:** original versus replacement occupant, empty then filled, source gone,
+   simultaneous entries, heal block at resolution, expiration, and event/RNG golden.
+6. **15G-6 — Post-battle rewards and overworld Core actions (`PLANNED`; prerequisite battle outcome).**
+   Lock typed Core results for money/reward adjustment and content-agnostic overworld requests
+   (`cutObstacle`, `moveObstacle`, `travelWater`, `illuminate`, `teleport`, or other corpus-required
+   generic action tags). Battle resolver emits the result/request and never performs filesystem,
+   scene, map, animation, or UI work. Each request carries actor, action tag, target requirement,
+   validation result, and consumption policy; Runtime later supplies world context and applies Core
+   legality. Presentation-only and true no-effect markers are distinct and manually reviewed.
+   **Acceptance:** battle/post-battle timing, win/loss/cancel, money clamp, missing world context,
+   request validation, no Runtime dependency, and every marker classified.
 
 Required evidence: creature/HP/item conservation tests; switch transfer/cleanup goldens; counter
 qualification tables; bounded-memory/turn-aging tests; party/fainted-target validation; reward and
@@ -739,6 +1011,27 @@ Normalization itself is a deliverable: every entry must have a deterministic gen
 mechanic-family tags, topology, ruleset, strict validation result, compiler test ID, resolver/golden
 test IDs, and monotonic manifest status. Normalization aliases/presets are data expansion only.
 
+Ordered packages:
+
+1. **15H-1 — Reference decision registry (`PROCESS READY`).** Generate the blocked-key list from the
+   manifest; for each key record source hash, exact unanswered question, structured metadata, concise
+   cited mechanics conclusion, ruleset/profile, topology, generic capability owner, and reviewer.
+   Use §2.1's conflict default rather than stalling on generation differences.
+2. **15H-2 — Normalized definition registry (`PROCESS READY`; runs continuously).** Produce one
+   canonical generic definition per key with stable property/effect ordering, explicit defaulted
+   values, capability tags, topology/profile, and definition hash. Unknown op/param/tag or a silent
+   no-op fails generation. Presets expand before hashing and cannot contain executable content names.
+3. **15H-3 — Capability routing (`PROCESS READY`).** Group failed normalization/compile/resolve rows
+   by reusable missing behavior and attach them to the first owning 15B-15G package. A group contains
+   all known keys, required success/failure contexts, and proposed lowest promotion-ladder level.
+4. **15H-4 — Zero-gap review (`PROCESS READY`; prerequisite 15B-15G).** Manually review every
+   `presentationOnly`, `noBattleEffect`, `postBattleReward`, overworld request, ruleset override, and
+   remaining alias; regenerate hashes/counts and require zero unknown/unmapped/reference-blocked.
+
+Acceptance: registry rows are complete and cited; generation is byte-identical; source names/prose do
+not enter shipped/test fixture content; every key has a normalized hash and registered test IDs; and
+all capability failures are routed rather than hidden.
+
 Exit: 937 normalized definitions; zero unknown/unmapped/reference-blocked rows.
 
 #### 15I — AI and simulation awareness
@@ -751,14 +1044,36 @@ Exit: 937 normalized definitions; zero unknown/unmapped/reference-blocked rows.
 
 Implementation packages:
 
-1. Use the completed target resolver to enumerate legal singles/doubles moves, switches, items,
-   forms, and selections; AI never constructs targets independently.
-2. Map every primitive/query/condition to conservative reusable scoring signals (expected HP swing,
-   status/control, setup, field/side value, switch tempo, delayed value, self-cost, failure risk).
-3. Simulate through the real resolver or pure query helpers; do not duplicate formulas or inspect the
-   player's selected action.
-4. Extend memory and score-table explanations for new conditions/queues/mutations.
-5. Add seeded corpus smoke simulations and retune only after legality/crash coverage is complete.
+1. **15I-1 — Legal action enumeration (`PLANNED`; prerequisites 15B-15H mechanics).** Enumerate moves,
+   typed targets, switches, items, forms, replacements, and pass/fallback exclusively through Core
+   legality APIs. Candidate order is action category, source slot, authored move index, typed target
+   topology/party order, then item/form ID. AI cannot inspect the opponent's submitted action or
+   hidden runtime state. **Acceptance:** every certified move has its valid contexts, invalid targets
+   absent, doubles collective conflicts filtered, replacement mode, and deterministic order.
+2. **15I-2 — Primitive outcome scoring (`PLANNED`; prerequisite 15I-1).** Lock a score registry for
+   expected own/opponent HP delta, KO, status/control, stat setup, field/side condition, switch tempo,
+   delayed value, resource gain/cost, self-risk, failure probability, and information-neutral
+   uncertainty. Every compiled primitive/query/condition must map to one or more signals or an
+   explicit neutral presentation-only classification; unknown executable behavior is an error, not
+   zero. **Acceptance:** registry completeness test against catalogs and sign/magnitude boundaries.
+3. **15I-3 — Preview and combination (`PLANNED`; prerequisites 15I-1/2).** Use pure Core query helpers
+   or a cloned-state resolver preview with deterministic expected values; never reimplement formulas.
+   Combine signals additively after normalized HP percentages, cap any single non-KO setup/control
+   signal below a guaranteed KO, and apply profile weights from `BATTLE_AI_SPEC`. Preview does not
+   consume live RNG/state. **Acceptance:** resolver/preview parity tables, immunity/failure risk,
+   multi-target aggregation, self-cost, delayed/switch cases, and no live-state mutation.
+4. **15I-4 — Memory and explanation (`PLANNED`; prerequisite 15I-3).** Extend AI memory only with
+   player-observable action/outcome data and produce a stable score table listing candidate, legality,
+   component values, total, and selected tie/noise draw. Memory is bounded by battle duration and
+   cleared at battle end. **Acceptance:** hidden-info audit, stable explanation golden, switch/item/
+   condition memory, and bounded size.
+5. **15I-5 — Deterministic selection and tuning (`PLANNED`; prerequisite 15I-4).** Select highest
+   score; exact ties use one `Next(tieCount)` over candidate order. Basic remains damage-greedy and
+   Random selects uniformly from legal candidates. Run at least 100 seeds per benchmark pairing in
+   singles and doubles; log teams, ruleset, seeds, win/turn/crash/illegal-action rates. Tune weights
+   only after zero crashes/illegal actions. **Acceptance:** corpus smoke covers every certified move,
+   deterministic replay, side-swapped benchmark within documented variance, Smart exceeds Basic on
+   the challenge fixture without forbidden information.
 
 Required evidence: every certified move yields at least one legal AI evaluation; no unsupported-op
 switch defaults silently to zero; doubles target legality tests; deterministic score tables; seeded
@@ -775,15 +1090,23 @@ Perfect competitive play is not required.
 - Review Core for move-name/ID branches and unsupported fallbacks.
 - Freeze the Core public battle contract for Phase 16 integration.
 
-Closeout packages:
+Ordered closeout packages (all `PROCESS READY`; prerequisite 15I complete):
 
-1. Regenerate the manifest and all derived counts from source/normalization/test registries.
-2. Run one compile/resolve conformance vector per entry plus all declared failure/alternate contexts.
-3. Run family goldens and seeded singles/doubles corpus fuzz/soak with replay-on-failure artifacts.
-4. Static-scan Core source and public types for move names/IDs, named preset handlers, unsupported
-   fallbacks, direct definition mutation, nondeterministic APIs, and unbounded hook/queue recursion.
-5. Reconcile every spec/code/schema/test mismatch and run a focused `cgm-review-pass` GO review.
-6. Record the frozen public action/state/event/trace contract consumed by Runtime and Creator.
+- **15J-1 registry freeze:** generator must fail on missing/duplicate key, stale source hash,
+  unregistered definition/test ID, unknown capability tag, or backward status transition.
+- **15J-2 conformance:** run all required valid, failure, alternate-topology, and alternate-profile
+  vectors; 937 passing primary vectors alone is insufficient when an entry declares more contexts.
+- **15J-3 fuzz/soak:** run at least 10,000 seeded battles total, including at least 2,000 doubles and
+  every certified move in a successfully selected action; cap each battle at 1,000 turns and treat
+  nontermination, exception, invalid state, or replay mismatch as failure with seed/input artifact.
+- **15J-4 static audit:** scan production Core code and serialized catalogs for official names,
+  content-key branches, named handler types, fallback no-ops, nondeterministic APIs, mutable base
+  definitions, direct dictionary-order decisions, and unbounded recursion/queues.
+- **15J-5 compatibility/review:** run schema migrations, public API consumers, all goldens, full
+  solution tests, and `cgm-review-pass`; resolve every FIX-NOW and explicitly accept/defer each lower
+  finding before GO.
+- **15J-6 contract freeze:** document public construction/state/action/selection/outcome/event/trace/
+  legality/query surfaces, threading/ownership, versioning rule, and examples using neutral content.
 
 No closeout checkbox may be marked from a hand-edited count or a representative subset.
 
@@ -848,45 +1171,149 @@ Goal: turn the completed Core into a content-agnostic playable engine.
 Prerequisite: Phase 15 is GO and the Core action/state/event/trace contract is frozen. Runtime may
 adapt presentation and IO around that contract; it may not add or reinterpret game rules.
 
-Ordered work packages:
+### 6.1 Locked Runtime defaults
 
-1. **16A - Host and data parity.** Remove demo IDs and built-in battle assumptions; make raw project
-   and packed `GameDb` boot paths behaviorally equivalent; fail clearly on missing/incompatible data.
-2. **16B - Frame and rendering foundation.** Wire the existing fixed-step clock correctly; render
-   interpolation only; implement the named `IRenderer` seam, GL 3.3 sprite batch, texture/atlas loader,
-   virtual resolution, letterboxing, camera, tile chunks, animation, and resource disposal.
-3. **16C - Reusable UI and scene flow.** Boot/Title/Overworld/Battle/Menu scene transitions plus
-   9-slice panels, bitmap text/typewriter, cursor/list/grid navigation, HP/resource bars, prompts,
-   transitions, and input rebinding/controller mapping.
-4. **16D - Overworld integration.** Asset-backed maps; grid movement/collision/ledges/warps;
-   encounters; NPC movement/dialogue; trainers; pickups; centers/marts/PCs; flags and blackout flow.
-5. **16E - Player systems.** Party, bag, storage, shops/money, capture/progression/evolution, options,
-   save/continue/backup, clock/day-night, audio streaming/SFX, and debug overlays using Core rules.
-6. **16F - Battle presentation.** Singles/doubles action selection, target selection, replacement,
-   items/forms/switching, and event-driven animation/text. Presentation consumes Core events and never
-   infers mechanics from state differences.
-7. **16G - Runtime verification.** Headless input replay, raw/pack parity, save/reload, resource-leak
-   checks, fixed-step catch-up tests, scene-transition tests, and a playable original fixture loop.
+- Target is Windows `win-x64`, OpenGL 3.3 core, 60 fixed simulation ticks/second, maximum five catch-up
+  ticks per rendered frame, and render interpolation that never mutates simulation state.
+- Default virtual resolution is 240×160. Scale is the largest positive integer fitting the client;
+  smaller windows use scale 1 with symmetric clipping/letterbox. Black letterbox bars; nearest-neighbor
+  texture sampling; no mipmaps, rotation, shaders beyond textured/color quads, or dynamic atlasing.
+- Input actions are Up/Down/Left/Right/Confirm/Cancel/Menu/Run plus DebugToggle in debug builds.
+  Keyboard defaults are arrows/WASD, Enter/Z, Escape/X, and Shift. One keyboard and first connected
+  gamepad are supported; simultaneous devices merge by action. Rebinding rejects duplicate bindings
+  within one device unless explicitly swapped and always preserves Confirm/Cancel recovery defaults.
+  Press/release edges observed on a render frame with zero simulation ticks remain buffered until the
+  first later tick and are delivered once; held state reflects the latest poll.
+- Runtime owns one top-level scene stack. Only the top scene receives input/update; covered scenes
+  render only when the top scene declares overlay. Transitions block input, run in simulation ticks,
+  and never load content on a render callback.
+- No unlisted package is authorized. Phase 16E's audio backend is the one predeclared stack candidate,
+  `Silk.NET.OpenAL` matching the pinned Silk.NET line; adding its project reference still requires the
+  repository's explicit dependency-approval step and TECH_STACK update. That approval gates only the
+  audio subpackage—other independent Runtime packages continue. Do not substitute another library.
+- Version 1.0 audio source is uncompressed PCM WAV only: RIFF/WAVE, little-endian signed 16-bit,
+  mono/stereo, 44.1 or 48 kHz. Other formats, including OGG, fail validation with a conversion hint
+  until an explicitly approved decoder is added. Runtime streams music PCM buffers and loads short
+  SFX; OpenAL performs playback/mixing, not decoding.
+- Runtime data source is exactly one of `--project <folder>` or adjacent `config.json`+pack. Both
+  produce equivalent `GameDb` and asset lookup. Missing/incompatible content shows one actionable
+  error, exits nonzero before scene construction, and never falls back to built-in demo data.
+- Save writes are temp-file → flush → replace with previous file retained as `.bak`. Load tries the
+  primary only; corruption offers the validated backup rather than silently replacing state.
 
-Each package updates `ENGINE_RUNTIME_SPEC.md` before implementation and adds Runtime integration tests.
-Do not add Creator workflows, export packaging, original demo breadth, or new Core mechanics here;
-discovering a missing rule reopens Phase 15 through change control.
+### 6.2 Ordered Runtime packages
 
-Deliverables:
+1. **16A — Content-agnostic host and raw/pack parity (`PLANNED`; prerequisite Phase 15 GO).**
+   - **Spec lock:** complete `ENGINE_RUNTIME_SPEC` boot arguments, error taxonomy, data/asset database,
+     ownership/disposal, and startup state machine using the defaults above.
+   - Remove showcase move/species/map IDs, embedded battle construction, and implicit fixture paths.
+     Parse mutually exclusive dev/export modes; validate config/pack/project and required start IDs;
+     build the same immutable `GameDb` plus `IAssetSource` contract from either source.
+   - Define exit codes: 0 success, 2 arguments/config, 3 content validation/version, 4 asset load,
+     5 save, 6 runtime initialization, 10 smoke assertion. Log one structured diagnostic to stderr;
+     release UI shows friendly summary without stack trace, debug log retains exception detail.
+   - **Acceptance:** valid raw/pack database equality; missing/invalid/version/hash/start-map/asset
+     cases and exit codes; no official/demo ID scan; disposal on partial failure; exported smoke still
+     passes. Exit: host reaches BootScene from either source with no content assumptions.
+2. **16B — Fixed-step host and renderer (`PLANNED`; prerequisite 16A).**
+   - **Spec lock:** exact host loop, `IRenderer` calls, coordinate systems, blend/sort rules, atlas/
+     texture lifetime, context-loss refusal, and frame diagnostics.
+   - Feed real elapsed time only into `FixedStepClock`; poll input once per outer frame, expose pressed
+     edges to the first due tick only, run 0–5 ticks, render once with interpolation alpha, and reset
+     clock after suspend/resize stalls. Simulation never reads wall time.
+   - Implement the named renderer directly over approved Silk OpenGL: one dynamic quad batch, premultiplied
+     alpha blend, stable submission order by layer then sequence, flush on texture/capacity/layer break,
+     atlas texture load, source rectangles, flip, UI/world projection, scissor, tile chunks, and
+     idempotent reverse-order disposal. Start capacity 2,048 quads and grow to the smallest power of
+     two needed; no pooling layer until a measured allocation fails the budget.
+   - **Acceptance:** synthetic loop 0/1/5/overflow ticks and edge input; virtual viewport matrix;
+     null-renderer command golden; atlas/source/flip/layer batch tests; hidden GL smoke screenshot of
+     neutral fixture; zero GL object leak across 100 load/unload cycles. Exit: animated fixture map
+     renders correctly at integer scale while headless sim replay remains byte-identical.
+3. **16C — UI kit, input, and scene flow (`PLANNED`; prerequisite 16B).**
+   - **Spec lock:** scene lifecycle (`Enter`, fixed `Update`, `Render`, `Exit`, `Dispose`), overlay rule,
+     transition timeline, focus/navigation, text layout, typewriter skip, and rebinding persistence.
+   - Implement Boot → Title → New/Continue → Overworld with push/pop Menu and replacement Battle.
+     UI primitives are 9-slice panel, bitmap text with newline/wrap/alignment, typewriter, cursor,
+     vertical list, grid, prompt/choice, HP/resource bar, fade, and message log. Navigation wraps only
+     where the control opts in, disabled entries remain visible but skipped, Cancel restores previous
+     focus, and every menu is operable without a pointer.
+   - Persist options separately from game saves; invalid bindings revert to defaults with warning.
+   - **Acceptance:** lifecycle/transition/focus goldens, list/grid disabled/empty/overflow, text wrap
+     and typewriter tick tables, resize/rebind/gamepad disconnect, and headless input scripts reaching
+     every scene. Exit: title/new/continue/menu flow is reusable and content-driven.
+4. **16D — Asset-backed overworld integration (`PLANNED`; prerequisites 16A-C).**
+   - **Spec lock:** OverworldScene state ownership, map/entity instantiation, render layers, interaction
+     priority, encounter/trainer trigger order, dialogue commands already represented in Core data,
+     warp/blackout transitions, and debug spawn contract.
+   - Load tile chunks and sprites from assets; drive Core movement/collision/ledge/warp decisions at
+     fixed ticks; queue one movement intent at a time. Interaction priority is facing entity → facing
+     trigger/object → current tile. On completed step: warp → tile trigger → trainer sight → random
+     encounter, stopping at the first transition. NPCs update in stable entity-ID order with injected
+     Core RNG. Pickups/flags mutate save state through Core operations.
+   - Centers heal then set blackout return; mart/PC/NPC objects open reusable scenes; blackout restores
+     party per Core rule, deducts Core-calculated money, moves to checkpoint, and saves only on explicit
+     save/autosave policy.
+   - **Acceptance:** collision/ledge/warp/interaction priority tables, deterministic NPC/encounter
+     replay, trainer once/defeat flag, pickup persistence, blackout, chunk boundary/camera, missing
+     asset diagnostics, and raw/pack parity. Exit: fixture supports walking, dialogue, encounter,
+     trainer, warp, pickup, center, mart, and PC entry.
+5. **16E — Player systems, save, clock, and audio (`PLANNED`; prerequisite 16D).**
+   - **Spec lock:** party/bag/storage/shop scene contracts, progression/evolution prompts, save slots,
+     game clock/day-night input, audio buses/loop/crossfade, and debug overlay content.
+   - Implement one manual save slot plus `.bak`; New Game initializes project start state, Continue
+     validates content/save versions, and save is allowed from overworld/menu only. Party is six;
+     overflow capture uses Core storage. Bag groups authored pockets; shop buy/sell validates money/
+     capacity atomically. Evolution/move-learn prompts consume Core results and allow decline where
+     rules permit. Game clock advances one minute per 3,600 sim ticks and is persisted.
+   - Audio has Music/Sfx master volumes 0–100, one streamed music track with 30-tick linear crossfade,
+     up to 16 simultaneous one-shot SFX dropping the oldest completed voice first, and clean no-audio
+     fallback with warning. Debug overlay shows FPS/ticks, scene, player/map, RNG seed/replay state,
+     validation/event tail, and collision; compiled out or inaccessible in release flavor.
+   - **Acceptance:** save/temp/backup/corrupt/newer-version matrix; full party/storage/shop conservation;
+     level/evolution prompt replay; clock rollover/day-night; audio missing/device loss/volume/crossfade;
+     debug release exclusion. Exit: player systems survive save/relaunch identically.
+6. **16F — Event-driven battle presentation (`PLANNED`; prerequisites 16C/E and Phase 15 contract).**
+   - **Spec lock:** BattleScene state machine, action/typed-target/replacement menus, Core request/
+     response boundary, event-to-presentation catalog, animation queue, skip/fast-forward, and outcome
+     return. Runtime never predicts damage, legality, target fallback, faint, or status from state.
+   - Render singles/doubles layouts from slots; enumerate legal actions/targets from Core; support
+     move, form, switch, item, pass/fallback, replacement, and capture where legal. Submit only complete
+     atomic action sets. Consume every Core event in order into generic animation/text commands; unknown
+     event shows a debug error and fails tests rather than disappearing.
+   - Animation is presentation-only: 6-tick minimum event beat, Confirm fast-forwards current beat,
+     held Confirm uses 4× presentation speed without changing simulation/event order. Battle return
+     applies Core outcome/progression/reward/save mutations once.
+   - **Acceptance:** event-catalog completeness test, singles/doubles action and target navigation,
+     invalid resubmission, simultaneous replacement/draw, capture/trainer restrictions, fast-forward
+     event identity, and battle→overworld state conservation. Exit: every certified primitive can be
+     presented generically even when it has no bespoke animation.
+7. **16G — Runtime verification and phase gate (`PLANNED`; prerequisites 16A-F).**
+   - Build a neutral original fixture script covering new game, movement, dialogue, encounter,
+     capture, party/storage, item/shop, save/reload, trainer, evolution, blackout, and doubles debug.
+     Run identical scripted inputs in raw and packed modes and compare Core state, save bytes excluding
+     allowed timestamps, events, scene transitions, and final screenshot hashes/tolerances.
+   - Budgets on the documented reference machine: 60 Hz without missed updates for the fixture;
+     p95 update ≤4 ms and render ≤12 ms over 10,000 frames; steady-state managed allocation ≤1 KB/
+     frame outside loads; startup to title ≤3 s warm/≤6 s cold; 100 scene/map/battle cycles with no
+     monotonic managed/native/GL resource growth beyond 5% after GC and disposal.
+   - **Acceptance:** headless replay deterministic twice, raw/pack parity, save/relaunch, all scene
+     transitions, resource/performance report, keyboard+gamepad smoke, malformed-content errors, full
+     build/tests, and focused review GO. Exit: the Phase 16 fixture loop passes end to end.
 
-1. Remove all demo-specific IDs from Runtime boot.
-2. Correct fixed-step tick scheduling and render interpolation.
-3. `IRenderer`, OpenGL sprite batch, texture/atlas loading, virtual resolution, tilemap chunks,
-   camera, sprite animation, and reusable UI primitives.
-4. Raw-project and packed asset databases with equivalent GameDb/asset behavior.
-5. Boot → Title → Overworld → Battle/Menu scene flow.
-6. Asset-backed overworld movement, NPCs, dialogue, warps, encounters, trainers, and battle UI.
-7. Party, bag, storage, shops, progression, evolution, save/continue/backup, options, and audio.
-8. Singles and doubles battle presentation driven only by Core actions/events.
-9. Headless input-replay seam and Runtime integration tests.
+Phase 16 excludes Creator workflows, export-template production, original demo breadth, Core rule
+changes, scripting, localization, networking, installer, and additional renderer backends. A missing
+Core rule is recorded as a Phase 15 regression and fixed there before Runtime consumes it.
 
-Exit gate: an original fixture project plays from New Game through walking, encounter, battle,
-capture, save, reload, trainer battle, and doubles debug battle in raw and packed modes.
+Phase 16 GO requires all:
+
+- [ ] 16A-16G are VERIFIED and their `ENGINE_RUNTIME_SPEC` sections contain no unresolved marker.
+- [ ] Raw and packed fixture replays produce equal Core/save/event outcomes.
+- [ ] No Runtime content ID or game-rule branch exists.
+- [ ] Fixed-step, renderer/resource, input, scene, overworld, player/save/audio, and battle event
+      matrices pass; audio approval/reference is recorded before the audio subpackage is implemented.
+- [ ] The complete fixture route and singles/doubles presentation pass keyboard and gamepad smoke.
+- [ ] Runtime performance/resource budgets and focused review are GO.
 
 ## 7. Phase 17 — Creator Application Completion
 
@@ -895,46 +1322,141 @@ Goal: make every required engine capability authorable without hand-editing JSON
 Prerequisite: Phase 16 exposes stable Runtime launch/debug contracts and Phase 15 catalogs are frozen.
 Creator writes project data through Core schemas/validation and launches Runtime out of process.
 
-Ordered work packages:
+### 7.1 Locked Creator defaults
 
-1. **17A - Lifecycle and shared editor infrastructure.** Complete new/open/recent/save/close,
-   unsaved guards, document ownership, usage search, reference picker, safe delete, validation
-   navigation, undo/redo consistency, recovery/autosave, and large-project virtualization.
-2. **17B - Asset authoring.** Asset browser/import/reimport, slicer canvas with manual/common/gutter/
-   connected-component workflows, animation grouping/preview, audio metadata, atlas diagnostics, and
-   missing/orphan usage validation.
-3. **17C - World authoring.** Tileset/object editors; chunked map canvas; tile/collision/encounter/
-   trigger overlays; brush/rect/bucket/eyedropper/erase; entities, warps, NPC paths, trainers, shops,
-   pickups, dialogue, flags, and play-from-map launch.
-4. **17D - Data and mechanic authoring.** Complete species/forms/evolution, moves, effects,
-   conditions, rulesets, items/held effects, abilities/hooks, trainers/AI, encounters, inventory,
-   storage, project settings, and save/start configuration editors.
-5. **17E - Catalog-driven effect editor.** Generate available ops, params, enums, ranges, targets,
-   timing, topology/ruleset requirements, help, and validation from the frozen Core catalogs. The UI
-   must not maintain a second handwritten mechanics list.
-6. **17F - Playtest and export workflows.** Play, play-from-map, focused battle sandbox, validation
-   gate, process logs/crash results, and export configuration all launch the real Runtime/Tools paths.
-7. **17G - Creator verification.** Headless ViewModel tests, undo/redo/dirty matrices, keyboard and
-   accessibility pass, malformed-project recovery, performance budgets, and a no-JSON authoring trial.
+- One project is open per Creator process. Documents are tabs owned by `ProjectSession`; all edits
+  execute through `UndoStack`. Views contain binding/adaptation only; Core schemas and validators are
+  never duplicated in ViewModels.
+- Autosave writes recovery snapshots—not source files—after 120 seconds of dirty inactivity and on
+  app deactivation, retaining the newest five. Explicit Save is the only operation that replaces
+  project source. Recovery is offered after an unclean close and never applied without confirmation.
+- Recent list retains ten canonical absolute folders, newest first; missing paths remain visible with
+  remove action. File dialogs start at the last successful folder. Stable IDs never rename.
+- Destructive delete always runs reference usage search. Referenced entities cannot be deleted until
+  references are removed or an explicit Core-supported replacement is selected; no blanket cascade.
+- Lists with more than 200 rows and canvases larger than the viewport virtualize. Validation debounce
+  is 400 ms; Save/Play/Export force immediate complete validation. Errors block Play/Export; warnings
+  require one explicit continue per invocation.
+- Keyboard baseline: menu shortcuts, tab traversal, arrow navigation, Ctrl+Z/Y/S, Ctrl+W, F5 Play,
+  Shift+F5 Play-from-map, and accessible labels/tooltips for every non-text control. Pointer-only
+  authoring is not acceptable.
+- No additional dependency is authorized. Reuse Avalonia, existing toolkit, Core catalogs, BCL, and
+  current canvas patterns.
 
-Every editor follows `CREATOR_APP_SPEC.md`'s pathfinder pattern; every mutation is undoable; views stay
-thin. Do not implement game simulation, alternate schema models, production demo content, or installer
-work in Creator.
+### 7.2 Ordered Creator packages
 
-Deliverables:
+1. **17A — Project lifecycle and shared infrastructure (`PLANNED`; prerequisite Phase 16 launch
+   contract).**
+   - **Spec lock:** complete `CREATOR_APP_SPEC` session ownership, lifecycle state machine, recent/
+     recovery formats, save transaction, document close, usage/safe-delete, validation navigation,
+     reference picker, undo transaction/grouping, and virtualization defaults.
+   - Implement New/Open/Recent/Save/Save All/Close with unsaved guard choices Save/Discard/Cancel.
+     Save validates models and serializes every dirty file into a staging directory first. A journal
+     then backs up originals and replaces files in canonical relative-path order; any failure rolls
+     replaced files back, and startup completes rollback from an unfinished journal. Only a successful
+     transaction updates saved undo positions. Prevent a second
+     process from writing the same project using a lock file containing PID/start marker; stale locks
+     may be removed after process absence confirmation.
+   - Build shared searchable reference picker, usage results grouped by entity/field, safe delete,
+     validation issue navigation to document+field, undo grouping, recovery manager, and virtualized
+     entity navigation. **Acceptance:** complete lifecycle/dirty/failure matrix, atomic partial-write
+     prevention, lock/recovery/recent tests, reference replace/delete, navigation, 100-step undo,
+     keyboard shortcuts, and headless ViewModel coverage. Exit: fixture projects can be managed with
+     no lost edits or direct filesystem mutations from Views.
+2. **17B — Asset authoring (`PLANNED`; prerequisite 17A).**
+   - **Spec lock:** complete `ASSET_PIPELINE_SPEC` import/reimport transaction, asset ID/path/hash,
+     connected-component algorithm, canvas coordinate/selection, slice acceptance/naming, animation,
+     audio metadata, orphan handling, and atlas diagnostics.
+   - Import copies supported PNG and approved audio formats into canonical project asset folders only
+     after decode/validation, computes SHA-256, and resolves name collisions by prompting replace or
+     new slug. Reimport preserves asset ID and authored slice metadata, reports invalidated rectangles,
+     and commits only on confirmation. Source is never modified.
+   - Implement asset browser filters/preview/usage, manual/common-size/gutter/connected-component
+     suggestions, zoom/pan/grid/rect editing, include/exclude, batch `{n}` naming, animation grouping
+     and fixed-tick preview, audio kind/loop/volume metadata, atlas placement preview, missing/changed/
+     orphan validation. Audio audition launches the real Runtime's preview mode out of process after
+     16E; Creator does not add a second decoder/player. Connected components use 4-neighbor opaque flood-fill, discard fully
+     transparent and one-pixel noise components by default, merge bounds that overlap or are within
+     the authored merge threshold (default 2 px), leave snap disabled by default, and sort top-to-
+     bottom then left-to-right.
+   - **Acceptance:** all slicer fixtures and boundaries, transparent/large/malformed images, import/
+     reimport rollback, collision naming, animation order, audio missing/invalid, atlas overflow,
+     usage/orphan validation, undo/redo, keyboard canvas operations, and performance at 4096² image.
+3. **17C — World authoring (`PLANNED`; prerequisites 17A/B).**
+   - **Spec lock:** complete `MAP_EDITOR_SPEC` canvas/chunks, tilesets/objects, all visual/overlay
+     layers, tool pointer semantics, stroke undo, entity schemas/forms, warp/path/trigger validation,
+     selection, resize, clipboard, and play-from-map arguments.
+   - Implement tileset editor for tile rect/animation/solid/encounter/ledge flags and object footprints;
+     map canvas with 32×32-tile visual chunks, zoom 25–800%, pan, layer visibility/lock, palette,
+     paint/rect/bucket/eyedropper/erase, collision override, encounter and trigger overlays. One pointer
+     down-drag-up stroke is one undo command; repeated cells store original once and final once.
+   - Implement select/move/configure for player start, NPC static/wander/patrol, warp, trainer, pickup,
+     sign, shop/PC/center, fixed encounter, and trigger. Paths are 4-connected tiles and validate
+     collision; warp picker chooses map+tile; overlays show broken refs/unreachable start/warp warnings.
+   - **Acceptance:** coordinate/zoom/chunk edges, every tool/layer and undo, resize preservation,
+     entity placement/move/delete/config, path/warp validation, layer lock, large map 256×256 budget,
+     save/reopen equality, and play-from-map exact process arguments.
+4. **17D — Structured data authoring (`PLANNED`; prerequisites 17A and frozen Core schema).**
+   - **Spec lock:** inventory every serialized entity/category/field and assign editor control,
+     reference source, null/default behavior, validation display, create/duplicate/delete, and help.
+     The generated coverage registry must fail when a schema field lacks an authoring disposition.
+   - Complete editors for settings/start/save config, types, species/base stats/forms/learnsets/
+     evolutions, moves, items/held effects, abilities/hooks, rulesets, conditions, trainers/AI/party/
+     inventory, encounters, pockets, storage, shops, dialogue/flags/events, maps/tilesets/assets, and
+     export config. Use structured collection rows, searchable references, numeric bounds, enum
+     dropdowns, optional-field enable toggles, and raw JSON only as a read-only diagnostics view.
+   - **Acceptance:** schema-to-editor coverage 100%, create/edit/duplicate/delete/save/reopen for every
+     category, invalid/null/default/broken-ref matrices, undo/dirty consistency, and no writable raw
+     JSON control.
+5. **17E — Catalog-driven mechanics editor (`PLANNED`; prerequisite 17D and Phase 15 catalogs).**
+   - **Spec lock:** publish machine-readable catalog descriptors for operation/query/condition/hook,
+     params, types, required/default, range, enum, compatibility, target/scope/timing, topology,
+     ruleset, help key, and deprecation. Core owns descriptors; Creator supplies generic controls.
+   - Build searchable add menu grouped by family, parameter form generation, incompatible-field
+     suppression, reorder/duplicate/remove, nested typed payload editing only where catalog permits,
+     immediate Core validation, and normalized preview/trace explanation. Unknown catalog entries
+     render as blocking unsupported data without losing their serialized payload.
+   - **Acceptance:** descriptor completeness against compiler catalogs, every param type/default/range,
+     incompatible combinations, unknown/deprecated preservation, reorder/undo, topology/ruleset help,
+     and author/save/compile/resolve a representative entry from every mechanic family.
+6. **17F — Playtest, sandbox, and export workflows (`PLANNED`; prerequisites 17B-E and Phase 16).**
+   - **Spec lock:** process command lines, validation gate, temporary snapshot ownership, debug party/
+     spawn/battle request formats, concurrent-process policy, log capture, cancel/terminate, crash
+     artifacts, and export invocation/result contract.
+   - F5 saves after confirmation then launches real Runtime `--project`; play-from-map adds validated
+     map/tile spawn; battle sandbox creates a temporary neutral playtest request referencing project
+     data and launches Runtime—never simulates in Creator. One playtest per project; launching another
+     focuses or asks to terminate. Capture stdout/stderr/exit code and link diagnostics without
+     blocking UI. Export calls the production Tools/API path and shows validation/warnings/progress/
+     written files/smoke result.
+   - **Acceptance:** error/warning/cancel/save choices, command quoting/space paths, process start/
+     exit/crash/terminate, temp cleanup, map and doubles sandbox arguments, Creator crash isolation,
+     and export result display.
+7. **17G — Creator verification and phase gate (`PLANNED`; prerequisites 17A-F).**
+   - Run headless ViewModel matrices for every editor, undo/redo/dirty/save/recovery, Core validation,
+     keyboard focus, and malformed/newer project refusal. Automated UI smoke traverses New→author→
+     validate→playtest→save→reopen on Windows.
+   - Budgets: open 10,000-entity project ≤5 s warm/≤10 s cold; filter/navigation response ≤100 ms p95;
+     validation ≤2 s complete and ≤500 ms debounced for ordinary edit; 256×256 map pan/zoom ≥30 FPS;
+     autosave UI pause ≤100 ms; managed memory ≤1.5 GB stress fixture with no monotonic growth across
+     50 open/close cycles.
+   - Perform keyboard-only and screen-reader-name audit, 125/150/200% scaling, high contrast, and one
+     no-JSON authoring trial creating the exact two-map acceptance project. Record every manual step
+     and defect. **Exit:** project is authored and launched without source JSON edits, data loss,
+     inaccessible required controls, or FIX-NOW findings.
 
-1. Complete project lifecycle, settings, recent projects, unsaved guard, validation navigation.
-2. Asset browser and reusable slicer/map canvas.
-3. Structured tileset, map, encounter, species, move/effect, item, ability, form, trainer, inventory,
-   storage, event, and export editors.
-4. Effect editor is generated from the closed Core effect/condition/query catalogs and shows
-   ruleset/topology requirements.
-5. Reference pickers, usage search, safe deletion, undo/redo, validation overlays.
-6. Play, play-from-map, and focused battle sandbox launch the real Runtime process.
-7. Large-project performance and autosave/recovery.
+Phase 17 excludes in-process simulation, alternate schemas/validation, production demo content,
+installer/update work, plugin/scripting APIs, and Core/Runtime rule fixes hidden in Creator.
 
-Exit gate: a user authors an original two-map game with creatures, a representative advanced move,
-trainer, encounter, assets, and a doubles battle without editing JSON, then playtests it.
+Phase 17 GO requires all:
+
+- [ ] 17A-17G are VERIFIED and all schema fields/catalog descriptors have authoring dispositions.
+- [ ] Lifecycle/save/recovery/undo tests prove no partial or silent source mutation.
+- [ ] Asset and map workflows pass algorithm, rollback, undo, validation, and stress budgets.
+- [ ] Every required entity/mechanic is structured-authorable; no writable raw JSON escape hatch.
+- [ ] Play/play-from-map/battle sandbox/export invoke real external processes and report failures.
+- [ ] Keyboard/accessibility/scaling checks and the two-map no-JSON trial pass.
+- [ ] Creator performance budgets and focused review are GO.
 
 ## 8. Phase 18 — Integrated Vertical Slice and Production Export
 
@@ -943,38 +1465,82 @@ Goal: prove the Runtime and Creator as one reusable product.
 Prerequisite: Phases 15-17 are GO. Phase 18 integrates and proves existing contracts; mechanic/editor/
 runtime gaps found here return to their owning phase rather than receiving demo-only workarounds.
 
-Ordered work packages:
+### 8.1 Locked integration/export defaults
 
-1. **18A - Original vertical-slice design.** Freeze an original content brief and acceptance script:
-   at least 10 species, 30 mechanics-representative moves, three maps, encounters, trainers, center,
-   mart, storage, gym/badge gate, evolution, day/night, audio, and a doubles encounter.
-2. **18B - Author entirely through Creator.** Build all data/assets through normal editor workflows;
-   every manual JSON edit is a Creator defect unless explicitly a fixture-maintenance operation.
-3. **18C - Production asset/pack path.** Pack data, atlases, audio, and metadata; verify hashes and raw/
-   packed parity; produce CI-built self-contained debug/release runtime templates.
-4. **18D - Export product flow.** Creator export UI, executable name/icon/version/config, validation,
-   distinct smoke failure codes, safe overwrite behavior, and export-folder completeness checks.
-5. **18E - End-to-end proof.** Deterministic new-game-to-badge input replay, save/relaunch/continue,
-   clean Windows VM run without SDK/tools, and stranger playtests for both authoring and playing.
-6. **18F - Integration closeout.** Fix ownership-boundary defects, document performance, and preserve
-   the original fixture as the standing regression project without shipping reference-corpus content.
+- All demo names, writing, art, sprites, icons, maps, music, and SFX are original or clearly licensed
+  for redistribution with attribution recorded. The local mechanics corpus is absent from project,
+  pack, export, screenshots, docs, and executable strings except sanitized numeric test metadata.
+- Demo minimum is 10 original species, 30 original moves spanning every Phase 15 mechanic family at
+  least once where practical, 3 connected-by-warps maps, 5 ordinary trainers plus one gym leader,
+  one wild and one trainer doubles battle, center, mart, PC storage, 3 encounter tables, 10 items,
+  one level evolution, one alternate-condition evolution, day/night difference, music and SFX.
+- Acceptance route is 20–40 minutes for a first-time player: New Game → first capture → trainer →
+  center/mart/storage → evolution opportunity → doubles encounter → gym badge → save/quit/continue.
+- Export target is self-contained `win-x64` folder, not single-file, containing renamed exe, required
+  runtime files, `config.json`, `game.cgmpack`, licenses/notices, and no SDK/tool requirement. Debug and
+  release templates are version-matched and built by CI from the same commit.
+- 1.0 remains unsigned self-contained zip unless the user later supplies a signing certificate; the
+  product documents Windows warning behavior. No installer or updater is built in Phase 18.
 
-Do not add installer/update infrastructure, plugin APIs, localization, multiplayer, or official
-content. A demo-specific branch in Core/Runtime/Creator is a Phase 18 blocker.
+### 8.2 Ordered integration packages
 
-Deliverables:
+1. **18A — Original content and acceptance design (`PLANNED`; prerequisite Phases 15-17 GO).** Write
+   a content brief with IDs, map graph, progression flags, trainer/encounter tables, species/move/item/
+   ability/evolution roster, asset/audio list and licenses, dialogue outline, difficulty targets, and
+   exact acceptance route checkpoints. Map every selected move to certified mechanics and every UI/
+   Runtime/Creator feature to at least one route step. **Acceptance:** reference scan clean, all refs
+   planned, no new mechanic/editor/runtime requirement, estimated route within target, review GO.
+2. **18B — Creator-only authoring (`PLANNED`; prerequisite 18A).** Create the project exclusively via
+   released Creator controls while recording session steps and defects. Raw JSON may be inspected
+   read-only but not edited; test-fixture maintenance tools are not allowed for demo authoring. Import
+   licensed assets, slice/animate, build maps/data, validate continuously, and playtest each route
+   segment. Any blocked field returns to Phase 17; any rule/presentation defect returns to 15/16.
+   **Acceptance:** version-control diff contains only Creator-normal output/assets; zero validation
+   errors; every content ID used; route completes in raw mode; authoring defect log closed.
+3. **18C — Production pack and CI templates (`PLANNED`; prerequisites 18B and export spec lock).**
+   Extend pack sections to deterministic data, atlas RGBA, audio bytes, and asset metadata using the
+   existing versioned index and approved codecs; hash uncompressed payloads in section order. Build
+   self-contained debug/release `win-x64` Runtime templates in CI, attach runtime version manifest,
+   licenses, and checksums, and test template/pack mismatch refusal. **Acceptance:** repeat build has
+   identical content payload hashes, every asset reference resolves, raw/pack state parity, tamper/
+   missing section failures, CI artifact installs without SDK, and no reference-corpus payload.
+4. **18D — Production export workflow (`PLANNED`; prerequisite 18C).** Complete `EXPORT_PIPELINE_SPEC`
+   with output naming, safe overwrite, executable metadata/icon strategy, validation override policy,
+   template selection/version, transactional staging, smoke exit codes, cleanup, and completeness.
+   Export to sibling temporary directory, run pack verification/smoke, then atomically rename to the
+   chosen empty/nonexistent destination. Never merge into a nonempty folder; replacement moves the
+   old folder to backup until success. Executable filename is sanitized game name; icon patch is
+   optional and skipped with warning when no approved built-in method exists—no dependency is added.
+   **Acceptance:** paths/spaces/unsafe names, existing/locked destination, rollback, debug/release,
+   version/icon/no-icon, every smoke code, completeness manifest, Creator display, and zip creation.
+5. **18E — End-to-end and clean-machine proof (`PLANNED`; prerequisite 18D).** Commit a deterministic
+   input replay from New Game to badge plus checkpoint state assertions and screenshot/event hashes.
+   Run release export on a clean supported Windows VM with no .NET SDK/runtime, developer tools, or
+   project source; play route, save, close, relaunch, continue, finish, and verify AppData save path.
+   Conduct at least three authoring and three player sessions with people who did not implement the
+   feature; record task completion, assistance, time, crashes, data loss, and prioritized defects.
+   **Acceptance:** replay twice identical, clean VM success, no missing licenses/files, all users
+   complete core route, zero data-loss/crash/FIX-NOW defect.
+6. **18F — Integration closeout (`PLANNED`; prerequisite 18E).** Route every defect to its owning
+   phase and remove all demo-specific production branches. Add the demo project as the standing
+   validation/export/smoke/replay regression using only redistributable original content. Record
+   startup/frame/memory/export-size/time budgets, known accepted limitations, asset licenses, and
+   raw/pack/export hashes. Run full build/tests, security/IP scan, package completeness, and focused
+   review. **Exit:** a new user creates/exports a small original game and a clean machine runs it
+   without SDK/tools; all Phase 18 gates are evidenced.
 
-1. Original demo: at least 10 species, 30 representative moves, 3 maps, encounters, trainers,
-   center, mart, storage, gym/badge, evolution, day/night, audio, and one doubles encounter.
-2. Pack JSON, atlases, audio, and metadata; validate asset existence/hashes.
-3. CI-built self-contained win-x64 debug/release templates.
-4. Creator export UI, version/icon/config, smoke with distinct failure codes.
-5. Deterministic new-game-to-badge input replay.
-6. Clean Windows VM play/save/relaunch/continue test.
-7. Stranger playtest from project creation through exported game.
+Phase 18 excludes installer/update infrastructure, store publishing, signing procurement, plugins,
+localization, multiplayer, and demo-specific production branches.
 
-Exit gate: a new user creates and exports a small original game, and another clean machine runs it
-without .NET or developer tools.
+Phase 18 GO requires all:
+
+- [ ] Original/licensed content inventory and IP scan are clean.
+- [ ] Demo was authored through Creator with zero validation errors and no manual JSON repair.
+- [ ] Raw/pack/export parity, asset hashes, CI templates, transactional export, and all smoke codes pass.
+- [ ] New-game-to-badge replay is deterministic and save/relaunch/continue succeeds.
+- [ ] Release export runs on a clean supported VM without SDK/runtime/developer tools.
+- [ ] Author/player trials have zero open data-loss/crash/FIX-NOW defects.
+- [ ] No demo-specific production branch or reference-corpus content exists; focused review is GO.
 
 ## 9. Phase 19 — Release Hardening and 1.0
 
@@ -982,41 +1548,95 @@ Goal: ship a stable Creator and versioned Runtime template.
 
 Prerequisite: Phase 18 passes its clean-machine and stranger gates with no data-loss defects.
 
-Ordered work packages:
+### 9.1 Locked 1.0 policy
 
-1. **19A - Versioning and migration.** Freeze project/save/pack/runtime compatibility policy; test
-   every released schema/save/pack migration path; preserve backups and safe refusal of newer data.
-2. **19B - Reliability and security.** Malformed-project/pack/save fuzzing, crash diagnostics,
-   recovery, path traversal/export overwrite checks, stress projects, performance/memory/startup gates,
-   and deterministic failure artifacts.
-3. **19C - Distribution.** Decide zip/installer/update channel, sign or document unsigned behavior,
-   create release CI, verify self-contained artifacts, licenses, notices, and clean-machine installs.
-4. **19D - Documentation.** Tutorial, user manual, Creator workflows, effect/condition/query reference,
-   Runtime/export guide, migration guide, troubleshooting, sample license, and legal/IP sweep.
-5. **19E - Beta.** External author/player cohort, issue triage, migration rehearsal, accessibility and
-   hardware coverage, no open data-loss/FIX-NOW defects, and release-candidate soak.
-6. **19F - 1.0 release.** Semver/changelog, immutable release artifacts/hashes, tagged Runtime template,
-   rollback plan, and post-release support policy.
+- Versioning is SemVer for Creator/Runtime templates. Project `schemaVersion`, save format, and pack
+  format remain independent monotonic integers. 1.0 reads every format released during public beta,
+  migrates older supported data through every intermediate version, and safely refuses newer data.
+- Project migrations create a timestamped full project backup before first write. Save migration keeps
+  original plus `.bak`. Pack formats are never migrated in place; rebuild from project source.
+- Distribution is a self-contained `win-x64` Creator zip plus version-matched Runtime template files.
+  No installer, automatic updater, telemetry, account, cloud service, or network requirement at 1.0.
+  Artifacts are unsigned unless the user supplies a certificate; SHA-256 checksums and warning docs
+  are mandatory. This resolves the old “decide distribution” blocker.
+- Support floor is 64-bit Windows 10/11 with OpenGL 3.3-capable hardware. Other OS/architectures are
+  not tested or advertised. User projects/assets remain local; crash reports are saved locally and
+  shared only by explicit user action.
+- Release blockers are any data loss/corruption, migration failure, security/path escape, deterministic
+  replay break, export/clean-machine failure, critical accessibility blocker, crash in tutorial route,
+  missing license, or unresolved FIX-NOW review finding.
 
-No 1.0 gate is satisfied by unit tests alone; distribution, clean-machine, migration, documentation,
-and external-user evidence are required.
+### 9.2 Ordered release packages
 
-Deliverables:
+1. **19A — Compatibility and migration freeze (`PLANNED`; prerequisite Phase 18 GO).** Inventory every
+   committed project schema, save format, pack format, runtime config, recovery, and catalog version.
+   Write a compatibility matrix stating read/migrate/refuse/rebuild for each producer→1.0 consumer.
+   Add fixtures from each version, chain migrations on copies, validate after each step, preserve
+   unknown tolerated fields where contract requires, and test interruption/rollback/disk-full behavior.
+   Publish the 1.x policy: additive compatible fields may be minor releases; required/removal/semantic
+   changes require migration and appropriate SemVer. **Acceptance:** every matrix cell tested, byte-
+   stable latest output, backup restore, newer refusal, no silent pack migration, review GO.
+2. **19B — Reliability, security, and performance hardening (`PLANNED`; prerequisite 19A).** Fuzz JSON,
+   pack headers/index/compression/hashes, saves, asset dimensions, paths, and CLI args with bounded
+   generated inputs; assert controlled error, no path escape, no overwrite outside selected roots,
+   no unbounded allocation/loop, and reproducible seed artifact. Canonicalize then verify every import,
+   project, export, backup, and zip path remains under its root; reject absolute/rooted/`..` escapes and
+   symlink/reparse traversal at write time. Redact user paths/content from shareable diagnostics unless
+   explicitly included. Stress 10k entities, 256×256 maps, 4096² sheets, maximum catalog effects, 100
+   save/export cycles, and 8-hour replay soak. **Acceptance:** zero crash/hang/corruption/path escape,
+   Phase 16/17 budgets met or explicitly tightened, deterministic minimized failure artifacts.
+3. **19C — Release CI and distribution (`PLANNED`; prerequisite 19B).** Build clean tagged Release
+   artifacts from locked SDK/dependencies; run tests, demo validation/export/smoke/replay, license scan,
+   checksum, and clean Windows install script before publishing. Zip layout has one Creator folder,
+   bundled templates, docs/licenses, no caches/source/reference corpus. Generate SHA-256SUMS and a
+   machine-readable release manifest with version/commit/runtime/schema/save/pack compatibility.
+   Document unsigned SmartScreen flow. If a certificate later exists, signing is a separately approved
+   additive step; its absence does not block the locked unsigned release. **Acceptance:** reproduce
+   artifacts twice with identical payload manifests (timestamps may differ only where documented),
+   clean-machine launch/export, offline operation, uninstall by folder deletion without user-save loss.
+4. **19D — Complete documentation and legal/IP review (`PLANNED`; can run after 19A).** Write a
+   tutorial that produces/exports a two-map game; user manual for lifecycle/assets/maps/data/mechanics/
+   playtest/export; generated operation/query/condition/event reference from catalogs; Runtime controls/
+   saves/debug; migration/recovery; troubleshooting/error codes; licensing guide and original sample
+   license. Validate every command/path/screenshot against the release candidate. Inventory every
+   dependency and bundled asset with license/notice/source; scan names/assets/content for reference-
+   corpus leakage. **Acceptance:** fresh-user tutorial completion, link/command checks, catalog reference
+   completeness, license approval, zero official-content leakage.
+5. **19E — External beta and release candidate (`PLANNED`; prerequisites 19A-D).** Recruit at least 10
+   participants: at least five primarily authors and five primarily players, spanning Windows 10/11,
+   integrated/discrete graphics, keyboard/gamepad, and one screen-reader/high-scaling workflow. Use
+   issue template with version, steps, expected/actual, logs, severity, and data-loss flag. Rehearse one
+   project/save migration from each beta version. Freeze RC for seven days and run nightly demo replay,
+   export smoke, migration, and 8-hour soak. **Acceptance:** tutorial/task completion ≥80% without live
+   intervention, zero open data-loss/security/FIX-NOW/tutorial-crash issues, all others dispositioned,
+   accessibility required flow complete, RC soak green.
+6. **19F — 1.0 release and rollback (`PLANNED`; prerequisite 19E).** Update version/changelog and
+   compatibility docs; tag immutable commit; run release CI; publish Creator zip, templates, checksums,
+   manifest, docs, source/license notices; archive exact artifacts. Verify download hashes and clean
+   install/export once. Rollback means unpublish/mark affected artifact, restore prior known-good links,
+   publish advisory, never downgrade user projects/saves, and issue a forward-fix version. Support
+   policy: retain 1.0 docs/artifacts, accept reproducible data-loss/security defects as priority, and
+   preserve format migration in later releases. **Exit:** a stranger downloads Creator, completes the
+   tutorial, exports a two-map game, and runs it on a clean supported machine without assistance.
 
-1. Creator distribution/update decision and packaging.
-2. Tutorial, user manual, effect/move/ability/event references, and export guide.
-3. Project/save/pack migration matrices from every released version.
-4. Legal/IP and dependency-license sweep.
-5. Crash diagnostics, malformed-project fuzzing, stress export corpus, performance gates.
-6. External beta, zero open data-loss/FIX-NOW defects, release CI, changelog, semver policy.
+No 1.0 gate is satisfied by unit tests alone. Installer/updater, signing purchase, telemetry, cloud,
+accounts, localization, plugins, networking, stores, and non-Windows support remain outside 1.0.
 
-Exit gate: a stranger installs Creator, completes the tutorial, builds and exports a two-map game,
-and runs it on a clean machine without assistance.
+Phase 19/1.0 GO requires all:
+
+- [ ] Every supported project/save/config/catalog version migrates or refuses exactly per matrix.
+- [ ] Seeded fuzz, path traversal, stress, eight-hour soak, backup/recovery, and performance gates pass.
+- [ ] Offline unsigned `win-x64` zip, templates, manifest, checksums, licenses, and clean-install proof exist.
+- [ ] Tutorial/manual/generated mechanic reference/migration/troubleshooting/legal docs are verified.
+- [ ] Beta/RC cohort, accessibility/hardware coverage, migration rehearsal, and seven-day soak pass.
+- [ ] Zero release blocker or FIX-NOW issue remains; all other issues have explicit disposition.
+- [ ] Tagged artifacts/hashes and rollback/support policy are archived and final stranger test passes.
 
 ## 10. Immediate next queue
 
-Always take the first incomplete **SPEC READY** item. Never combine items across a numbered gate just
-to keep a model busy:
+Always take the first incomplete eligible item. Implement `SPEC READY`; for `PLANNED — SPEC LOCK
+AUTHORIZED`, first reconcile its locked defaults into the owning spec, then implement. Never combine
+items across a numbered gate merely to keep a model busy:
 
 1. Implement **15B-2** completely: doubles construction, slot-authoritative APIs, action admission,
    collective conflicts, execution phases, actor snapshots/invalidation, and slot-aware events. Run
@@ -1031,15 +1651,18 @@ to keep a model busy:
 5. Implement **15B-5** redirection/position, then **15B-6** outcome/replacement as separate complete
    packages with their named goldens. Certify the remaining target-only cohort and run the 15B exit
    review. Do not mark 15B complete while any target-only blocker remains.
-6. Execute **15C-SPEC** for only the first HP/status formula family. Once its formula table and query
-   order are locked and the readiness ledger says `SPEC READY`, implement and certify that whole
-   family. Repeat specification lock then implementation for speed/weight/metrics; history/
-   consecutive; party/resource/random; field/type/class; and accuracy/crit/final modifiers.
-7. Repeat that same spec-lock → implementation → normalization/conformance → focused review cycle for
-   15D, 15E, 15F, and 15G in their written package order. A cross-workstream prerequisite is added to
-   the first consuming package and both readiness rows are updated; it is never silently improvised.
-8. Run 15H continuously for reference-blocked entries, routing mechanics back to their owner. After
-   15B-15G are complete, finish zero-gap normalization, then perform 15I-SPEC and 15I implementation.
+6. After 15B, follow this topological package order; each ID means spec lock → implementation →
+   affected normalization/conformance → focused review → commit before the next ID:
+   **15C-1**; **15D-1**; **15E-1**; **15E-2**; **15F-1**; **15C-2**; **15C-3**;
+   **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
+   **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
+   **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
+   cross-workstream prerequisite; do not substitute the alphabetical workstream order.
+7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked
+   references, regenerate normalized definitions, route newly exposed capabilities, and certify every
+   now-complete cohort. Run 15H-4 only after 15B-15G and require zero gaps.
+8. Complete **15I-1** through **15I-5** in order after 15H-4, including catalog completeness and
+   seeded singles/doubles measurements.
 9. Run 15J only after primitive semantics and normalization stabilize. Do not begin Phase 16 until
    every Phase 15 exit checkbox is generated/evidenced and the focused review verdict is GO.
 
@@ -1057,9 +1680,9 @@ The user may hand the repository to another model with this prompt:
 > Continue Creature Game Maker from the authoritative roadmap. Read `/AGENTS.md`,
 > `docs/SCOPE_GUARD.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE_ADDENDUM.md`,
 > `docs/MASTER_PLAN.md`, `docs/AGENTS.md`, and the owning specs completely before acting. Current
-> work is Phase 15. Take the first incomplete `SPEC READY` feature package from IMPLEMENTATION_PLAN
-> section 10 and complete the whole reusable behavior family. If the queue reaches `SPEC LOCK
-> REQUIRED`, complete its named specification package and readiness evidence before implementation;
+> work is Phase 15. Take the first incomplete eligible feature package from IMPLEMENTATION_PLAN
+> section 10 and complete the whole reusable behavior family. Implement `SPEC READY`; for `PLANNED —
+> SPEC LOCK AUTHORIZED`, complete its named specification package and readiness evidence before implementation;
 > a capability description alone is not permission to invent execution rules. Do not implement a
 > named move, move-ID branch,
 > one-off handler, arbitrary script op, UI, or future-phase feature. Use the promotion ladder in
@@ -1071,7 +1694,9 @@ The user may hand the repository to another model with this prompt:
 > `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build`. Fix change-caused failures, update
 > the package progress record and immediate queue, review for scope/spec/determinism/schema drift,
 > commit the complete change, and stop only if complete or genuinely blocked. Do not advance to
-> Phase 16 until every Phase 15 exit gate is evidenced and the focused review is GO.
+> Phase 16 until every Phase 15 exit gate is evidenced and the focused review is GO. Missing spec
+> prose is not a blocker when v4 supplies locked defaults; reconcile the spec and proceed. Escalate
+> only the reserved decisions in v4 §2.1.
 
 The implementing model should report: package outcome, reusable behavior added, audit groups/reference
 keys affected, files/specs changed, tests and counts, RNG/events/trace implications, manifest status

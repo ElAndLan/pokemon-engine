@@ -1,6 +1,6 @@
 # ENGINE_RUNTIME_SPEC
 
-Status: **Partial / implemented sections are binding.** Headless runtime helpers are written
+Status: **Implemented baseline plus Phase 16 package contracts authorized.** Headless runtime helpers are written
 and tested (`FixedStepClock`, virtual resolution, camera, input state, scene stack, raw-folder
 `GameDb`, battle action menu, battle event presenter, exported config/pack boot, Runtime
 `--smoke`). The Silk.NET host loads exported `config.json`/`game.cgmpack` and renders a playable
@@ -41,7 +41,11 @@ stack, UI kit primitives, audio, dev-mode data loading, and debug tooling.
   Up/Down/Confirm keyboard state into `InputState`, updates the showcase battle, and draws a
   readable battle screen with clear/scissor rectangles and built-in bitmap text.
 
-## Outline (later)
+## Phase 16 specification completion contract
 
-Renderer (sprite batch, tilemap chunks) · reusable UI kit/menu drawing · Audio · Debug overlays ·
-dev-mode project loading in the host.
+`IMPLEMENTATION_PLAN.md` v4 §6 is the user-authorized contract for 16A-16G. Before each package edits
+code, expand this spec with its named lock: boot/error/data ownership; fixed-step/renderer; scene/UI/
+input; overworld; player/save/audio; battle presentation; or verification. Use the exact defaults,
+ordering, budgets, exit codes, and acceptance rows in §6. No additional confirmation is required.
+An unresolved rule that §6 does not cover follows v4 §2.1; the old short outline is not a blocker or
+permission to invent a second Runtime architecture.

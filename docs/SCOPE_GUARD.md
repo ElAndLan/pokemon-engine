@@ -1,10 +1,12 @@
 # SCOPE_GUARD — Binding Scope Law
 
-Version 3.1 — 2026-07-11
+Version 4.0 — 2026-07-11
 
-Source of current phase truth: `IMPLEMENTATION_PLAN.md` v3.1. Architecture decisions remain in
+Source of current phase truth: `IMPLEMENTATION_PLAN.md` v4.0. Architecture decisions remain in
 `ARCHITECTURE_ADDENDUM.md`; older phase assignments there are superseded by the explicit
-2026-07-10 user-directed rebase.
+2026-07-10 user-directed rebase. The 2026-07-11 no-stall roadmap directive authorizes agents to
+complete owning specification sections using IMPLEMENTATION_PLAN v4's locked package defaults before
+implementation. Only the reserved decisions in v4 §2.1 require another user response.
 
 ## Current phase
 
