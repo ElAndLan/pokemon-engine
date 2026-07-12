@@ -8,6 +8,10 @@ namespace Cgm.Core.Battle;
 /// </summary>
 public static class DamageCalc
 {
+    /// <summary>Applies the standard spread modifier at the Targets stage after live targets are snapshotted.</summary>
+    public static int ApplyTargetsModifier(int damage, int snapshottedLiveTargets) =>
+        snapshottedLiveTargets >= 2 ? damage * 3 / 4 : damage;
+
     /// <summary>base = floor(floor(floor(2·L/5 + 2)·Power·A/D)/50) + 2.</summary>
     public static int BaseDamage(int level, int power, int a, int d)
     {

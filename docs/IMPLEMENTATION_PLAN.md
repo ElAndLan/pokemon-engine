@@ -707,12 +707,13 @@ are registered. No schema or dependency change. Files: `BattleTurnActions.cs`, `
 `BattleController.cs`, `BattleDoublesAdmissionTests.cs`, and
 `BattleLiveTargetMaterializationTests.cs`. Next eligible package: **15B-4**.
 
-Progress (2026-07-11): **15B-4 ACTIVE; implementation not started.** A CLI turn at `ea5a32f`
-confirmed that the owning specification is sufficient but made no file changes because it judged the
-resolver refactor too large for one model turn. That is not a blocker under the package-continuity
-contract. Resume 15B-4 at continuation checkpoint 1: thread action and ordered target contexts through
-the existing normal resolver, preserve singles behavior with focused tests, and keep the full 15B-4
-exit as the active scope. No manifest/certification change.
+Progress (2026-07-11): **15B-4 IN PROGRESS.** The first normal-path checkpoint adds the reusable
+Targets-stage spread modifier: when two or more live direct targets were snapshotted it floors
+damage by `3/4`; one target retains full damage. `DamageCalcTargetsTests` covers the one/two-target
+boundary and exact floor. Continuation: thread ordered action/target contexts through the normal
+resolver, then add per-target accuracy/hit/effect resolution, action-total accounting, and the
+deterministic trace/event vectors before this package can be marked complete. No conformance status,
+schema, or dependency change in this checkpoint.
 
 #### 15C — Query hooks and variable formulas
 
