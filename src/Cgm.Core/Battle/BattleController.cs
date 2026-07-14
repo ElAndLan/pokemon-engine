@@ -11,7 +11,6 @@ namespace Cgm.Core.Battle;
 /// </summary>
 public sealed class BattleController
 {
-    private sealed record QueuedActionGate(BattleSlot Slot, int DueTurn);
     private sealed record AdmittedAction(BattleActionSubmission Submission, int ActorPartyIndex, EntityId? MoveId);
 
     private readonly List<BattleCreature>[] _parties;
@@ -28,7 +27,7 @@ public sealed class BattleController
     private readonly List<EffectTraceEntry> _trace = [];
     private readonly List<BattleQueryTraceEntry> _queryTrace = [];
     private readonly List<RedirectCondition> _redirects = [];
-    private readonly List<QueuedActionGate> _queuedActionGates = [];
+    private readonly BattleIntentQueue _intentQueue = new();
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
     private bool _dispatchingWeatherChange;
     private int _traceActionSequence;
@@ -86,6 +85,7 @@ public sealed class BattleController
     public IReadOnlyList<BattleEvent> Log => _log;
     public IReadOnlyList<EffectTraceEntry> Trace => _trace;
     public IReadOnlyList<BattleQueryTraceEntry> QueryTrace => _queryTrace;
+    public IReadOnlyList<BattleIntentDebugEntry> IntentQueueSnapshot => _intentQueue.DebugSnapshot();
     public IReadOnlyList<BattleSlot> PendingReplacementSlots => _pendingReplacementSlots;
 
     public BattleTopology Topology => _activeSlots.Topology;
@@ -157,10 +157,12 @@ public sealed class BattleController
 
         int start = _log.Count;
         _traceActionSequence = 0;
-        BattleAction resolvedPlayerAction = ApplyQueuedActionGates(new BattleSlot(BattleSide.Player, 0), playerAction);
-        BattleAction resolvedEnemyAction = ApplyQueuedActionGates(new BattleSlot(BattleSide.Enemy, 0), enemyAction);
+        BattleIntentPreview intentPreview = _intentQueue.Preview(Turn, BattleIntentCheckpoint.PreAction);
+        BattleAction resolvedPlayerAction = PreviewQueuedActionGate(new BattleSlot(BattleSide.Player, 0), playerAction, intentPreview);
+        BattleAction resolvedEnemyAction = PreviewQueuedActionGate(new BattleSlot(BattleSide.Enemy, 0), enemyAction, intentPreview);
         Validate(BattleSide.Player, resolvedPlayerAction);
         Validate(BattleSide.Enemy, resolvedEnemyAction);
+        ConsumePreviewedIntents(intentPreview);
         var actions = new BattleTurnActions(Topology,
         [
             new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), resolvedPlayerAction),
@@ -220,8 +222,9 @@ public sealed class BattleController
         _traceActionSequence = 0;
         if (_pendingReplacementSlots.Count > 0)
             throw new InvalidOperationException("Fillable fainted slots require replacement selections before the next turn.");
-        IReadOnlyList<AdmittedAction> admitted = Admit(submitted);
-        ConsumePreviewedActionGates(admitted);
+        BattleIntentPreview intentPreview = _intentQueue.Preview(Turn, BattleIntentCheckpoint.PreAction);
+        IReadOnlyList<AdmittedAction> admitted = Admit(submitted, intentPreview);
+        ConsumePreviewedIntents(intentPreview);
         ResolveSwitchPhase(admitted);
         ResolveItemPhase(admitted);
         ResolveFormPhase(admitted);
@@ -274,7 +277,7 @@ public sealed class BattleController
         return _log.GetRange(start, _log.Count - start);
     }
 
-    private IReadOnlyList<AdmittedAction> Admit(BattleTurnActions submitted)
+    private IReadOnlyList<AdmittedAction> Admit(BattleTurnActions submitted, BattleIntentPreview intentPreview)
     {
         BattleSlot[] expected = Topology.Slots.Where(IsLive).ToArray();
         if (!submitted.Actions.Select(action => action.Source).SequenceEqual(expected))
@@ -282,7 +285,7 @@ public sealed class BattleController
         var admitted = new List<AdmittedAction>(submitted.Actions.Count);
         foreach (BattleActionSubmission submission in submitted.Actions)
         {
-            BattleAction effective = PreviewQueuedActionGate(submission.Source, submission.Action);
+            BattleAction effective = PreviewQueuedActionGate(submission.Source, submission.Action, intentPreview);
             Validate(submission.Source, effective, submission.Selection);
             BattleCreature actor = Active(submission.Source);
             EntityId? moveId = MoveIndex(effective) is { } moveIndex
@@ -314,20 +317,36 @@ public sealed class BattleController
         return admitted;
     }
 
-    private void ConsumePreviewedActionGates(IEnumerable<AdmittedAction> actions)
+    private void ConsumePreviewedIntents(BattleIntentPreview preview)
     {
-        foreach (AdmittedAction action in actions)
+        IReadOnlyList<BattleIntent> consumed = _intentQueue.Consume(preview);
+        var eventRanges = new Dictionary<BattleSlot, (int Start, int End)>();
+        foreach (BattleSlot slot in Topology.Slots)
         {
-            if (action.Submission.Action is not Pass)
+            if (!consumed.Any(intent => intent.Payload is SkipActionIntent && intent.Owner.LastKnownSlot == slot))
                 continue;
-            int removed = _queuedActionGates.RemoveAll(gate => gate.Slot == action.Submission.Source && gate.DueTurn <= Turn);
-            if (removed > 0)
-                _log.Add(new ActionSkipped(action.Submission.Source));
+            int start = _log.Count;
+            _log.Add(new ActionSkipped(slot));
+            eventRanges.Add(slot, (start, _log.Count));
         }
+
+        var tracedSlots = new HashSet<BattleSlot>();
+        foreach (BattleIntent intent in consumed)
+        {
+            BattleSlot slot = intent.Owner.LastKnownSlot ?? new BattleSlot(intent.Owner.Side, 0);
+            (int Start, int End) range = tracedSlots.Add(slot) && eventRanges.TryGetValue(slot, out var emitted)
+                ? emitted
+                : (_log.Count, _log.Count);
+            AddIntentTrace(intent, EffectTraceKind.IntentConsumed, true, range.Start, range.End);
+        }
+        foreach (BattleIntent intent in _intentQueue.Complete(preview))
+            AddIntentTrace(intent, EffectTraceKind.IntentDeferred, false, _log.Count, _log.Count);
     }
 
-    private BattleAction PreviewQueuedActionGate(BattleSlot slot, BattleAction action) =>
-        _queuedActionGates.Any(gate => gate.Slot == slot && gate.DueTurn <= Turn) ? new Pass() : action;
+    private static BattleAction PreviewQueuedActionGate(BattleSlot slot, BattleAction action, BattleIntentPreview preview) =>
+        preview.Entries.Any(intent => intent.Payload is SkipActionIntent && intent.Owner.LastKnownSlot == slot)
+            ? new Pass()
+            : action;
 
     private void ResolveSwitchPhase(IReadOnlyList<AdmittedAction> actions)
     {
@@ -680,6 +699,33 @@ public sealed class BattleController
             DrawBound = drawBound,
         });
 
+    private void AddIntentTrace(BattleIntent intent, EffectTraceKind kind, bool performed, int eventStart, int eventEnd)
+    {
+        BattleSlot source = intent.Owner.LastKnownSlot ?? new BattleSlot(intent.Owner.Side, 0);
+        _trace.Add(new EffectTraceEntry(Turn, intent.SourceActionSequence, source, intent.Target.Slot, kind,
+            performed, null, performed ? 1 : 0, eventStart, eventEnd)
+        {
+            IntentSequence = intent.Sequence,
+            IntentCheckpoint = intent.Checkpoint,
+            IntentPayload = intent.Payload.Kind,
+            IntentSourceMove = intent.SourceMove,
+        });
+    }
+
+    private void TraceCleanup(BattleIntentCleanupResult cleanup)
+    {
+        foreach (BattleIntent intent in cleanup.Cancelled)
+            AddIntentTrace(intent, EffectTraceKind.IntentCancelled, false, _log.Count, _log.Count);
+        foreach (BattleIntent intent in cleanup.Transferred)
+            AddIntentTrace(intent, EffectTraceKind.IntentTransferred, true, _log.Count, _log.Count);
+    }
+
+    private void TraceCancelled(IEnumerable<BattleIntent> cancelled)
+    {
+        foreach (BattleIntent intent in cancelled)
+            AddIntentTrace(intent, EffectTraceKind.IntentCancelled, false, _log.Count, _log.Count);
+    }
+
     private IReadOnlyList<BattleScheduledAction> OrderActions(IReadOnlyList<BattleScheduledAction> scheduled) =>
         BattleTurnOrder.Order(scheduled, _rng, (action, draw, bound, selectedIndex) =>
             AddTrace(0, action.Submission.Source, null, EffectTraceKind.TurnOrderTie, true, draw, selectedIndex,
@@ -884,9 +930,11 @@ public sealed class BattleController
 
     private void SwitchTo(BattleSlot slot, int index)
     {
+        int outgoingPartyIndex = ActiveIndex(slot);
         BattleCreature outgoing = Active(slot);
         outgoing.ResetStages();
         outgoing.ClearVolatiles();
+        TraceCleanup(_intentQueue.OwnerSwitched(slot.Side, outgoingPartyIndex, null));
         _activeSlots.Assign(slot, index);
         _log.Add(new SwitchedIn(slot, index));
         OnSwitchIn(slot);
@@ -1309,7 +1357,7 @@ public sealed class BattleController
             case MoveGateEffect:
                 break; // evaluated before PP/RNG in PassesMoveGates.
             case QueueActionGateEffect gate:
-                QueueActionGate(ctx.SourceSlot, gate.Turns);
+                QueueActionGate(ctx, gate.Turns);
                 break;
         }
         return true;
@@ -1321,7 +1369,11 @@ public sealed class BattleController
         if (ctx.SourceSlot.Side != ctx.TargetSlot.Side || ctx.SourceSlot == ctx.TargetSlot)
             return;
 
+        int sourcePartyIndex = ActiveIndex(ctx.SourceSlot);
+        int targetPartyIndex = ActiveIndex(ctx.TargetSlot);
         _activeSlots.Swap(ctx.SourceSlot, ctx.TargetSlot);
+        TraceCleanup(_intentQueue.OwnerSwitched(ctx.SourceSide, sourcePartyIndex, ctx.TargetSlot));
+        TraceCleanup(_intentQueue.OwnerSwitched(ctx.TargetSide, targetPartyIndex, ctx.SourceSlot));
         _log.Add(new PositionsSwapped(ctx.SourceSlot, ctx.TargetSlot));
         AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.PositionSwap, false,
             null, 1, eventStart, _log.Count);
@@ -1385,17 +1437,20 @@ public sealed class BattleController
         return true;
     }
 
-    private void QueueActionGate(BattleSlot slot, int turns) =>
-        _queuedActionGates.Add(new QueuedActionGate(slot, Turn + turns));
-
-    private BattleAction ApplyQueuedActionGates(BattleSlot slot, BattleAction action)
+    private void QueueActionGate(EffectContext ctx, int turns)
     {
-        int removed = _queuedActionGates.RemoveAll(gate => gate.Slot == slot && gate.DueTurn <= Turn);
-        if (removed == 0)
-            return action;
-
-        _log.Add(new ActionSkipped(slot));
-        return new Pass();
+        if (Outcome is not null)
+            return;
+        BattleIntent intent = _intentQueue.Enqueue(new BattleIntentRequest(
+            Turn + turns,
+            BattleIntentCheckpoint.PreAction,
+            new BattleIntentOwner(BattleIntentOwnerScope.Slot, ctx.SourceSide, ctx.SourceSlot, null,
+                BattleIntentSwitchPolicy.StaySlot, BattleIntentFaintPolicy.Persist),
+            new BattleIntentTarget(BattleIntentTargetPolicy.Source),
+            new SkipActionIntent(),
+            ctx.Move.Move,
+            ctx.TraceAction));
+        AddIntentTrace(intent, EffectTraceKind.IntentEnqueued, true, _log.Count, _log.Count);
     }
 
     private static readonly EntityId RockType = EntityId.Parse("type:rock");
@@ -2412,6 +2467,8 @@ public sealed class BattleController
 
     private void RequestReplacements()
     {
+        foreach (BattleSlot slot in Topology.Slots.Where(slot => !IsLive(slot)))
+            TraceCancelled(_intentQueue.OwnerFainted(slot.Side, ActiveIndex(slot)));
         _pendingReplacementSlots.Clear();
         foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
         {
@@ -2451,6 +2508,7 @@ public sealed class BattleController
     {
         Outcome = new BattleOutcome(winner);
         _pendingReplacementSlots.Clear();
+        TraceCancelled(_intentQueue.EndBattle());
         RevertBattleEndForms();
         _log.Add(new BattleEnded(winner));
     }

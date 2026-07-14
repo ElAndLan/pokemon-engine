@@ -734,11 +734,86 @@ Three generic effect operations govern action timing without any move identity i
   due turn it replaces that slot's submitted action with a generic pass, emits `ActionSkipped`, and
   consumes the entry. It therefore blocks switching, items, forms, and move use uniformly.
 
-The queue is ordered by due turn then insertion order. This first handler family uses only its
-source-slot action gate, but later delayed damage, forced execution, and target-action gates extend
-the same deterministic queue rather than adding per-move booleans. Switch-out clears a creature's
-first-action and last-used-move gate state; queue entries are later given explicit switch cleanup
-policies as their mechanics require.
+#### Typed intent queue lifecycle (Phase 15D-1)
+
+All future battle work uses one `BattleIntentQueue`; no condition or move owns a private delayed-work
+list or boolean. The source evidence requiring this foundation includes recharge/action skip
+(`blast-burn`, `frenzy-plant`, `giga-impact`, `hydro-cannon`, `hyper-beam`), delayed slot damage
+(`doom-desire`, `future-sight`), delayed healing (`wish`), delayed condition application (`yawn`),
+before/after-action gates (`focus-punch`, `shell-trap`), and called/forced move families
+(`me-first`, `mirror-move`). Executable fixtures remain neutral.
+
+Every intent record contains:
+
+- a monotonically increasing 64-bit sequence assigned by the queue;
+- nonnegative due turn and checkpoint (`turnStart`, `preAction`, `beforeMove`, `afterMove`,
+  `turnEnd`) whose enum order is the checkpoint order;
+- owner scope (`creature`, `slot`, `side`, `field`), owner side, optional last-known slot, and the
+  creature's party index when creature identity applies;
+- target policy (`snapshotSlot`, `liveSlot`, `source`, `side`, `field`) plus the exact slot/side and
+  snapshotted party index required by that policy;
+- one typed payload; 15D-1 implements `skipAction`, while later 15D packages extend the union with
+  delayed damage/heal/condition, forced action, and called-move payloads before using them;
+- source move ID, source action sequence, nonblank ruleset profile, switch policy
+  (`cancel`, `followOwner`, `staySlot`), and faint policy (`cancel`, `persist`).
+
+Ordering is due turn ascending, checkpoint enum order, then sequence. Queue insertion and preview
+draw no RNG and emit no presentation event. `Preview(turn, checkpoint)` captures the queue's next
+sequence and the eligible prefix without mutation. Admission validates actions after replacing each
+source with the previewed `skipAction` result. Only after the entire turn validates does phase 1
+consume exactly that preview. After the capped batch executes, `Complete(preview)` enumerates work
+inserted at the same checkpoint with a sequence at or above the captured boundary. That work is
+traced as deferred and waits for the next matching checkpoint even when already due. The execution
+cap is therefore the preview length at checkpoint entry; payloads cannot recursively grow the
+current batch. Foreign, unconsumed, stale, duplicate-consume, and duplicate-complete previews fail.
+
+Target resolution is exact:
+
+| Policy | Resolution |
+|---|---|
+| `snapshotSlot` | Captures slot and living occupant party index; cancels if that occupant moved or fainted. |
+| `liveSlot` | Uses the current living occupant of the captured slot; replacement occupants are eligible. |
+| `source` | Finds the living active slot containing the creature owner; cancels while it is inactive. |
+| `side` | Resolves the captured side without requiring an active creature. |
+| `field` | Resolves the battlefield once. |
+
+Owner cleanup is independent of target policy:
+
+| Owner / policy | Position move or switch | Owner faint | Battle end |
+|---|---|---|---|
+| creature + `cancel` | cancel | apply faint policy | cancel all |
+| creature + `followOwner` | update last-known slot when still active; cancel when moved to reserve | apply faint policy | cancel all |
+| slot + `staySlot` | remain on that position through occupant changes | persist | cancel all |
+| side | remain on side | persist | cancel all |
+| field | remain on field | persist | cancel all |
+
+Invalid owner/policy and target/field combinations, blank rulesets, negative turns/action sequences,
+missing move IDs, duplicate or stale preview consumption, and sequence overflow fail before mutation.
+Battle end always clears the queue. The queue's debug snapshot is a stable, ordered scalar record;
+it is diagnostic runtime state, not project/save schema.
+
+`skipAction` is slot-owned with `staySlot`/`persist`, targets `source`, and preserves the current
+`queueActionGate` behavior. One or more due skip intents for one slot produce one `ActionSkipped` in
+topology order, consume every previewed entry for that slot, spend no PP, and draw no RNG. The source
+move already paid its ordinary PP when it queued the intent; queued execution never pays PP. Other
+payload families must state whether PP was paid at creation, and consume RNG only at their normal
+resolution checkpoint.
+
+The shared trace records enqueue, consume, defer, cancel, and transfer in queue/sequence order with
+intent sequence, checkpoint, payload kind, source move ID, and event range. Enqueue precedes later
+move effects; consume trace brackets the single `ActionSkipped` when applicable; deferral and cleanup
+emit no battle event. Traces never drive execution.
+
+Timing precedence for later packages is hard action skip/recharge, then forced queued action, then
+creature move locks, then the submitted action, followed by ordinary pre-move gates. A called move
+has a maximum nested-call depth of 8 per root action; exceeding it fails the current call without PP
+or RNG. The calling move pays PP once, called moves pay none, and queued payload execution starts no
+new recursion budget unless it explicitly owns a new root action. These defaults are locked now but
+implemented only by their ordered 15D packages.
+
+Neutral acceptance vectors: `queue-order`, `queue-same-checkpoint-defer`, `queue-preview-atomic`,
+`queue-target-snapshot-live`, `queue-owner-cleanup`, `queue-debug-snapshot`,
+`queue-no-pp-rng`, and `queue-replay`.
 
 ### Event trace contract
 

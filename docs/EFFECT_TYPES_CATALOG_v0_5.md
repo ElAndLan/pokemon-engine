@@ -178,6 +178,15 @@ This is the locked primitive set for long-term coverage. Implementation should s
 | `call_or_copy_move` | Calls, copies, repeats, sketches, instructs, or selects a move from a pool/history. | Metronome, Copycat, Mirror Move, Sleep Talk, Assist, Instruct, Me First, Mimic, Sketch. |
 | `schedule_delayed_action` | Stores a future action/effect on a slot, side, field, or creature. | Future Sight, Doom Desire, Wish, Healing Wish, Lunar Dance, delayed attacks/heals. |
 
+#### 3.2.1 Shared intent queue
+
+`block_or_replace_action` and `schedule_delayed_action` share the Phase 15D
+`BattleIntentQueue`; neither primitive may add separate timers or pending lists. The queue record,
+checkpoint order, owner/target policies, preview boundary, cleanup matrix, PP/RNG rules, recursion
+ceiling, events, and trace fields are locked in `BATTLE_SYSTEM_SPEC.md` under “Typed intent queue
+lifecycle.” The initial typed payload is `skipAction`; every later payload extends the closed union
+before use.
+
 ### 3.3 Damage, Accuracy, Hit Count, And Criticals
 
 | Primitive | What It Does | Covers |

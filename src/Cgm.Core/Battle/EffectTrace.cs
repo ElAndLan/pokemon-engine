@@ -1,3 +1,5 @@
+using Cgm.Core.Model;
+
 namespace Cgm.Core.Battle;
 
 public enum EffectTraceKind
@@ -23,6 +25,11 @@ public enum EffectTraceKind
     ForceSwitchReserve,
     PositionSwap,
     Redirection,
+    IntentEnqueued,
+    IntentConsumed,
+    IntentDeferred,
+    IntentCancelled,
+    IntentTransferred,
 }
 
 /// <summary>Deterministic resolver evidence; never drives simulation.</summary>
@@ -40,4 +47,8 @@ public sealed record EffectTraceEntry(
 {
     public double? DrawMinimum { get; init; }
     public double? DrawBound { get; init; }
+    public long? IntentSequence { get; init; }
+    public BattleIntentCheckpoint? IntentCheckpoint { get; init; }
+    public BattleIntentPayloadKind? IntentPayload { get; init; }
+    public EntityId? IntentSourceMove { get; init; }
 }

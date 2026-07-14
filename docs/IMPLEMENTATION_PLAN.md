@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, and 15C-1 complete; 937 inventoried, 57/937 certified; next package 15D-1** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1, and 15D-1 complete; 937 inventoried, 57/937 certified; next package 15E-1** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -420,7 +420,7 @@ Current readiness ledger:
 | 15B-6 faint outcome and replacement | SPEC READY | IMPLEMENTED | Draw-capable outcome, atomic replacement loop, slot-addressed entry hooks, and replacement golden |
 | 15C-1 unified query pipeline | SPEC READY | IMPLEMENTED | Exact integer/fraction service, modifier order/clamps, controller/AI consumers, and query traces |
 | 15C-2 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
-| 15D timing/queue/lock families | PLANNED — SPEC LOCK AUTHORIZED | FOUNDATION ONLY — NOT ACTIVE | Existing move gates are implemented; apply 15D-1 through 15D-7 lifecycle defaults |
+| 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15E-1 through 15E-7 ownership/order/cleanup defaults |
 | 15F mutation/snapshots | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15F-1 through 15F-7 overlay/mutation/reversion defaults |
 | 15G switch/recovery/memory/non-battle | PLANNED — SPEC LOCK AUTHORIZED | FOUNDATION ONLY — NOT ACTIVE | HP primitives exist; apply 15G-1 through 15G-6 defaults |
@@ -1222,7 +1222,7 @@ Primary groups: turn timing/queued gates (64), volatile/status lockouts (49), mo
 
 Ordered feature packages:
 
-1. **15D-1 — Typed intent queue (`PLANNED`; prerequisite 15B-6).** Lock one queue record with stable
+1. **15D-1 — Typed intent queue (`IMPLEMENTED`; prerequisite 15B-6).** Lock one queue record with stable
    sequence number, due turn, timing checkpoint, owner scope and creature identity, target policy
    (`snapshotSlot`, `liveSlot`, `source`, `side`, `field`), typed payload, source move metadata,
    ruleset, and switch/faint/end cleanup. Ordering is due turn → checkpoint order → insertion sequence.
@@ -1274,6 +1274,27 @@ Ordered feature packages:
    current scheduled-action record through typed priority/order flags; executed actions cannot be
    scheduled again. **Acceptance:** empty/single/multiple pool, exclusion, PP/event ownership, target
    invalidation, depth/loop termination, doubles order conflicts, and exact RNG/event golden.
+
+Progress (2026-07-14): **15D-1 COMPLETE — focused review: GO.** The battle spec and effect catalog
+now lock the typed queue record, stable sequence and checkpoint order, owner/target policies,
+preview/consume boundary, same-checkpoint deferral cap, cleanup matrix, target-resolution matrix,
+trace metadata, and current `skipAction` payload semantics. `BattleIntentQueue` validates immutable
+typed records, previews without mutation, atomically consumes exact previews, rejects stale/foreign
+previews, resolves snapshot/live/source/side/field targets, applies switch/faint/end cleanup, and
+exports a stable JSON-serializable debug snapshot. The existing `queueActionGate` effect now enqueues
+slot-owned intents through that shared path in singles and doubles. Whole-turn validation completes
+before consumption, so a rejected submission leaves due work pending; multiple due gates consume in
+sequence but emit one `ActionSkipped` per topology-ordered slot, spend no PP, and draw no RNG.
+Enqueue/consume/defer/cancel/transfer traces carry sequence, checkpoint, payload, and neutral source
+move metadata. Focused review found and fixed stale-preview acceptance after owner transfer and
+missing invalid slot/side validation. Schema/migration impact: none. Dependency impact: none. No new
+move cohort is certified because 15D-1 is the shared foundation; deterministic regeneration remained
+937 inventoried / 57 certified with digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed 1,151 tests (959 Core,
+104 Creator, 21 Runtime, 67 Tools); focused intent/action-gate tests passed; regeneration was
+byte-identical; and `git diff --check` passed. Next eligible package: **15E-1**.
 
 Required evidence: queue ordering and serialization/debug snapshots; seeded RNG-order tests; every
 gate proves no unintended PP/RNG spend; switch/faint cancellation matrix; delayed-action and charge
@@ -2154,9 +2175,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1. ACTIVE — 15D-1.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1 and 15D-1. ACTIVE — 15E-1.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15D-1**; **15E-1**; **15E-2**; **15F-1**; **15C-2**; **15C-3**;
+   **15E-1**; **15E-2**; **15F-1**; **15C-2**; **15C-3**;
    **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared

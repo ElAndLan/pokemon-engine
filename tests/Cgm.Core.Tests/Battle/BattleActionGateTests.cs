@@ -83,6 +83,75 @@ public sealed class BattleActionGateTests
         Assert.Contains(resumed, eventItem => eventItem is MoveUsed { Side: BattleSide.Player });
     }
 
+    [Fact]
+    public void QueueActionGate_RemainsPendingWhenWholeTurnAdmissionFails()
+    {
+        BattleMove gated = Compile(Op("damage"), Op("queueActionGate"));
+        BattleCreature player = Creature("player", 100, gated);
+        BattleCreature enemy = Creature("enemy", 1, Inert());
+        var rng = new CountingRng();
+        var battle = new BattleController(player, enemy, new TypeChart([new TypeDef { Id = Normal }]), rng);
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+        int rngCalls = rng.Calls;
+
+        Assert.Throws<ArgumentException>(() => battle.ResolveTurn(new UseMove(0), new UseMove(1)));
+
+        Assert.Single(battle.IntentQueueSnapshot);
+        Assert.Equal(9, player.Moves[0].Pp);
+        Assert.Equal(rngCalls, rng.Calls);
+        IReadOnlyList<BattleEvent> skipped = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+        Assert.Single(skipped.OfType<ActionSkipped>());
+        Assert.Empty(battle.IntentQueueSnapshot);
+        Assert.Equal(9, player.Moves[0].Pp);
+        Assert.Equal(rngCalls, rng.Calls);
+    }
+
+    [Fact]
+    public void MultipleDueGatesConsumeInSequenceButEmitOneSkipPerSlot()
+    {
+        BattleMove gated = Compile(Op("damage"), Op("queueActionGate"), Op("queueActionGate"));
+        BattleCreature player = Creature("player", 100, gated);
+        BattleController battle = Battle(player, Creature("enemy", 1, Inert()));
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Single(events.OfType<ActionSkipped>());
+        EffectTraceEntry[] consumed = battle.Trace.Where(entry => entry.Kind == EffectTraceKind.IntentConsumed).ToArray();
+        Assert.Equal(2, consumed.Length);
+        Assert.True(consumed[0].IntentSequence < consumed[1].IntentSequence);
+        Assert.All(consumed, entry =>
+        {
+            Assert.Equal(BattleIntentCheckpoint.PreAction, entry.IntentCheckpoint);
+            Assert.Equal(BattleIntentPayloadKind.SkipAction, entry.IntentPayload);
+            Assert.Equal(EntityId.Parse("move:gated"), entry.IntentSourceMove);
+            Assert.Null(entry.DrawResult);
+        });
+    }
+
+    [Fact]
+    public void QueueActionGate_ReplaysWithIdenticalEventsTraceAndState()
+    {
+        static (string[] Events, EffectTraceEntry[] Trace, BattleIntentDebugEntry[] Queue, int Pp) Replay()
+        {
+            BattleMove gated = Compile(Op("damage"), Op("queueActionGate"));
+            BattleCreature player = Creature("player", 100, gated);
+            BattleController battle = Battle(player, Creature("enemy", 1, Inert()));
+            battle.ResolveTurn(new UseMove(0), new UseMove(0));
+            battle.ResolveTurn(new UseMove(0), new UseMove(0));
+            return (battle.Log.Select(entry => $"{entry.GetType().Name}:{entry}").ToArray(),
+                battle.Trace.ToArray(), battle.IntentQueueSnapshot.ToArray(), player.Moves[0].Pp);
+        }
+
+        var first = Replay();
+        var second = Replay();
+
+        Assert.Equal(first.Events, second.Events);
+        Assert.Equal(first.Trace, second.Trace);
+        Assert.Equal(first.Queue, second.Queue);
+        Assert.Equal(first.Pp, second.Pp);
+    }
+
     [Theory]
     [InlineData("firstAction", MoveFailureReason.FirstActionOnly)]
     [InlineData("notPreviousMove", MoveFailureReason.CannotRepeat)]
@@ -100,5 +169,28 @@ public sealed class BattleActionGateTests
         Assert.Contains(failed, eventItem => eventItem is MoveFailed { Side: BattleSide.Player, Reason: var actual } && actual == reason);
         Assert.Equal(enemyHp, enemy.CurrentHp);
         Assert.Equal(9, player.Moves[0].Pp);
+    }
+
+    private sealed class CountingRng : IRng
+    {
+        public int Calls { get; private set; }
+
+        public int Next(int maxExclusive)
+        {
+            Calls++;
+            return 0;
+        }
+
+        public int Next(int minInclusive, int maxExclusive)
+        {
+            Calls++;
+            return minInclusive;
+        }
+
+        public double NextDouble()
+        {
+            Calls++;
+            return 0.99;
+        }
     }
 }
