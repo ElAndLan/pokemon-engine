@@ -129,7 +129,8 @@ Roadmap baseline commit: `b69bcb2` (`Lock Phase 15 doubles execution roadmap`).
 - PokeAPI move corpus: 937 JSON files in `docs/pokeapi-results/move/`.
 - Existing expressibility audit: 468 PASS / 469 FAIL. PASS means “current generic operations appear
   capable of expressing this move”; it does **not** yet mean end-to-end certification.
-- Certified Phase 15 move coverage: **0/937** until the conformance harness defined below exists.
+- Certified Phase 15 move coverage: **57/937** from the generated 15B target/topology cohort; the
+  earlier 0/937 value remains the locked Phase 15A baseline.
 
 Roadmap audit (2026-07-11): the prior plan fully locked 15B but still left 15C-15I and Phases 16-19
 as capability summaries or “spec later” outlines. Version 4 replaces those with package IDs,
@@ -159,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A complete; 15B-1 through 15B-6 reusable implementation landed, but 15B normalization/certification/golden exit is active; 937 inventoried, 0/937 certified** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A and 15B complete; 937 inventoried, 57/937 certified; next package 15C-1** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -1067,6 +1068,43 @@ the immediate queue below is unchanged in substance. Verification after document
 `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
 `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed 1,059 tests (927 Core,
 104 Creator, 21 Runtime, 7 Tools); and `git diff --check` passed.
+
+Progress (2026-07-14): **15B COMPLETE — exit review: GO.** The deterministic audit command now
+reads a reviewed decision catalog, derives sanitized generic definitions from the locked local
+wrappers, compiles every definition, writes canonical-LF definition and manifest files, and refuses
+missing evidence, duplicate/stale keys, or source-hash drift. The generated manifest advances 57
+target/topology entries to `certified` and leaves 880 `inventoryOnly`, with the unchanged 937-file
+digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
+
+Exact certified keys: `move-0013`, `move-0037`, `move-0039`, `move-0043`, `move-0045`,
+`move-0051`, `move-0075`, `move-0080`, `move-0081`, `move-0120`, `move-0129`, `move-0139`,
+`move-0145`, `move-0153`, `move-0157`, `move-0178`, `move-0181`, `move-0196`, `move-0200`,
+`move-0257`, `move-0284`, `move-0298`, `move-0304`, `move-0314`, `move-0323`, `move-0330`,
+`move-0336`, `move-0435`, `move-0436`, `move-0464`, `move-0482`, `move-0522`, `move-0523`,
+`move-0527`, `move-0545`, `move-0549`, `move-0555`, `move-0570`, `move-0572`, `move-0574`,
+`move-0586`, `move-0591`, `move-0597`, `move-0605`, `move-0616`, `move-0618`, `move-0619`,
+`move-0691`, `move-0693`, `move-0730`, `move-0784`, `move-0786`, `move-0820`, `move-0822`,
+`move-0824`, `move-0825`, and `move-0833`. The decision catalog is the authoritative evidence and
+contact-policy record; the generated definition catalog owns exact normalized hashes, mechanic
+families, `modern_reference`/doubles context, and registered test IDs. Every remaining historical
+target-shape row retains at least one dependency owned by 15C-15G or 15H; no target-only blocker
+remains.
+
+The per-reference theory validates `MoveRule`, typed compilation, exact doubles target sets,
+ordered slot events, effect state, contact behavior, timed flags, and registered IDs. The new
+`phase-15b-cumulative.golden` spans four-slot admission, spread damage, two captured-action
+invalidations, atomic topology-order replacement, and a simultaneous all-slot draw. The exit review
+found and fixed two FIX-NOW drifts: doubles had not shared singles' charge/rampage PP lifecycle, and
+active-creature status/stage/heal/volatile events still lost slot identity. Timed moves now use one
+shared preparation path and may complete a forced sequence after spending their last PP; active
+events carry `BattleSlot` while singles constructors/properties remain compatible. RNG changes are
+limited to the already-specified timed-move draws; target/effect draw order is unchanged. Schema and
+dependency impact: none. Verification: full solution build/tests and deterministic regeneration
+passed. `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` completed with 0 warnings/
+errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed 1,122 tests (930 Core,
+104 Creator, 21 Runtime, 67 Tools); regeneration was byte-identical; and `git diff --check` passed.
+Next eligible package: **15C-1 unified query pipeline specification lock**, followed by its
+implementation and affected certification.
 
 #### 15C — Query hooks and variable formulas
 
@@ -2091,13 +2129,11 @@ items across a numbered gate merely to keep a model busy:
    recorded in the 15B progress log.
 3. **COMPLETE — 15B-4.** Action/target contexts, spread resolution, deterministic trace, family
    goldens, and closeout review are recorded in the 15B progress log.
-4. **ACTIVE.** Normalize and certify the target/topology cohort whose dependencies are complete.
-   Generate manifest statuses/test IDs through tooling; never hand-edit counts.
-5. **COMPLETE — 15B-5 and 15B-6 implementation.** Redirection/position and outcome/replacement
-   passed their package reviews. After item 4, add the cumulative 15B golden, certify any remaining
-   target-only rows, and run the 15B exit review. Do not mark 15B complete while any target-only
-   blocker remains.
-6. After 15B, follow this topological package order; each ID means spec lock → implementation →
+4. **COMPLETE.** The generated target/topology catalog certifies 57 entries and writes manifest
+   statuses/test IDs through tooling.
+5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
+   cumulative golden, remaining target-only certification, and focused exit review are GO.
+6. **ACTIVE — 15C-1.** Follow this topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
    **15C-1**; **15D-1**; **15E-1**; **15E-2**; **15F-1**; **15C-2**; **15C-3**;
    **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;

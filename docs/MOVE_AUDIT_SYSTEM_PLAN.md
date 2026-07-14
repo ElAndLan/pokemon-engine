@@ -604,8 +604,8 @@ Guardrails:
 ## Build Order Authority
 
 `IMPLEMENTATION_PLAN.md` section 10 is the only current build order. The older family-level order
-has been superseded because 15B target/doubles execution is implemented while its normalization and
-certification cohort remains open, and the remaining 15C-15G packages now have explicit dependency
+has been superseded because 15B target/doubles execution and its 57-entry normalization/
+certification cohort are complete, while the remaining 15C-15G packages have explicit dependency
 ordering. Use the primitive-family sections below to classify requirements, never to bypass that
 queue.
 
@@ -623,10 +623,11 @@ active targets with the specified invalidation/fallback and random-draw rules, r
 spread actions, and keeps side/field scopes distinct from creature targets. Ally selection,
 redirection, allied position exchange, slot-aware outcomes, and typed replacement are implemented.
 
-Current evidence includes pure resolver coverage, doubles admission/materialization matrices,
-per-target RNG/event/trace tests, redirect/position vectors, outcome/replacement vectors, and three
-focused family goldens. Remaining evidence is the normalized target/topology cohort, its registered
-per-reference vectors/statuses, the cumulative 15B golden, and the focused 15B exit review.
+Completed evidence includes pure resolver coverage, doubles admission/materialization matrices,
+per-target RNG/event/trace tests, redirect/position vectors, outcome/replacement vectors, three
+focused family goldens, the cumulative 15B golden, and 57 generated per-reference definitions and
+vectors. The 15B exit review is GO. Rows in this historical move list that remain uncertified retain
+at least one dependency owned by 15C-15G or 15H; their target shape alone is no longer a blocker.
 
 Moves: `acupressure`, `aromatherapy`, `aromatic-mist`, `aurora-veil`, `bleakwind-storm`,
 `blizzard`, `burning-jealousy`, `captivate`, `chilly-reception`, `clanging-scales`,

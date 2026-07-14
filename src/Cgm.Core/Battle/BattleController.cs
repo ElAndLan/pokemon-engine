@@ -283,7 +283,9 @@ public sealed class BattleController
             BattleAction effective = PreviewQueuedActionGate(submission.Source, submission.Action);
             Validate(submission.Source, effective, submission.Selection);
             BattleCreature actor = Active(submission.Source);
-            EntityId? moveId = MoveIndex(effective) is { } moveIndex ? actor.Moves[moveIndex].Move : null;
+            EntityId? moveId = MoveIndex(effective) is { } moveIndex
+                ? actor.Moves[EffectiveMoveIndex(submission.Source, moveIndex)].Move
+                : null;
             admitted.Add(new AdmittedAction(submission with { Action = effective }, ActiveIndex(submission.Source), moveId));
         }
 
@@ -429,7 +431,7 @@ public sealed class BattleController
             int moveIndex = EffectiveMoveIndex(action.Submission.Source, MoveIndex(action.Submission.Action)!.Value);
             BattleCreature attacker = Active(action.Submission.Source);
             BattleMove move = attacker.Moves[moveIndex];
-            if (!move.HasPp)
+            if (!move.HasPp && !attacker.IsCharging && !attacker.IsLocked)
             {
                 _log.Add(new ActionInvalidated(action.Submission.Source, ActionInvalidationReason.ResourceChanged));
                 continue;
@@ -437,24 +439,32 @@ public sealed class BattleController
 
             int traceAction = ++_traceActionSequence;
             if (!CanAct(attacker, action.Submission.Source, traceAction))
+            {
+                TickRampageLock(action.Submission.Source, traceAction);
                 continue;
+            }
             if (attacker.Flinched)
             {
                 int start = _log.Count;
-                _log.Add(new Flinched(action.Submission.Source.Side));
+                _log.Add(new Flinched(action.Submission.Source));
                 AddTrace(traceAction, action.Submission.Source, null, EffectTraceKind.FlinchGate, false, null, 0,
                     start, _log.Count);
+                TickRampageLock(action.Submission.Source, traceAction);
                 continue;
             }
             AddTrace(traceAction, action.Submission.Source, null, EffectTraceKind.FlinchGate, false, null, 1,
                 _log.Count, _log.Count);
             if (!PushesThroughConfusion(attacker, action.Submission.Source, traceAction)
                 || !PassesMoveGates(attacker, action.Submission.Source, move, traceAction))
+            {
+                TickRampageLock(action.Submission.Source, traceAction);
                 continue;
+            }
 
             if (!move.IsProtect)
                 attacker.ResetProtectChain();
-            move.UsePp();
+            if (!PrepareTimedMove(attacker, action.Submission.Source, move, moveIndex, traceAction))
+                continue;
             _log.Add(new MoveUsed(action.Submission.Source, move.Move));
             attacker.RecordMoveUse(move.Move);
             IReadOnlyList<BattleSlot>? targets = MaterializeLiveTargets(action.Submission, move, traceAction,
@@ -465,6 +475,8 @@ public sealed class BattleController
                 ResolveDoublesMove(action.Submission.Source, move, materializedTargets, traceAction);
             else if (scopeKind is BattleTargetScopeKind.Side or BattleTargetScopeKind.Field)
                 ResolveDoublesScopedMove(action.Submission.Source, move, scopeSide, traceAction);
+
+            TickRampageLock(action.Submission.Source, traceAction);
 
             if (CheckEnd())
                 break;
@@ -578,7 +590,7 @@ public sealed class BattleController
         if (accurateTargets.Count == 0)
         {
             if (move.Power is not null)
-                ApplyCrashRecoil(attacker, sourceSlot.Side, move);
+                ApplyCrashRecoil(attacker, sourceSlot, move);
             return;
         }
 
@@ -622,7 +634,7 @@ public sealed class BattleController
         }
 
         if (actionContext.TotalDamage == 0)
-            ApplyCrashRecoil(attacker, sourceSlot.Side, move);
+            ApplyCrashRecoil(attacker, sourceSlot, move);
 
         ApplyDoublesMoveEffects(actionContext, accurateTargets);
     }
@@ -683,7 +695,8 @@ public sealed class BattleController
         if (actor.IsFainted)
             return false;
         return action.MoveId is null || MoveIndex(action.Submission.Action) is { } moveIndex
-            && moveIndex < actor.Moves.Count && actor.Moves[moveIndex].Move == action.MoveId;
+            && moveIndex < actor.Moves.Count
+            && actor.Moves[EffectiveMoveIndex(action.Submission.Source, moveIndex)].Move == action.MoveId;
     }
 
     private void InvalidateActor(AdmittedAction action)
@@ -706,12 +719,12 @@ public sealed class BattleController
         {
             case UseMove use:
                 ValidateMoveUse(slot, use.MoveIndex);
-                ValidateSelection(slot, Active(slot).Moves[use.MoveIndex].Target, selection);
+                ValidateSelection(slot, Active(slot).Moves[EffectiveMoveIndex(slot, use.MoveIndex)].Target, selection);
                 break;
 
             case ActivateForm form:
                 ValidateMoveUse(slot, form.MoveIndex);
-                ValidateSelection(slot, Active(slot).Moves[form.MoveIndex].Target, selection);
+                ValidateSelection(slot, Active(slot).Moves[EffectiveMoveIndex(slot, form.MoveIndex)].Target, selection);
                 BattleCreature active = Active(slot);
                 bool temporary = !_temporaryFormUsed[(int)side]
                     && active.CanActivateTemporaryForm(form.FormId, item => _itemStock[(int)side].TryGetValue(item, out int count) && count > 0);
@@ -824,7 +837,7 @@ public sealed class BattleController
             throw new ArgumentException($"{side} move index {moveIndex} out of range.");
         if (!c.IsCharging && !c.IsLocked && c.ChoiceLockedMoveIndex is { } locked && moveIndex != locked)
             throw new ArgumentException($"{side} is locked into move {locked}.");
-        if (!c.Moves[moveIndex].HasPp)
+        if (!c.Moves[moveIndex].HasPp && !c.IsCharging && !c.IsLocked)
             throw new ArgumentException($"{side} move {moveIndex} has no PP.");
     }
 
@@ -935,7 +948,7 @@ public sealed class BattleController
             int eventStart = _log.Count;
             int duration = VolatileEffects.ConfusionDuration(_rng, out int draw);
             c.SetConfusion(duration);
-            _log.Add(new Confused(slot.Side));
+            _log.Add(new Confused(slot));
             if (traceAction is { } action)
                 AddTrace(action, slot, null, EffectTraceKind.ConfusionDuration, true, draw, duration,
                     eventStart, _log.Count, 5, 1);
@@ -973,6 +986,38 @@ public sealed class BattleController
         return submitted;
     }
 
+    private bool PrepareTimedMove(BattleCreature attacker, BattleSlot sourceSlot, BattleMove move,
+        int moveIndex, int traceAction)
+    {
+        bool firing = attacker.IsCharging;
+        if (move.ChargeTurn && !firing)
+        {
+            move.UsePp();
+            ApplyChoiceLock(attacker, moveIndex);
+            attacker.RecordMoveUse(move.Move);
+            attacker.StartCharging(moveIndex);
+            _log.Add(new Charging(sourceSlot, move.Move));
+            return false;
+        }
+        if (firing)
+            attacker.StopCharging();
+
+        bool continuingLock = attacker.IsLocked;
+        if (move.MultiTurnLock && !continuingLock)
+        {
+            int duration = _rng.Next(2, 4);
+            attacker.StartLock(moveIndex, duration);
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.LockDuration, true, duration, duration,
+                _log.Count, _log.Count, 4, 2);
+        }
+
+        if (!firing && !continuingLock)
+            move.UsePp();
+        if (!continuingLock)
+            ApplyChoiceLock(attacker, moveIndex);
+        return true;
+    }
+
     private void ResolveMove(BattleSlot sourceSlot, int moveIndex)
     {
         BattleSide side = sourceSlot.Side;
@@ -987,7 +1032,7 @@ public sealed class BattleController
         if (attacker.Flinched)
         {
             int start = _log.Count;
-            _log.Add(new Flinched(side));
+            _log.Add(new Flinched(sourceSlot));
             AddTrace(traceAction, sourceSlot, null, EffectTraceKind.FlinchGate, false, null, 0, start, _log.Count);
             return; // flinch costs the turn but no PP
         }
@@ -1011,34 +1056,9 @@ public sealed class BattleController
             attacker.ResetProtectChain(); // any non-protect move breaks the protect chain
 
         // Two-turn move: turn 1 charges (PP spent now, no damage); turn 2 fires as a normal hit.
-        bool firing = attacker.IsCharging;
-        if (move.ChargeTurn && !firing)
-        {
-            move.UsePp();
-            ApplyChoiceLock(attacker, moveIndex);
-            attacker.RecordMoveUse(move.Move);
-            attacker.StartCharging(moveIndex);
-            _log.Add(new Charging(side, move.Move));
+        if (!PrepareTimedMove(attacker, sourceSlot, move, moveIndex, traceAction))
             return;
-        }
-        if (firing)
-            attacker.StopCharging();
 
-        // Thrash/Outrage: first use locks the creature in for 2–3 turns; the lock ticks after resolution.
-        bool continuingLock = attacker.IsLocked;
-        if (move.MultiTurnLock && !continuingLock)
-        {
-            int duration = _rng.Next(2, 4);
-            attacker.StartLock(moveIndex, duration);
-            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.LockDuration, true, duration, duration,
-                _log.Count, _log.Count, 4, 2);
-        }
-
-        // PP is spent only on the first turn — not while firing a charge or continuing a rampage lock.
-        if (!firing && !continuingLock)
-            move.UsePp();
-        if (!continuingLock)
-            ApplyChoiceLock(attacker, moveIndex);
         _log.Add(new MoveUsed(sourceSlot, move.Move));
         attacker.RecordMoveUse(move.Move);
 
@@ -1048,8 +1068,8 @@ public sealed class BattleController
         // Protect: a move aimed at a shielded target is blocked outright (PP already spent).
         if (target.Protected && TargetsOpponent(move))
         {
-            _log.Add(new MoveBlocked(side));
-            ApplyCrashRecoil(attacker, side, move);
+            _log.Add(new MoveBlocked(sourceSlot));
+            ApplyCrashRecoil(attacker, sourceSlot, move);
             return;
         }
 
@@ -1063,7 +1083,7 @@ public sealed class BattleController
         if (!hit)
         {
             _log.Add(new MoveMissed(sourceSlot, move.Move, targetSlot));
-            ApplyCrashRecoil(attacker, side, move);
+            ApplyCrashRecoil(attacker, sourceSlot, move);
             return;
         }
 
@@ -1079,7 +1099,7 @@ public sealed class BattleController
             }
             else
             {
-                _log.Add(new MoveMissed(side, move.Move)); // nothing to counter → fizzles
+                _log.Add(new MoveMissed(sourceSlot, move.Move)); // nothing to counter → fizzles
             }
         }
         else if (move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel)
@@ -1124,7 +1144,7 @@ public sealed class BattleController
         }
 
         if (actionContext.TotalDamage == 0)
-            ApplyCrashRecoil(attacker, side, move);
+            ApplyCrashRecoil(attacker, sourceSlot, move);
 
         // Effect-list-driven resolution (EFFECT_TYPES_CATALOG): iterate the move's ordered effects and
         // dispatch each to a shared primitive. Order matches the historical pipeline (target secondaries,
@@ -1151,7 +1171,7 @@ public sealed class BattleController
         if (!c.IsConfused)
         {
             int start = _log.Count;
-            _log.Add(new ConfusionEnded(side));
+            _log.Add(new ConfusionEnded(sourceSlot));
             AddTrace(traceAction, sourceSlot, null, EffectTraceKind.ConfusionGate, false, null, 1, start, _log.Count);
             return true; // snapped out this turn — acts freely
         }
@@ -1167,9 +1187,9 @@ public sealed class BattleController
         int eventStart = _log.Count;
         int dmg = VolatileEffects.ConfusionSelfDamage(c.Level, c.Stats.Atk, c.Stats.Def);
         c.TakeDamage(dmg);
-        _log.Add(new HurtInConfusion(side, dmg));
+        _log.Add(new HurtInConfusion(sourceSlot, dmg));
         if (c.IsFainted)
-            _log.Add(new Fainted(side));
+            _log.Add(new Fainted(sourceSlot));
         AddTrace(traceAction, sourceSlot, null, EffectTraceKind.ConfusionGate, true, draw, 0,
             eventStart, _log.Count, 1);
         return false;
@@ -1199,14 +1219,14 @@ public sealed class BattleController
                 if (VolatileEffects.ProtectSucceeds(ctx.Source.ProtectChain, _rng, out double protectDraw))
                 {
                     ctx.Source.SetProtected();
-                    _log.Add(new Protected(ctx.SourceSide));
+                    _log.Add(new Protected(ctx.SourceSlot));
                     AddTrace(ctx.TraceAction, ctx.SourceSlot, null, EffectTraceKind.Protect, true, protectDraw, 1,
                         protectStart, _log.Count, 1);
                 }
                 else
                 {
                     ctx.Source.ResetProtectChain();
-                    _log.Add(new ProtectFailed(ctx.SourceSide));
+                    _log.Add(new ProtectFailed(ctx.SourceSlot));
                     AddTrace(ctx.TraceAction, ctx.SourceSlot, null, EffectTraceKind.Protect, true, protectDraw, 0,
                         protectStart, _log.Count, 1);
                 }
@@ -1216,12 +1236,12 @@ public sealed class BattleController
             case RedirectEffect redirect: _redirects.Add(new RedirectCondition(ctx.SourceSlot, redirect.Priority,
                 redirect.AcceptedClasses, redirect.BypassClasses, redirect.AcceptedTags, redirect.BypassTags)); break;
             case DrainEffect d when ctx.ActionDamageDealt > 0:
-                Heal(ctx.Source, ctx.SourceSide, EffectMath.DrainHeal(ctx.ActionDamageDealt, d.Fraction.Num, d.Fraction.Den));
+                Heal(ctx.Source, ctx.SourceSlot, EffectMath.DrainHeal(ctx.ActionDamageDealt, d.Fraction.Num, d.Fraction.Den));
                 break;
             case HealEffect h:
-                (BattleCreature healRecipient, BattleSide healSide) = FractionRecipient(ctx, h.Recipient);
+                (BattleCreature healRecipient, BattleSlot healSlot) = FractionRecipient(ctx, h.Recipient);
                 if (!healRecipient.IsFainted)
-                    Heal(healRecipient, healSide, EffectMath.HealAmount(healRecipient.MaxHp, h.Fraction.Num, h.Fraction.Den));
+                    Heal(healRecipient, healSlot, EffectMath.HealAmount(healRecipient.MaxHp, h.Fraction.Num, h.Fraction.Den));
                 break;
             case HpFractionEffect h:
                 ApplyHpFraction(ctx, h);
@@ -1229,16 +1249,16 @@ public sealed class BattleController
             case StatusPowerEffect:
                 break; // evaluated in ComputeHit before DamageCalc.
             case RecoilEffect r when ctx.ActionDamageDealt > 0:
-                Sap(ctx.Source, ctx.SourceSide, EffectMath.RecoilDamage(ctx.ActionDamageDealt, r.Fraction.Num, r.Fraction.Den),
-                    amt => new Recoiled(ctx.SourceSide, amt));
+                Sap(ctx.Source, ctx.SourceSlot, EffectMath.RecoilDamage(ctx.ActionDamageDealt, r.Fraction.Num, r.Fraction.Den),
+                    amt => new Recoiled(ctx.SourceSlot, amt));
                 break;
             case CritBoostEffect cb:
                 ctx.Source.RaiseCrit(cb.Stages);
-                _log.Add(new CritBoosted(ctx.SourceSide));
+                _log.Add(new CritBoosted(ctx.SourceSlot));
                 break;
             case SelfDestructEffect when !ctx.Source.IsFainted:
                 ctx.Source.TakeDamage(ctx.Source.MaxHp);
-                _log.Add(new Fainted(ctx.SourceSide));
+                _log.Add(new Fainted(ctx.SourceSlot));
                 break;
             case EntryHazardEffect:
                 int layers = _spikeLayers[(int)ctx.TargetSide] = Math.Min(3, _spikeLayers[(int)ctx.TargetSide] + 1);
@@ -1285,26 +1305,26 @@ public sealed class BattleController
 
     private void ApplyHpFraction(EffectContext ctx, HpFractionEffect effect)
     {
-        (BattleCreature recipient, BattleSide side) = FractionRecipient(ctx, effect.Recipient);
+        (BattleCreature recipient, BattleSlot slot) = FractionRecipient(ctx, effect.Recipient);
         if (recipient.IsFainted)
             return;
 
         int amount = EffectMath.HpFractionAmount(recipient.CurrentHp, recipient.MaxHp, effect.Basis, effect.Fraction);
         if (effect.Operation == HpFractionOperation.Heal)
         {
-            Heal(recipient, side, amount);
+            Heal(recipient, slot, amount);
             return;
         }
 
-        Sap(recipient, side, amount, damaged => new HpFractionDamaged(side, damaged));
+        Sap(recipient, slot, amount, damaged => new HpFractionDamaged(slot, damaged));
     }
 
-    private static (BattleCreature Creature, BattleSide Side) FractionRecipient(
+    private static (BattleCreature Creature, BattleSlot Slot) FractionRecipient(
         EffectContext ctx,
         HpFractionRecipient recipient) => recipient switch
     {
-        HpFractionRecipient.Self => (ctx.Source, ctx.SourceSide),
-        HpFractionRecipient.Target => (ctx.Target, ctx.TargetSide),
+        HpFractionRecipient.Self => (ctx.Source, ctx.SourceSlot),
+        HpFractionRecipient.Target => (ctx.Target, ctx.TargetSlot),
         _ => throw new ArgumentOutOfRangeException(nameof(recipient), recipient, "Unknown HP-fraction recipient."),
     };
 
@@ -1365,10 +1385,10 @@ public sealed class BattleController
         if (_stealthRock[(int)side])
         {
             double eff = _chart.Effectiveness(RockType, c.Types);
-            Sap(c, slot, EffectMath.TypeScaledHazardDamage(c.MaxHp, eff), amt => new HurtByHazard(side, amt));
+            Sap(c, slot, EffectMath.TypeScaledHazardDamage(c.MaxHp, eff), amt => new HurtByHazard(slot, amt));
         }
         if (!c.IsFainted && _spikeLayers[(int)side] > 0)
-            Sap(c, slot, EffectMath.HazardDamage(c.MaxHp, _spikeLayers[(int)side]), amt => new HurtByHazard(side, amt));
+            Sap(c, slot, EffectMath.HazardDamage(c.MaxHp, _spikeLayers[(int)side]), amt => new HurtByHazard(slot, amt));
     }
 
     /// <summary>Whether a move acts on the opposing creature (so Protect can block it). Damage or any
@@ -1399,7 +1419,7 @@ public sealed class BattleController
 
         if (IsWild && side == BattleSide.Enemy)
         {
-            _log.Add(new ForcedOut(side));
+            _log.Add(new ForcedOut(ctx.TargetSlot));
             EndBattle(Opponent(side)); // scared the wild creature off
             AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.ForceSwitchReserve, false,
                 null, 0, eventStart, _log.Count);
@@ -1417,7 +1437,7 @@ public sealed class BattleController
             return; // nothing to drag out
         }
 
-        _log.Add(new ForcedOut(side));
+        _log.Add(new ForcedOut(ctx.TargetSlot));
         int? draw = reserves.Count > 1 ? _rng.Next(reserves.Count) : null;
         int selected = reserves[draw ?? 0];
         SwitchTo(ctx.TargetSlot, selected);
@@ -1432,7 +1452,7 @@ public sealed class BattleController
         if (ctx.Target.Types.Contains(ctx.Move.Type)) // a seed of its own type can't take hold (grass immune to grass Leech Seed)
             return;
         ctx.Target.SetSeeded(true);
-        _log.Add(new LeechSeeded(ctx.TargetSide));
+        _log.Add(new LeechSeeded(ctx.TargetSlot));
     }
 
     private void ApplyAilment(EffectContext ctx, AilmentEffect effect)
@@ -1446,7 +1466,7 @@ public sealed class BattleController
         if (chance.Passed)
         {
             ctx.Target.SetStatus(effect.Status);
-            _log.Add(new StatusApplied(ctx.TargetSide, effect.Status));
+            _log.Add(new StatusApplied(ctx.TargetSlot, effect.Status));
         }
         TraceEffectChance(ctx, chance, start);
     }
@@ -1454,7 +1474,7 @@ public sealed class BattleController
     private void ApplyStatChange(EffectContext ctx, StatChangeEffect effect)
     {
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
-        BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
+        BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
         EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
         if (!chance.Passed)
@@ -1463,7 +1483,7 @@ public sealed class BattleController
             return;
         }
         recipient.ChangeStage(effect.Stat, effect.Delta);
-        _log.Add(new StatStageChanged(recipientSide, effect.Stat, effect.Delta));
+        _log.Add(new StatStageChanged(recipientSlot, effect.Stat, effect.Delta));
         TraceEffectChance(ctx, chance, start);
     }
 
@@ -1477,7 +1497,7 @@ public sealed class BattleController
     private void ApplyStatChangeAll(EffectContext ctx, StatChangeAllEffect effect)
     {
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
-        BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
+        BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
         EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
         if (!chance.Passed)
@@ -1488,7 +1508,7 @@ public sealed class BattleController
         foreach (StatKind stat in AllStageStats)
         {
             recipient.ChangeStage(stat, effect.Delta);
-            _log.Add(new StatStageChanged(recipientSide, stat, effect.Delta));
+            _log.Add(new StatStageChanged(recipientSlot, stat, effect.Delta));
         }
         TraceEffectChance(ctx, chance, start);
     }
@@ -1498,13 +1518,13 @@ public sealed class BattleController
         int amount = Math.Max(1, ctx.Source.MaxHp * effect.Fraction.Num / effect.Fraction.Den);
         if (!effect.AllowFaint && ctx.Source.CurrentHp <= amount)
             return false;
-        Sap(ctx.Source, ctx.SourceSide, amount, amt => new HpCostPaid(ctx.SourceSide, amt));
+        Sap(ctx.Source, ctx.SourceSlot, amount, amt => new HpCostPaid(ctx.SourceSlot, amt));
         return !ctx.Source.IsFainted;
     }
 
     private void ApplyStatReset(EffectContext ctx, StatResetEffect effect)
     {
-        (BattleCreature Creature, BattleSide Side)[] recipients = StageRecipients(ctx, effect.Scope)
+        (BattleCreature Creature, BattleSlot Slot)[] recipients = StageRecipients(ctx, effect.Scope)
             .Where(recipient => !recipient.Creature.IsFainted).ToArray();
         int start = _log.Count;
         EffectChanceResult chance = CheckEffectChance(effect.Chance, recipients.Length > 0);
@@ -1513,16 +1533,16 @@ public sealed class BattleController
             TraceEffectChance(ctx, chance, start);
             return;
         }
-        foreach ((BattleCreature creature, BattleSide side) in recipients)
+        foreach ((BattleCreature creature, BattleSlot slot) in recipients)
             foreach (StatKind stat in AllStageSlots)
-                SetStage(creature, side, stat, 0);
+                SetStage(creature, slot, stat, 0);
         TraceEffectChance(ctx, chance, start);
     }
 
     private void ApplyStatCopy(EffectContext ctx, StatCopyEffect effect)
     {
         (BattleCreature from, _) = StageRecipient(ctx, effect.From);
-        (BattleCreature to, BattleSide toSide) = StageRecipient(ctx, effect.To);
+        (BattleCreature to, BattleSlot toSlot) = StageRecipient(ctx, effect.To);
         int start = _log.Count;
         EffectChanceResult chance = CheckEffectChance(effect.Chance, !from.IsFainted && !to.IsFainted);
         if (!chance.Passed)
@@ -1531,7 +1551,7 @@ public sealed class BattleController
             return;
         }
         foreach (StatKind stat in AllStageSlots)
-            SetStage(to, toSide, stat, from.Stage(stat));
+            SetStage(to, toSlot, stat, from.Stage(stat));
         TraceEffectChance(ctx, chance, start);
     }
 
@@ -1548,8 +1568,8 @@ public sealed class BattleController
         {
             int sourceStage = ctx.Source.Stage(stat);
             int targetStage = ctx.Target.Stage(stat);
-            SetStage(ctx.Source, ctx.SourceSide, stat, targetStage);
-            SetStage(ctx.Target, ctx.TargetSide, stat, sourceStage);
+            SetStage(ctx.Source, ctx.SourceSlot, stat, targetStage);
+            SetStage(ctx.Target, ctx.TargetSlot, stat, sourceStage);
         }
         TraceEffectChance(ctx, chance, start);
     }
@@ -1557,7 +1577,7 @@ public sealed class BattleController
     private void ApplyStatInvert(EffectContext ctx, StatInvertEffect effect)
     {
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
-        BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
+        BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
         EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
         if (!chance.Passed)
@@ -1566,11 +1586,11 @@ public sealed class BattleController
             return;
         }
         foreach (StatKind stat in AllStageSlots)
-            SetStage(recipient, recipientSide, stat, -recipient.Stage(stat));
+            SetStage(recipient, recipientSlot, stat, -recipient.Stage(stat));
         TraceEffectChance(ctx, chance, start);
     }
 
-    private void SetStage(BattleCreature creature, BattleSide side, StatKind stat, int value)
+    private void SetStage(BattleCreature creature, BattleSlot slot, StatKind stat, int value)
     {
         if (creature.IsFainted)
             return;
@@ -1578,7 +1598,7 @@ public sealed class BattleController
         creature.SetStage(stat, value);
         int delta = creature.Stage(stat) - before;
         if (delta != 0)
-            _log.Add(new StatStageChanged(side, stat, delta));
+            _log.Add(new StatStageChanged(slot, stat, delta));
     }
 
     private readonly record struct EffectChanceResult(bool Passed, bool Performed, int? Draw);
@@ -1601,19 +1621,19 @@ public sealed class BattleController
         AddTrace(action, source, target, kind, chance.Performed,
             chance.Draw, chance.Passed ? 1 : 0, eventStart, _log.Count, chance.Performed ? 100 : null);
 
-    private static IEnumerable<(BattleCreature Creature, BattleSide Side)> StageRecipients(EffectContext ctx, StageEffectScope scope)
+    private static IEnumerable<(BattleCreature Creature, BattleSlot Slot)> StageRecipients(EffectContext ctx, StageEffectScope scope)
     {
         if (scope is StageEffectScope.Self or StageEffectScope.Both)
-            yield return (ctx.Source, ctx.SourceSide);
+            yield return (ctx.Source, ctx.SourceSlot);
         if (scope is StageEffectScope.Target or StageEffectScope.Both)
-            yield return (ctx.Target, ctx.TargetSide);
+            yield return (ctx.Target, ctx.TargetSlot);
     }
 
-    private static (BattleCreature Creature, BattleSide Side) StageRecipient(EffectContext ctx, StageEffectScope scope) =>
+    private static (BattleCreature Creature, BattleSlot Slot) StageRecipient(EffectContext ctx, StageEffectScope scope) =>
         scope switch
         {
-            StageEffectScope.Self => (ctx.Source, ctx.SourceSide),
-            StageEffectScope.Target => (ctx.Target, ctx.TargetSide),
+            StageEffectScope.Self => (ctx.Source, ctx.SourceSlot),
+            StageEffectScope.Target => (ctx.Target, ctx.TargetSlot),
             _ => throw new ArgumentException("Stage copy endpoints must be self or target."),
         };
 
@@ -1636,7 +1656,7 @@ public sealed class BattleController
         int durationStart = _log.Count;
         int duration = VolatileEffects.ConfusionDuration(_rng, out int draw);
         ctx.Target.SetConfusion(duration);
-        _log.Add(new Confused(ctx.TargetSide));
+        _log.Add(new Confused(ctx.TargetSlot));
         AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.ConfusionDuration, true,
             draw, duration, durationStart, _log.Count, 5, 1);
     }
@@ -1653,7 +1673,7 @@ public sealed class BattleController
 
         int duration = _rng.Next(4, 6);
         ctx.Target.SetTrap(duration);
-        _log.Add(new Bound(ctx.TargetSide));
+        _log.Add(new Bound(ctx.TargetSlot));
         AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.TrapDuration, true,
             duration, duration, eventStart, _log.Count, 6, 4);
     }
@@ -1701,7 +1721,7 @@ public sealed class BattleController
 
             if (Int(effect, "damage") is { } damage)
             {
-                Sap(source, sourceSlot.Side, damage, amount => new ContactDamaged(sourceSlot, amount));
+                Sap(source, sourceSlot, damage, amount => new ContactDamaged(sourceSlot, amount));
                 TraceChance(traceAction, sourceSlot, targetSlot, EffectTraceKind.ContactChance, result, start);
                 continue;
             }
@@ -1710,7 +1730,7 @@ public sealed class BattleController
             {
                 PersistentStatus status = Parse<PersistentStatus>(statusName);
                 source.SetStatus(status);
-                _log.Add(new StatusApplied(sourceSlot.Side, status));
+                _log.Add(new StatusApplied(sourceSlot, status));
                 TraceChance(traceAction, sourceSlot, targetSlot, EffectTraceKind.ContactChance, result, start);
                 continue;
             }
@@ -1721,7 +1741,7 @@ public sealed class BattleController
                 StatKind stat = Parse<StatKind>(statName);
                 int delta = Int(effect, "delta") ?? 0;
                 source.ChangeStage(stat, delta);
-                _log.Add(new StatStageChanged(sourceSlot.Side, stat, delta));
+                _log.Add(new StatStageChanged(sourceSlot, stat, delta));
             }
             TraceChance(traceAction, sourceSlot, targetSlot, EffectTraceKind.ContactChance, result, start);
         }
@@ -1740,18 +1760,17 @@ public sealed class BattleController
         _log.Add(new Healed(side, c.CurrentHp - before));
     }
 
-    /// <summary>Deal non-move HP loss (recoil/crash/leech), log it via the supplied event factory, and
-    /// record a faint. Used by recoil, crash-on-miss, and Leech Seed's victim.</summary>
-    private void Sap(BattleCreature c, BattleSide side, int amount, Func<int, BattleEvent> lossEvent)
+    private void Heal(BattleCreature c, BattleSlot slot, int amount)
     {
-        if (amount <= 0)
+        if (amount <= 0 || c.CurrentHp >= c.MaxHp)
             return;
-        c.TakeDamage(amount);
-        _log.Add(lossEvent(amount));
-        if (c.IsFainted)
-            _log.Add(new Fainted(side));
+        int before = c.CurrentHp;
+        c.Heal(amount);
+        _log.Add(new Healed(slot, c.CurrentHp - before));
     }
 
+    /// <summary>Deal non-move HP loss (recoil/crash/leech), log it via the supplied event factory, and
+    /// record a faint. Used by recoil, crash-on-miss, and Leech Seed's victim.</summary>
     private void Sap(BattleCreature c, BattleSlot slot, int amount, Func<int, BattleEvent> lossEvent)
     {
         if (amount <= 0)
@@ -1762,19 +1781,20 @@ public sealed class BattleController
             _log.Add(new Fainted(slot));
     }
 
-    private void ApplyCrashRecoil(BattleCreature attacker, BattleSide side, BattleMove move)
+    private void ApplyCrashRecoil(BattleCreature attacker, BattleSlot slot, BattleMove move)
     {
         if (move.Recoil is not { } crash || !move.RecoilOnMiss)
             return;
-        Sap(attacker, side, EffectMath.CrashDamage(attacker.MaxHp, crash.Num, crash.Den), amt => new Recoiled(side, amt));
+        Sap(attacker, slot, EffectMath.CrashDamage(attacker.MaxHp, crash.Num, crash.Den), amt => new Recoiled(slot, amt));
     }
 
     /// <summary>Sap HP from a victim and heal it to a beneficiary — the shared "drain life" primitive
     /// behind Leech Seed (Absorb/Mega Drain use <see cref="Heal"/> against damage already dealt).</summary>
-    private void DrainLife(BattleCreature victim, BattleSide victimSide, BattleCreature beneficiary, BattleSide beneficiarySide, int amount)
+    private void DrainLife(BattleCreature victim, BattleSlot victimSlot, BattleCreature beneficiary,
+        BattleSlot beneficiarySlot, int amount)
     {
-        Sap(victim, victimSide, amount, amt => new LeechSapped(victimSide, amt));
-        Heal(beneficiary, beneficiarySide, amount);
+        Sap(victim, victimSlot, amount, amt => new LeechSapped(victimSlot, amt));
+        Heal(beneficiary, beneficiarySlot, amount);
     }
 
     /// <summary>One hit of a damaging move — draws crit then damage roll (fixed order), applies
@@ -1782,7 +1802,7 @@ public sealed class BattleController
     private int DealMoveDamage(BattleCreature target, BattleSlot targetSlot, int amount, double effectiveness, bool crit)
     {
         int before = target.CurrentHp;
-        amount = ApplySurviveFromFull(target, targetSlot.Side, amount);
+        amount = ApplySurviveFromFull(target, targetSlot, amount);
         target.TakeDamage(amount);
         int dealt = before - target.CurrentHp;
         _log.Add(new DamageDealt(targetSlot, dealt, effectiveness, crit));
@@ -1791,7 +1811,7 @@ public sealed class BattleController
         return dealt;
     }
 
-    private int ApplySurviveFromFull(BattleCreature target, BattleSide targetSide, int amount)
+    private int ApplySurviveFromFull(BattleCreature target, BattleSlot targetSlot, int amount)
     {
         if (amount < target.CurrentHp || target.CurrentHp != target.MaxHp || target.HasConsumedHeldEffect("surviveFromFull"))
             return amount;
@@ -1799,7 +1819,7 @@ public sealed class BattleController
             return amount;
 
         target.ConsumeHeldEffect("surviveFromFull");
-        _log.Add(new HeldItemConsumed(targetSide, "surviveFromFull"));
+        _log.Add(new HeldItemConsumed(targetSlot, "surviveFromFull"));
         ReevaluateConditionForms();
         return Math.Max(0, target.CurrentHp - 1);
     }
@@ -2045,12 +2065,12 @@ public sealed class BattleController
                 if (StatusEffects.Thaws(_rng, out double thawDraw))
                 {
                     c.ClearStatus();
-                    _log.Add(new Thawed(side));
+                    _log.Add(new Thawed(sourceSlot));
                     AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, true, thawDraw, 1,
                         thawStart, _log.Count, 1);
                     return true;
                 }
-                _log.Add(new StillFrozen(side));
+                _log.Add(new StillFrozen(sourceSlot));
                 AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, true, thawDraw, 0,
                     thawStart, _log.Count, 1);
                 return false;
@@ -2060,13 +2080,13 @@ public sealed class BattleController
                 if (c.StatusCounter > 0)
                 {
                     c.TickSleep();
-                    _log.Add(new StillAsleep(side));
+                    _log.Add(new StillAsleep(sourceSlot));
                     AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, false, null, 0,
                         sleepStart, _log.Count);
                     return false;
                 }
                 c.ClearStatus();
-                _log.Add(new WokeUp(side));
+                _log.Add(new WokeUp(sourceSlot));
                 AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, false, null, 1,
                     sleepStart, _log.Count);
                 return true;
@@ -2075,7 +2095,7 @@ public sealed class BattleController
                 int paralysisStart = _log.Count;
                 if (StatusEffects.FullyParalyzed(_rng, out double paralysisDraw))
                 {
-                    _log.Add(new FullyParalyzed(side));
+                    _log.Add(new FullyParalyzed(sourceSlot));
                     AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, true, paralysisDraw, 0,
                         paralysisStart, _log.Count, 1);
                     return false;
@@ -2125,9 +2145,9 @@ public sealed class BattleController
             if (dmg > 0)
             {
                 c.TakeDamage(dmg);
-                _log.Add(new StatusDamage(side, dmg));
+                _log.Add(new StatusDamage(slot, dmg));
                 if (c.IsFainted)
-                    _log.Add(new Fainted(side));
+                    _log.Add(new Fainted(slot));
             }
             c.AdvanceToxic();
         }
@@ -2138,7 +2158,7 @@ public sealed class BattleController
             BattleCreature c = Active(slot);
             BattleSlot? recipientSlot = Topology.SlotsFor(Opponent(slot.Side)).FirstOrDefault(IsLive);
             if (!c.IsFainted && c.Seeded && recipientSlot is { } recipient)
-                DrainLife(c, slot.Side, Active(recipient), recipient.Side, Math.Max(1, c.MaxHp / 8));
+                DrainLife(c, slot, Active(recipient), recipient, Math.Max(1, c.MaxHp / 8));
         }
 
         // Partial trap (Bind/Wrap/…): residual chip while trapped, then count down and release.
@@ -2147,10 +2167,10 @@ public sealed class BattleController
             BattleCreature c = Active(slot);
             if (c.IsFainted || !c.IsTrapped)
                 continue;
-            Sap(c, slot.Side, Math.Max(1, c.MaxHp / 8), amt => new BoundHurt(slot.Side, amt));
+            Sap(c, slot, Math.Max(1, c.MaxHp / 8), amt => new BoundHurt(slot, amt));
             c.TickTrap();
             if (!c.IsTrapped)
-                _log.Add(new BindReleased(slot.Side));
+                _log.Add(new BindReleased(slot));
         }
 
         ApplyEndOfTurnHooks();
@@ -2176,13 +2196,13 @@ public sealed class BattleController
 
         if (effect.Op == "residualHeal")
         {
-            Heal(c, side, FractionAmount(c, effect));
+            Heal(c, slot, FractionAmount(c, effect));
             return;
         }
 
         if (effect.Op == "residualDamage")
         {
-            Sap(c, side, FractionAmount(c, effect), amt => new ResidualDamage(side, amt));
+            Sap(c, slot, FractionAmount(c, effect), amt => new ResidualDamage(slot, amt));
             return;
         }
 
@@ -2190,9 +2210,9 @@ public sealed class BattleController
             && string.Equals(Str(effect, "status"), status.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             c.ConsumeHeldEffect(effect.Op);
-            _log.Add(new HeldItemConsumed(side, effect.Op));
+            _log.Add(new HeldItemConsumed(slot, effect.Op));
             c.ClearStatus();
-            _log.Add(new StatusCured(side, status));
+            _log.Add(new StatusCured(slot, status));
             ReevaluateConditionForms();
             return;
         }
@@ -2209,8 +2229,8 @@ public sealed class BattleController
                 return;
 
             c.ConsumeHeldEffect(effect.Op);
-            _log.Add(new HeldItemConsumed(side, effect.Op));
-            Heal(c, side, Math.Min(amount, c.MaxHp - c.CurrentHp));
+            _log.Add(new HeldItemConsumed(slot, effect.Op));
+            Heal(c, slot, Math.Min(amount, c.MaxHp - c.CurrentHp));
             ReevaluateConditionForms();
         }
     }
@@ -2237,7 +2257,7 @@ public sealed class BattleController
                 BattleCreature c = Active(slot);
                 if (c.IsFainted || c.Types.Any(t => def.ResidualImmuneTypes.Contains(t.Slug)))
                     continue;
-                Sap(c, slot.Side, Math.Max(1, c.MaxHp / def.ResidualDenominator), amt => new WeatherDamage(slot.Side, amt));
+                Sap(c, slot, Math.Max(1, c.MaxHp / def.ResidualDenominator), amt => new WeatherDamage(slot, amt));
             }
         }
 

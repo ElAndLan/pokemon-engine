@@ -33,6 +33,9 @@ public sealed class MoveCorpusAuditorTests : IDisposable
         Assert.DoesNotContain("neutral_alpha", json, StringComparison.Ordinal);
         Assert.DoesNotContain("neutral_beta", json, StringComparison.Ordinal);
         Assert.DoesNotContain("selected-pokemon.json", json, StringComparison.Ordinal);
+        string output = Path.Combine(_folder, "manifest.txt");
+        MoveCorpusAuditor.Write(first, output);
+        Assert.DoesNotContain('\r', File.ReadAllText(output));
     }
 
     [Fact]

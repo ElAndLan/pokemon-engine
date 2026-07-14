@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 937
+      "count": 880
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 0
+      "count": 57
     },
     {
       "status": "blockedReference",
@@ -214,13 +214,17 @@
       "payloadContentHash": "15cc2d70a4472db596c6dccfebd19b54cbe848b9c3c8f790f77facd78fd0f994",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "critical",
-        "standardDamage"
+        "chargeTurn",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "59c35bfcada15ff65c343f4b22b1eb6dcd5de63d074a0e152e639ea0e4f28537",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0013)"
+      ]
     },
     {
       "referenceKey": "move-0014",
@@ -562,12 +566,17 @@
       "payloadContentHash": "40ac988ad33659a32c21bc6196e5dbe65b1ce85b15e903aa78ad57787596301f",
       "sourceTarget": "random-opponent",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "multiTurnLock",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "48a28c3b1acab7952b6407754874743d7d3d1a222362e791974e7389a943d477",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0037)"
+      ]
     },
     {
       "referenceKey": "move-0038",
@@ -591,12 +600,16 @@
       "payloadContentHash": "0f9ee949570d05ba34e936f1d254bc647f9e7512aa71d67099fc2e2395676875",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "7926823cbeb7905772d2fb7b0509f8c371f09bbe134c9b195d1f819146e5985e",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0039)"
+      ]
     },
     {
       "referenceKey": "move-0040",
@@ -651,12 +664,16 @@
       "payloadContentHash": "97d8807c0fc8cf0af836e8754a873fb276d1b9401cb5c022f0446d4e54d215d2",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "7926823cbeb7905772d2fb7b0509f8c371f09bbe134c9b195d1f819146e5985e",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0043)"
+      ]
     },
     {
       "referenceKey": "move-0044",
@@ -680,12 +697,16 @@
       "payloadContentHash": "aad1192e7430940449b3f1d26e822a543c1279213489ecbab3d8dfb3b0531715",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "629211768f53d674195d959f0c84be5c45bc5acc7377b373156e49575e6292d3",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0045)"
+      ]
     },
     {
       "referenceKey": "move-0046",
@@ -768,12 +789,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "8b572ec14e089e38650f9cb38ca94718ca497f716a1d6c2644e0e02b01dfcc91",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0051)"
+      ]
     },
     {
       "referenceKey": "move-0052",
@@ -1115,13 +1140,16 @@
       "payloadContentHash": "1ab7b911faa05f60871402eb4dbc007b8c673053439745c1c5207fec4c38bebe",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "critical",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "e92d1353212a74659bbe570b519cf031bf3294a1f79bcb13db6f1eb010a387a5",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0075)"
+      ]
     },
     {
       "referenceKey": "move-0076",
@@ -1187,12 +1215,17 @@
       "payloadContentHash": "881c5ef183fafd773703fdd2ad051f40959c16a397a4b24e0cb6b45ce31396f6",
       "sourceTarget": "random-opponent",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "multiTurnLock",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "21d177c284f06165f7edb04450e1395e28214dee11f3b3e1a852684c10e5b789",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0080)"
+      ]
     },
     {
       "referenceKey": "move-0081",
@@ -1201,12 +1234,16 @@
       "payloadContentHash": "f98314d11c47ea7870ac5890ca3bdc400c27ac545f21f8f63ff38b6226975f5d",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "6c3224ac04edbe447e828d67406d2a296916d5c68b80d79d68aa679074dc67be",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0081)"
+      ]
     },
     {
       "referenceKey": "move-0082",
@@ -1758,12 +1795,17 @@
       "payloadContentHash": "d05db4f131da9173cc9dc3a0698cbf96ba2aefe85c2e8ccde0a641e7d65743e9",
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "selfDestruct",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "bb0e8639caf0d921e053ebffe3e1dfe3f30f92cc0e7c12abb2e487451adb27c4",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0120)"
+      ]
     },
     {
       "referenceKey": "move-0121",
@@ -1892,12 +1934,16 @@
       "payloadContentHash": "cd025352c103f351b71c3b0601856a5d7ea2dbb6e393857ea123edc0d933f9fe",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "11a2982f8429fb8a47c425ac19d8cb84aefa717ad3db7c3be8cc857504645567",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0129)"
+      ]
     },
     {
       "referenceKey": "move-0130",
@@ -2035,12 +2081,16 @@
       "payloadContentHash": "1b899d77f9a695ea943a3202efb6a7c8e29e6e996a066c0098d0cf67970a9574",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "ailment"
+        "ailment",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "b142cdf6c0d8701bfc54b5b29db7bea9348b86ec58700d516d59bab28a24acf9",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0139)"
+      ]
     },
     {
       "referenceKey": "move-0140",
@@ -2125,12 +2175,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "d2e1528f5bac3b95b3ad09c8933b84b07ad9b267db72dcb4befd8bca73209dd0",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0145)"
+      ]
     },
     {
       "referenceKey": "move-0146",
@@ -2241,12 +2295,17 @@
       "payloadContentHash": "f95379890f750b080090ac655d89aadde8e9dd0204635bee3e01a20c74e19437",
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "selfDestruct",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "996ce073751ee6564ff133b2853a3a1a9adb71b672880bb19f3c4e5feed2a438",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0153)"
+      ]
     },
     {
       "referenceKey": "move-0154",
@@ -2300,12 +2359,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "flinch",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "354d6a0b9c36717370ad0cd9d6a7909f667dcecdb9069d0a447cbd043c251797",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0157)"
+      ]
     },
     {
       "referenceKey": "move-0158",
@@ -2601,12 +2664,16 @@
       "payloadContentHash": "2b20d7896bc9382051180f82f296c037c58a497df59527e4be48d9c5c823b060",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "4854944025a6b1847a62458d66227b34b7f300e5eb4fd051d9b6c93557120abf",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0178)"
+      ]
     },
     {
       "referenceKey": "move-0179",
@@ -2644,12 +2711,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "dc35074f767a0d256b1cdb34167f67d77b98dcb6299a7190ec59b89b78accc8b",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0181)"
+      ]
     },
     {
       "referenceKey": "move-0182",
@@ -2861,12 +2932,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "21ffd5dea248e24c7337d6efd7e1beac518c2ee9888257772b86fee3d188b403",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0196)"
+      ]
     },
     {
       "referenceKey": "move-0197",
@@ -2918,12 +2993,17 @@
       "payloadContentHash": "565ebac5fe7f670a9cca55d06f3f8ddb765662c0065d0523d2297808e042a2b7",
       "sourceTarget": "random-opponent",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "multiTurnLock",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "484bf8ca4532b4729afd5fc76d9909a118bc7f0b442ad577c794ac3e38ad735e",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0200)"
+      ]
     },
     {
       "referenceKey": "move-0201",
@@ -3739,12 +3819,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "abdd4c228a0b4f012632ba9054697d1d12f5ef4fc97161155c9e84282759a4b3",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0257)"
+      ]
     },
     {
       "referenceKey": "move-0258",
@@ -4121,12 +4205,17 @@
       "payloadContentHash": "df553632e21f7ea3a8ca16609bb5c78375eee657d5eeb33590daa4f40bba6fe1",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "hpRatioPower",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "180f8de168b1067999b5292ba9a78c494dfd186f4e74815bff28abeb2cd3fb39",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0284)"
+      ]
     },
     {
       "referenceKey": "move-0285",
@@ -4321,12 +4410,15 @@
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "multiTurn"
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "faea0f51e462d747c4f2940fe7e2ed5807bdc601fd9cd7e1e367a0497bcbcbf0",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0298)"
+      ]
     },
     {
       "referenceKey": "move-0299",
@@ -4408,12 +4500,16 @@
       "payloadContentHash": "a4f889d7b19d571693d7cc5784e35e06d3892c445398d16b63fc0991ac385db1",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "6ec28239a0c9c0414a0170e31c24badbb4f57bb62a9653029957ebc547833a29",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0304)"
+      ]
     },
     {
       "referenceKey": "move-0305",
@@ -4552,13 +4648,16 @@
       "payloadContentHash": "d6cec2fc34c18c5a0058a5f0c0a2df94f51527d429e0d9236f03252c7ea869d8",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "critical",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "359bfccb95fa1b6722a2c34091da54c4cfa843ac7b3bea26bdcde5d8a80456cf",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0314)"
+      ]
     },
     {
       "referenceKey": "move-0315",
@@ -4683,12 +4782,17 @@
       "payloadContentHash": "4b37da9821f995a6e2e6e7632801f6be9e67d0ee1e721bc12a2448844f061ac7",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "hpRatioPower",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "e7a855ce39a93d5fd71d3cd4e7fd9b4713d9ec41bcee8e438cc45208e7f4d24c",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0323)"
+      ]
     },
     {
       "referenceKey": "move-0324",
@@ -4787,12 +4891,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "3e56fc638f66705c4d77793f8a060325d46a4cb2ca8501107c845f2d837a0e63",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0330)"
+      ]
     },
     {
       "referenceKey": "move-0331",
@@ -4873,12 +4981,16 @@
       "payloadContentHash": "4963d80920f3f63f32ea6930988467268220f75fbb9320adb0203985ed9ec2f4",
       "sourceTarget": "user-and-allies",
       "observedMechanicFamilies": [
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "58cbc1e9099cb7fa40275407f482e78dadbbeac929eec95701c8f99994d0a560",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0336)"
+      ]
     },
     {
       "referenceKey": "move-0337",
@@ -6304,12 +6416,16 @@
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "df8017c3af9af84110d8e1bcc90e6ba67bbedd4b05d141e09f990d80ae65c858",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0435)"
+      ]
     },
     {
       "referenceKey": "move-0436",
@@ -6319,12 +6435,16 @@
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "41ebac38e97b8b132792ae502864d719e88c859b751a5a6e113f8c206576798d",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0436)"
+      ]
     },
     {
       "referenceKey": "move-0437",
@@ -6728,12 +6848,15 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "ailment",
-        "multiTurn"
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "0ad819b60b748c80a0685c649cb17d640051d4dfd2de9866bafe49bb31b8904a",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0464)"
+      ]
     },
     {
       "referenceKey": "move-0465",
@@ -6986,12 +7109,16 @@
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "5140d5f6e44a3b5b5d2a290d5a641ba9c3448d0b8024a0c9e3993a96ccff1dd5",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0482)"
+      ]
     },
     {
       "referenceKey": "move-0483",
@@ -7552,12 +7679,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "557426e1f4a1d5e86800d4c42276bb72fadcb1246921bc308a9c2a4e08b8bb1a",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0522)"
+      ]
     },
     {
       "referenceKey": "move-0523",
@@ -7567,12 +7698,16 @@
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "48438d4a52f49e365a6cb66c5c31e886bec87bd15bebedd3fe3a16f2559776b9",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0523)"
+      ]
     },
     {
       "referenceKey": "move-0524",
@@ -7625,12 +7760,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "73906d60cdf2214bf1c7a70496915c911b40f40f732798a7d8efc8ca93e46cf1",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0527)"
+      ]
     },
     {
       "referenceKey": "move-0528",
@@ -7892,12 +8031,16 @@
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "15a4daacb2661ba845f248251672c1f0553068373abca591cd61a26b1377aa4f",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0545)"
+      ]
     },
     {
       "referenceKey": "move-0546",
@@ -7951,12 +8094,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "fa1bd3fca7f61de5c5e41da07ff2673de5f19a38feabc456607be881a40bb715",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0549)"
+      ]
     },
     {
       "referenceKey": "move-0550",
@@ -8041,12 +8188,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "4514a9141b2e75aec9a2f007be0ee921bba508b675518af83e3649262b2b2969",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0555)"
+      ]
     },
     {
       "referenceKey": "move-0556",
@@ -8254,12 +8405,16 @@
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
         "drain",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "010eec47f4894bb09f03bef589030595bc946a71c4359ac0a041628d1364e88b",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0570)"
+      ]
     },
     {
       "referenceKey": "move-0571",
@@ -8282,12 +8437,16 @@
       "payloadContentHash": "021eca85d13d48dbd561c3f1998f6c25be950f8bc243484028143fdf57369268",
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "ff10ee934afc5510f47e90c8c98ed1c39cb4e5f0a81f7ef8085fbca6ada961b3",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0572)"
+      ]
     },
     {
       "referenceKey": "move-0573",
@@ -8311,12 +8470,16 @@
       "payloadContentHash": "5cb924400f243bd111d11dfbe125781f392c21f7a0973de50226798306d2288f",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "ab5536cfffc54563ca4f28ef6ea387ad848832fad3420ef2ee2720119f46107c",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0574)"
+      ]
     },
     {
       "referenceKey": "move-0575",
@@ -8482,12 +8645,16 @@
       "payloadContentHash": "1e8c2f43b0d5bc6c880fa903d84ac2c55c6b66354c8e27e21b14d68f4338963c",
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "4bc31a079cdf89419d3e67ddf3fe75a9eb98ebf22a778c7d3fb03b02cd097986",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0586)"
+      ]
     },
     {
       "referenceKey": "move-0587",
@@ -8553,12 +8720,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "1f2a0017a8f9c010b13d3c1e092e13ffa16382d37ffb7a962f4d7e47bc5b10e9",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0591)"
+      ]
     },
     {
       "referenceKey": "move-0592",
@@ -8640,12 +8811,16 @@
       "payloadContentHash": "6a45e0f7c47ab06eec8c1a9725fc443a8b92a10fea0c3af719ebed4b5fb7069d",
       "sourceTarget": "ally",
       "observedMechanicFamilies": [
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "d941db30f01a51efbaaa1ca365c887eae00031ac04f6cea5fe36dd8e65532721",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0597)"
+      ]
     },
     {
       "referenceKey": "move-0598",
@@ -8752,12 +8927,16 @@
       "payloadContentHash": "312fe9cb9316c9d931ecf9b85b8c777d05e1e2b6c9a10e7ce2f08ce4eed19f15",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "bfd44e8588707fffa571c13675e78a965896143a3a9252715a9bc48ef77d957a",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0605)"
+      ]
     },
     {
       "referenceKey": "move-0606",
@@ -8912,12 +9091,16 @@
       "payloadContentHash": "22e36f9bf068f09293295ab1f8ef7f4ada71a1b7aebc70df3f4a0c78fb3d921e",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "049313839507214656530fee26f231fca30c40c54ccf14e3fd4ce05a33e51b53",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0616)"
+      ]
     },
     {
       "referenceKey": "move-0617",
@@ -8941,12 +9124,16 @@
       "payloadContentHash": "72399184ef3ba858f3c3121afb18f89e8a48eaace1047904cbc37f34a6652bb2",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "2e22d19c7a86749772c31dd9c96f567e8c4f85f97b5a9f803e9aec91e83d2bd9",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0618)"
+      ]
     },
     {
       "referenceKey": "move-0619",
@@ -8955,12 +9142,16 @@
       "payloadContentHash": "82ea570fc1fe786a68700e6bf8162a19bbd9e74e05117972360229904692e9a0",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "ef1d1744131b0c3c365691563858ac41e601c96e37f945acc0bf7112ee50a518",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0619)"
+      ]
     },
     {
       "referenceKey": "move-0620",
@@ -9973,12 +10164,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "8ea12396cdacdb92240491b5f5c0466a2030ad93f357a6ad196b208a419e9d11",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0691)"
+      ]
     },
     {
       "referenceKey": "move-0692",
@@ -10001,12 +10196,16 @@
       "payloadContentHash": "f62cc8e38a87fab0e26a8615c680d3969addd351be9fc11f65a8910fe2ae112e",
       "sourceTarget": "all-other-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "3b9420910f31f24c8ea355712cea538a47d03e66d38a459ec46e96f11c360dce",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0693)"
+      ]
     },
     {
       "referenceKey": "move-0694",
@@ -10528,12 +10727,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "7fb3bedf257ee5a42052f10bdd6020613d42e5806a23b07578dd9d816b9ef5c6",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0730)"
+      ]
     },
     {
       "referenceKey": "move-0731",
@@ -11300,12 +11503,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "standardDamage",
-        "statStage"
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "1d5f83a0c7b5a0549d96b64762373876d5194fc52802f8369382c7e33f928b15",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0784)"
+      ]
     },
     {
       "referenceKey": "move-0785",
@@ -11328,12 +11535,16 @@
       "payloadContentHash": "4047608873cd3fde1506b395852c43b023d8147124f076d8df7e77abff2d0896",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "57526c3f397e6b9c84706310ef80b8d9091c92e25f0e6c3a7b87a05be030e044",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0786)"
+      ]
     },
     {
       "referenceKey": "move-0787",
@@ -11821,12 +12032,17 @@
       "payloadContentHash": "b3b9a15d9e70194ba8ab6ca00f14ce0fa25b07a3b18e9a6bf8ce421180589d07",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "hpRatioPower",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "2b1e1b752826e809d81e7cb34559ca6cc32dbf526c773366185856c98e87115a",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0820)"
+      ]
     },
     {
       "referenceKey": "move-0821",
@@ -11851,12 +12067,16 @@
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
         "flinch",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "c046b90815f9f07cd7c7cdf3c9242c658639eb5f77c322978f31d57facb25c2c",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0822)"
+      ]
     },
     {
       "referenceKey": "move-0823",
@@ -11880,12 +12100,16 @@
       "payloadContentHash": "929d06b854311e9dcb926307d360eee2ac1170535eca0d0db979715dba6cc1be",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "87bde9b33878d936154192efdf56e352bda05e345e0d3e58fb4ccc18088912d5",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0824)"
+      ]
     },
     {
       "referenceKey": "move-0825",
@@ -11894,12 +12118,16 @@
       "payloadContentHash": "591f2dd1df4b7dea113f8f80b5cd1f5ca2086f7c5530196408678c2127fc77ed",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "d98bde78ff0152f83388ddeed769e1119a10e4ec6bcefd28b84b7cfde1a2181a",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0825)"
+      ]
     },
     {
       "referenceKey": "move-0826",
@@ -12006,12 +12234,17 @@
       "payloadContentHash": "74b55fea7057a1b3b7d3a38fc186e69f5668146acfb5389a26d4d94867103b62",
       "sourceTarget": "random-opponent",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "multiTurnLock",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "a0e88d31ba253c1a1daa7959ddcb9783d491a407c7afc41f04c7780388c67338",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0833)"
+      ]
     },
     {
       "referenceKey": "move-0834",

@@ -20,4 +20,8 @@
     <ProjectReference Include="..\..\src\Cgm.Tools\Cgm.Tools.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\docs\move-conformance\definitions.v1.json" Link="MoveConformance\definitions.v1.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

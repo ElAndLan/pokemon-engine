@@ -42,7 +42,7 @@ public static class MoveCorpusAuditor
 {
     public const int FormatVersion = 1;
 
-    public static MoveCorpusManifest Build(string corpusFolder)
+    public static MoveCorpusManifest Build(string corpusFolder, MoveConformanceCatalog? conformance = null)
     {
         if (!Directory.Exists(corpusFolder))
             throw new DirectoryNotFoundException($"Move corpus folder not found: {corpusFolder}");
@@ -65,11 +65,39 @@ public static class MoveCorpusAuditor
 
         string digestRows = string.Concat(entries.Select(e => $"{e.SourceId}:{e.SourceFileHash}\n"));
         string corpusDigest = Hash(Encoding.UTF8.GetBytes(digestRows));
+        if (conformance is not null)
+            ApplyConformance(entries, conformance);
+
         IReadOnlyList<MoveCorpusStatusCount> counts = Enum.GetValues<MoveConformanceStatus>()
             .Select(status => new MoveCorpusStatusCount(status, entries.Count(e => e.Status == status)))
             .ToList();
 
         return new MoveCorpusManifest(FormatVersion, corpusDigest, entries.Count, counts, entries);
+    }
+
+    private static void ApplyConformance(List<MoveCorpusEntry> entries, MoveConformanceCatalog conformance)
+    {
+        if (conformance.FormatVersion != MoveConformanceNormalizer.FormatVersion)
+            throw new InvalidDataException($"Unsupported move conformance catalog format {conformance.FormatVersion}.");
+        Dictionary<string, MoveCorpusEntry> byKey = entries.ToDictionary(e => e.ReferenceKey, StringComparer.Ordinal);
+        foreach (MoveConformanceRecord record in conformance.Entries)
+        {
+            if (!byKey.TryGetValue(record.ReferenceKey, out MoveCorpusEntry? entry))
+                throw new InvalidDataException($"Conformance key '{record.ReferenceKey}' is not in the corpus.");
+            if (entry.SourceFileHash != record.SourceFileHash || entry.PayloadContentHash != record.PayloadContentHash)
+                throw new InvalidDataException($"Conformance hashes for '{record.ReferenceKey}' do not match the corpus.");
+            int index = entries.IndexOf(entry);
+            entries[index] = entry with
+            {
+                ObservedMechanicFamilies = record.MechanicFamilies,
+                RequiredTopology = record.RequiredTopology,
+                RequiredRuleset = record.RequiredRuleset,
+                Status = MoveConformanceStatus.Certified,
+                NormalizedDefinitionHash = record.NormalizedDefinitionHash,
+                TestIds = record.TestIds,
+            };
+            byKey[record.ReferenceKey] = entries[index];
+        }
     }
 
     public static string Serialize(MoveCorpusManifest manifest) => CgmJson.Serialize(manifest);
@@ -78,7 +106,7 @@ public static class MoveCorpusAuditor
     {
         string fullPath = Path.GetFullPath(outputPath);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        File.WriteAllText(fullPath, Serialize(manifest));
+        File.WriteAllText(fullPath, Serialize(manifest).ReplaceLineEndings("\n"));
     }
 
     private static MoveCorpusEntry ReadEntry(string path)

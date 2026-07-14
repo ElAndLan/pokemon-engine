@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B reusable execution packages implemented; conformance/exit evidence active.**
+Status: **Phase 15B complete; Phase 15 conformance continues at 57/937.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -99,11 +99,13 @@ Every rejection row snapshots controller state, event count, PP, stock, queues, 
 and after. The cumulative 15B golden records all four slots acting, at least one spread action, one
 invalidation, simultaneous faints with reserves, and deterministic replacements.
 
-Current package evidence (2026-07-14): 15B-2 and 15B-3 have committed controller-path matrices;
-15B-4 through 15B-6 have green controller-path matrices in the shared worktree. File-backed family
-goldens cover singles direct resolution, doubles spread resolution, and the replacement checkpoint.
-Those three focused goldens do not replace the cumulative 15B golden described above, which remains
-an exit requirement together with generated target/topology conformance vectors and the 15B review.
+Completed package evidence (2026-07-14): 15B-2 through 15B-6 have green controller-path matrices.
+The three focused family goldens cover singles direct resolution, doubles spread resolution, and the
+replacement checkpoint; `phase-15b-cumulative.golden` additionally spans four-slot admission,
+spread resolution, two captured-action invalidations, atomic replacement, and a simultaneous draw.
+The generated target/topology catalog registers 57 sanitized reference vectors whose exact target,
+effect, contact, event-slot, and typed compilation assertions pass in doubles. The focused 15B exit
+review found and fixed side-only active-event and timed-move lifecycle drift, then returned GO.
 
 ## Golden format
 
@@ -125,7 +127,8 @@ names, prose, assets, URLs, or raw reference JSON.
 ## Phase 15A CI gate
 
 - Tool unit tests pass without the local corpus.
-- When the local corpus is available, generation reports exactly 937 entries and 0 certified.
+- The Phase 15A baseline command (without a decision catalog) reports exactly 937 entries and 0
+  certified; the current 15B command with its decision catalog reports 57 certified.
 - Regenerating the manifest from unchanged files is byte-identical.
 - Generated output contains no payload names or source filenames.
 - Full solution build/tests remain green.

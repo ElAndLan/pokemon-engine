@@ -28,17 +28,24 @@ internal static class Program
 
     private static int AuditMoves(string[] args)
     {
-        if (args.Length != 2)
+        if (args.Length is not 2 and not 4)
         {
-            Console.Error.WriteLine("audit-moves: usage is 'cgm audit-moves <corpus-folder> <manifest.json>'.");
+            Console.Error.WriteLine("audit-moves: usage is 'cgm audit-moves <corpus-folder> <manifest.json> [<decisions.json> <definitions.json>]'.");
             return 2;
         }
 
         try
         {
-            MoveCorpusManifest manifest = MoveCorpusAuditor.Build(args[0]);
+            MoveConformanceCatalog? conformance = null;
+            if (args.Length == 4)
+            {
+                conformance = MoveConformanceNormalizer.Build(args[0], MoveConformanceNormalizer.ReadDecisions(args[2]));
+                MoveConformanceNormalizer.Write(conformance, args[3]);
+            }
+            MoveCorpusManifest manifest = MoveCorpusAuditor.Build(args[0], conformance);
             MoveCorpusAuditor.Write(manifest, args[1]);
-            Console.WriteLine($"Inventoried {manifest.FileCount} moves; corpus digest {manifest.CorpusDigest}; certified 0.");
+            int certified = manifest.StatusCounts.Single(c => c.Status == MoveConformanceStatus.Certified).Count;
+            Console.WriteLine($"Inventoried {manifest.FileCount} moves; corpus digest {manifest.CorpusDigest}; certified {certified}.");
             return 0;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -183,7 +190,7 @@ internal static class Program
         Console.WriteLine("  validate <project> [--json]                    Validate a project folder");
         Console.WriteLine("  export <project> <out> [--template DIR]        Export a standalone game");
         Console.WriteLine("  export <project> <out> --data-only             Write only pack/config");
-        Console.WriteLine("  audit-moves <corpus> <manifest.json>           Inventory the local move corpus");
+        Console.WriteLine("  audit-moves <corpus> <manifest.json> [decisions definitions]");
         Console.WriteLine("  --help                                         Show this help");
     }
 }

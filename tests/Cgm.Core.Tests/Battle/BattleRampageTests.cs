@@ -94,4 +94,32 @@ public sealed class BattleRampageTests
         Assert.True(player.IsConfused); // rampage ends in self-confusion
         Assert.InRange(turns, 2, 3);     // locked for 2–3 turns total
     }
+
+    [Fact]
+    public void RampageLock_ContinuesInDoublesAfterSpendingItsLastPp()
+    {
+        BattleMove rampage = new(EntityId.Parse("move:rampage"), Normal, DamageClass.Physical,
+            40, 100, 1, 0, 0, target: MoveTarget.RandomOpponent, multiTurnLock: true);
+        var player = Fast(9999, rampage, Inert());
+        var enemy0 = Slow(9999, Inert());
+        var enemy1 = Slow(9999, Inert());
+        var battle = new BattleController([player, Fast(9999, Inert())], [enemy0, enemy1],
+            BattleTopology.Doubles, [0, 1], [0, 1], Chart(), new Rng(1));
+
+        battle.ResolveTurn(DoublesActions(new UseMove(0)));
+        int hpAfterFirst = enemy0.CurrentHp + enemy1.CurrentHp;
+        IReadOnlyList<BattleEvent> second = battle.ResolveTurn(DoublesActions(new UseMove(1)));
+
+        Assert.Equal(0, rampage.Pp);
+        Assert.True(enemy0.CurrentHp + enemy1.CurrentHp < hpAfterFirst);
+        Assert.Contains(second, e => e is MoveUsed { Move: var move } && move == rampage.Move);
+    }
+
+    private static BattleTurnActions DoublesActions(BattleAction playerAction) => new(BattleTopology.Doubles,
+    [
+        new BattleActionSubmission(new(BattleSide.Player, 0), playerAction),
+        new BattleActionSubmission(new(BattleSide.Player, 1), new Pass()),
+        new BattleActionSubmission(new(BattleSide.Enemy, 0), new Pass()),
+        new BattleActionSubmission(new(BattleSide.Enemy, 1), new Pass()),
+    ]);
 }

@@ -61,6 +61,45 @@ public sealed class BattleFamilyGoldenTests
             Snapshot([.. turnEvents, .. replacementEvents], Array.Empty<EffectTraceEntry>()));
     }
 
+    [Fact]
+    public void Phase15BCumulativeFamily_MatchesGolden()
+    {
+        BattleSlot enemy0 = new(BattleSide.Enemy, 0);
+        BattleSlot enemy1 = new(BattleSide.Enemy, 1);
+        BattleMove spread = Hit(300, MoveTarget.AllOpponents);
+        BattleMove wipe = new(EntityId.Parse("move:wipe"), Normal, DamageClass.Special,
+            300, 100, 10, 0, 0, target: MoveTarget.AllOtherPokemon, selfDestruct: true);
+        BattleMove poke = Hit(10, MoveTarget.RandomOpponent);
+        var battle = new BattleController(
+            [Creature("p0", 200, 200, spread, wipe), Creature("p1", 1, 100, Wait())],
+            [Creature("e0", 1, 2, poke), Creature("e1", 1, 1, poke),
+             Creature("e2", 1, 2, poke), Creature("e3", 1, 1, poke)],
+            BattleTopology.Doubles, [0, 1], [0, 1], Chart(),
+            new FakeRng(ints: [0, 0, 15, 15, 0, 0, 0, 15, 15, 15],
+                doubles: [0.99, 0.99, 0.99, 0.99, 0.99]));
+
+        IReadOnlyList<BattleEvent> first = battle.ResolveTurn(new BattleTurnActions(BattleTopology.Doubles,
+        [
+            new BattleActionSubmission(new(BattleSide.Player, 0), new UseMove(0)),
+            new BattleActionSubmission(new(BattleSide.Player, 1), new Pass()),
+            new BattleActionSubmission(enemy0, new UseMove(0)),
+            new BattleActionSubmission(enemy1, new UseMove(0)),
+        ]));
+        IReadOnlyList<BattleEvent> replacements = battle.ResolveReplacements([new(enemy1, 3), new(enemy0, 2)]);
+        IReadOnlyList<BattleEvent> second = battle.ResolveTurn(new BattleTurnActions(BattleTopology.Doubles,
+        [
+            new BattleActionSubmission(new(BattleSide.Player, 0), new UseMove(1)),
+            new BattleActionSubmission(new(BattleSide.Player, 1), new Pass()),
+            new BattleActionSubmission(enemy0, new Pass()),
+            new BattleActionSubmission(enemy1, new Pass()),
+        ]));
+
+        Assert.NotNull(battle.Outcome);
+        Assert.Null(battle.Outcome.Winner);
+        Assert.Equal(Golden("phase-15b-cumulative"),
+            Snapshot([.. first, .. replacements, .. second], battle.Trace));
+    }
+
     private static string Golden(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Battle", "Goldens", $"{name}.golden"))
         .Replace("\r\n", "\n").TrimEnd();
 
@@ -81,8 +120,8 @@ public sealed class BattleFamilyGoldenTests
     private static string Trace(EffectTraceEntry item) =>
         $"{item.Kind}:{item.SourceSlot.Side}:{item.SourceSlot.Position}:{(item.TargetSlot is { } target ? $"{target.Side}:{target.Position}" : "-")}";
 
-    private static BattleCreature Creature(string slug, int hp, int speed, BattleMove move) =>
-        new(EntityId.Parse($"species:{slug}"), slug, 50, [Normal], new Stats(hp, 100, 100, 100, 100, speed), [move]);
+    private static BattleCreature Creature(string slug, int hp, int speed, params BattleMove[] moves) =>
+        new(EntityId.Parse($"species:{slug}"), slug, 50, [Normal], new Stats(hp, 100, 100, 100, 100, speed), moves);
 
     private static BattleMove Hit(int power, MoveTarget target) =>
         new(EntityId.Parse("move:hit"), Normal, DamageClass.Special, power, 100, 10, 0, 0, target: target);

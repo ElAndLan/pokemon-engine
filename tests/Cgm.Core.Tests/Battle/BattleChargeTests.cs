@@ -79,4 +79,33 @@ public sealed class BattleChargeTests
         battle.ResolveTurn(new UseMove(0), new UseMove(0)); // charging
         Assert.Throws<ArgumentException>(() => battle.ResolveTurn(new Switch(1), new UseMove(0)));
     }
+
+    [Fact]
+    public void ChargedMove_FiresInDoublesAfterSpendingItsLastPp()
+    {
+        BattleMove charged = new(EntityId.Parse("move:charged"), Normal, DamageClass.Special,
+            120, 100, 1, 0, 0, target: MoveTarget.RandomOpponent, chargeTurn: true);
+        var player = Fast(9999, charged, Inert());
+        var enemy0 = Slow(9999, Inert());
+        var enemy1 = Slow(9999, Inert());
+        var battle = new BattleController([player, Fast(9999, Inert())], [enemy0, enemy1],
+            BattleTopology.Doubles, [0, 1], [0, 1], Chart(), new Rng(1));
+
+        IReadOnlyList<BattleEvent> first = battle.ResolveTurn(DoublesActions(new UseMove(0)));
+        int hpAfterCharge = enemy0.CurrentHp + enemy1.CurrentHp;
+        IReadOnlyList<BattleEvent> second = battle.ResolveTurn(DoublesActions(new UseMove(1)));
+
+        Assert.Equal(0, charged.Pp);
+        Assert.Contains(first, e => e is Charging { Side: BattleSide.Player });
+        Assert.True(enemy0.CurrentHp + enemy1.CurrentHp < hpAfterCharge);
+        Assert.Contains(second, e => e is MoveUsed { Move: var move } && move == charged.Move);
+    }
+
+    private static BattleTurnActions DoublesActions(BattleAction playerAction) => new(BattleTopology.Doubles,
+    [
+        new BattleActionSubmission(new(BattleSide.Player, 0), playerAction),
+        new BattleActionSubmission(new(BattleSide.Player, 1), new Pass()),
+        new BattleActionSubmission(new(BattleSide.Enemy, 0), new Pass()),
+        new BattleActionSubmission(new(BattleSide.Enemy, 1), new Pass()),
+    ]);
 }

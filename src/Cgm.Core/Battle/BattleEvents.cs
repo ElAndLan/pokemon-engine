@@ -60,52 +60,179 @@ public sealed record FormChanged(BattleSlot Slot, string? FormId) : BattleEvent
     public BattleSide Side => Slot.Side;
     public FormChanged(BattleSide side, string? formId) : this(new BattleSlot(side, 0), formId) { }
 }
-public sealed record StatusApplied(BattleSide Side, PersistentStatus Status) : BattleEvent;
-public sealed record StatusCured(BattleSide Side, PersistentStatus Status) : BattleEvent;
-public sealed record StatStageChanged(BattleSide Side, StatKind Stat, int Delta) : BattleEvent;
-public sealed record StatusDamage(BattleSide Side, int Amount) : BattleEvent;
-public sealed record ResidualDamage(BattleSide Side, int Amount) : BattleEvent;
-public sealed record Healed(BattleSide Side, int Amount) : BattleEvent;
-public sealed record HpFractionDamaged(BattleSide Side, int Amount) : BattleEvent;
-public sealed record HpCostPaid(BattleSide Side, int Amount) : BattleEvent;
+public sealed record StatusApplied(BattleSlot Slot, PersistentStatus Status) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public StatusApplied(BattleSide side, PersistentStatus status) : this(new BattleSlot(side, 0), status) { }
+}
+public sealed record StatusCured(BattleSlot Slot, PersistentStatus Status) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public StatusCured(BattleSide side, PersistentStatus status) : this(new BattleSlot(side, 0), status) { }
+}
+public sealed record StatStageChanged(BattleSlot Slot, StatKind Stat, int Delta) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public StatStageChanged(BattleSide side, StatKind stat, int delta) : this(new BattleSlot(side, 0), stat, delta) { }
+}
+public sealed record StatusDamage(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public StatusDamage(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
+public sealed record ResidualDamage(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public ResidualDamage(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
+public sealed record Healed(BattleSide Side, int Amount, BattleSlot? Slot = null) : BattleEvent
+{
+    public Healed(BattleSlot slot, int amount) : this(slot.Side, amount, slot) { }
+}
+public sealed record HpFractionDamaged(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public HpFractionDamaged(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
+public sealed record HpCostPaid(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public HpCostPaid(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
 public sealed record BattleItemUsed(BattleSlot Slot, EntityId Item, int TargetPartyIndex) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
     public BattleItemUsed(BattleSide side, EntityId item, int targetPartyIndex) : this(new BattleSlot(side, 0), item, targetPartyIndex) { }
 }
-public sealed record HeldItemConsumed(BattleSide Side, string Op) : BattleEvent;
-public sealed record Recoiled(BattleSide Side, int Amount) : BattleEvent;
+public sealed record HeldItemConsumed(BattleSlot Slot, string Op) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public HeldItemConsumed(BattleSide side, string op) : this(new BattleSlot(side, 0), op) { }
+}
+public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public Recoiled(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
 public sealed record ContactDamaged(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
     public ContactDamaged(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
 }
-public sealed record CritBoosted(BattleSide Side) : BattleEvent;
-public sealed record LeechSeeded(BattleSide Side) : BattleEvent;
-public sealed record LeechSapped(BattleSide Side, int Amount) : BattleEvent;
+public sealed record CritBoosted(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public CritBoosted(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record LeechSeeded(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public LeechSeeded(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record LeechSapped(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public LeechSapped(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
 public sealed record HazardSet(BattleSide Side, int Layers) : BattleEvent;
 public sealed record StealthRockSet(BattleSide Side) : BattleEvent;
-public sealed record HurtByHazard(BattleSide Side, int Amount) : BattleEvent;
+public sealed record HurtByHazard(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public HurtByHazard(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
 public sealed record WeatherChanged(Weather Weather) : BattleEvent;
 public sealed record WeatherEnded(Weather Weather) : BattleEvent;
-public sealed record WeatherDamage(BattleSide Side, int Amount) : BattleEvent;
-public sealed record Bound(BattleSide Side) : BattleEvent;
-public sealed record BoundHurt(BattleSide Side, int Amount) : BattleEvent;
-public sealed record BindReleased(BattleSide Side) : BattleEvent;
-public sealed record Protected(BattleSide Side) : BattleEvent;
-public sealed record ProtectFailed(BattleSide Side) : BattleEvent;
-public sealed record MoveBlocked(BattleSide Side) : BattleEvent;
-public sealed record ForcedOut(BattleSide Side) : BattleEvent;
-public sealed record Charging(BattleSide Side, EntityId Move) : BattleEvent;
-public sealed record FullyParalyzed(BattleSide Side) : BattleEvent;
-public sealed record Confused(BattleSide Side) : BattleEvent;
-public sealed record ConfusionEnded(BattleSide Side) : BattleEvent;
-public sealed record HurtInConfusion(BattleSide Side, int Amount) : BattleEvent;
-public sealed record Flinched(BattleSide Side) : BattleEvent;
-public sealed record StillAsleep(BattleSide Side) : BattleEvent;
-public sealed record WokeUp(BattleSide Side) : BattleEvent;
-public sealed record Thawed(BattleSide Side) : BattleEvent;
-public sealed record StillFrozen(BattleSide Side) : BattleEvent;
+public sealed record WeatherDamage(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public WeatherDamage(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
+public sealed record Bound(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public Bound(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record BoundHurt(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public BoundHurt(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
+public sealed record BindReleased(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public BindReleased(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record Protected(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public Protected(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record ProtectFailed(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public ProtectFailed(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record MoveBlocked(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public MoveBlocked(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record ForcedOut(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public ForcedOut(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record Charging(BattleSlot Slot, EntityId Move) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public Charging(BattleSide side, EntityId move) : this(new BattleSlot(side, 0), move) { }
+}
+public sealed record FullyParalyzed(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public FullyParalyzed(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record Confused(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public Confused(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record ConfusionEnded(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public ConfusionEnded(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record HurtInConfusion(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public HurtInConfusion(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
+public sealed record Flinched(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public Flinched(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record StillAsleep(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public StillAsleep(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record WokeUp(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public WokeUp(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record Thawed(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public Thawed(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
+public sealed record StillFrozen(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public StillFrozen(BattleSide side) : this(new BattleSlot(side, 0)) { }
+}
 public sealed record BallThrown : BattleEvent;
 public sealed record CaptureShakes(int Count) : BattleEvent;
 public sealed record Captured(BattleSide Side) : BattleEvent;
