@@ -22,8 +22,9 @@ Starting baseline:
   topology workstream are complete. Its generated normalized definitions, per-reference doubles
   vectors, cumulative golden, and focused exit review are green; remaining entries are owned by
   15C-15G mechanics or later 15H reference closure. The 15C-1 exact numeric-query, 15D-1 typed-intent,
-  and 15E-1 scoped-condition-store foundations, plus reusable status-power, queued-gate, and
-  HP-mutation packages, have also landed outside that certified cohort.
+  15E-1 scoped-condition-store, 15E-2 typed-hook-dispatcher, and 15F-1 effective-value-overlay
+  foundations, plus reusable status-power, queued-gate, and HP-mutation packages, have also landed
+  outside that certified cohort.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
   `IMPLEMENTATION_PLAN.md` record the growing verified suite; test count is evidence, not phase exit.
 

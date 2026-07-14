@@ -381,6 +381,13 @@ produce modifiers; they do not perform their own numeric stacking or rounding.
 | `TransformForm(target, formDef, policy)` | Form transition, stat recalculation, sprite/ability/type override, revert schedule. |
 | `RecalculateCreatureStats(instance)` | Level/IV/EV/nature/form-driven stats after level/evolution/form change. |
 
+Phase 15F-1 routes the effective-value helpers through the single runtime-only
+`BattleOverlayStore` contract in `BATTLE_SYSTEM_SPEC.md`. Immutable base values resolve through
+permanent-instance replacement, form/snapshot replacement, additive contributions, suppression,
+then the shared hook/query path. Overlay payloads are typed for item, ability, creature/move types,
+move class/list and PP owner, stats/metrics, form, and decoy state. Concrete mutation primitives and
+their presentation events remain in 15F-2 through 15F-6.
+
 ### 4.8 Move Tag And Filter Helpers
 
 | Helper | Purpose |

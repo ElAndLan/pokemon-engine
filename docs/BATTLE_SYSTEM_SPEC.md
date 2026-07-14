@@ -940,6 +940,64 @@ Neutral acceptance vectors: `hook-complete-order`, `hook-checkpoint-snapshot`,
 `hook-duplicate-suppression`, `hook-intent-cap`, `hook-no-dictionary-drift`,
 `hook-resolver-ai-query-parity`, `hook-tail-atomic`, and `hook-replay`.
 
+### Effective-value overlays (Phase 15F-1)
+
+Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one
+`BattleEffectiveValues` snapshot resolved by `BattleOverlayStore`; they may not rewrite species,
+move, item, ability, or saved-creature definitions. The foundation is runtime-only and does not
+change project/save schema. Existing v6 form projections remain compatibility consumers until the
+15F package owning each mutation migrates them onto this store.
+
+The immutable base snapshot contains held-item and ability IDs, creature types, six derived stats,
+effective move rows, optional form ID, optional decoy state, and the closed creature metrics
+`weight` and `height`. A move row contains one battle move definition plus the original nonnegative
+PP-owner slot; type/class overlays change the effective row without changing that definition or PP
+owner. Collections are captured on admission and exposed as read-only values.
+
+Every overlay instance records a monotonic sequence, exact creature owner (side, party index, and
+optional current slot), optional source slot/party/entity identity, precedence layer, typed payload,
+optional positive duration and named `BattleIntentCheckpoint`, cleanup flags, and trace identity.
+All battle overlays clear at battle end; an overlay may additionally clear on switch and/or faint.
+Creature-owned survivors follow their owner to the destination slot or reserve. Duration decrements
+after the named checkpoint and expires at zero.
+
+The closed precedence is:
+
+1. immutable base;
+2. permanent-instance replacement;
+3. form/snapshot replacement;
+4. additive contributions;
+5. suppression filters; and
+6. query hooks collected by `BattleHookDispatcher`.
+
+Typed replacement payloads cover held item, ability, creature types, all derived stats, move list/PP
+owners, per-slot move type, per-slot move class, form ID, decoy state, and metric values. Additive
+payloads cover type additions, stat deltas, and metric deltas. Suppression targets only held item or
+ability. A query may explicitly ignore named suppression overlay sequences; resolver and AI must pass
+the same ignore set for the same hypothetical state.
+
+Each payload declares a stable ordinal resolution key. Replacement targets use one fixed key, so the
+later sequence wins inside one precedence/key. Additive contributions include an authored lowercase
+contribution key; a later sequence replaces only the earlier contribution with that key, while
+distinct keys combine in sequence order. Surviving entries apply by precedence, sequence, then key;
+dictionary or caller order never selects a value. Type additions preserve first occurrence. Stats
+and metrics clamp to a minimum of one after each additive contribution. Suppression runs after all
+replacements/additions and yields no effective item/ability unless that suppression sequence is
+explicitly ignored.
+
+Admission is atomic. Unknown/default IDs, wrong entity categories, malformed owners/sources/keys,
+invalid enums/flags, duplicate type rows, nonpositive replacement stats/metrics/decoy HP, invalid
+move/PP-owner rows, inconsistent duration checkpoints, sequence exhaustion, and layer/payload
+mismatch fail before mutation. `Resolve` is pure and returns both the effective snapshot and ordered
+trace rows identifying applied, superseded, suppressed, and ignored-suppression overlays. Apply,
+tick, expire, switch/faint cleanup, transfer, and battle-end cleanup also return deterministic trace
+rows. No overlay operation draws RNG or emits presentation events; later concrete mutation packages
+own their typed battle events.
+
+Neutral acceptance vectors: `overlay-each-value`, `overlay-precedence`, `overlay-additive-keys`,
+`overlay-suppress-ignore`, `overlay-stable-order`, `overlay-definition-immutable`,
+`overlay-duration-cleanup`, `overlay-resolver-ai-parity`, `overlay-validation`, and `overlay-replay`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also
