@@ -21,12 +21,12 @@ public static class DamageCalc
     }
 
     public static int Compute(int level, int power, int a, int d,
-        double effectiveness, double stab, bool crit, int roll, bool burn)
+        double effectiveness, double stab, bool crit, int roll, bool burn, int snapshottedLiveTargets = 1)
     {
         if (effectiveness <= 0)
             return 0; // immune
 
-        long dmg = BaseDamage(level, power, a, d);
+        long dmg = ApplyTargetsModifier(BaseDamage(level, power, a, d), snapshottedLiveTargets);
         if (crit) dmg *= 2;                    // 3. critical
         dmg = dmg * roll / 100;                // 4. random (85–100), integer floor
         dmg = (long)(dmg * stab);              // 5. STAB

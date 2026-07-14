@@ -40,13 +40,13 @@ public sealed class BattleLiveTargetMaterializationTests
         BattleController opponentBattle = Battle(MoveTarget.Selected, new FakeRng());
         opponentBattle.Active(new BattleSlot(BattleSide.Enemy, 0)).TakeDamage(100);
         IReadOnlyList<BattleEvent> fallback = opponentBattle.ResolveTurn(Actions(MoveTarget.Selected,
-            new ActiveSlotSelection(new BattleSlot(BattleSide.Enemy, 0))));
+            new ActiveSlotSelection(new BattleSlot(BattleSide.Enemy, 0)), new(BattleSide.Enemy, 0)));
         Assert.DoesNotContain(fallback, item => item is MoveFailed { Reason: MoveFailureReason.TargetUnavailable });
 
         BattleController allyBattle = Battle(MoveTarget.Ally, new FakeRng());
         allyBattle.Active(new BattleSlot(BattleSide.Player, 1)).TakeDamage(100);
         IReadOnlyList<BattleEvent> failed = allyBattle.ResolveTurn(Actions(MoveTarget.Ally,
-            new ActiveSlotSelection(new BattleSlot(BattleSide.Player, 1))));
+            new ActiveSlotSelection(new BattleSlot(BattleSide.Player, 1)), new(BattleSide.Player, 1)));
         Assert.Contains(failed, item => item is MoveUsed { Slot: { Side: BattleSide.Player, Position: 0 } });
         Assert.Contains(failed, item => item is MoveFailed { Reason: MoveFailureReason.TargetUnavailable });
     }
@@ -61,8 +61,34 @@ public sealed class BattleLiveTargetMaterializationTests
         var one = new CountingRng();
         BattleController battle = Battle(MoveTarget.RandomOpponent, one);
         battle.Active(new BattleSlot(BattleSide.Enemy, 1)).TakeDamage(100);
-        battle.ResolveTurn(Actions(MoveTarget.RandomOpponent, null));
+        battle.ResolveTurn(Actions(MoveTarget.RandomOpponent, null, new(BattleSide.Enemy, 1)));
         Assert.Equal(0, one.IntCalls);
+    }
+
+    [Fact]
+    public void RandomOpponentTraceRecordsCandidateBoundAndSingletonSkip()
+    {
+        BattleController twoCandidates = Battle(MoveTarget.RandomOpponent, new CountingRng(1));
+        twoCandidates.ResolveTurn(Actions(MoveTarget.RandomOpponent, null));
+
+        EffectTraceEntry selected = Assert.Single(twoCandidates.Trace, entry => entry.Kind == EffectTraceKind.TargetSelection);
+        Assert.Equal(EffectTraceKind.TargetSelection, selected.Kind);
+        Assert.Equal(new BattleSlot(BattleSide.Enemy, 1), selected.TargetSlot);
+        Assert.True(selected.Performed);
+        Assert.Equal(1d, selected.DrawResult);
+        Assert.Equal(2d, selected.DrawBound);
+        Assert.Equal(2, selected.Value);
+
+        BattleController singleton = Battle(MoveTarget.RandomOpponent, new CountingRng());
+        singleton.Active(new BattleSlot(BattleSide.Enemy, 1)).TakeDamage(100);
+        singleton.ResolveTurn(Actions(MoveTarget.RandomOpponent, null, new(BattleSide.Enemy, 1)));
+
+        EffectTraceEntry onlyTarget = Assert.Single(singleton.Trace, entry => entry.Kind == EffectTraceKind.TargetSelection);
+        Assert.Equal(new BattleSlot(BattleSide.Enemy, 0), onlyTarget.TargetSlot);
+        Assert.False(onlyTarget.Performed);
+        Assert.Null(onlyTarget.DrawResult);
+        Assert.Null(onlyTarget.DrawBound);
+        Assert.Equal(1, onlyTarget.Value);
     }
 
     public static IEnumerable<object?[]> TargetCases()
@@ -94,13 +120,15 @@ public sealed class BattleLiveTargetMaterializationTests
             BattleTopology.Doubles, [0, 1], [0, 1], Chart(), rng);
     }
 
-    private static BattleTurnActions Actions(MoveTarget target, BattleActionSelection? selection) => new(BattleTopology.Doubles,
-    [
+    private static BattleTurnActions Actions(MoveTarget target, BattleActionSelection? selection, BattleSlot? omitted = null) =>
+        new(BattleTopology.Doubles,
+    new BattleActionSubmission[]
+    {
         new BattleActionSubmission(new(BattleSide.Player, 0), new UseMove(0), selection),
         new BattleActionSubmission(new(BattleSide.Player, 1), new Pass()),
         new BattleActionSubmission(new(BattleSide.Enemy, 0), new Pass()),
         new BattleActionSubmission(new(BattleSide.Enemy, 1), new Pass()),
-    ]);
+    }.Where(action => action.Source != omitted).ToArray());
 
     private static BattleCreature Creature(string slug, MoveTarget target) => new(EntityId.Parse($"species:{slug}"), slug, 50,
         [Normal], new Stats(100, 100, 100, 100, 100, 50),

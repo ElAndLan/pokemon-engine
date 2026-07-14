@@ -35,13 +35,15 @@ primitives (`DamageCalc`, stage changes, `Heal`/`Sap`/`DrainLife`, `EffectMath`)
 entry hazards, weather, traps, protect, force-switch, counter, charge, and rampage behavior are
 covered by the condition/effect machinery. Multiple `statStage` ops remain as ordered effects
 instead of collapsing to one stage change; `accuracy`/`evasion` stages use the existing
-accuracy/evasion stage table during hit checks. Authored `Move.Target` now survives compilation
-into `BattleMove`; in the current singles topology, `selected`, `all-opponents`, and
-`all-other-pokemon` resolve to the opposing active creature for existing damage/secondary logic,
-while ally, side-field, entire-field, and true multi-creature doubles resolution remain outside
-this slice. No move should have bespoke resolver code.
+accuracy/evasion stage table during hit checks. Authored `Move.Target` survives compilation into
+`BattleMove`. The shared controller now admits one- and two-slot topologies, materializes typed
+active/party/side/field/move scopes, and resolves active-creature singles/doubles actions through
+ordered action and target contexts. Side and field scopes execute compatible action-scoped effects
+once; party- and move-reference scopes remain owned by their later mechanic packages. Spread damage,
+redirection, allied position exchange, draw-capable outcomes, and explicit faint replacement all use
+the same slot-addressed path. No move should have bespoke resolver code.
 
-**Singles active-target resolver.** `BattleTargetResolver.ResolveSinglesActiveCreatureSide`
+**Singles compatibility resolver.** `BattleTargetResolver.ResolveSinglesActiveCreatureSide`
 is the generic Core helper for current one-active-per-side battle topology. It accepts an authored
 `MoveTarget` plus the source side and returns the active creature side for creature-scoped effects:
 `user` resolves to the source active creature; `selected`, `all-opponents`, and `all-other-pokemon`
@@ -165,6 +167,18 @@ The remaining v5 ops from the original batch list (chargeTurn, protect, hazards,
 forceSwitchOut, leechSeed, bind, multiTurnLock, counterDamage, accuracyBypass) have landed in
 Core. The palette stays **closed** — new ops require editing this section.
 
+- **positionSwap** — exchanges the source and selected ally's active-slot party assignments. It
+  requires `target: ally`, has no params or chance gate, draws no RNG, and is valid only in doubles.
+  The exchange is atomic: creature-owned state travels with each party member while queued slot
+  effects remain on their original slots. It emits `PositionsSwapped(sourceSlot, targetSlot)` and a
+  deterministic `PositionSwap` trace record.
+- **redirect** — installs a turn-scoped target redirect on the user. Params are `{ priority?: int,
+  classes: "physical,special,status", bypassClasses?: "...", tags?: "damaging,contact,status",
+  bypassTags?: "..." }`; tags are derived from the resolved move (`damaging` or `status`, plus
+  `contact` where applicable). Only a redirectable opposing
+  single target is replaced. Eligible conditions order by priority, owner speed, then topology
+  order, and draw no RNG. The winning replacement emits `TargetRedirected` and `Redirection` trace.
+
 ## Smart AI status (Phase 14)
 
 `BATTLE_AI_SPEC.md` owns the trainer AI design. Core now has `random`, `basic`, and `smart`
@@ -233,7 +247,9 @@ Closed ability-op palette for the first v6 slice:
   `{ weather: rain|sun|sandstorm|hail, duration?: int }`.
 - `contactChanceEffect` - when the holder receives contact from a move with `makesContact`,
   chance-gate and apply one effect to the contacting attacker. Params:
-  `{ status: burn|poison|toxic|paralysis|sleep|freeze }` or `{ stat: atk|def|spa|spd|spe, delta: int }`.
+  `{ status: burn|poison|toxic|paralysis|sleep|freeze }`, `{ stat: atk|def|spa|spd|spe, delta: int }`,
+  or `{ damage: positive int }`. Contact damage is non-move HP loss, emits `ContactDamaged`, and may
+  faint the attacker after all snapshotted direct targets have resolved.
 - `residualHeal` - heal a fraction of max HP at end of turn. Params: `{ num: int, den: int }`.
 - `residualDamage` - damage a fraction of max HP at end of turn. Params: `{ num: int, den: int }`.
 
@@ -403,14 +419,15 @@ existing action API and event stream. A party index remains distinct from a batt
 doubles action collection, forced replacement, and slot conditions must address the slot first and
 then use this mapping. This foundation adds no doubles action behavior or RNG draws.
 
-`BattleTurnActions` collects exactly one submitted action for every active slot and normalizes the
-collection to topology order. It rejects duplicate, missing, out-of-topology, and null actions
-before action legality is evaluated. `BattleTurnOrder` then orders scheduled actions by priority
+`BattleTurnActions` collects exactly one submitted action for every occupied living active slot and
+normalizes the collection to topology order. It rejects duplicate, missing, out-of-topology, and
+null actions before action legality is evaluated. `BattleTurnOrder` then orders scheduled actions by priority
 descending and effective speed descending. Equal priority/speed groups are shuffled in their stable
 slot order using Fisher-Yates, drawing `Next(k)` for `k = groupCount` down to `2`; a two-action tie
 therefore preserves the existing single `Next(2)` draw. It owns no legality, target selection, or
-effect resolution. The singles controller uses this path now; the Phase 15B resolver specified
-below schedules and executes all doubles submissions through the same contract.
+effect resolution. The controller schedules and executes both singles and doubles submissions
+through this contract. Empty unfillable slots submit no action; a fillable empty slot instead blocks
+ordinary turn admission until its pending replacement request is resolved.
 
 ### Phase 15B doubles execution contract
 
@@ -523,6 +540,11 @@ redirection hook must declare the move tags/classes it accepts and its bypass ta
 effects exchange the two party assignments atomically after legality succeeds; queued slot effects
 stay on their slots and creature-owned effects travel with their creatures.
 
+For a selected target that is already the redirect-condition owner, no replacement occurs and no
+`TargetRedirected` event or `Redirection` trace is emitted. `randomOpponent` remains different:
+the redirect condition is considered before any random target exists, so it fixes the target even
+when that slot is first in topology order.
+
 #### PP, RNG, hit, effect, and event order
 
 A move action has one action context and an ordered target context for every materialized target.
@@ -539,10 +561,17 @@ The exact resolver order is:
 2. Spend one PP and emit one slot-aware `MoveUsed`.
 3. Materialize live targets and redirection. Random targeting draws here. Zero targets emits the
    target failure and stops.
+   A side or field scope materializes exactly one non-creature context, with no accuracy check; it
+   dispatches its action-scoped effects once in step 9. A side context supplies its authored target
+   side, while a field context supplies no target side and may therefore resolve only field-safe
+   effects.
 4. Snapshot the ordered direct targets and whether spread reduction applies. It applies when at
    least two live active-creature targets were materialized, even if one later misses or is immune.
 5. Roll accuracy once for each target in topology order and retain the success set. If every target
    misses, stop without hit-count, critical, damage, or secondary draws.
+   Status moves follow this same target/accuracy path, but skip direct-hit resolution: their
+   accurate target contexts proceed directly to steps 8 and 9. A null accuracy therefore draws
+   nothing before their effects.
 6. Determine the action-scoped hit count once when at least one accurate target remains and the move
    has the standard multi-hit wrapper. The same intended count applies to every accurate target. A
    future per-target hit-count policy must be an explicit typed parameter, not an implementation
@@ -560,12 +589,24 @@ The exact resolver order is:
    compiled order. Action-total damage is the sum of actual HP removed from all targets/hits.
 10. Emit action completion trace, evaluate the post-action outcome checkpoint, then continue or end.
 
+The generic Protect effect resolves in step 9. Every resolved Protect attempt draws one
+`NextDouble()` against `1 / 2^min(chain, 20)`, including the first guaranteed-success attempt;
+its trace records the source slot, a bound of `1`, success/failure, and the `Protected` or
+`ProtectFailed` event range. An invalidated or pre-move-gated action reaches no Protect draw.
+
+A trainer-targeted generic force switch enumerates healthy, non-active party members in party-index
+order. It selects the sole candidate without RNG, otherwise draws `Next(candidateCount)` once; no
+reserve, fainted target, and wild-flee paths draw nothing. Its trace records source/target slots,
+the candidate bound and raw draw when performed, selected party index, and the forced-out/switch
+event range.
+
 No RNG call is made for a deterministic result, a singleton random candidate, an always-hit move,
 an invalidated action, an immune effect whose chance is not consulted, or hits after a target faints.
 The deterministic trace records each performed draw in the order above with action, target, hit,
-bound, and result. Standard spread damage applies the `3/4` target modifier at the damage formula's
-Targets step with integer floor, independently for every damaging hit. One remaining live target
-receives no spread reduction.
+bound, and result. Range draws record their exact half-open bounds `[minimum, maximum)`; zero-based
+draws and `NextDouble()` retain their implicit minimum of zero. Standard spread damage applies the
+`3/4` target modifier at the damage formula's Targets step with integer floor, independently for
+every damaging hit. One remaining live target receives no spread reduction.
 
 Target-scoped effects read that target's damage result. Action-scoped damage-derived effects read
 action-total damage. When a mechanic requires per-target rounding before aggregation, its typed
@@ -664,8 +705,14 @@ Trace ordering follows actual resolution ordering and uses stable numeric/refere
 not contain timestamps, memory addresses, filesystem paths, localized display text, or official
 content names. A trace is diagnostic evidence; it never drives simulation or presentation.
 
-Phase 15A locks this conceptual shape and the corpus manifest. The concrete Core trace types land
-with the first resolver slice that needs them, rather than adding unused abstraction now.
+The concrete trace records `DrawMinimum` only for a non-zero lower bound, and `DrawBound` for the
+exclusive upper bound. This makes `Next(min, max)` reproducible without adding redundant fields to
+ordinary zero-based draws.
+
+Phase 15A locked this conceptual shape and the corpus manifest. Phase 15B-4 added the concrete
+`EffectTraceEntry` seam and singles/doubles family goldens; 15B-5 added deterministic redirection and
+position trace entries. Later packages extend the same record with their owned query, condition,
+mutation, and timing evidence rather than creating parallel trace systems.
 
 ## Remaining Phase 15 specification completion contract
 

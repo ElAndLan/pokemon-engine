@@ -24,11 +24,15 @@ public static class StatusEffects
     public static double BurnAttackMultiplier(PersistentStatus? status) =>
         status is { } s ? StatusConditions.For(s).PhysicalDamageMultiplier : 1.0;
 
-    public static bool FullyParalyzed(IRng rng) =>
-        rng.NextDouble() < StatusConditions.For(PersistentStatus.Paralysis).FullBlockChance;
+    public static bool FullyParalyzed(IRng rng) => FullyParalyzed(rng, out _);
 
-    public static bool Thaws(IRng rng) =>
-        rng.NextDouble() < StatusConditions.For(PersistentStatus.Freeze).ThawChance;
+    public static bool FullyParalyzed(IRng rng, out double draw) =>
+        (draw = rng.NextDouble()) < StatusConditions.For(PersistentStatus.Paralysis).FullBlockChance;
+
+    public static bool Thaws(IRng rng) => Thaws(rng, out _);
+
+    public static bool Thaws(IRng rng, out double draw) =>
+        (draw = rng.NextDouble()) < StatusConditions.For(PersistentStatus.Freeze).ThawChance;
 
     /// <summary>Only one persistent status at a time.</summary>
     public static bool CanApplyStatus(PersistentStatus? current) => current is null;

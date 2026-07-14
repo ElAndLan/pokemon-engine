@@ -1,0 +1,15 @@
+events
+MoveUsed:Player:0
+DamageDealt:Enemy:0
+Fainted:Enemy:0
+BattleEnded:Player
+trace
+StatusGate:Player:0:-
+FlinchGate:Player:0:-
+ConfusionGate:Player:0:-
+Accuracy:Player:0:Enemy:0
+HitCount:Player:0:-
+Immunity:Player:0:Enemy:0
+Critical:Player:0:Enemy:0
+DamageRoll:Player:0:Enemy:0
+Damage:Player:0:Enemy:0

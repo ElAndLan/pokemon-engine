@@ -232,13 +232,14 @@ internal static class Phase15EffectRules
             bool hasStatus = HasString(effect, "status");
             bool hasStat = HasString(effect, "stat");
             bool hasDelta = HasNumber(effect, "delta");
+            bool hasDamage = HasNumber(effect, "damage");
 
-            if (!hasStatus && !(hasStat && hasDelta))
+            if (!hasStatus && !(hasStat && hasDelta) && !hasDamage)
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
-                    "Effect op 'contactChanceEffect' requires 'status' or both 'stat' and 'delta'.");
-            if (hasStatus && (hasStat || hasDelta))
+                    "Effect op 'contactChanceEffect' requires 'status', both 'stat' and 'delta', or 'damage'.");
+            if ((hasStatus ? 1 : 0) + (hasStat || hasDelta ? 1 : 0) + (hasDamage ? 1 : 0) > 1)
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
-                    "Effect op 'contactChanceEffect' requires only one of status or stat-stage params.");
+                    "Effect op 'contactChanceEffect' requires exactly one effect payload.");
             if (hasStatus && !Enum.TryParse(Str(effect, "status"), ignoreCase: true, out PersistentStatus _))
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     $"Effect op 'contactChanceEffect' has unknown status '{Str(effect, "status")}'.");
@@ -248,6 +249,9 @@ internal static class Phase15EffectRules
             if (hasDelta && Int(effect, "delta") == 0)
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     "Effect op 'contactChanceEffect' param 'delta' must not be 0.");
+            if (hasDamage && Int(effect, "damage") <= 0)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'contactChanceEffect' param 'damage' must be positive.");
         }
 
         if (effect.Op == "choiceLock")

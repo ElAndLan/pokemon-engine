@@ -58,9 +58,14 @@ public sealed class AiBattleSimTests
                 new SmartAiContext(enemy, eActive, player, pActive, chart, rngE, Turn: turns));
 
             battle.ResolveTurn(pAction, eAction);
+            if (battle.PendingReplacementSlots.Count > 0)
+                battle.ResolveReplacements(battle.PendingReplacementSlots.Select(slot => new BattleReplacementSelection(
+                    slot, Array.FindIndex(slot.Side == BattleSide.Player ? player : enemy,
+                        creature => !creature.IsFainted && !ReferenceEquals(creature, battle.Active(slot))))).ToArray());
         }
 
-        return (battle.Outcome.Winner, turns);
+        Assert.True(battle.Outcome.Winner.HasValue);
+        return (battle.Outcome.Winner.Value, turns);
     }
 
     [Theory]

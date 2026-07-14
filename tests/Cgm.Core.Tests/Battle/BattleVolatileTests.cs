@@ -103,13 +103,83 @@ public sealed class BattleVolatileTests
         var player = Slow(200, Confuser());
         var enemy = Fast(200, Inert());
         // ints: [0 confuse-roll (<100 → applies), 3 duration]
-        var battle = new BattleController(player, enemy, Chart(), new FakeRng(ints: [0, 3]));
+        var battle = new BattleController(player, enemy, Chart(), new FakeRng(ints: [3]));
 
         var events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
 
         Assert.True(enemy.IsConfused);
         Assert.Equal(3, enemy.ConfusionCounter);
         Assert.Contains(events, e => e is Confused { Side: BattleSide.Enemy });
+        EffectTraceEntry duration = Assert.Single(battle.Trace, entry => entry.Kind == EffectTraceKind.ConfusionDuration);
+        Assert.Equal(new BattleSlot(BattleSide.Player, 0), duration.SourceSlot);
+        Assert.Equal(new BattleSlot(BattleSide.Enemy, 0), duration.TargetSlot);
+        Assert.Equal(3d, duration.DrawResult);
+        Assert.Equal(1d, duration.DrawMinimum);
+        Assert.Equal(5d, duration.DrawBound);
+        Assert.Equal(3, duration.Value);
+        Assert.True(duration.EventEndIndex > duration.EventStartIndex);
+    }
+
+    [Fact]
+    public void LockAndTrapDurations_RecordExactRangeDraws()
+    {
+        var lockMove = new BattleMove(EntityId.Parse("move:lock_trace"), Normal, DamageClass.Physical, 40, 100, 25, 0, 0,
+            multiTurnLock: true);
+        var bindMove = new BattleMove(EntityId.Parse("move:trap_trace"), Normal, DamageClass.Status, null, null, 25, 0, 0,
+            binds: true);
+        var locked = new BattleController(Fast(200, lockMove), Slow(200, Inert()), Chart(),
+            new FakeRng(ints: [3, 0, 15], doubles: [0.99]));
+        var bound = new BattleController(Fast(200, bindMove), Slow(200, Inert()), Chart(), new FakeRng(ints: [4]));
+
+        locked.ResolveTurn(new UseMove(0), new UseMove(0));
+        bound.ResolveTurn(new UseMove(0), new UseMove(0));
+        bound.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        EffectTraceEntry lockDuration = Assert.Single(locked.Trace, entry => entry.Kind == EffectTraceKind.LockDuration);
+        Assert.Equal(3d, lockDuration.DrawResult);
+        Assert.Equal(2d, lockDuration.DrawMinimum);
+        Assert.Equal(4d, lockDuration.DrawBound);
+        Assert.Equal(3, lockDuration.Value);
+
+        EffectTraceEntry[] trapDurations = bound.Trace.Where(entry => entry.Kind == EffectTraceKind.TrapDuration).ToArray();
+        Assert.Equal(2, trapDurations.Length);
+        EffectTraceEntry trapDuration = trapDurations[0];
+        Assert.Equal(new BattleSlot(BattleSide.Player, 0), trapDuration.SourceSlot);
+        Assert.Equal(new BattleSlot(BattleSide.Enemy, 0), trapDuration.TargetSlot);
+        Assert.Equal(4d, trapDuration.DrawResult);
+        Assert.Equal(4d, trapDuration.DrawMinimum);
+        Assert.Equal(6d, trapDuration.DrawBound);
+        Assert.Equal(4, trapDuration.Value);
+        Assert.True(trapDuration.EventEndIndex > trapDuration.EventStartIndex);
+        Assert.False(trapDurations[1].Performed);
+        Assert.Null(trapDurations[1].DrawResult);
+        Assert.Null(trapDurations[1].DrawMinimum);
+        Assert.Null(trapDurations[1].DrawBound);
+        Assert.Equal(0, trapDurations[1].Value);
+    }
+
+    [Fact]
+    public void CompletedRampage_RecordsSelfConfusionDuration()
+    {
+        var rampage = new BattleMove(EntityId.Parse("move:rampage_trace"), Normal, DamageClass.Physical, 40, 100, 25, 0, 0,
+            multiTurnLock: true);
+        var player = Fast(200, rampage);
+        var battle = new BattleController(player, Slow(400, Inert()), Chart(),
+            new FakeRng(ints: [2, 0, 15, 0, 15, 4], doubles: [0.99, 0.99]));
+
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        EffectTraceEntry duration = Assert.Single(battle.Trace, entry => entry.Kind == EffectTraceKind.ConfusionDuration);
+        Assert.Equal(1, duration.Turn);
+        Assert.Equal(1, duration.ActionSequence);
+        Assert.Equal(new BattleSlot(BattleSide.Player, 0), duration.SourceSlot);
+        Assert.Null(duration.TargetSlot);
+        Assert.Equal(4d, duration.DrawResult);
+        Assert.Equal(1d, duration.DrawMinimum);
+        Assert.Equal(5d, duration.DrawBound);
+        Assert.Equal(4, duration.Value);
+        Assert.True(player.IsConfused);
     }
 
     [Fact]

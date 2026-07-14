@@ -64,6 +64,12 @@ public sealed record ProtectEffect : MoveEffect;
 /// <summary>switch_flow(force_target_switch) — forces the target out (Roar/Whirlwind).</summary>
 public sealed record ForceSwitchEffect : MoveEffect;
 
+/// <summary>Atomically exchanges the user and selected ally's active-slot assignments.</summary>
+public sealed record PositionSwapEffect : MoveEffect;
+
+public sealed record RedirectEffect(int Priority, IReadOnlySet<DamageClass> AcceptedClasses, IReadOnlySet<DamageClass> BypassClasses,
+    IReadOnlySet<string> AcceptedTags, IReadOnlySet<string> BypassTags) : MoveEffect;
+
 /// <summary>heal_hp(from_damage_dealt) — the user drains a fraction of the damage it dealt.</summary>
 public sealed record DrainEffect(Fraction Fraction) : MoveEffect;
 

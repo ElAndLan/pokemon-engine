@@ -1,0 +1,12 @@
+events
+MoveUsed:Player:0
+DamageDealt:Enemy:0
+Fainted:Enemy:0
+MoveUsed:Player:1
+DamageDealt:Enemy:1
+Fainted:Enemy:1
+ReplacementRequested:Enemy:0
+ReplacementRequested:Enemy:1
+SwitchedIn:Enemy:0:2
+SwitchedIn:Enemy:1:3
+trace

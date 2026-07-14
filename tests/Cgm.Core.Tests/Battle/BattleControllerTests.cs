@@ -39,6 +39,43 @@ public sealed class BattleControllerTests
     }
 
     [Fact]
+    public void SimultaneousActionWipeIsADrawAndStopsLaterActions()
+    {
+        BattleMove selfDestruct = new(EntityId.Parse("move:mutual"), Fire, DamageClass.Special,
+            300, null, 10, 0, 0, selfDestruct: true);
+        BattleCreature player = Creature(Fire, hp: 20, spe: 100, selfDestruct);
+        BattleCreature enemy = Creature(Grass, hp: 20, spe: 10, M());
+        var battle = new BattleController(player, enemy, Chart(), new FakeRng(ints: [15], doubles: [0.99]));
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.True(player.IsFainted);
+        Assert.True(enemy.IsFainted);
+        Assert.True(battle.Outcome!.IsDraw);
+        Assert.Contains(events, item => item is BattleEnded { Winner: null });
+        Assert.DoesNotContain(events, item => item is MoveUsed { Side: BattleSide.Enemy });
+    }
+
+    [Fact]
+    public void EndTurnResidualBatchCanProduceADraw()
+    {
+        BattleCreature player = Creature(Fire, hp: 8, spe: 100, M(power: 1));
+        BattleCreature enemy = Creature(Grass, hp: 8, spe: 10, M(power: 1));
+        player.SetStatus(PersistentStatus.Burn);
+        enemy.SetStatus(PersistentStatus.Burn);
+        player.TakeDamage(7);
+        enemy.TakeDamage(7);
+        var battle = Battle(player, enemy);
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new Pass());
+
+        Assert.True(player.IsFainted);
+        Assert.True(enemy.IsFainted);
+        Assert.True(battle.Outcome!.IsDraw);
+        Assert.IsType<BattleEnded>(events[^1]);
+    }
+
+    [Fact]
     public void FasterSideActsFirst()
     {
         var player = Creature(Fire, hp: 100, spe: 100, M(power: 1));
@@ -125,5 +162,23 @@ public sealed class BattleControllerTests
             b2.ResolveTurn(new UseMove(0), new UseMove(0));
         }
         Assert.Equal(b1.Log, b2.Log); // deterministic → identical event streams
+    }
+
+    [Fact]
+    public void SinglesDirectHit_RecordsAccuracyCritAndDamageRollTrace()
+    {
+        var player = Creature(Fire, hp: 100, spe: 100, M(power: 40));
+        var enemy = Creature(Grass, hp: 999, spe: 10,
+            new BattleMove(EntityId.Parse("move:wait"), Grass, DamageClass.Status, null, null, 10, 0, 0));
+        var battle = new BattleController(player, enemy, Chart(), new FakeRng(ints: [0, 15], doubles: [0.99]));
+
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Equal([EffectTraceKind.StatusGate, EffectTraceKind.FlinchGate, EffectTraceKind.ConfusionGate,
+            EffectTraceKind.Accuracy, EffectTraceKind.HitCount, EffectTraceKind.Immunity,
+            EffectTraceKind.Critical, EffectTraceKind.DamageRoll, EffectTraceKind.Damage],
+            battle.Trace.Take(9).Select(entry => entry.Kind));
+        Assert.Equal(0.99d, Assert.Single(battle.Trace, entry => entry.Kind == EffectTraceKind.Critical).DrawResult);
+        Assert.Equal(15d, Assert.Single(battle.Trace, entry => entry.Kind == EffectTraceKind.DamageRoll).DrawResult);
     }
 }

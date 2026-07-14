@@ -13,7 +13,11 @@ public static class EffectMath
     /// the canonical 2–5 range uses the Gen III/IV weighting (2→3/8, 3→3/8, 4→1/8, 5→1/8); any other range is
     /// uniform.</summary>
     public static int HitCount(IRng rng, int min = 2, int max = 5)
+        => HitCount(rng, min, max, out _);
+
+    public static int HitCount(IRng rng, int min, int max, out int? draw)
     {
+        draw = null;
         if (min > max)
             throw new ArgumentException($"min {min} exceeds max {max}.");
         if (min == max)
@@ -21,9 +25,11 @@ public static class EffectMath
         if (min == 2 && max == 5)
         {
             int r = rng.Next(8); // 0–2 → 2, 3–5 → 3, 6 → 4, 7 → 5
+            draw = r;
             return r < 3 ? 2 : r < 6 ? 3 : r < 7 ? 4 : 5;
         }
-        return min + rng.Next(max - min + 1);
+        draw = rng.Next(max - min + 1);
+        return min + draw.Value;
     }
 
     /// <summary>HP the user drains (heals) from the damage it dealt — half by default, ≥1, 0 if no damage.</summary>

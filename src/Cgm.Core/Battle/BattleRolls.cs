@@ -10,7 +10,14 @@ public static class BattleRolls
     public static bool Hits(int? accuracy, IRng rng) => accuracy is not int acc || rng.Next(100) < acc;
 
     public static bool Hits(int? accuracy, int accuracyStage, int evasionStage, IRng rng) =>
-        accuracy is not int acc || rng.Next(100) < acc * StatStages.AccuracyMultiplier(accuracyStage, evasionStage);
+        Hits(accuracy, accuracyStage, evasionStage, rng, out _);
+
+    public static bool Hits(int? accuracy, int accuracyStage, int evasionStage, IRng rng, out int? draw)
+    {
+        if (accuracy is not int acc) { draw = null; return true; }
+        draw = rng.Next(100);
+        return draw.Value < acc * StatStages.AccuracyMultiplier(accuracyStage, evasionStage);
+    }
 
     /// <summary>Gen III/IV crit chance by stage: 1/16, 1/8, 1/4, 1/3, then 1/2.</summary>
     public static double CritChance(int stage) => stage switch
@@ -23,7 +30,9 @@ public static class BattleRolls
     };
 
     public static bool IsCrit(int stage, IRng rng) => rng.NextDouble() < CritChance(stage);
+    public static bool IsCrit(int stage, IRng rng, out double draw) => (draw = rng.NextDouble()) < CritChance(stage);
 
     /// <summary>The 85–100 damage roll (inclusive).</summary>
     public static int DamageRoll(IRng rng) => 85 + rng.Next(16);
+    public static int DamageRoll(IRng rng, out int draw) => 85 + (draw = rng.Next(16));
 }

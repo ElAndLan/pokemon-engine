@@ -42,6 +42,20 @@ public sealed class BattleActiveSlots
     public bool IsActive(BattleSide side, int partyIndex) =>
         Enum.IsDefined(side) && partyIndex >= 0 && _partyIndexes[(int)side].Contains(partyIndex);
 
+    /// <summary>Atomically exchanges two active slots on one side.</summary>
+    public void Swap(BattleSlot first, BattleSlot second)
+    {
+        ValidateSlot(first);
+        ValidateSlot(second);
+        if (first.Side != second.Side)
+            throw new ArgumentException("Only allied active slots can be exchanged.");
+        if (first == second)
+            throw new ArgumentException("An active slot cannot be exchanged with itself.");
+
+        int[] sideSlots = _partyIndexes[(int)first.Side];
+        (sideSlots[first.Position], sideSlots[second.Position]) = (sideSlots[second.Position], sideSlots[first.Position]);
+    }
+
     private void ValidateSlot(BattleSlot slot)
     {
         if (!Topology.Contains(slot))

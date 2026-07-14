@@ -30,12 +30,39 @@ public sealed class BattleForceSwitchTests
         var player = Fast(300, Roar());
         var enemyA = Slow(300, Inert());
         var enemyB = Slow(300, Inert());
-        var battle = new BattleController([player], [enemyA, enemyB], Chart(), new Rng(1));
+        var battle = new BattleController([player], [enemyA, enemyB], Chart(), new FakeRng());
 
         var events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
 
         Assert.Same(enemyB, battle.Active(BattleSide.Enemy)); // dragged out to the only reserve
         Assert.Contains(events, e => e is ForcedOut { Side: BattleSide.Enemy });
+        EffectTraceEntry trace = Assert.Single(battle.Trace, entry => entry.Kind == EffectTraceKind.ForceSwitchReserve);
+        Assert.Equal(new BattleSlot(BattleSide.Player, 0), trace.SourceSlot);
+        Assert.Equal(new BattleSlot(BattleSide.Enemy, 0), trace.TargetSlot);
+        Assert.False(trace.Performed);
+        Assert.Null(trace.DrawResult);
+        Assert.Null(trace.DrawBound);
+        Assert.Equal(1, trace.Value);
+        Assert.True(trace.EventEndIndex > trace.EventStartIndex);
+    }
+
+    [Fact]
+    public void Roar_TraceRecordsMultiReserveDrawAndSelectedPartyIndex()
+    {
+        var player = Fast(300, Roar());
+        var enemyA = Slow(300, Inert());
+        var enemyB = Slow(300, Inert());
+        var enemyC = Slow(300, Inert());
+        var battle = new BattleController([player], [enemyA, enemyB, enemyC], Chart(), new FakeRng(ints: [1]));
+
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Same(enemyC, battle.Active(BattleSide.Enemy));
+        EffectTraceEntry trace = Assert.Single(battle.Trace, entry => entry.Kind == EffectTraceKind.ForceSwitchReserve);
+        Assert.True(trace.Performed);
+        Assert.Equal(1d, trace.DrawResult);
+        Assert.Equal(2d, trace.DrawBound);
+        Assert.Equal(2, trace.Value);
     }
 
     [Fact]
@@ -63,6 +90,12 @@ public sealed class BattleForceSwitchTests
         Assert.Same(enemy, battle.Active(BattleSide.Enemy));
         Assert.DoesNotContain(events, e => e is ForcedOut);
         Assert.Null(battle.Outcome); // battle continues
+        EffectTraceEntry trace = Assert.Single(battle.Trace, entry => entry.Kind == EffectTraceKind.ForceSwitchReserve);
+        Assert.False(trace.Performed);
+        Assert.Null(trace.DrawResult);
+        Assert.Null(trace.DrawBound);
+        Assert.Equal(0, trace.Value);
+        Assert.Equal(trace.EventStartIndex, trace.EventEndIndex);
     }
 
     [Fact]

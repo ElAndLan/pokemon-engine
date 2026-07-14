@@ -159,7 +159,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A complete; 15B active; 937 inventoried, 0/937 certified; reusable query/gate/HP packages landed but are not per-move certification** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A complete; 15B-1 through 15B-6 reusable implementation landed, but 15B normalization/certification/golden exit is active; 937 inventoried, 0/937 certified** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -414,9 +414,9 @@ Current readiness ledger:
 | 15B-1 topology and action foundations | SPEC READY | IMPLEMENTED | Battle spec target foundation; existing topology/action tests |
 | 15B-2 doubles controller and per-slot actions | SPEC READY | IMPLEMENTED | Commit `aded927`; battle admission tests and progress record |
 | 15B-3 typed selections and target materialization | SPEC READY | IMPLEMENTED | Commit `ea5a32f`; live materialization tests and progress record |
-| 15B-4 spread and per-target execution | SPEC READY | NOT IMPLEMENTED (ACTIVE) | Battle spec PP/RNG/hit/effect/event order and ordered continuation checkpoints |
-| 15B-5 redirection and position | SPEC READY | NOT IMPLEMENTED | Battle spec redirection precedence and atomic position swap |
-| 15B-6 faint outcome and replacement | SPEC READY | NOT IMPLEMENTED | Battle spec faint/outcome/replacement checkpoint |
+| 15B-4 spread and per-target execution | SPEC READY | IMPLEMENTED | Closeout review passed; singles/doubles resolver, trace, and family-golden evidence |
+| 15B-5 redirection and position | SPEC READY | IMPLEMENTED | Position-swap and redirection acceptance matrix, deterministic trace, and closeout review passed |
+| 15B-6 faint outcome and replacement | SPEC READY | IMPLEMENTED | Draw-capable outcome, atomic replacement loop, slot-addressed entry hooks, and replacement golden |
 | 15C query/formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15C-1 through 15C-7 defaults and publish each exact formula table before implementation |
 | 15D timing/queue/lock families | PLANNED — SPEC LOCK AUTHORIZED | FOUNDATION ONLY — NOT ACTIVE | Existing move gates are implemented; apply 15D-1 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15E-1 through 15E-7 ownership/order/cleanup defaults |
@@ -714,6 +714,359 @@ boundary and exact floor. Continuation: thread ordered action/target contexts th
 resolver, then add per-target accuracy/hit/effect resolution, action-total accounting, and the
 deterministic trace/event vectors before this package can be marked complete. No conformance status,
 schema, or dependency change in this checkpoint.
+
+Progress (2026-07-11): **15B-4 IN PROGRESS.** The second normal-path checkpoint threads the
+existing singles move resolver through slot-aware `BattleActionContext` and ordered
+`BattleTargetContext` instances. Every landed hit now contributes to both the target total and the
+action total; target-scoped consumers retain the target total while drain and recoil use the
+action total after direct hits. This preserves the singles event sequence while establishing the
+shared context seam for later multi-target execution. `BattleV5OpTests` now pins that all target
+hits precede the action-scoped drain/recoil effects; focused `BattleV5OpTests`,
+`BattleLiveTargetMaterializationTests`, and `DamageCalcTargetsTests` passed 48 tests, and the
+complete focused Battle suite passed 601 tests. `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx
+--no-restore` passed with 0 warnings/errors, and `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx
+--no-build` passed 1,010 tests (878 Core, 104 Creator, 21 Runtime, 7 Tools). Audit capability group:
+target selection/topology (144 historical rows); normalized reference keys affected: none, because
+15H vectors are not yet registered. RNG/event change: none for singles; the new context only
+records the totals already used by the resolver. Manifest regeneration/certification: none; the
+package remains incomplete. No schema or dependency change. Files: `EffectContext.cs`,
+`BattleController.cs`, and `BattleV5OpTests.cs`. Next continuation: resolve per-target accuracy,
+immunity, and direct damage through these contexts in the doubles scheduling path, then add
+deterministic one-versus-two-target spread damage tests.
+
+Progress (2026-07-11): **15B-4 IN PROGRESS.** Doubles move scheduling now materializes active
+targets once and resolves standard direct damage through ordered action/target contexts. Accuracy
+rolls once per target; immunity is checked before critical/damage draws; and the target-count
+modifier is applied at the damage formula's Targets stage before all later modifiers. `MoveMissed`
+and `DamageDealt` now carry slot identity while preserving their side compatibility properties.
+`BattleDoublesDamageTests` covers two-target spread damage, the one-live-target boundary,
+per-target miss continuation, and the exact no-hit-RNG immunity path. Focused target/damage tests
+passed 52 tests; the complete focused Battle suite passed 605 tests. `D:\dotnet\dotnet.exe build
+CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors, and `D:\dotnet\dotnet.exe test
+CreatureGameMaker.slnx --no-build` passed 1,014 tests (882 Core, 104 Creator, 21 Runtime, 7 Tools).
+Audit capability group: target
+selection/topology (144 historical rows); normalized reference keys affected: none, because 15H
+vectors are not yet registered. RNG/event change: two-target standard damage now consumes
+accuracy per target and crit/damage draws only for accurate, non-immune targets, in topology order.
+Manifest regeneration/certification: none; the package remains incomplete. No schema or dependency
+change. Files: `BattleController.cs`, `BattleEvents.cs`, `DamageCalc.cs`, and
+`BattleDoublesDamageTests.cs`. Next continuation: add the shared action-level multi-hit count,
+per-hit critical/damage loops, target effects/contact consequences, and once-per-action aggregate
+drain/recoil/cost ordering.
+
+Progress (2026-07-11): **15B-4 IN PROGRESS.** Doubles standard multi-hit moves now roll one
+action-scoped hit count after accuracy, then resolve each target in topology order and each hit in
+ascending hit order. Target-scoped effects run after all direct damage for each eligible target;
+action-scoped drain, recoil, and other existing action effects run once after the target batch and
+read the action total. `BattleDoublesDamageTests` pins shared hit-count draws, target-then-hit event
+order, per-target stat changes, and exactly-once aggregate drain/recoil. Focused doubles tests
+passed 6 tests; the complete focused Battle suite passed 607 tests. `D:\dotnet\dotnet.exe build
+CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors, and `D:\dotnet\dotnet.exe test
+CreatureGameMaker.slnx --no-build` passed 1,016 tests (884 Core, 104 Creator, 21 Runtime, 7 Tools).
+Audit capability group: target
+selection/topology (144 historical rows); normalized reference keys affected: none, because 15H
+vectors are not yet registered. RNG/event change: multi-hit count draws once after all accuracy
+draws; each accurate, non-immune hit then draws critical followed by damage roll in target/hit order.
+Manifest regeneration/certification: none; the package remains incomplete. No schema or dependency
+change. Files: `BattleController.cs` and `BattleDoublesDamageTests.cs`. Next continuation: make
+contact consequences slot-aware, then implement `EffectTrace` and the required singles/doubles
+family goldens.
+
+Progress (2026-07-11): **15B-4 IN PROGRESS.** Contact hooks now retain both side and precise slot
+identity. The doubles resolver applies contact consequences after each contacted target's effects;
+an ability or held effect on one opposing slot cannot trigger for its ally. A deterministic 100%
+contact chance now consumes no RNG draw. `BattleDoublesDamageTests` proves that only the contacted
+slot's hook changes the attacker, and existing singles hook tests remain green. Focused contact/
+doubles tests passed 51 tests; the complete focused Battle suite passed 608 tests. `D:\dotnet\dotnet.exe
+build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors, and `D:\dotnet\dotnet.exe test
+CreatureGameMaker.slnx --no-build` passed 1,017 tests (885 Core, 104 Creator, 21 Runtime, 7 Tools).
+Audit capability
+group: target selection/topology (144 historical rows); normalized reference keys affected: none,
+because 15H vectors are not yet registered. RNG/event change: deterministic contact effects no
+longer draw; non-deterministic contact effects retain one chance draw per contacted target in
+topology order. Manifest regeneration/certification: none; the package remains incomplete. No
+schema or dependency change. Files: `BattleHookDispatcher.cs`, `BattleController.cs`, and
+`BattleDoublesDamageTests.cs`. Next continuation: implement `EffectTrace`, family goldens, and the
+remaining 15B-4 closeout acceptance evidence.
+
+Progress (2026-07-11): **15B-4 IN PROGRESS.** The first concrete `EffectTrace` seam records ordered
+doubles direct-resolution accuracy, shared hit-count, immunity, and damage entries with source/
+target slots, performed-draw status, draw result/value, and emitted-event index range. It is
+diagnostic only and does not alter simulation. `BattleDoublesDamageTests` pins the trace order and
+event links. Focused trace tests passed 8 tests; `D:\dotnet\dotnet.exe build
+CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors and the full test suite passed
+1,018 tests (886 Core, 104 Creator, 21 Runtime, 7 Tools). Manifest/certification: none; package
+remains incomplete. Next continuation: trace critical/damage-roll draws, extend singles coverage,
+and add the required family goldens.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS.** Doubles direct-hit traces now include the actual
+critical-check and damage-roll draws between each target's immunity decision and damage mutation.
+The trace test pins the full target/hit order and raw draw values. Focused doubles/V5 tests passed
+33 tests; `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/
+errors and the full suite passed 1,018 tests (886 Core, 104 Creator, 21 Runtime, 7 Tools).
+Manifest/certification: none; package remains incomplete. Next continuation: extend the same trace
+entries to singles and add the required family goldens.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS.** Singles standard direct hits now produce the same
+accuracy, hit-count, immunity, critical, damage-roll, and damage trace entries as doubles. The
+singles trace regression pins those entries and raw draws without changing event behavior. Focused
+singles/doubles trace tests passed 19 tests; the approved full build passed with 0 warnings/errors
+and the full suite passed 1,019 tests (887 Core, 104 Creator, 21 Runtime, 7 Tools).
+Manifest/certification: none; package remains incomplete. Next continuation: add neutral
+singles/doubles family goldens and complete the remaining 15B-4 acceptance evidence.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS.** Added neutral file-backed family goldens under
+`tests/Cgm.Core.Tests/Battle/Goldens/`: one singles direct-hit action and one doubles spread action.
+They compare stable event and trace projections, so the fixtures contain no source-corpus content.
+`BattleFamilyGoldenTests` passed 2 tests; the approved full build passed with 0 warnings/errors and
+the full suite passed 1,021 tests (889 Core, 104 Creator, 21 Runtime, 7 Tools). Manifest/
+certification: none; package remains incomplete. Next continuation: finish the remaining 15B-4
+acceptance evidence (including contact-faint snapshot behavior), then run the package closeout
+review before 15B-5.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS.** The generic `contactChanceEffect` payload now also
+supports flat positive contact damage. It emits `ContactDamaged` and can faint the contacting source
+after snapshotted direct targets have all resolved. Validation rejects missing, mixed, or nonpositive
+payloads. The doubles snapshot test proves both targets take direct damage before the source faints.
+Focused contact/validation tests passed 40 tests; the approved full build passed with 0 warnings/
+errors and the full suite passed 1,022 tests (890 Core, 104 Creator, 21 Runtime, 7 Tools). Manifest/
+certification: none; package remains incomplete. Next continuation: perform the 15B-4 closeout
+review and resolve any remaining acceptance gaps before 15B-5.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS — closeout review: NO-GO.** Finding **FIX-NOW**:
+doubles scheduling had spent PP before source action gates, so `moveGate` failure could announce and
+consume a move. It now mirrors the singles source-gate order before PP/target work, resets the
+turn-scoped volatile/damage state for every active slot, records accepted move use, and emits the
+precise source slot for move-gate failure. Always-hit accuracy entries now explicitly record no
+performed draw. `BattleDoublesDamageTests` adds blocked-move (no PP, target, trace, or RNG) and
+always-hit trace regressions; focused gate/doubles/controller tests passed 27 tests. The approved
+full build passed with 0 warnings/errors, the full suite passed 1,024 tests (892 Core, 104 Creator,
+21 Runtime, 7 Tools), and `git diff --check` passed. Finding **FIX-LATER, package-blocking**: the
+trace remains incomplete for source-gate/status, target-selection, and effect-chance draws and does
+not yet satisfy the locked full diagnostic contract. Manifest/certification: none; package remains
+incomplete. Next continuation: extend the trace across those resolver stages, add exact bounds/
+skipped-draw evidence, then repeat the 15B-4 closeout review before 15B-5.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS.** `EffectTrace` now carries an optional raw draw
+bound, populated for direct accuracy (100), critical (1), damage roll (16), and variable hit-count
+draws. Doubles `randomOpponent` target materialization now records its selected slot, candidate
+count, raw draw, and exact bound, while its singleton path is explicitly recorded as a skipped draw.
+`BattleLiveTargetMaterializationTests` and `BattleDoublesDamageTests` pin those trace records and
+the direct-draw bounds; focused target/damage/controller/golden tests passed 44 tests. The approved
+full build passed with 0 warnings/errors, the full suite passed 1,025 tests (893 Core, 104 Creator,
+21 Runtime, 7 Tools), and `git diff --check` passed. Manifest/certification: none; package remains
+incomplete. Next continuation: trace source status/volatile gates and compiled effect chance draws,
+including skipped-draw evidence for ineligible/fainted effects, then repeat the 15B-4 closeout
+review before 15B-5.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS.** Source action gates now trace before PP or target
+work: persistent status, flinch, confusion, and compiled `moveGate` each record their pass/block
+result, raw draw/bound where applicable, and emitted-event range. The pure status/confusion helpers
+now expose their existing draw through overloads, preserving their prior APIs and RNG order.
+Neutral single/doubles family goldens include the new source-gate records. Focused source-gate/
+damage/golden tests passed 36 tests; the approved full build passed with 0 warnings/errors, the full
+suite passed 1,027 tests (895 Core, 104 Creator, 21 Runtime, 7 Tools), and `git diff --check`
+passed. Manifest/certification: none; package remains incomplete. Next continuation: trace compiled
+target/action effect chance draws, including skipped-draw evidence for ineligible or fainted targets,
+then repeat the 15B-4 closeout review before 15B-5.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS.** All compiled `MoveEffect.Chance` resolver paths now
+share one traceable chance gate. Eligible non-deterministic target effects record their per-target
+`Next(100)` draw, bound, result, and event range; ineligible/fainted targets and deterministic 0%/
+100% chances record a skipped draw. This also removes the prior unnecessary deterministic chance
+draws while preserving the required random-effect order. `BattleDoublesDamageTests` pins two target
+rolls and a fainted-target skip; the deterministic confusion fixture was aligned with the locked
+no-draw rule. Focused effect/damage/controller/golden tests passed 53 tests; the approved full
+build passed with 0 warnings/errors, the full suite passed 1,029 tests (897 Core, 104 Creator, 21
+Runtime, 7 Tools), and `git diff --check` passed. Manifest/certification: none; package remains
+incomplete. Next continuation: run the 15B-4 closeout review against the full trace contract,
+resolve any remaining non-direct RNG/trace gaps, then repeat the package gate before 15B-5.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS — closeout review: NO-GO.** Finding **FIX-NOW**
+resolved: `contactChanceEffect` now uses the shared deterministic chance gate after status/type/
+hook eligibility, so it records each contacted slot's result/bound/event range and skips an immune
+or deterministic chance without consuming RNG. `BattleDoublesDamageTests` pins both the 100% skip
+and two contacted 50% draws. Focused contact/doubles/V5/golden tests passed 87 tests; the approved
+full build passed with 0 warnings/errors, the full suite passed 1,030 tests (898 Core, 104 Creator,
+21 Runtime, 7 Tools), and `git diff --check` passed. Remaining **FIX-NOW, package-blocking** trace
+gaps: turn-order tie draws, multi-turn-lock/trap/confusion-duration draws, Protect, and forced
+switch reserve selection. Capture’s separate action family is not a 15B-4 direct-move blocker.
+Manifest/certification: none; package remains incomplete. Next continuation: trace the listed
+non-direct move-resolution draws with bounds/results/skips, then repeat the 15B-4 closeout review
+before 15B-5.
+
+Progress (2026-07-12): **15B-4 IN PROGRESS.** `BattleTurnOrder` now accepts an optional
+trace observer and the controller uses it for every scheduled phase. Each Fisher-Yates tie draw is
+recorded before action resolution with its source slot, raw draw, exact bound, and selected index.
+`BattleDoublesDamageTests` pins the two-action `Next(2)` record; focused turn/doubles/controller/
+golden tests passed 40 tests. The approved full build passed with 0 warnings/errors, the full suite
+passed 1,031 tests (899 Core, 104 Creator, 21 Runtime, 7 Tools), and `git diff --check` passed.
+Manifest/certification: none; package remains incomplete. Next continuation: trace multi-turn-lock,
+trap/confusion-duration, Protect, and forced-switch reserve draws, then repeat the 15B-4 closeout
+review before 15B-5.
+
+Progress (2026-07-13): **15B-4 IN PROGRESS.** Multi-turn-lock, partial-trap, and both target/self
+confusion-duration paths now record performed duration draws in their actual resolver order. The
+trace carries `DrawMinimum` when a range has a non-zero lower bound, so the duration draws record
+their exact `[2,4)`, `[4,6)`, and `[1,5)` bounds; an already trapped target records a skipped trap
+draw. `BattleVolatileTests` pins target and rampage self-confusion, lock and trap bounds/results,
+event ranges, and the skipped repeat-bind draw. Focused trace tests passed 38 tests; the wider
+Battle suite passed 624 tests. The approved full build passed with 0 warnings/errors, the full
+suite passed 1,033 tests (901 Core, 104 Creator, 21 Runtime, 7 Tools), and `git diff --check`
+passed. Manifest/certification: none; package remains incomplete. No schema or dependency change.
+Files: `BATTLE_SYSTEM_SPEC.md`, `EffectTrace.cs`, `VolatileEffects.cs`, `BattleController.cs`, and
+`BattleVolatileTests.cs`. Next continuation: trace Protect and forced-switch reserve-selection
+draws, then repeat the 15B-4 closeout review before 15B-5.
+
+Progress (2026-07-13): **15B-4 IN PROGRESS.** The generic Protect resolver now traces its one
+`NextDouble()` draw for every resolved attempt, with source slot, bound `1`, success/failure value,
+and the corresponding `Protected` or `ProtectFailed` event range. `BattleProtectTests` pins the
+first-use success and consecutive-chain failure draws without altering the established chain policy.
+Focused Protect/volatile/golden tests passed 16 tests; the wider Battle suite passed 624 tests. The
+approved full build passed with 0 warnings/errors, the full suite passed 1,033 tests (901 Core, 104
+Creator, 21 Runtime, 7 Tools), and `git diff --check` passed. Manifest/certification: none; package
+remains incomplete. No schema or dependency change. Files: `BATTLE_SYSTEM_SPEC.md`,
+`EffectTrace.cs`, `VolatileEffects.cs`, `BattleController.cs`, and `BattleProtectTests.cs`. Next
+continuation: trace forced-switch reserve-selection draws, then repeat the 15B-4 closeout review
+before 15B-5.
+
+Progress (2026-07-13): **15B-4 IN PROGRESS.** The generic force-switch resolver now records its
+reserve selection in `EffectTrace`: a multi-reserve target draws `Next(candidateCount)` once and
+records its raw selection plus selected party index, while singleton, no-reserve, wild-flee, and
+fainted-target paths visibly skip the draw. `BattleForceSwitchTests` pins singleton/no-reserve skips
+and a two-reserve selection. Focused force-switch/V5/golden tests passed 32 tests; the wider Battle
+suite passed 625 tests. The approved full build passed with 0 warnings/errors, the full suite passed
+1,034 tests (902 Core, 104 Creator, 21 Runtime, 7 Tools), and `git diff --check` passed.
+Manifest/certification: none; package remains incomplete. No schema or dependency change. Files:
+`BATTLE_SYSTEM_SPEC.md`, `EffectTrace.cs`, `BattleController.cs`, and `BattleForceSwitchTests.cs`.
+Next continuation: run the 15B-4 closeout review against the complete trace contract, resolve any
+review finding, and repeat the package gate before 15B-5.
+
+Progress (2026-07-13): **15B-4 IN PROGRESS — closeout review: NO-GO.** Finding **FIX-NOW**:
+`ResolveDoublesMoveScheduling` emits `MoveUsed` but invokes the shared resolver only when
+`move.Power` is non-null. Doubles status-only moves therefore materialize targets yet never create
+an action context or dispatch their target/action effects; generic Protect and force-switch are
+among the affected effects. This contradicts the 15B-4 required target/action-effect resolution and
+leaves no doubles trace evidence for those effect paths. Required continuation: route status-only
+materialized actions through the shared ordered effect resolver, preserve their no-direct-hit RNG
+order, and add doubles resolver/trace vectors before repeating this review. The preceding focused
+and full verification remains green (build 0 warnings/errors; 1,034 tests), but it does not cover
+this missing required behavior. Manifest/certification: none; package remains incomplete. No
+schema or dependency change. Do not begin 15B-5.
+
+Progress (2026-07-13): **15B-4 COMPLETE — closeout review: GO.** The previous status-only
+resolver finding is fixed: every materialized doubles action now creates the ordered action/target
+contexts, runs per-target accuracy, and dispatches target effects followed by action effects without
+direct-hit RNG for a status move. Protect and force-switch now have doubles resolver/trace vectors;
+force-switch switches the selected target slot rather than using the singles adapter. The closeout
+review also found and resolved the remaining non-creature scope gap: side scopes dispatch their
+action effects once with the authored target side, field scopes dispatch field-safe action effects
+once, and neither path runs target accuracy. Weather form reevaluation now addresses every active
+slot, and queued action effects retain their doubles source slot. `BattleDoublesDamageTests` covers
+Protect, force-switch at enemy slot 1, side hazard, field weather, and source-slot queue behavior.
+Focused doubles/weather/protect/force-switch/stage/action-gate tests passed 58 tests. The approved
+full build passed with 0 warnings/errors; the full suite passed 1,039 tests (907 Core, 104 Creator,
+21 Runtime, 7 Tools); and `git diff --check` passed. Review findings: none. Manifest/certification:
+none; no schema or dependency change. The next eligible package is 15B-5; no 15B-5 work started.
+
+Progress (2026-07-13): **15B-5 IN PROGRESS.** The first normal-path checkpoint adds the generic
+parameterless `positionSwap` move op. It compiles only for the authored `ally` target and atomically
+exchanges the two allied active-slot party assignments. Creature-owned state therefore travels with
+the creature, while slot-owned queued action gates stay on their original slots. The resolver emits
+`PositionsSwapped` plus a no-draw `PositionSwap` trace record. `BattleDoublesDamageTests` covers
+the atomic exchange, state ownership, event, and trace; `MoveCompilerTests` covers valid compilation
+and invalid target/chance/params. Focused compiler/doubles tests passed 69 tests. The approved full
+build passed with 0 warnings/errors; the full suite passed 1,042 tests (910 Core, 104 Creator, 21
+Runtime, 7 Tools); and `git diff --check` passed. The serialized `Effect` object shape is unchanged,
+so this compatible closed-palette addition requires neither a schema-version bump nor migration;
+`DATA_SCHEMA.md` records the new op. Manifest/certification: none; no dependency change. Files:
+`DATA_SCHEMA.md`, `BATTLE_SYSTEM_SPEC.md`, `BattleActiveSlots.cs`, `BattleController.cs`,
+`BattleEvents.cs`, `EffectTrace.cs`, `MoveCompiler.cs`, `MoveEffects.cs`, and the focused tests.
+Next continuation: implement deterministic generic redirection filters and precedence, including
+their slot-aware events/traces and the 15B-5 redirect acceptance matrix.
+
+Progress (2026-07-13): **15B-5 IN PROGRESS.** Began the shared controller redirection seam: turn-scoped
+redirect conditions are cleared at turn start, eligible single-opponent targets are replaced before
+random-target selection, and precedence is priority, owner speed, then topology order with no RNG.
+This is an incomplete checkpoint: the serialized `redirect` op/compiler mapping plus the required
+class/tag/bypass and competing-redirector acceptance vectors remain before it can be verified as a
+normal-path deliverable. The Core project build passed with 0 warnings/errors; full-suite testing
+has not yet been run for this incomplete checkpoint. Do not begin 15B-6.
+
+Progress (2026-07-13): **15B-5 IN PROGRESS.** The generic `redirect` op now compiles a turn-scoped
+class-filtered redirect condition with optional bypass classes. The shared materializer applies it
+before random-target selection, replacing only redirectable single-opponent targets and emitting
+`TargetRedirected` plus a no-draw `Redirection` trace. `MoveCompilerTests` covers compilation and
+`BattleDoublesDamageTests` proves the selected target is replaced before damage. Focused tests passed
+71 tests; full build passed with 0 warnings/errors and 1,044 tests passed (912 Core, 104 Creator, 21
+Runtime, 7 Tools); `git diff --check` passed. Remaining 15B-5 work: tag filters, bypass/competing
+precedence vectors, rejected-hook trace evidence, and the closeout review. Do not begin 15B-6.
+
+Progress (2026-07-13): **15B-5 COMPLETE — closeout review: GO.** The reusable `positionSwap` and
+`redirect` ops now satisfy the complete redirection/position contract for the target-selection and
+topology capability group (historical audit group 144; no normalized reference keys are yet
+registered). `redirect` strictly compiles required class filters and optional closed tag filters;
+the normal controller path filters eligible redirectors by priority, speed, then topology order with
+no redirect RNG. It handles selected and random-opponent targets before target selection, emits
+slot-aware events/traces only when a target actually changes, and ignores all non-redirectable
+scopes and invalidated redirectors. The acceptance vectors cover class/tag acceptance and bypass,
+priority/speed/topology competition, random-target draw suppression, spread/ally/side/field
+exclusion, position-state ownership, and a redirector fainting before a later action. The review
+found and fixed one FIX-NOW event bug: a selected move already aimed at the redirector no longer
+emits a false `TargetRedirected` event. RNG/event/trace change: position swap and redirection use no
+draws; random-target redirection suppresses its target draw. Validation/compiler/resolver paths are
+covered by `MoveCompilerTests` and `BattleDoublesDamageTests`; focused tests passed 78. Full
+verification passed: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` (0 warnings/
+errors), `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (1,051 tests: 919 Core,
+104 Creator, 21 Runtime, 7 Tools), and `git diff --check`. Manifest/certification: none, because
+15H normalization/conformance vectors remain open. No dependency or serialized-shape change; the
+compatible closed-palette addition is recorded in `DATA_SCHEMA.md`. Final commit: not created in
+this shared pre-existing worktree. Next eligible package: **15B-6 faint outcome and replacement**.
+
+Progress (2026-07-14): **15B-6 COMPLETE — closeout review: GO.** Faints now leave their active
+slots logically empty for later actions, captured actions invalidate rather than transferring to a
+reserve, and outcome checks after each complete action or end-turn batch distinguish a winner from
+a simultaneous draw. Surviving sides receive one `ReplacementRequested` per fillable empty slot in
+topology order. `ResolveReplacements` atomically validates an exact typed choice set, rejects missing,
+duplicate, out-of-range, fainted, or active party choices without state/event/PP/RNG mutation, then
+applies accepted choices through the same slot-addressed neutral `SwitchTo` helper used by voluntary
+and forced switching. Each entrant runs its switch-in hooks once; an entry-hazard faint completes the
+batch and re-requests the slot while a healthy reserve remains. Unfillable slots remain empty, living
+slots alone submit later actions, and every ordinary-turn API rejects while a request is pending.
+
+Evidence: `BattleReplacementTests` covers one/two/both-side empty slots, atomic rejection, topology
+application/event order, active/fainted/duplicate choices, pending-turn blocking, unfillable slots,
+captured-action invalidation, and hazard-faint repetition. `BattleControllerTests` covers action and
+end-turn simultaneous draws, `BattleSwitchTests`/`BattleHazardTests` use explicit replacement choices,
+and `replacement-checkpoint.golden` pins the ordered request/switch event flow. The existing Runtime
+showcase remains a thin consumer through `BattleScene.SubmitReplacements`; it does not choose or apply
+Core rules. Focused Battle tests passed 650. Full verification passed:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` (0 warnings/errors),
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` (1,059 tests: 927 Core, 104 Creator,
+21 Runtime, 7 Tools), and `git diff --check`. Review findings: one stale controller comment was removed;
+the Runtime showcase's ordinary-turn submission while replacement was pending was corrected to submit
+the typed choices. No remaining FIX-NOW finding. RNG implication: replacement admission/application
+draws nothing. Event/API changes: nullable-winner `BattleOutcome`/`BattleEnded`,
+`ReplacementRequested`, `BattleReplacementSelection`, pending-slot inspection, and explicit
+replacement submission. Manifest/certification: unchanged at 0/937; no normalized reference keys
+were advanced. Schema/migration and dependency impact: none. No commit was created in the shared
+pre-existing worktree. Next eligible work is the target/topology normalization/certification cohort,
+the cumulative 15B golden, and the 15B exit review; Phase 15B is not yet closed.
+
+Documentation reconciliation (2026-07-14): reviewed the Phase 15 commit sequence and the complete
+shared worktree together. The implemented reusable surface now includes the Phase 15A manifest;
+stable one-/two-slot topology and action ordering; queued move gates, HP helpers, and status-power
+queries; 15B-2 action admission; 15B-3 typed materialization; 15B-4 per-target/spread execution and
+concrete trace; 15B-5 redirection/position exchange; and 15B-6 outcome/replacement. The battle spec,
+test strategy, scope status, owner map, and move-audit support snapshot now describe that surface
+without treating representative package tests as per-move certification. Verified manifest state
+remains 937 `inventoryOnly`, 0 `certified`, digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`. The three focused family
+goldens are not the required cumulative 15B golden. Therefore 15B and Phase 15 remain **IN PROGRESS**;
+the immediate queue below is unchanged in substance. Verification after documentation reconciliation:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed 1,059 tests (927 Core,
+104 Creator, 21 Runtime, 7 Tools); and `git diff --check` passed.
 
 #### 15C — Query hooks and variable formulas
 
@@ -1736,14 +2089,14 @@ items across a numbered gate merely to keep a model busy:
 2. **COMPLETE — 15B-3 (`ea5a32f`).** Typed selections and all live target scopes, including target
    invalidation/fallback, PP/event boundary, and exact random-candidate draw counts; evidence is
    recorded in the 15B progress log.
-3. **ACTIVE — 15B-4.** Complete action/target contexts, per-target accuracy/hits/effects, spread
-   modifier, aggregate results, trace, and singles+doubles golden using its ordered continuation
-   checkpoints. Resume until every acceptance row passes; package size is not a stop condition.
-4. Normalize and certify the first target/topology cohort whose only dependencies are 15B-1 through
-   15B-4. Generate manifest statuses/test IDs through tooling; never hand-edit counts.
-5. Implement **15B-5** redirection/position, then **15B-6** outcome/replacement as separate complete
-   packages with their named goldens. Certify the remaining target-only cohort and run the 15B exit
-   review. Do not mark 15B complete while any target-only blocker remains.
+3. **COMPLETE — 15B-4.** Action/target contexts, spread resolution, deterministic trace, family
+   goldens, and closeout review are recorded in the 15B progress log.
+4. **ACTIVE.** Normalize and certify the target/topology cohort whose dependencies are complete.
+   Generate manifest statuses/test IDs through tooling; never hand-edit counts.
+5. **COMPLETE — 15B-5 and 15B-6 implementation.** Redirection/position and outcome/replacement
+   passed their package reviews. After item 4, add the cumulative 15B golden, certify any remaining
+   target-only rows, and run the 15B exit review. Do not mark 15B complete while any target-only
+   blocker remains.
 6. After 15B, follow this topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
    **15C-1**; **15D-1**; **15E-1**; **15E-2**; **15F-1**; **15C-2**; **15C-3**;

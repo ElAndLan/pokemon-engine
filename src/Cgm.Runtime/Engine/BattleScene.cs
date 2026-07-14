@@ -49,6 +49,7 @@ public sealed class BattleScene
     public int SelectedIndex => _selected;
     public IReadOnlyList<string> Presented => _presented;
     public IReadOnlyList<BattleEvent> Events => _events;
+    public IReadOnlyList<BattleSlot> PendingReplacementSlots => _battle.PendingReplacementSlots;
 
     public BattleSceneSnapshot Snapshot()
     {
@@ -135,7 +136,16 @@ public sealed class BattleScene
 
     public void Submit(BattleAction playerAction)
     {
-        IReadOnlyList<BattleEvent> events = _battle.ResolveTurn(playerAction, _enemyAction(_battle, playerAction));
+        Present(_battle.ResolveTurn(playerAction, _enemyAction(_battle, playerAction)));
+    }
+
+    public void SubmitReplacements(IReadOnlyList<BattleReplacementSelection> selections)
+    {
+        Present(_battle.ResolveReplacements(selections));
+    }
+
+    private void Present(IReadOnlyList<BattleEvent> events)
+    {
         _events.AddRange(events);
         foreach (BattleEvent e in events)
             _presented.Add(BattleEventPresenter.Line(e, _nameOf));

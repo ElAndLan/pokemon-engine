@@ -340,10 +340,32 @@ public sealed class ExportedGameBootTests : IDisposable
         Exporter.ExportData(project, new ExportOptions(), _out);
         BattleScene scene = ExportedGameBoot.Load(_out).ShowcaseBattle;
 
+        void ResolvePending()
+        {
+            if (scene.PendingReplacementSlots.Count == 0)
+                return;
+            BattleSceneSnapshot snapshot = scene.Snapshot();
+            scene.SubmitReplacements(scene.PendingReplacementSlots.Select(slot => new BattleReplacementSelection(slot,
+                (slot.Side == BattleSide.Player ? snapshot.PlayerParty : snapshot.EnemyParty)
+                    .Select((member, index) => (member, index))
+                    .First(candidate => !candidate.member.IsActive && !candidate.member.IsFainted).index)).ToArray());
+        }
+
         scene.Submit(new ActivateForm("bloom_guard", 0));
+        ResolvePending();
         scene.Submit(new Switch(2));
+        ResolvePending();
         for (int i = 0; i < 8 && scene.Snapshot().Outcome is null; i++)
-            scene.Submit(scene.Menu.First(i => i.Action is UseMove).Action);
+        {
+            if (scene.PendingReplacementSlots.Count > 0)
+            {
+                ResolvePending();
+            }
+            else
+            {
+                scene.Submit(scene.Menu.First(i => i.Action is UseMove).Action);
+            }
+        }
 
         Assert.Contains(scene.Events, e => e is WeatherChanged);
         Assert.Contains(scene.Events, e => e is FormChanged { FormId: "bloom_guard" });

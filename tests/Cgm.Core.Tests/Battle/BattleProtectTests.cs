@@ -110,5 +110,18 @@ public sealed class BattleProtectTests
         Assert.Equal(400, player.CurrentHp);
         battle.ResolveTurn(new UseMove(0), new UseMove(0)); // t2: protect fails, enemy hits
         Assert.True(player.CurrentHp < 400);
+
+        EffectTraceEntry[] protectTraces = battle.Trace.Where(entry => entry.Kind == EffectTraceKind.Protect).ToArray();
+        Assert.Equal(2, protectTraces.Length);
+        Assert.All(protectTraces, entry =>
+        {
+            Assert.Equal(new BattleSlot(BattleSide.Player, 0), entry.SourceSlot);
+            Assert.Null(entry.TargetSlot);
+            Assert.True(entry.Performed);
+            Assert.Equal(1d, entry.DrawBound);
+            Assert.True(entry.EventEndIndex > entry.EventStartIndex);
+        });
+        Assert.Equal([0d, 0.9d], protectTraces.Select(entry => entry.DrawResult));
+        Assert.Equal([1, 0], protectTraces.Select(entry => entry.Value));
     }
 }

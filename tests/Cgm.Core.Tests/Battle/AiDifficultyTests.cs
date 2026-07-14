@@ -84,8 +84,13 @@ public sealed class AiDifficultyTests
                 Turn: turns, Weights: enemyAi == AiProfile.Smart ? enemyW : null,
                 OwnSpikeLayers: battle.SpikeLayers(BattleSide.Enemy), OwnStealthRock: battle.HasStealthRock(BattleSide.Enemy)));
             battle.ResolveTurn(p, e);
+            if (battle.PendingReplacementSlots.Count > 0)
+                battle.ResolveReplacements(battle.PendingReplacementSlots.Select(slot => new BattleReplacementSelection(
+                    slot, Array.FindIndex(slot.Side == BattleSide.Player ? player : enemy,
+                        creature => !creature.IsFainted && !ReferenceEquals(creature, battle.Active(slot))))).ToArray());
         }
-        return battle.Outcome.Winner;
+        Assert.True(battle.Outcome.Winner.HasValue);
+        return battle.Outcome.Winner.Value;
     }
 
     /// <summary>Measures Smart's mirror-match win rate vs Basic over many seeds and prints it.</summary>

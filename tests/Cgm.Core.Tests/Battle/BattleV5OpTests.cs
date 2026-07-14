@@ -201,6 +201,25 @@ public sealed class BattleV5OpTests
     }
 
     [Fact]
+    public void MultiHit_ActionScopedDrainAndRecoilFollowAllTargetHits()
+    {
+        var move = new BattleMove(EntityId.Parse("move:context_probe"), Normal, DamageClass.Special, 25, 100, 25, 0, 0,
+            drain: new Fraction(1, 2), recoil: new Fraction(1, 4), multiHitMin: 2, multiHitMax: 5);
+        var player = Fast(400, move);
+        player.TakeDamage(200);
+        var enemy = Slow(1000, Inert());
+
+        var events = new BattleController(player, enemy, Chart(),
+            new FakeRng(ints: [0, 6, 100, 100, 100, 100], doubles: [0.99, 0.99, 0.99, 0.99]))
+            .ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Type[] resolutionOrder = events.Where(e => e is DamageDealt or Healed or Recoiled)
+            .Select(e => e.GetType()).ToArray();
+        Assert.Equal([typeof(DamageDealt), typeof(DamageDealt), typeof(DamageDealt), typeof(DamageDealt),
+            typeof(Healed), typeof(Recoiled)], resolutionOrder);
+    }
+
+    [Fact]
     public void FixedDamage_DealsFlatAmount_IgnoringStats()
     {
         var sonicBoom = new BattleMove(EntityId.Parse("move:sonicboom"), Normal, DamageClass.Special, null, 100, 25, 0, 0,

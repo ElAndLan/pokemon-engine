@@ -6,9 +6,13 @@ namespace Cgm.Core.Battle;
 /// Target: Gen III/IV (confusion 1–4 turns, 50% self-hit).</summary>
 public static class VolatileEffects
 {
-    public static int ConfusionDuration(IRng rng) => rng.Next(1, 5); // 1–4 turns
+    public static int ConfusionDuration(IRng rng) => ConfusionDuration(rng, out _);
 
-    public static bool HitsSelfInConfusion(IRng rng) => rng.NextDouble() < 0.50;
+    public static int ConfusionDuration(IRng rng, out int draw) => draw = rng.Next(1, 5); // 1–4 turns
+
+    public static bool HitsSelfInConfusion(IRng rng) => HitsSelfInConfusion(rng, out _);
+
+    public static bool HitsSelfInConfusion(IRng rng, out double draw) => (draw = rng.NextDouble()) < 0.50;
 
     /// <summary>Confusion self-hit: a typeless 40-power physical hit using the user's own Atk/Def,
     /// no crit, STAB, or damage roll.</summary>
@@ -19,5 +23,8 @@ public static class VolatileEffects
 
     /// <summary>Protect/Detect success (catalog §7.2): 1/2^chain, so the first use always succeeds and each
     /// consecutive use halves. Always draws so the roll order is stable.</summary>
-    public static bool ProtectSucceeds(int chain, IRng rng) => rng.NextDouble() < 1.0 / (1 << Math.Min(chain, 20));
+    public static bool ProtectSucceeds(int chain, IRng rng) => ProtectSucceeds(chain, rng, out _);
+
+    public static bool ProtectSucceeds(int chain, IRng rng, out double draw) =>
+        (draw = rng.NextDouble()) < 1.0 / (1 << Math.Min(chain, 20));
 }

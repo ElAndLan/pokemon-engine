@@ -23,10 +23,10 @@
 | Damage formula, type/STAB/crit | BATTLE_DAMAGE_CALC.md | **Reference-frozen v1** |
 | Trainer battle AI tiers/scoring | BATTLE_AI_SPEC.md | Phase 14 verified Core baseline; full tuning deferred until Phase 15+ mechanics |
 | Creator screens, undo, validation UI | CREATOR_APP_SPEC.md | Shell + editor pattern + pathfinders written (Phase 3) |
-| Runtime loop, renderer, input, scenes | ENGINE_RUNTIME_SPEC.md | Implemented baseline; remaining 16A-16G spec locks authorized by plan v4 §6 |
+| Runtime loop, renderer, input, scenes | ENGINE_RUNTIME_SPEC.md | Implemented baseline; detailed 16A-16G contracts locked, implementation awaits Phase 15 GO |
 | Import/slicing layers, pack format | ASSET_PIPELINE_SPEC.md | v0-v2/v5 implemented; remaining 17B/18C spec locks authorized by plan v4 §§7-8 |
 | Map editor tools & layers | MAP_EDITOR_SPEC.md | Tool baseline implemented; remaining 17C spec lock authorized by plan v4 §7 |
-| Battle formulas, effect ops, events, AI | BATTLE_SYSTEM_SPEC.md + MOVE_AUDIT_SYSTEM_PLAN.md | **Phase 15 active** - complete reusable Core mechanics and certify 937/937 local move entries; conceptual trace/manifest contract is locked and concrete trace/golden implementation remains package-owned |
+| Battle formulas, effect ops, events, AI | BATTLE_SYSTEM_SPEC.md + MOVE_AUDIT_SYSTEM_PLAN.md | **Phase 15 active** - 15B-1 through 15B-6 reusable topology/execution packages are implemented, including concrete trace and three family goldens; target/topology normalization, the cumulative 15B golden, and strict certification remain open |
 | Export & smoke test | EXPORT_PIPELINE_SPEC.md | Data path implemented; remaining 18C-18E/19C spec locks authorized by plan v4 §§8-9 |
 | Phase status and current/future work | IMPLEMENTATION_PLAN.md | **Executable v4.0; Phase 15 active at 0/937 strict certification** |
 | Test policy, goldens, fixtures | TESTING_STRATEGY.md | Active Phase 15 matrices plus authorized Phase 16-19 product evidence contract |

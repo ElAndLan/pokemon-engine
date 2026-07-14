@@ -22,7 +22,11 @@ public sealed record MoveUsed(BattleSlot Slot, EntityId Move) : BattleEvent
     public BattleSide Side => Slot.Side;
     public MoveUsed(BattleSide side, EntityId move) : this(new BattleSlot(side, 0), move) { }
 }
-public sealed record MoveMissed(BattleSide Side, EntityId Move) : BattleEvent;
+public sealed record MoveMissed(BattleSlot Slot, EntityId Move, BattleSlot? TargetSlot = null) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public MoveMissed(BattleSide side, EntityId move) : this(new BattleSlot(side, 0), move) { }
+}
 public enum MoveFailureReason { FirstActionOnly, CannotRepeat, TargetUnavailable }
 public sealed record MoveFailed(BattleSlot Slot, EntityId Move, MoveFailureReason Reason) : BattleEvent
 {
@@ -32,7 +36,12 @@ public sealed record MoveFailed(BattleSlot Slot, EntityId Move, MoveFailureReaso
 public sealed record ActionSkipped(BattleSlot Slot) : BattleEvent;
 public enum ActionInvalidationReason { ActorChanged, ActorFainted, MoveChanged, ResourceChanged, TargetStateChanged }
 public sealed record ActionInvalidated(BattleSlot Slot, ActionInvalidationReason Reason) : BattleEvent;
-public sealed record DamageDealt(BattleSide Target, int Amount, double Effectiveness, bool Crit) : BattleEvent;
+public sealed record DamageDealt(BattleSlot Slot, int Amount, double Effectiveness, bool Crit) : BattleEvent
+{
+    public BattleSide Target => Slot.Side;
+    public DamageDealt(BattleSide target, int amount, double effectiveness, bool crit)
+        : this(new BattleSlot(target, 0), amount, effectiveness, crit) { }
+}
 public sealed record Fainted(BattleSlot Slot) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
@@ -43,6 +52,9 @@ public sealed record SwitchedIn(BattleSlot Slot, int PartyIndex) : BattleEvent
     public BattleSide Side => Slot.Side;
     public SwitchedIn(BattleSide side, int partyIndex) : this(new BattleSlot(side, 0), partyIndex) { }
 }
+public sealed record ReplacementRequested(BattleSlot Slot) : BattleEvent;
+public sealed record PositionsSwapped(BattleSlot SourceSlot, BattleSlot TargetSlot) : BattleEvent;
+public sealed record TargetRedirected(BattleSlot SourceSlot, BattleSlot OriginalTargetSlot, BattleSlot RedirectedTargetSlot) : BattleEvent;
 public sealed record FormChanged(BattleSlot Slot, string? FormId) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
@@ -63,6 +75,11 @@ public sealed record BattleItemUsed(BattleSlot Slot, EntityId Item, int TargetPa
 }
 public sealed record HeldItemConsumed(BattleSide Side, string Op) : BattleEvent;
 public sealed record Recoiled(BattleSide Side, int Amount) : BattleEvent;
+public sealed record ContactDamaged(BattleSlot Slot, int Amount) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+    public ContactDamaged(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
+}
 public sealed record CritBoosted(BattleSide Side) : BattleEvent;
 public sealed record LeechSeeded(BattleSide Side) : BattleEvent;
 public sealed record LeechSapped(BattleSide Side, int Amount) : BattleEvent;
@@ -93,6 +110,10 @@ public sealed record BallThrown : BattleEvent;
 public sealed record CaptureShakes(int Count) : BattleEvent;
 public sealed record Captured(BattleSide Side) : BattleEvent;
 public sealed record BrokeFree : BattleEvent;
-public sealed record BattleEnded(BattleSide Winner) : BattleEvent;
+public sealed record BattleEnded(BattleSide? Winner) : BattleEvent;
 
-public sealed record BattleOutcome(BattleSide Winner);
+public sealed record BattleOutcome(BattleSide? Winner)
+{
+    public bool IsDraw => Winner is null;
+    public BattleOutcome(BattleSide winner) : this((BattleSide?)winner) { }
+}

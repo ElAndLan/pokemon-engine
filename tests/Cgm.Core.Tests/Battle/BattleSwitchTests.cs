@@ -66,7 +66,7 @@ public sealed class BattleSwitchTests
     }
 
     [Fact]
-    public void FaintedActive_AutoReplacedByFirstHealthyReserve()
+    public void FaintedActive_RequestsAndAppliesSelectedHealthyReserve()
     {
         var a = Creature("A", 1, Plain());   // faints instantly
         var b = Creature("B", 200, Plain());
@@ -79,7 +79,13 @@ public sealed class BattleSwitchTests
 
         Assert.True(a.IsFainted);
         Assert.Contains(events, ev => ev is Fainted { Side: BattleSide.Player });
-        Assert.Contains(events, ev => ev is SwitchedIn { Side: BattleSide.Player, PartyIndex: 1 });
+        Assert.Contains(events, ev => ev is ReplacementRequested { Slot.Side: BattleSide.Player });
+        Assert.Same(a, battle.Active(BattleSide.Player));
+
+        IReadOnlyList<BattleEvent> replacement = battle.ResolveReplacements(
+            [new(new BattleSlot(BattleSide.Player, 0), 1)]);
+
+        Assert.Contains(replacement, ev => ev is SwitchedIn { Side: BattleSide.Player, PartyIndex: 1 });
         Assert.Same(b, battle.Active(BattleSide.Player));
         Assert.Null(battle.Outcome); // battle continues
     }

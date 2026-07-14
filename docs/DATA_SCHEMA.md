@@ -140,6 +140,10 @@ happiness, time-of-day, known-move, held-item (per Phase 13 scope).
 `ailment` from `meta.ailment`+`ailment_chance`; `statStage` from `stat_changes`+`meta.stat_chance`;
 `drain` from `meta.drain`; `flinch` from `meta.flinch_chance`; `heal` from `meta.healing`;
 `multiHit` from `meta.min_hits/max_hits`. Ops beyond these are hand-authored (Battle v5).
+`positionSwap` is a parameterless Phase 15B op and requires `target: ally`. `redirect` is a
+turn-scoped Phase 15B op with required non-empty `classes` and optional `priority`,
+`bypassClasses`, `tags`, and `bypassTags`; tag lists contain only `damaging`, `status`, and
+`contact` and may not be empty or duplicated when supplied.
 Prose `effect_entries` are discarded (ADR-010).
 
 ### 4.5 item  (`item:potion`)  ← PokeAPI `item/*`

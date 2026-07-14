@@ -1,8 +1,9 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B execution contract active.** xUnit suites and deterministic Core tests are active. The
-corpus manifest/inventory contract is implemented in Cgm.Tools. Stable JSON/text snapshots use
-existing BCL serialization; Verify remains unnecessary unless a later decision demonstrates value.
+Status: **Phase 15B reusable execution packages implemented; conformance/exit evidence active.**
+xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
+implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
+unnecessary unless a later decision demonstrates value.
 
 ## Purpose
 The test playbook: what gets tested at each layer, the golden-file (Verify) workflow, fixture
@@ -97,6 +98,12 @@ Every RNG row supplies a counting scripted `IRng` and asserts both returned valu
 Every rejection row snapshots controller state, event count, PP, stock, queues, and RNG calls before
 and after. The cumulative 15B golden records all four slots acting, at least one spread action, one
 invalidation, simultaneous faints with reserves, and deterministic replacements.
+
+Current package evidence (2026-07-14): 15B-2 and 15B-3 have committed controller-path matrices;
+15B-4 through 15B-6 have green controller-path matrices in the shared worktree. File-backed family
+goldens cover singles direct resolution, doubles spread resolution, and the replacement checkpoint.
+Those three focused goldens do not replace the cumulative 15B golden described above, which remains
+an exit requirement together with generated target/topology conformance vectors and the 15B review.
 
 ## Golden format
 

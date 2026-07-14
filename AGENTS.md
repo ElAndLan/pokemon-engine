@@ -115,8 +115,10 @@ under-built. Ponytail reinforces SCOPE_GUARD.md; it does not override the specs 
 - **Match existing patterns.** Before writing a new editor/screen/system, read the
   pathfinder implementation of the same shape and copy its structure. One way to do each
   thing.
-- **Small, verifiable increments.** Every change compiles, tests pass, and does one thing.
-  No 3,000-line "implemented the battle system" drops.
+- **Small, verifiable increments.** Every change compiles, tests pass, and completes one coherent
+  acceptance criterion. "Small" limits conceptual scope and unnecessary code; it does not mean the
+  fewest lines an agent can submit. No 3,000-line "implemented the battle system" drops, and no
+  one-line checkpoint while the selected criterion remains incomplete.
 - **Tests are the deliverable, not decoration.** Per CODING_STANDARDS.md: every validation
   rule, effect op, formula, and schema gets tests; goldens change only intentionally, with
   the reason stated in the change.
@@ -125,6 +127,29 @@ under-built. Ponytail reinforces SCOPE_GUARD.md; it does not override the specs 
 - **Don't invent requirements.** If a spec is silent, apply IMPLEMENTATION_PLAN v4 §2.1's authority
   order and locked package defaults, write the decision into the owning spec, and test it. Ask only
   for a decision v4 expressly reserves for the user; never decide silently and bury it in code.
+
+### Work-unit integrity — no artificial micro-slices
+
+- Define the slice by an observable acceptance criterion from the active roadmap package before
+  editing. A slice is the smallest **complete behavior**, not the smallest possible diff, method,
+  branch, file, test, or tool call. Line count, token budget, elapsed time, and turn boundaries are
+  never completion criteria.
+- Complete every layer required by that criterion in the same slice: owning-spec reconciliation,
+  production behavior, validation/compiler/resolver/events/trace/AI integration as applicable,
+  focused tests, required progress documentation, and verification. Do not split those layers into
+  separate tasks merely to produce an early response.
+- Continue working while the selected criterion is incomplete and safe in-scope work is known. Do
+  not stop after only adding a type member, signature, guard, mapping, comment, test skeleton, or
+  similarly preparatory one- or two-line edit. Such an edit is a valid finished slice only when it
+  independently fixes the root cause, closes the whole criterion, and is verified by the required
+  tests.
+- Do not manufacture a checkpoint because a package is large or a refactor spans several files.
+  Checkpoints exist only for an unavoidable context boundary or a genuine blocker. A checkpoint
+  must be normal-path green, must record the package as `IN PROGRESS` with the exact remaining
+  acceptance work, must not be reported as completion, and must be resumed before any new task.
+- Before reporting, ask: "Which named acceptance criterion is now fully green that was not green
+  before?" If there is no concrete answer, the slice is not complete; continue or report the real
+  blocker. Activity, a small diff, or a passing pre-existing suite is not delivered value.
 
 ## 5. Definition of done (every task)
 
@@ -147,8 +172,9 @@ When the user says "loop", "continue", "iterate", "run the loop", or asks for au
 
 1. Read the required documents in §1.
 2. Identify the current phase from `docs/IMPLEMENTATION_PLAN.md`.
-3. Pick the next incomplete in-scope task only.
-4. Implement the smallest spec-complete change.
+3. Pick the next incomplete in-scope package, then its next coherent unmet acceptance criterion.
+4. Implement that criterion completely under the work-unit integrity rules above. Never redefine
+   "next slice" as a self-created micro-task that leaves the criterion open.
 5. Run `dotnet build`.
 6. Run `dotnet test`.
 7. Fix failures caused by the change.

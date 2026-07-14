@@ -71,6 +71,48 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
+    public void CompilesPositionSwapOp()
+    {
+        BattleMove bm = MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("positionSwap")) with { Target = MoveTarget.Ally });
+
+        Assert.Contains(bm.SecondaryEffects, effect => effect is PositionSwapEffect);
+    }
+
+    [Fact]
+    public void CompilesRedirectOp()
+    {
+        BattleMove bm = MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("redirect", null, ("priority", 2), ("classes", "physical,special"), ("tags", "damaging,contact"))));
+
+        Assert.Contains(bm.SecondaryEffects, effect => effect is RedirectEffect { Priority: 2 });
+    }
+
+    [Fact]
+    public void RedirectOp_RejectsMissingEmptyUnknownAndDuplicateFilters()
+    {
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null, Op("redirect"))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("redirect", null, ("classes", "")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("redirect", null, ("classes", "physical"), ("tags", "sound")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("redirect", null, ("classes", "physical,physical")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("redirect", null, ("classes", "physical"), ("bypassTags", "contact,contact")))));
+    }
+
+    [Fact]
+    public void PositionSwapOp_RequiresAllyTargetAndNoParamsOrChance()
+    {
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null, Op("positionSwap"))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("positionSwap", 50)) with { Target = MoveTarget.Ally }));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("positionSwap", null, ("extra", 1))) with { Target = MoveTarget.Ally }));
+    }
+
+    [Fact]
     public void WeatherOp_RejectsMissingInvalidAndUnknownParams()
     {
         Assert.Throws<ArgumentException>(() =>

@@ -25,8 +25,12 @@ public sealed class BattleController
     private readonly TypeChart _chart;
     private readonly IRng _rng;
     private readonly List<BattleEvent> _log = [];
+    private readonly List<EffectTraceEntry> _trace = [];
+    private readonly List<RedirectCondition> _redirects = [];
     private readonly List<QueuedActionGate> _queuedActionGates = [];
+    private readonly List<BattleSlot> _pendingReplacementSlots = [];
     private bool _dispatchingWeatherChange;
+    private int _traceActionSequence;
 
     public BattleController(BattleCreature player, BattleCreature enemy, TypeChart chart, IRng rng, bool isWild = false)
         : this([player], [enemy], chart, rng, isWild) { }
@@ -79,6 +83,8 @@ public sealed class BattleController
     public bool Captured { get; private set; }
     public BattleOutcome? Outcome { get; private set; }
     public IReadOnlyList<BattleEvent> Log => _log;
+    public IReadOnlyList<EffectTraceEntry> Trace => _trace;
+    public IReadOnlyList<BattleSlot> PendingReplacementSlots => _pendingReplacementSlots;
 
     public BattleTopology Topology => _activeSlots.Topology;
     public BattleCreature Active(BattleSide side)
@@ -106,7 +112,7 @@ public sealed class BattleController
     public bool CanSubmitAction(BattleSide side, BattleAction action)
     {
         RequireSinglesAdapter();
-        if (Outcome is not null)
+        if (Outcome is not null || _pendingReplacementSlots.Count > 0)
             return false;
 
         try
@@ -125,7 +131,7 @@ public sealed class BattleController
 
     public bool CanSubmitAction(BattleSlot slot, BattleAction action, BattleActionSelection? selection)
     {
-        if (Outcome is not null || !Topology.Contains(slot))
+        if (Outcome is not null || _pendingReplacementSlots.Count > 0 || !Topology.Contains(slot))
             return false;
 
         try
@@ -144,8 +150,11 @@ public sealed class BattleController
         RequireSinglesAdapter();
         if (Outcome is not null)
             throw new InvalidOperationException("The battle is already over.");
+        if (_pendingReplacementSlots.Count > 0)
+            throw new InvalidOperationException("Replacement selections must be resolved before the next turn.");
 
         int start = _log.Count;
+        _traceActionSequence = 0;
         BattleAction resolvedPlayerAction = ApplyQueuedActionGates(new BattleSlot(BattleSide.Player, 0), playerAction);
         BattleAction resolvedEnemyAction = ApplyQueuedActionGates(new BattleSlot(BattleSide.Enemy, 0), enemyAction);
         Validate(BattleSide.Player, resolvedPlayerAction);
@@ -176,24 +185,21 @@ public sealed class BattleController
         if (Outcome is null)
             ResolveMoves(actions);
 
-        // 6. End-of-turn residuals, then auto-replace any fainted actives with reserves.
+        // 6. End-of-turn residuals, then request choices for fillable fainted slots.
         if (Outcome is null)
         {
             EndOfTurn();
-            AutoReplaceFainted();
+            CheckEnd();
         }
 
         Turn++;
         RevertFaintedBattleForms();
-        CheckEnd();
+        if (Outcome is null)
+            RequestReplacements();
         return _log.GetRange(start, _log.Count - start);
     }
 
-    /// <summary>
-    /// Admits and resolves a complete slot-addressed turn. Doubles move target materialization is
-    /// intentionally owned by 15B-3; this package owns construction, admission, phase ordering,
-    /// collective conflicts, and actor identity through the move scheduling checkpoint.
-    /// </summary>
+    /// <summary>Admits and resolves one complete slot-addressed turn.</summary>
     public IReadOnlyList<BattleEvent> ResolveTurn(BattleTurnActions submitted)
     {
         ArgumentNullException.ThrowIfNull(submitted);
@@ -209,18 +215,68 @@ public sealed class BattleController
         }
 
         int start = _log.Count;
+        _traceActionSequence = 0;
+        if (_pendingReplacementSlots.Count > 0)
+            throw new InvalidOperationException("Fillable fainted slots require replacement selections before the next turn.");
         IReadOnlyList<AdmittedAction> admitted = Admit(submitted);
         ConsumePreviewedActionGates(admitted);
         ResolveSwitchPhase(admitted);
         ResolveItemPhase(admitted);
         ResolveFormPhase(admitted);
         ResolveDoublesMoveScheduling(admitted);
+        if (Outcome is null)
+        {
+            EndOfTurn();
+            CheckEnd();
+        }
         Turn++;
+        RevertFaintedBattleForms();
+        if (Outcome is null)
+            RequestReplacements();
+        return _log.GetRange(start, _log.Count - start);
+    }
+
+    public IReadOnlyList<BattleEvent> ResolveReplacements(IReadOnlyList<BattleReplacementSelection> selections)
+    {
+        ArgumentNullException.ThrowIfNull(selections);
+        if (Outcome is not null)
+            throw new InvalidOperationException("The battle is already over.");
+
+        if (_pendingReplacementSlots.Count == 0)
+            throw new InvalidOperationException("No replacement selections are pending.");
+        BattleSlot[] pending = [.. _pendingReplacementSlots];
+        if (selections.Count != pending.Length || selections.Select(selection => selection.Slot).Distinct().Count() != selections.Count)
+            throw new ArgumentException("Replacement selections must name every pending slot exactly once.", nameof(selections));
+
+        foreach (BattleReplacementSelection selection in selections)
+        {
+            if (!pending.Contains(selection.Slot))
+                throw new ArgumentException("Replacement selection is not pending.", nameof(selections));
+            if (selection.PartyIndex < 0 || selection.PartyIndex >= _parties[(int)selection.Slot.Side].Count
+                || _parties[(int)selection.Slot.Side][selection.PartyIndex].IsFainted
+                || _activeSlots.IsActive(selection.Slot.Side, selection.PartyIndex))
+                throw new ArgumentException("Replacement selection must name a healthy non-active party member.", nameof(selections));
+        }
+        foreach (IGrouping<BattleSide, BattleReplacementSelection> side in selections.GroupBy(selection => selection.Slot.Side))
+            if (side.Select(selection => selection.PartyIndex).Distinct().Count() != side.Count())
+                throw new ArgumentException("A party member cannot fill two replacement slots.", nameof(selections));
+
+        int start = _log.Count;
+        _pendingReplacementSlots.Clear();
+        foreach (BattleSlot slot in pending)
+            SwitchTo(slot, selections.Single(selection => selection.Slot == slot).PartyIndex);
+        RevertFaintedBattleForms();
+        CheckEnd();
+        if (Outcome is null)
+            RequestReplacements();
         return _log.GetRange(start, _log.Count - start);
     }
 
     private IReadOnlyList<AdmittedAction> Admit(BattleTurnActions submitted)
     {
+        BattleSlot[] expected = Topology.Slots.Where(IsLive).ToArray();
+        if (!submitted.Actions.Select(action => action.Source).SequenceEqual(expected))
+            throw new ArgumentException("Every occupied living slot must submit exactly one action.", nameof(submitted));
         var admitted = new List<AdmittedAction>(submitted.Actions.Count);
         foreach (BattleActionSubmission submission in submitted.Actions)
         {
@@ -274,7 +330,7 @@ public sealed class BattleController
         var scheduled = actions.Where(action => action.Submission.Action is Switch)
             .Select(action => new BattleScheduledAction(action.Submission, 0, Speed(action.Submission.Source)))
             .ToList();
-        foreach (BattleScheduledAction scheduledAction in BattleTurnOrder.Order(scheduled, _rng))
+        foreach (BattleScheduledAction scheduledAction in OrderActions(scheduled))
         {
             AdmittedAction action = actions.Single(candidate => candidate.Submission == scheduledAction.Submission);
             if (!ActorIsCurrent(action))
@@ -291,7 +347,7 @@ public sealed class BattleController
         var scheduled = actions.Where(action => action.Submission.Action is UseBattleItem)
             .Select(action => new BattleScheduledAction(action.Submission, 0, Speed(action.Submission.Source)))
             .ToList();
-        foreach (BattleScheduledAction scheduledAction in BattleTurnOrder.Order(scheduled, _rng))
+        foreach (BattleScheduledAction scheduledAction in OrderActions(scheduled))
         {
             AdmittedAction action = actions.Single(candidate => candidate.Submission == scheduledAction.Submission);
             if (!ActorIsCurrent(action))
@@ -342,6 +398,16 @@ public sealed class BattleController
 
     private void ResolveDoublesMoveScheduling(IReadOnlyList<AdmittedAction> actions)
     {
+        _redirects.Clear();
+        // Flinch and Protect last only for a turn; Counter/Mirror Coat only see this turn's hits.
+        foreach (BattleSlot slot in Topology.Slots)
+        {
+            BattleCreature active = Active(slot);
+            active.ClearFlinch();
+            active.ClearProtected();
+            active.ResetDamageTaken();
+        }
+
         var scheduled = new List<BattleScheduledAction>();
         foreach (AdmittedAction action in actions)
         {
@@ -351,7 +417,7 @@ public sealed class BattleController
             scheduled.Add(new BattleScheduledAction(action.Submission, Active(action.Submission.Source).Moves[effective].Priority,
                 Speed(action.Submission.Source)));
         }
-        foreach (BattleScheduledAction scheduledAction in BattleTurnOrder.Order(scheduled, _rng))
+        foreach (BattleScheduledAction scheduledAction in OrderActions(scheduled))
         {
             AdmittedAction action = actions.Single(candidate => candidate.Submission == scheduledAction.Submission);
             if (!ActorIsCurrent(action))
@@ -361,28 +427,61 @@ public sealed class BattleController
             }
 
             int moveIndex = EffectiveMoveIndex(action.Submission.Source, MoveIndex(action.Submission.Action)!.Value);
-            BattleMove move = Active(action.Submission.Source).Moves[moveIndex];
+            BattleCreature attacker = Active(action.Submission.Source);
+            BattleMove move = attacker.Moves[moveIndex];
             if (!move.HasPp)
             {
                 _log.Add(new ActionInvalidated(action.Submission.Source, ActionInvalidationReason.ResourceChanged));
                 continue;
             }
 
+            int traceAction = ++_traceActionSequence;
+            if (!CanAct(attacker, action.Submission.Source, traceAction))
+                continue;
+            if (attacker.Flinched)
+            {
+                int start = _log.Count;
+                _log.Add(new Flinched(action.Submission.Source.Side));
+                AddTrace(traceAction, action.Submission.Source, null, EffectTraceKind.FlinchGate, false, null, 0,
+                    start, _log.Count);
+                continue;
+            }
+            AddTrace(traceAction, action.Submission.Source, null, EffectTraceKind.FlinchGate, false, null, 1,
+                _log.Count, _log.Count);
+            if (!PushesThroughConfusion(attacker, action.Submission.Source, traceAction)
+                || !PassesMoveGates(attacker, action.Submission.Source, move, traceAction))
+                continue;
+
+            if (!move.IsProtect)
+                attacker.ResetProtectChain();
             move.UsePp();
             _log.Add(new MoveUsed(action.Submission.Source, move.Move));
-            if (!HasLiveTargets(action.Submission, move))
+            attacker.RecordMoveUse(move.Move);
+            IReadOnlyList<BattleSlot>? targets = MaterializeLiveTargets(action.Submission, move, traceAction,
+                out BattleTargetScopeKind scopeKind, out BattleSide? scopeSide);
+            if (targets is { Count: 0 })
                 _log.Add(new MoveFailed(action.Submission.Source, move.Move, MoveFailureReason.TargetUnavailable));
+            else if (targets is { } materializedTargets)
+                ResolveDoublesMove(action.Submission.Source, move, materializedTargets, traceAction);
+            else if (scopeKind is BattleTargetScopeKind.Side or BattleTargetScopeKind.Field)
+                ResolveDoublesScopedMove(action.Submission.Source, move, scopeSide, traceAction);
+
+            if (CheckEnd())
+                break;
         }
     }
 
-    private bool HasLiveTargets(BattleActionSubmission submission, BattleMove move)
+    private IReadOnlyList<BattleSlot>? MaterializeLiveTargets(BattleActionSubmission submission, BattleMove move, int traceAction,
+        out BattleTargetScopeKind scopeKind, out BattleSide? scopeSide)
     {
         BattleSlot? selected = (submission.Selection as ActiveSlotSelection)?.Slot;
         BattleTargetScope scope = BattleTargetResolver.ResolveScope(move.Target, Topology, submission.Source, selected);
+        scopeKind = scope.Kind;
+        scopeSide = scope.Side;
         if (scope.Kind is BattleTargetScopeKind.Side or BattleTargetScopeKind.Field
             or BattleTargetScopeKind.FaintedParty or BattleTargetScopeKind.MoveReference)
         {
-            return true;
+            return null;
         }
 
         List<BattleSlot> slots = scope.Slots.Where(IsLive).ToList();
@@ -393,14 +492,186 @@ public sealed class BattleController
             if (slots.Count > 1)
                 slots = [slots[0]];
         }
-        else if (scope.Selection == BattleTargetSelection.RandomOpponent)
+        if (IsRedirectable(move.Target) && slots.Count > 0)
         {
-            if (slots.Count > 1)
-                slots = [slots[_rng.Next(slots.Count)]];
+            BattleSlot original = slots[0];
+            HashSet<string> moveTags = MoveTags(move);
+            RedirectCondition[] candidates = _redirects
+                .Where(condition => condition.Slot.Side == original.Side
+                    && IsLive(condition.Slot)
+                    && (scope.Selection == BattleTargetSelection.RandomOpponent || condition.Slot != original))
+                .OrderByDescending(condition => condition.Priority)
+                .ThenByDescending(condition => Speed(condition.Slot))
+                .ThenBy(condition => (int)condition.Slot.Side)
+                .ThenBy(condition => condition.Slot.Position)
+                .ToArray();
+            foreach (RedirectCondition candidate in candidates)
+            {
+                bool accepted = candidate.AcceptedClasses.Contains(move.DamageClass)
+                    && (candidate.AcceptedTags.Count == 0 || candidate.AcceptedTags.Overlaps(moveTags))
+                    && !candidate.BypassClasses.Contains(move.DamageClass)
+                    && !candidate.BypassTags.Overlaps(moveTags);
+                if (!accepted)
+                {
+                    AddTrace(traceAction, submission.Source, candidate.Slot, EffectTraceKind.Redirection, false, null,
+                        0, _log.Count, _log.Count);
+                    continue;
+                }
+                int start = _log.Count;
+                slots = [candidate.Slot];
+                _log.Add(new TargetRedirected(submission.Source, original, candidate.Slot));
+                AddTrace(traceAction, submission.Source, candidate.Slot, EffectTraceKind.Redirection, false, null,
+                    candidate.Priority, start, _log.Count);
+                break;
+            }
         }
 
-        return slots.Count > 0;
+        if (scope.Selection == BattleTargetSelection.RandomOpponent)
+        {
+            int candidateCount = slots.Count;
+            int? draw = null;
+            if (slots.Count > 1)
+            {
+                draw = _rng.Next(slots.Count);
+                slots = [slots[draw.Value]];
+            }
+            AddTrace(traceAction, submission.Source, slots.Count == 1 ? slots[0] : null, EffectTraceKind.TargetSelection,
+                draw is not null, draw, candidateCount, _log.Count, _log.Count,
+                draw is not null ? candidateCount : null);
+        }
+
+        return slots;
     }
+
+    private void ResolveDoublesScopedMove(BattleSlot sourceSlot, BattleMove move, BattleSide? scopeSide, int traceAction)
+    {
+        var actionContext = new BattleActionContext(move, Active(sourceSlot), sourceSlot, traceAction);
+        EffectContext context = EffectContext.ForScopedAction(actionContext, scopeSide);
+        foreach (MoveEffect effect in move.SecondaryEffects.Where(effect => !IsTargetScoped(effect)))
+            if (!ApplyEffect(context, effect))
+                break;
+    }
+
+    private void ResolveDoublesMove(BattleSlot sourceSlot, BattleMove move, IReadOnlyList<BattleSlot> targetSlots, int traceAction)
+    {
+        BattleCreature attacker = Active(sourceSlot);
+        var actionContext = new BattleActionContext(move, attacker, sourceSlot, traceAction);
+        var accurateTargets = new List<BattleTargetContext>(targetSlots.Count);
+        foreach (BattleSlot targetSlot in targetSlots)
+        {
+            BattleCreature target = Active(targetSlot);
+            BattleTargetContext targetContext = actionContext.AddTarget(target, targetSlot);
+            int? accuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, target.Level) : move.Accuracy;
+            int? accuracyDraw = null;
+            bool hit = move.BypassAccuracy || BattleRolls.Hits(
+                accuracy, attacker.Stage(StatKind.Accuracy), target.Stage(StatKind.Evasion), _rng, out accuracyDraw);
+            AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Accuracy, accuracyDraw is not null,
+                accuracyDraw, hit ? 1 : 0, _log.Count, _log.Count, accuracyDraw is not null ? 100 : null);
+            if (!hit)
+            {
+                _log.Add(new MoveMissed(sourceSlot, move.Move, targetSlot));
+                continue;
+            }
+            accurateTargets.Add(targetContext);
+        }
+
+        if (accurateTargets.Count == 0)
+        {
+            if (move.Power is not null)
+                ApplyCrashRecoil(attacker, sourceSlot.Side, move);
+            return;
+        }
+
+        if (move.Power is null)
+        {
+            ApplyDoublesMoveEffects(actionContext, accurateTargets);
+            return;
+        }
+
+        int? hitCountDraw = null;
+        int hits = move.MultiHitMax >= 2 ? EffectMath.HitCount(_rng, move.MultiHitMin, move.MultiHitMax, out hitCountDraw) : 1;
+        AddTrace(traceAction, sourceSlot, null, EffectTraceKind.HitCount, hitCountDraw is not null, hitCountDraw, hits, _log.Count, _log.Count,
+            hitCountDraw is not null ? HitCountDrawBound(move) : null);
+        foreach (BattleTargetContext targetContext in accurateTargets)
+        {
+            double effectiveness = _chart.Effectiveness(move.Type, targetContext.Target.Types);
+            if (effectiveness <= 0)
+            {
+                AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Immunity, false, null, 0, _log.Count, _log.Count);
+                int dealt = DealMoveDamage(targetContext.Target, targetContext.TargetSlot, 0, effectiveness, crit: false);
+                targetContext.AddDamage(actionContext, dealt);
+                continue;
+            }
+
+            for (int hit = 0; hit < hits && !targetContext.Target.IsFainted; hit++)
+            {
+                AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Immunity, false, null, 1, _log.Count, _log.Count);
+                (int damage, bool crit, _) = ComputeHit(
+                    sourceSlot, attacker, targetContext.Target, move, move.Power!.Value, targetSlots.Count,
+                    out double? critDraw, out int? damageRollDraw);
+                AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Critical, true,
+                    critDraw, crit ? 1 : 0, _log.Count, _log.Count, 1);
+                AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.DamageRoll, true,
+                    damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
+                int dealt = DealMoveDamage(targetContext.Target, targetContext.TargetSlot, damage, effectiveness, crit);
+                targetContext.Target.RecordDamageTaken(move.DamageClass, dealt);
+                targetContext.AddDamage(actionContext, dealt);
+                AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Damage, false, null, dealt,
+                    _log.Count - 1, _log.Count);
+            }
+        }
+
+        if (actionContext.TotalDamage == 0)
+            ApplyCrashRecoil(attacker, sourceSlot.Side, move);
+
+        ApplyDoublesMoveEffects(actionContext, accurateTargets);
+    }
+
+    private void ApplyDoublesMoveEffects(BattleActionContext actionContext, IReadOnlyList<BattleTargetContext> targetContexts)
+    {
+        foreach (BattleTargetContext targetContext in targetContexts)
+        {
+            var context = new EffectContext(actionContext, targetContext);
+            foreach (MoveEffect effect in actionContext.Move.SecondaryEffects.Where(IsTargetScoped))
+                ApplyEffect(context, effect);
+            ApplyContactEffects(actionContext.Move, actionContext.SourceSlot, actionContext.Source, targetContext.TargetSlot,
+                actionContext.TraceAction);
+        }
+
+        var actionEffectContext = new EffectContext(actionContext, targetContexts[0]);
+        foreach (MoveEffect effect in actionContext.Move.SecondaryEffects.Where(effect => !IsTargetScoped(effect)))
+            if (!ApplyEffect(actionEffectContext, effect))
+                break;
+    }
+
+    private static bool IsTargetScoped(MoveEffect effect) => effect switch
+    {
+        AilmentEffect or ConfusionEffect or FlinchEffect or LeechSeedEffect or BindEffect or ForceSwitchEffect or PositionSwapEffect => true,
+        StatChangeEffect { OnSelf: false } or StatChangeAllEffect { OnSelf: false } or StatInvertEffect { OnSelf: false } => true,
+        StatResetEffect { Scope: not StageEffectScope.Self } => true,
+        StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
+        HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target } => true,
+        _ => false,
+    };
+
+    private static bool IsRedirectable(MoveTarget target) =>
+        target is MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst or MoveTarget.RandomOpponent;
+
+    private static double HitCountDrawBound(BattleMove move) =>
+        move.MultiHitMin == 2 && move.MultiHitMax == 5 ? 8 : move.MultiHitMax - move.MultiHitMin + 1;
+
+    private void AddTrace(int action, BattleSlot source, BattleSlot? target, EffectTraceKind kind, bool performed,
+        double? draw, int? value, int eventStart, int eventEnd, double? drawBound = null, double? drawMinimum = null) =>
+        _trace.Add(new EffectTraceEntry(Turn, action, source, target, kind, performed, draw, value, eventStart, eventEnd)
+        {
+            DrawMinimum = drawMinimum,
+            DrawBound = drawBound,
+        });
+
+    private IReadOnlyList<BattleScheduledAction> OrderActions(IReadOnlyList<BattleScheduledAction> scheduled) =>
+        BattleTurnOrder.Order(scheduled, _rng, (action, draw, bound, selectedIndex) =>
+            AddTrace(0, action.Submission.Source, null, EffectTraceKind.TurnOrderTie, true, draw, selectedIndex,
+                _log.Count, _log.Count, bound));
 
     private bool IsLive(BattleSlot slot) => !Active(slot).IsFainted;
 
@@ -596,14 +867,7 @@ public sealed class BattleController
     /// and faint-replacement switches: outgoing loses stat stages + volatiles, then the on_switch_in
     /// hazards fire on the incoming creature.</summary>
     private void SwitchTo(BattleSide side, int index)
-    {
-        BattleCreature outgoing = Active(side);
-        outgoing.ResetStages();     // stat stages don't carry across a switch
-        outgoing.ClearVolatiles();  // confusion/flinch/trap/etc. clear on switch-out
-        _activeSlots.Assign(new BattleSlot(side, 0), index);
-        _log.Add(new SwitchedIn(side, index));
-        OnSwitchIn(side);
-    }
+        => SwitchTo(new BattleSlot(side, 0), index);
 
     private void SwitchTo(BattleSlot slot, int index)
     {
@@ -612,10 +876,7 @@ public sealed class BattleController
         outgoing.ClearVolatiles();
         _activeSlots.Assign(slot, index);
         _log.Add(new SwitchedIn(slot, index));
-        // ponytail: multi-slot entry-hook dispatch belongs to the scoped-hook package; this package
-        // only establishes the atomic slot switch and preserves the singles hook path.
-        if (Topology.ActiveSlotsPerSide == 1)
-            OnSwitchIn(slot.Side);
+        OnSwitchIn(slot);
     }
 
     private void ResolveMoves(BattleTurnActions actions)
@@ -635,19 +896,22 @@ public sealed class BattleController
             if (MoveIndex(submission.Action) is not { } submittedIndex)
                 continue;
 
-            int moveIndex = EffectiveMoveIndex(submission.Source.Side, submittedIndex);
+            int moveIndex = EffectiveMoveIndex(submission.Source, submittedIndex);
             scheduled.Add(new BattleScheduledAction(
                 submission,
                 Active(submission.Source).Moves[moveIndex].Priority,
-                Speed(submission.Source.Side)));
+                Speed(submission.Source)));
         }
 
-        foreach (BattleScheduledAction scheduledAction in BattleTurnOrder.Order(scheduled, _rng))
+        foreach (BattleScheduledAction scheduledAction in OrderActions(scheduled))
         {
-            BattleSide side = scheduledAction.Submission.Source.Side;
             int submittedIndex = MoveIndex(scheduledAction.Submission.Action)!.Value;
-            ResolveMove(side, EffectiveMoveIndex(side, submittedIndex));
-            TickRampageLock(side);
+            BattleSlot source = scheduledAction.Submission.Source;
+            int traceBefore = _traceActionSequence;
+            ResolveMove(source, EffectiveMoveIndex(source, submittedIndex));
+            TickRampageLock(source, _traceActionSequence > traceBefore ? _traceActionSequence : null);
+            if (CheckEnd())
+                break;
         }
     }
 
@@ -660,16 +924,21 @@ public sealed class BattleController
 
     /// <summary>Counts a rampage (Thrash/Outrage) down after its move resolved — whether it hit, missed,
     /// or was blocked. When the lock ends, the user confuses itself.</summary>
-    private void TickRampageLock(BattleSide side)
+    private void TickRampageLock(BattleSlot slot, int? traceAction)
     {
-        BattleCreature c = Active(side);
+        BattleCreature c = Active(slot);
         if (!c.IsLocked)
             return;
         c.TickLock();
         if (!c.IsLocked && !c.IsFainted && !c.IsConfused)
         {
-            c.SetConfusion(VolatileEffects.ConfusionDuration(_rng));
-            _log.Add(new Confused(side));
+            int eventStart = _log.Count;
+            int duration = VolatileEffects.ConfusionDuration(_rng, out int draw);
+            c.SetConfusion(duration);
+            _log.Add(new Confused(slot.Side));
+            if (traceAction is { } action)
+                AddTrace(action, slot, null, EffectTraceKind.ConfusionDuration, true, draw, duration,
+                    eventStart, _log.Count, 5, 1);
         }
     }
 
@@ -704,31 +973,37 @@ public sealed class BattleController
         return submitted;
     }
 
-    private void ResolveMove(BattleSide side, int moveIndex)
+    private void ResolveMove(BattleSlot sourceSlot, int moveIndex)
     {
-        BattleCreature attacker = Active(side);
+        BattleSide side = sourceSlot.Side;
+        BattleCreature attacker = Active(sourceSlot);
         if (attacker.IsFainted)
             return;
 
-        if (!CanAct(attacker, side))
+        int traceAction = ++_traceActionSequence;
+        if (!CanAct(attacker, sourceSlot, traceAction))
             return; // frozen/asleep/fully-paralyzed — no PP spent, no move
 
         if (attacker.Flinched)
         {
+            int start = _log.Count;
             _log.Add(new Flinched(side));
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.FlinchGate, false, null, 0, start, _log.Count);
             return; // flinch costs the turn but no PP
         }
+        AddTrace(traceAction, sourceSlot, null, EffectTraceKind.FlinchGate, false, null, 1, _log.Count, _log.Count);
 
-        if (!PushesThroughConfusion(attacker, side))
+        if (!PushesThroughConfusion(attacker, sourceSlot, traceAction))
             return; // hurt itself in confusion — no PP, no move
 
         BattleMove move = attacker.Moves[moveIndex];
-        if (!PassesMoveGates(attacker, side, move))
+        if (!PassesMoveGates(attacker, sourceSlot, move, traceAction))
             return;
         BattleSide targetSide = BattleTargetResolver.IsSinglesActiveCreatureTarget(move.Target)
             ? BattleTargetResolver.ResolveSinglesActiveCreatureSide(move.Target, side)
             : Opponent(side);
-        BattleCreature target = Active(targetSide);
+        BattleSlot targetSlot = new(targetSide, 0);
+        BattleCreature target = Active(targetSlot);
         if (target.IsFainted)
             return;
 
@@ -752,15 +1027,23 @@ public sealed class BattleController
         // Thrash/Outrage: first use locks the creature in for 2–3 turns; the lock ticks after resolution.
         bool continuingLock = attacker.IsLocked;
         if (move.MultiTurnLock && !continuingLock)
-            attacker.StartLock(moveIndex, _rng.Next(2, 4));
+        {
+            int duration = _rng.Next(2, 4);
+            attacker.StartLock(moveIndex, duration);
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.LockDuration, true, duration, duration,
+                _log.Count, _log.Count, 4, 2);
+        }
 
         // PP is spent only on the first turn — not while firing a charge or continuing a rampage lock.
         if (!firing && !continuingLock)
             move.UsePp();
         if (!continuingLock)
             ApplyChoiceLock(attacker, moveIndex);
-        _log.Add(new MoveUsed(side, move.Move));
+        _log.Add(new MoveUsed(sourceSlot, move.Move));
         attacker.RecordMoveUse(move.Move);
+
+        var actionContext = new BattleActionContext(move, attacker, sourceSlot, traceAction);
+        BattleTargetContext targetContext = actionContext.AddTarget(target, targetSlot);
 
         // Protect: a move aimed at a shielded target is blocked outright (PP already spent).
         if (target.Protected && TargetsOpponent(move))
@@ -772,18 +1055,18 @@ public sealed class BattleController
 
         // OHKO uses a level-scaled accuracy in place of the move's own; accuracyBypass sure-hits.
         int? accuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, target.Level) : move.Accuracy;
-        if (!move.BypassAccuracy && !BattleRolls.Hits(
-                accuracy,
-                attacker.Stage(StatKind.Accuracy),
-                target.Stage(StatKind.Evasion),
-                _rng))
+        int? accuracyDraw = null;
+        bool hit = move.BypassAccuracy || BattleRolls.Hits(
+            accuracy, attacker.Stage(StatKind.Accuracy), target.Stage(StatKind.Evasion), _rng, out accuracyDraw);
+        AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Accuracy, accuracyDraw is not null,
+            accuracyDraw, hit ? 1 : 0, _log.Count, _log.Count, accuracyDraw is not null ? 100 : null);
+        if (!hit)
         {
-            _log.Add(new MoveMissed(side, move.Move));
+            _log.Add(new MoveMissed(sourceSlot, move.Move, targetSlot));
             ApplyCrashRecoil(attacker, side, move);
             return;
         }
 
-        int damageDealt = 0;
         if (move.CounterCategory is { } counterCat)
         {
             // Counter/Mirror Coat: return 2× the damage of that category taken this turn (no draw).
@@ -791,7 +1074,8 @@ public sealed class BattleController
             if (received > 0)
             {
                 int dmg = received * 2;
-                damageDealt = DealMoveDamage(target, targetSide, dmg, 1.0, crit: false);
+                int dealt = DealMoveDamage(target, targetSlot, dmg, 1.0, crit: false);
+                targetContext.AddDamage(actionContext, dealt);
             }
             else
             {
@@ -806,57 +1090,88 @@ public sealed class BattleController
                 : move.Ohko ? target.CurrentHp
                 : move.FixedDamageLevel ? attacker.Level
                 : move.FixedDamage!.Value;
-            damageDealt = DealMoveDamage(target, targetSide, dmg, eff, crit: false);
+            int dealt = DealMoveDamage(target, targetSlot, dmg, eff, crit: false);
+            targetContext.AddDamage(actionContext, dealt);
         }
         else if (move.Power is int power)
         {
             // Single-hit is a 1-iteration loop, so the crit→roll draw order is identical to before;
             // HitCount only draws for actual multi-hit moves. Each hit rolls crit/damage independently.
-            int hits = move.MultiHitMax >= 2 ? EffectMath.HitCount(_rng, move.MultiHitMin, move.MultiHitMax) : 1;
+            int? hitCountDraw = null;
+            int hits = move.MultiHitMax >= 2 ? EffectMath.HitCount(_rng, move.MultiHitMin, move.MultiHitMax, out hitCountDraw) : 1;
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.HitCount, hitCountDraw is not null,
+                hitCountDraw, hits, _log.Count, _log.Count, hitCountDraw is not null ? HitCountDrawBound(move) : null);
             for (int h = 0; h < hits && !target.IsFainted; h++)
             {
-                (int dmg, bool crit, double eff) = ComputeHit(side, attacker, target, move, power);
-                int dealt = DealMoveDamage(target, targetSide, dmg, eff, crit);
+                double effectiveness = _chart.Effectiveness(move.Type, target.Types);
+                AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Immunity, false, null,
+                    effectiveness <= 0 ? 0 : 1, _log.Count, _log.Count);
+                (int dmg, bool crit, double eff) = ComputeHit(sourceSlot, attacker, target, move, power, 1,
+                    out double? critDraw, out int? damageRollDraw);
+                if (effectiveness > 0)
+                {
+                    AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Critical, true,
+                        critDraw, crit ? 1 : 0, _log.Count, _log.Count, 1);
+                    AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.DamageRoll, true,
+                        damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
+                }
+                int dealt = DealMoveDamage(target, targetSlot, dmg, eff, crit);
                 target.RecordDamageTaken(move.DamageClass, dealt); // for Counter/Mirror Coat
-                damageDealt += dealt;
+                targetContext.AddDamage(actionContext, dealt);
+                AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Damage, false, null, dealt,
+                    _log.Count - 1, _log.Count);
             }
         }
 
-        if (damageDealt == 0)
+        if (actionContext.TotalDamage == 0)
             ApplyCrashRecoil(attacker, side, move);
 
         // Effect-list-driven resolution (EFFECT_TYPES_CATALOG): iterate the move's ordered effects and
         // dispatch each to a shared primitive. Order matches the historical pipeline (target secondaries,
         // then leech/drain/heal/recoil/crit/faint), so the RNG draw order is unchanged.
-        var ctx = new EffectContext(move, attacker, side, target, targetSide, damageDealt);
+        var ctx = new EffectContext(actionContext, targetContext);
         foreach (MoveEffect effect in move.SecondaryEffects)
             if (!ApplyEffect(ctx, effect))
                 break;
-        ApplyContactEffects(move, side, attacker, targetSide);
+        ApplyContactEffects(move, sourceSlot, attacker, targetSlot, traceAction);
     }
 
     /// <summary>Confusion pre-move check: counts down, may snap out or force a self-hit.
     /// Returns false only when the creature hurt itself and loses the turn.</summary>
-    private bool PushesThroughConfusion(BattleCreature c, BattleSide side)
+    private bool PushesThroughConfusion(BattleCreature c, BattleSlot sourceSlot, int traceAction)
     {
+        BattleSide side = sourceSlot.Side;
         if (!c.IsConfused)
+        {
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.ConfusionGate, false, null, 1, _log.Count, _log.Count);
             return true;
+        }
 
         c.TickConfusion();
         if (!c.IsConfused)
         {
+            int start = _log.Count;
             _log.Add(new ConfusionEnded(side));
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.ConfusionGate, false, null, 1, start, _log.Count);
             return true; // snapped out this turn — acts freely
         }
 
-        if (!VolatileEffects.HitsSelfInConfusion(_rng))
+        bool hitsSelf = VolatileEffects.HitsSelfInConfusion(_rng, out double draw);
+        if (!hitsSelf)
+        {
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.ConfusionGate, true, draw, 1,
+                _log.Count, _log.Count, 1);
             return true;
+        }
 
+        int eventStart = _log.Count;
         int dmg = VolatileEffects.ConfusionSelfDamage(c.Level, c.Stats.Atk, c.Stats.Def);
         c.TakeDamage(dmg);
         _log.Add(new HurtInConfusion(side, dmg));
         if (c.IsFainted)
             _log.Add(new Fainted(side));
+        AddTrace(traceAction, sourceSlot, null, EffectTraceKind.ConfusionGate, true, draw, 0,
+            eventStart, _log.Count, 1);
         return false;
     }
 
@@ -878,27 +1193,30 @@ public sealed class BattleController
             case ConfusionEffect confusion: ApplyConfusion(ctx, confusion); break;
             case FlinchEffect f: ApplyFlinch(ctx, f); break;
             case LeechSeedEffect: ApplyLeechSeed(ctx); break;
-            case BindEffect when !ctx.Target.IsFainted && !ctx.Target.IsTrapped:
-                ctx.Target.SetTrap(_rng.Next(4, 6)); // partial trap lasts 4–5 turns
-                _log.Add(new Bound(ctx.TargetSide));
-                break;
+            case BindEffect: ApplyBind(ctx); break;
             case ProtectEffect:
-                if (VolatileEffects.ProtectSucceeds(ctx.Source.ProtectChain, _rng))
+                int protectStart = _log.Count;
+                if (VolatileEffects.ProtectSucceeds(ctx.Source.ProtectChain, _rng, out double protectDraw))
                 {
                     ctx.Source.SetProtected();
                     _log.Add(new Protected(ctx.SourceSide));
+                    AddTrace(ctx.TraceAction, ctx.SourceSlot, null, EffectTraceKind.Protect, true, protectDraw, 1,
+                        protectStart, _log.Count, 1);
                 }
                 else
                 {
                     ctx.Source.ResetProtectChain();
                     _log.Add(new ProtectFailed(ctx.SourceSide));
+                    AddTrace(ctx.TraceAction, ctx.SourceSlot, null, EffectTraceKind.Protect, true, protectDraw, 0,
+                        protectStart, _log.Count, 1);
                 }
                 break;
-            case ForceSwitchEffect when !ctx.Target.IsFainted:
-                ForceSwitch(ctx.TargetSide);
-                break;
-            case DrainEffect d when ctx.DamageDealt > 0:
-                Heal(ctx.Source, ctx.SourceSide, EffectMath.DrainHeal(ctx.DamageDealt, d.Fraction.Num, d.Fraction.Den));
+            case ForceSwitchEffect: ForceSwitch(ctx); break;
+            case PositionSwapEffect: SwapPositions(ctx); break;
+            case RedirectEffect redirect: _redirects.Add(new RedirectCondition(ctx.SourceSlot, redirect.Priority,
+                redirect.AcceptedClasses, redirect.BypassClasses, redirect.AcceptedTags, redirect.BypassTags)); break;
+            case DrainEffect d when ctx.ActionDamageDealt > 0:
+                Heal(ctx.Source, ctx.SourceSide, EffectMath.DrainHeal(ctx.ActionDamageDealt, d.Fraction.Num, d.Fraction.Den));
                 break;
             case HealEffect h:
                 (BattleCreature healRecipient, BattleSide healSide) = FractionRecipient(ctx, h.Recipient);
@@ -910,8 +1228,8 @@ public sealed class BattleController
                 break;
             case StatusPowerEffect:
                 break; // evaluated in ComputeHit before DamageCalc.
-            case RecoilEffect r when ctx.DamageDealt > 0:
-                Sap(ctx.Source, ctx.SourceSide, EffectMath.RecoilDamage(ctx.DamageDealt, r.Fraction.Num, r.Fraction.Den),
+            case RecoilEffect r when ctx.ActionDamageDealt > 0:
+                Sap(ctx.Source, ctx.SourceSide, EffectMath.RecoilDamage(ctx.ActionDamageDealt, r.Fraction.Num, r.Fraction.Den),
                     amt => new Recoiled(ctx.SourceSide, amt));
                 break;
             case CritBoostEffect cb:
@@ -936,11 +1254,34 @@ public sealed class BattleController
             case MoveGateEffect:
                 break; // evaluated before PP/RNG in PassesMoveGates.
             case QueueActionGateEffect gate:
-                QueueActionGate(new BattleSlot(ctx.SourceSide, 0), gate.Turns);
+                QueueActionGate(ctx.SourceSlot, gate.Turns);
                 break;
         }
         return true;
     }
+
+    private void SwapPositions(EffectContext ctx)
+    {
+        int eventStart = _log.Count;
+        if (ctx.SourceSlot.Side != ctx.TargetSlot.Side || ctx.SourceSlot == ctx.TargetSlot)
+            return;
+
+        _activeSlots.Swap(ctx.SourceSlot, ctx.TargetSlot);
+        _log.Add(new PositionsSwapped(ctx.SourceSlot, ctx.TargetSlot));
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.PositionSwap, false,
+            null, 1, eventStart, _log.Count);
+    }
+
+    private static HashSet<string> MoveTags(BattleMove move)
+    {
+        var tags = new HashSet<string>(StringComparer.Ordinal) { move.DamageClass == DamageClass.Status ? "status" : "damaging" };
+        if (move.MakesContact) tags.Add("contact");
+        return tags;
+    }
+
+    private sealed record RedirectCondition(BattleSlot Slot, int Priority,
+        IReadOnlySet<DamageClass> AcceptedClasses, IReadOnlySet<DamageClass> BypassClasses,
+        IReadOnlySet<string> AcceptedTags, IReadOnlySet<string> BypassTags);
 
     private void ApplyHpFraction(EffectContext ctx, HpFractionEffect effect)
     {
@@ -967,7 +1308,7 @@ public sealed class BattleController
         _ => throw new ArgumentOutOfRangeException(nameof(recipient), recipient, "Unknown HP-fraction recipient."),
     };
 
-    private bool PassesMoveGates(BattleCreature creature, BattleSide side, BattleMove move)
+    private bool PassesMoveGates(BattleCreature creature, BattleSlot slot, BattleMove move, int traceAction)
     {
         foreach (MoveGateEffect gate in move.SecondaryEffects.OfType<MoveGateEffect>())
         {
@@ -979,9 +1320,12 @@ public sealed class BattleController
             };
             if (failure is { } reason)
             {
-                _log.Add(new MoveFailed(side, move.Move, reason));
+                int start = _log.Count;
+                _log.Add(new MoveFailed(slot, move.Move, reason));
+                AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, false, null, 0, start, _log.Count);
                 return false;
             }
+            AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, false, null, 1, _log.Count, _log.Count);
         }
         return true;
     }
@@ -1004,22 +1348,27 @@ public sealed class BattleController
     /// <summary>on_switch_in hook (catalog §7.3): a creature entering a side with entry hazards takes
     /// damage — Stealth Rock (type-scaled) before Spikes (layer-scaled). Draws no RNG. Battle-start
     /// actives never trigger it (no hazards yet).</summary>
-    private void OnSwitchIn(BattleSide side)
+    private void OnSwitchIn(BattleSide side) => OnSwitchIn(new BattleSlot(side, 0));
+
+    private void OnSwitchIn(BattleSlot slot)
     {
-        BattleCreature c = Active(side);
+        BattleSide side = slot.Side;
+        BattleCreature c = Active(slot);
         if (c.IsFainted)
             return;
 
-        ReevaluateConditionForm(side);
-        ApplyHookInvocations(BattleHookDispatcher.SwitchIn(side, HookSources()));
+        ReevaluateConditionForm(slot);
+        ApplyHookInvocations(Topology.ActiveSlotsPerSide == 1
+            ? BattleHookDispatcher.SwitchIn(side, HookSources())
+            : BattleHookDispatcher.SwitchIn(slot, HookSources()));
 
         if (_stealthRock[(int)side])
         {
             double eff = _chart.Effectiveness(RockType, c.Types);
-            Sap(c, side, EffectMath.TypeScaledHazardDamage(c.MaxHp, eff), amt => new HurtByHazard(side, amt));
+            Sap(c, slot, EffectMath.TypeScaledHazardDamage(c.MaxHp, eff), amt => new HurtByHazard(side, amt));
         }
         if (!c.IsFainted && _spikeLayers[(int)side] > 0)
-            Sap(c, side, EffectMath.HazardDamage(c.MaxHp, _spikeLayers[(int)side]), amt => new HurtByHazard(side, amt));
+            Sap(c, slot, EffectMath.HazardDamage(c.MaxHp, _spikeLayers[(int)side]), amt => new HurtByHazard(side, amt));
     }
 
     /// <summary>Whether a move acts on the opposing creature (so Protect can block it). Damage or any
@@ -1037,12 +1386,23 @@ public sealed class BattleController
 
     /// <summary>Roar/Whirlwind: a wild target flees (battle ends); a trainer's is dragged out to a random
     /// healthy reserve. No reserve → no effect.</summary>
-    private void ForceSwitch(BattleSide side)
+    private void ForceSwitch(EffectContext ctx)
     {
+        int eventStart = _log.Count;
+        BattleSide side = ctx.TargetSide;
+        if (ctx.Target.IsFainted)
+        {
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.ForceSwitchReserve, false,
+                null, 0, eventStart, eventStart);
+            return;
+        }
+
         if (IsWild && side == BattleSide.Enemy)
         {
             _log.Add(new ForcedOut(side));
             EndBattle(Opponent(side)); // scared the wild creature off
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.ForceSwitchReserve, false,
+                null, 0, eventStart, _log.Count);
             return;
         }
 
@@ -1051,10 +1411,18 @@ public sealed class BattleController
             if (!_activeSlots.IsActive(side, i) && !_parties[(int)side][i].IsFainted)
                 reserves.Add(i);
         if (reserves.Count == 0)
+        {
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.ForceSwitchReserve, false,
+                null, 0, eventStart, eventStart);
             return; // nothing to drag out
+        }
 
         _log.Add(new ForcedOut(side));
-        SwitchTo(side, reserves[_rng.Next(reserves.Count)]);
+        int? draw = reserves.Count > 1 ? _rng.Next(reserves.Count) : null;
+        int selected = reserves[draw ?? 0];
+        SwitchTo(ctx.TargetSlot, selected);
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.ForceSwitchReserve,
+            draw is not null, draw, selected, eventStart, _log.Count, draw is not null ? reserves.Count : null);
     }
 
     private void ApplyLeechSeed(EffectContext ctx)
@@ -1069,29 +1437,34 @@ public sealed class BattleController
 
     private void ApplyAilment(EffectContext ctx, AilmentEffect effect)
     {
-        if (ctx.Target.IsFainted)
-            return;
-        if (!StatusEffects.CanApplyStatus(ctx.Target.Status) || StatusEffects.TypeImmuneToStatus(effect.Status, ctx.Target.Types))
-            return;
-        if (BlocksStatus(ctx.TargetSide, effect.Status))
-            return;
-        if (_rng.Next(100) < effect.Chance)
+        int start = _log.Count;
+        bool eligible = !ctx.Target.IsFainted
+            && StatusEffects.CanApplyStatus(ctx.Target.Status)
+            && !StatusEffects.TypeImmuneToStatus(effect.Status, ctx.Target.Types)
+            && !BlocksStatus(ctx.TargetSlot, effect.Status);
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, eligible);
+        if (chance.Passed)
         {
             ctx.Target.SetStatus(effect.Status);
             _log.Add(new StatusApplied(ctx.TargetSide, effect.Status));
         }
+        TraceEffectChance(ctx, chance, start);
     }
 
     private void ApplyStatChange(EffectContext ctx, StatChangeEffect effect)
     {
-        if (effect.Chance < 100 && _rng.Next(100) >= effect.Chance)
-            return;
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
-        if (recipient.IsFainted)
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
             return;
+        }
         recipient.ChangeStage(effect.Stat, effect.Delta);
         _log.Add(new StatStageChanged(recipientSide, effect.Stat, effect.Delta));
+        TraceEffectChance(ctx, chance, start);
     }
 
     private static readonly StatKind[] AllStageStats =
@@ -1103,17 +1476,21 @@ public sealed class BattleController
 
     private void ApplyStatChangeAll(EffectContext ctx, StatChangeAllEffect effect)
     {
-        if (effect.Chance < 100 && _rng.Next(100) >= effect.Chance)
-            return;
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
-        if (recipient.IsFainted)
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
             return;
+        }
         foreach (StatKind stat in AllStageStats)
         {
             recipient.ChangeStage(stat, effect.Delta);
             _log.Add(new StatStageChanged(recipientSide, stat, effect.Delta));
         }
+        TraceEffectChance(ctx, chance, start);
     }
 
     private bool ApplyHpCost(EffectContext ctx, HpCostEffect effect)
@@ -1127,27 +1504,46 @@ public sealed class BattleController
 
     private void ApplyStatReset(EffectContext ctx, StatResetEffect effect)
     {
-        if (!ChancePasses(effect.Chance))
+        (BattleCreature Creature, BattleSide Side)[] recipients = StageRecipients(ctx, effect.Scope)
+            .Where(recipient => !recipient.Creature.IsFainted).ToArray();
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, recipients.Length > 0);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
             return;
-        foreach ((BattleCreature creature, BattleSide side) in StageRecipients(ctx, effect.Scope))
+        }
+        foreach ((BattleCreature creature, BattleSide side) in recipients)
             foreach (StatKind stat in AllStageSlots)
                 SetStage(creature, side, stat, 0);
+        TraceEffectChance(ctx, chance, start);
     }
 
     private void ApplyStatCopy(EffectContext ctx, StatCopyEffect effect)
     {
-        if (!ChancePasses(effect.Chance))
-            return;
         (BattleCreature from, _) = StageRecipient(ctx, effect.From);
         (BattleCreature to, BattleSide toSide) = StageRecipient(ctx, effect.To);
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, !from.IsFainted && !to.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
+            return;
+        }
         foreach (StatKind stat in AllStageSlots)
             SetStage(to, toSide, stat, from.Stage(stat));
+        TraceEffectChance(ctx, chance, start);
     }
 
     private void ApplyStatSwap(EffectContext ctx, StatSwapEffect effect)
     {
-        if (!ChancePasses(effect.Chance))
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, !ctx.Source.IsFainted && !ctx.Target.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
             return;
+        }
         foreach (StatKind stat in SwapStats(effect.Group))
         {
             int sourceStage = ctx.Source.Stage(stat);
@@ -1155,16 +1551,23 @@ public sealed class BattleController
             SetStage(ctx.Source, ctx.SourceSide, stat, targetStage);
             SetStage(ctx.Target, ctx.TargetSide, stat, sourceStage);
         }
+        TraceEffectChance(ctx, chance, start);
     }
 
     private void ApplyStatInvert(EffectContext ctx, StatInvertEffect effect)
     {
-        if (!ChancePasses(effect.Chance))
-            return;
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSide recipientSide = effect.OnSelf ? ctx.SourceSide : ctx.TargetSide;
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
+            return;
+        }
         foreach (StatKind stat in AllStageSlots)
             SetStage(recipient, recipientSide, stat, -recipient.Stage(stat));
+        TraceEffectChance(ctx, chance, start);
     }
 
     private void SetStage(BattleCreature creature, BattleSide side, StatKind stat, int value)
@@ -1178,7 +1581,25 @@ public sealed class BattleController
             _log.Add(new StatStageChanged(side, stat, delta));
     }
 
-    private bool ChancePasses(int chance) => chance >= 100 || _rng.Next(100) < chance;
+    private readonly record struct EffectChanceResult(bool Passed, bool Performed, int? Draw);
+
+    private EffectChanceResult CheckEffectChance(int chance, bool eligible)
+    {
+        if (!eligible || chance <= 0)
+            return new(false, false, null);
+        if (chance >= 100)
+            return new(true, false, null);
+        int draw = _rng.Next(100);
+        return new(draw < chance, true, draw);
+    }
+
+    private void TraceEffectChance(EffectContext ctx, EffectChanceResult chance, int eventStart) =>
+        TraceChance(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.EffectChance, chance, eventStart);
+
+    private void TraceChance(int action, BattleSlot source, BattleSlot target, EffectTraceKind kind,
+        EffectChanceResult chance, int eventStart) =>
+        AddTrace(action, source, target, kind, chance.Performed,
+            chance.Draw, chance.Passed ? 1 : 0, eventStart, _log.Count, chance.Performed ? 100 : null);
 
     private static IEnumerable<(BattleCreature Creature, BattleSide Side)> StageRecipients(EffectContext ctx, StageEffectScope scope)
     {
@@ -1206,44 +1627,91 @@ public sealed class BattleController
 
     private void ApplyConfusion(EffectContext ctx, ConfusionEffect effect)
     {
-        if (ctx.Target.IsFainted || ctx.Target.IsConfused)
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, !ctx.Target.IsFainted && !ctx.Target.IsConfused);
+        TraceEffectChance(ctx, chance, start);
+        if (!chance.Passed)
             return;
-        if (_rng.Next(100) < effect.Chance)
+
+        int durationStart = _log.Count;
+        int duration = VolatileEffects.ConfusionDuration(_rng, out int draw);
+        ctx.Target.SetConfusion(duration);
+        _log.Add(new Confused(ctx.TargetSide));
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.ConfusionDuration, true,
+            draw, duration, durationStart, _log.Count, 5, 1);
+    }
+
+    private void ApplyBind(EffectContext ctx)
+    {
+        int eventStart = _log.Count;
+        if (ctx.Target.IsFainted || ctx.Target.IsTrapped)
         {
-            ctx.Target.SetConfusion(VolatileEffects.ConfusionDuration(_rng));
-            _log.Add(new Confused(ctx.TargetSide));
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.TrapDuration, false,
+                null, 0, eventStart, eventStart);
+            return;
         }
+
+        int duration = _rng.Next(4, 6);
+        ctx.Target.SetTrap(duration);
+        _log.Add(new Bound(ctx.TargetSide));
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.TrapDuration, true,
+            duration, duration, eventStart, _log.Count, 6, 4);
     }
 
     private void ApplyFlinch(EffectContext ctx, FlinchEffect effect)
     {
         // Flinch only bites if the target hasn't acted yet — resolution order gives us that for free.
-        if (!ctx.Target.IsFainted && VolatileEffects.Flinches(effect.Chance, _rng))
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(effect.Chance, !ctx.Target.IsFainted);
+        if (chance.Passed)
             ctx.Target.SetFlinch();
+        TraceEffectChance(ctx, chance, start);
     }
 
-    private void ApplyContactEffects(BattleMove move, BattleSide sourceSide, BattleCreature source, BattleSide targetSide)
+    private void ApplyContactEffects(BattleMove move, BattleSlot sourceSlot, BattleCreature source, BattleSlot targetSlot,
+        int traceAction)
     {
         if (!move.MakesContact || source.IsFainted)
             return;
 
-        foreach (BattleHookInvocation invocation in BattleHookDispatcher.ContactReceived(targetSide, HookSources()))
+        foreach (BattleHookInvocation invocation in BattleHookDispatcher.ContactReceived(targetSlot, HookSources()))
         {
             Effect effect = invocation.Effect;
-            if (effect.Op != "contactChanceEffect" || _rng.Next(100) >= (effect.Chance ?? 100))
+            if (effect.Op != "contactChanceEffect")
                 continue;
 
+            int start = _log.Count;
+            int chance = effect.Chance ?? 100;
+            bool eligible = !source.IsFainted;
             string statusName = Str(effect, "status");
             if (statusName.Length > 0)
             {
                 PersistentStatus status = Parse<PersistentStatus>(statusName);
-                if (StatusEffects.CanApplyStatus(source.Status)
+                eligible = eligible
+                    && StatusEffects.CanApplyStatus(source.Status)
                     && !StatusEffects.TypeImmuneToStatus(status, source.Types)
-                    && !BlocksStatus(sourceSide, status))
-                {
-                    source.SetStatus(status);
-                    _log.Add(new StatusApplied(sourceSide, status));
-                }
+                    && !BlocksStatus(sourceSlot, status);
+            }
+            EffectChanceResult result = CheckEffectChance(chance, eligible);
+            if (!result.Passed)
+            {
+                TraceChance(traceAction, sourceSlot, targetSlot, EffectTraceKind.ContactChance, result, start);
+                continue;
+            }
+
+            if (Int(effect, "damage") is { } damage)
+            {
+                Sap(source, sourceSlot.Side, damage, amount => new ContactDamaged(sourceSlot, amount));
+                TraceChance(traceAction, sourceSlot, targetSlot, EffectTraceKind.ContactChance, result, start);
+                continue;
+            }
+
+            if (statusName.Length > 0)
+            {
+                PersistentStatus status = Parse<PersistentStatus>(statusName);
+                source.SetStatus(status);
+                _log.Add(new StatusApplied(sourceSlot.Side, status));
+                TraceChance(traceAction, sourceSlot, targetSlot, EffectTraceKind.ContactChance, result, start);
                 continue;
             }
 
@@ -1253,8 +1721,9 @@ public sealed class BattleController
                 StatKind stat = Parse<StatKind>(statName);
                 int delta = Int(effect, "delta") ?? 0;
                 source.ChangeStage(stat, delta);
-                _log.Add(new StatStageChanged(sourceSide, stat, delta));
+                _log.Add(new StatStageChanged(sourceSlot.Side, stat, delta));
             }
+            TraceChance(traceAction, sourceSlot, targetSlot, EffectTraceKind.ContactChance, result, start);
         }
     }
 
@@ -1283,6 +1752,16 @@ public sealed class BattleController
             _log.Add(new Fainted(side));
     }
 
+    private void Sap(BattleCreature c, BattleSlot slot, int amount, Func<int, BattleEvent> lossEvent)
+    {
+        if (amount <= 0)
+            return;
+        c.TakeDamage(amount);
+        _log.Add(lossEvent(amount));
+        if (c.IsFainted)
+            _log.Add(new Fainted(slot));
+    }
+
     private void ApplyCrashRecoil(BattleCreature attacker, BattleSide side, BattleMove move)
     {
         if (move.Recoil is not { } crash || !move.RecoilOnMiss)
@@ -1300,15 +1779,15 @@ public sealed class BattleController
 
     /// <summary>One hit of a damaging move — draws crit then damage roll (fixed order), applies
     /// crit's stat-stage ignore rule and burn. Returned <c>eff</c> feeds the DamageDealt event.</summary>
-    private int DealMoveDamage(BattleCreature target, BattleSide targetSide, int amount, double effectiveness, bool crit)
+    private int DealMoveDamage(BattleCreature target, BattleSlot targetSlot, int amount, double effectiveness, bool crit)
     {
         int before = target.CurrentHp;
-        amount = ApplySurviveFromFull(target, targetSide, amount);
+        amount = ApplySurviveFromFull(target, targetSlot.Side, amount);
         target.TakeDamage(amount);
         int dealt = before - target.CurrentHp;
-        _log.Add(new DamageDealt(targetSide, dealt, effectiveness, crit));
+        _log.Add(new DamageDealt(targetSlot, dealt, effectiveness, crit));
         if (target.IsFainted)
-            _log.Add(new Fainted(targetSide));
+            _log.Add(new Fainted(targetSlot));
         return dealt;
     }
 
@@ -1325,8 +1804,19 @@ public sealed class BattleController
         return Math.Max(0, target.CurrentHp - 1);
     }
 
-    private (int Dmg, bool Crit, double Eff) ComputeHit(BattleSide side, BattleCreature attacker, BattleCreature target, BattleMove move, int power)
+    private (int Dmg, bool Crit, double Eff) ComputeHit(
+        BattleSlot sourceSlot,
+        BattleCreature attacker,
+        BattleCreature target,
+        BattleMove move,
+        int power,
+        int snapshottedLiveTargets,
+        out double? critDraw,
+        out int? damageRollDraw)
     {
+        critDraw = null;
+        damageRollDraw = null;
+        BattleSide side = sourceSlot.Side;
         if (move.TargetHpThresholdPower is { } hpPower)
             power = EffectMath.TargetHpThresholdPower(
                 power,
@@ -1352,9 +1842,15 @@ public sealed class BattleController
             ignoreSourceBurnPenalty = conditionMet && statusPower.IgnoreSourceBurnPenalty;
         }
 
+        double eff = _chart.Effectiveness(move.Type, target.Types);
+        if (eff <= 0)
+            return (0, false, eff);
+
         bool physical = move.DamageClass == DamageClass.Physical;
-        bool crit = BattleRolls.IsCrit(move.CritStage + attacker.CritStageBonus, _rng);
-        int roll = BattleRolls.DamageRoll(_rng);
+        bool crit = BattleRolls.IsCrit(move.CritStage + attacker.CritStageBonus, _rng, out double critRoll);
+        critDraw = critRoll;
+        int roll = BattleRolls.DamageRoll(_rng, out int randomRoll);
+        damageRollDraw = randomRoll;
 
         StatKind offStat = move.OffensiveStatOverride ?? (physical ? StatKind.Atk : StatKind.Spa);
         StatKind defStat = move.DefensiveStatOverride ?? (physical ? StatKind.Def : StatKind.Spd);
@@ -1366,16 +1862,20 @@ public sealed class BattleController
             dStage = Math.Min(0, dStage);
         }
 
-        int a = ModifiedBattleStat(side, side, offStat,
-            (int)(StatValue(attacker.Stats, offStat) * StatStages.Multiplier(aStage)));
-        int d = ModifiedBattleStat(side, Opponent(side), defStat,
-            Math.Max(1, (int)(StatValue(target.Stats, defStat) * StatStages.Multiplier(dStage))));
-        double eff = _chart.Effectiveness(move.Type, target.Types);
+        int a = (int)(StatValue(attacker.Stats, offStat) * StatStages.Multiplier(aStage));
+        int d = Math.Max(1, (int)(StatValue(target.Stats, defStat) * StatStages.Multiplier(dStage)));
+        if (Topology.ActiveSlotsPerSide == 1)
+        {
+            a = ModifiedBattleStat(side, side, offStat, a);
+            d = ModifiedBattleStat(side, Opponent(side), defStat, d);
+        }
         double stab = TypeChart.Stab(move.Type, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical && !ignoreSourceBurnPenalty;
 
-        int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn);
-        double hooks = HookDamageMultiplier(move, side);
+        int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn, snapshottedLiveTargets);
+        // ponytail: doubles hook dispatch needs slot ownership; the scoped-hook package upgrades this
+        // boundary without duplicating direct-damage resolution.
+        double hooks = Topology.ActiveSlotsPerSide == 1 ? HookDamageMultiplier(move, side) : 1.0;
         dmg = (int)(dmg * hooks * WeatherConditions.DamageMultiplier(_weather, move.Type.Slug)); // on_damage_query modifiers
         return (dmg, crit, eff);
     }
@@ -1391,13 +1891,13 @@ public sealed class BattleController
 
     private IEnumerable<BattleHookSource> HookSources()
     {
-        foreach (BattleSide side in new[] { BattleSide.Player, BattleSide.Enemy })
+        foreach (BattleSlot slot in Topology.Slots)
         {
-            BattleCreature c = Active(side);
+            BattleCreature c = Active(slot);
             foreach (AbilityHook hook in c.AbilityHooks)
-                yield return new BattleHookSource(side, BattleHookSourceKind.Ability, hook.Hook, hook.Effects);
+                yield return new BattleHookSource(slot, BattleHookSourceKind.Ability, hook.Hook, hook.Effects);
             foreach (var group in c.HeldItemBattleEffects.Select(e => (Hook: HeldHook(e), Effect: e)).Where(x => x.Hook is not null).GroupBy(x => x.Hook!.Value))
-                yield return new BattleHookSource(side, BattleHookSourceKind.HeldItem, group.Key, group.Select(x => x.Effect).ToList());
+                yield return new BattleHookSource(slot, BattleHookSourceKind.HeldItem, group.Key, group.Select(x => x.Effect).ToList());
         }
     }
 
@@ -1480,7 +1980,7 @@ public sealed class BattleController
         _ => stat.ToString().ToLowerInvariant(),
     };
 
-    private bool BlocksStatus(BattleSide target, PersistentStatus status) =>
+    private bool BlocksStatus(BattleSlot target, PersistentStatus status) =>
         BattleHookDispatcher.StatusAttempt(target, HookSources())
             .Any(i => i.Effect.Op == "statusImmunity"
                 && string.Equals(Str(i.Effect, "status"), status.ToString(), StringComparison.OrdinalIgnoreCase));
@@ -1535,26 +2035,58 @@ public sealed class BattleController
             ? parsed
             : throw new ArgumentException($"Unknown {typeof(T).Name} '{value}'.");
 
-    private bool CanAct(BattleCreature c, BattleSide side)
+    private bool CanAct(BattleCreature c, BattleSlot sourceSlot, int traceAction)
     {
+        BattleSide side = sourceSlot.Side;
         switch (c.Status)
         {
             case PersistentStatus.Freeze:
-                if (StatusEffects.Thaws(_rng)) { c.ClearStatus(); _log.Add(new Thawed(side)); return true; }
+                int thawStart = _log.Count;
+                if (StatusEffects.Thaws(_rng, out double thawDraw))
+                {
+                    c.ClearStatus();
+                    _log.Add(new Thawed(side));
+                    AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, true, thawDraw, 1,
+                        thawStart, _log.Count, 1);
+                    return true;
+                }
                 _log.Add(new StillFrozen(side));
+                AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, true, thawDraw, 0,
+                    thawStart, _log.Count, 1);
                 return false;
 
             case PersistentStatus.Sleep:
-                if (c.StatusCounter > 0) { c.TickSleep(); _log.Add(new StillAsleep(side)); return false; }
+                int sleepStart = _log.Count;
+                if (c.StatusCounter > 0)
+                {
+                    c.TickSleep();
+                    _log.Add(new StillAsleep(side));
+                    AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, false, null, 0,
+                        sleepStart, _log.Count);
+                    return false;
+                }
                 c.ClearStatus();
                 _log.Add(new WokeUp(side));
+                AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, false, null, 1,
+                    sleepStart, _log.Count);
                 return true;
 
             case PersistentStatus.Paralysis:
-                if (StatusEffects.FullyParalyzed(_rng)) { _log.Add(new FullyParalyzed(side)); return false; }
+                int paralysisStart = _log.Count;
+                if (StatusEffects.FullyParalyzed(_rng, out double paralysisDraw))
+                {
+                    _log.Add(new FullyParalyzed(side));
+                    AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, true, paralysisDraw, 0,
+                        paralysisStart, _log.Count, 1);
+                    return false;
+                }
+                AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, true, paralysisDraw, 1,
+                    paralysisStart, _log.Count, 1);
                 return true;
 
             default:
+                AddTrace(traceAction, sourceSlot, null, EffectTraceKind.StatusGate, false, null, 1,
+                    _log.Count, _log.Count);
                 return true;
         }
     }
@@ -1582,9 +2114,10 @@ public sealed class BattleController
 
     private void EndOfTurn()
     {
-        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+        foreach (BattleSlot slot in Topology.Slots)
         {
-            BattleCreature c = Active(side);
+            BattleSide side = slot.Side;
+            BattleCreature c = Active(slot);
             if (c.IsFainted || c.Status is not { } status)
                 continue;
 
@@ -1600,23 +2133,24 @@ public sealed class BattleController
         }
 
         // Leech Seed: each seeded active is sapped and the opposing active recovers that HP.
-        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+        foreach (BattleSlot slot in Topology.Slots)
         {
-            BattleCreature c = Active(side);
-            if (!c.IsFainted && c.Seeded)
-                DrainLife(c, side, Active(Opponent(side)), Opponent(side), Math.Max(1, c.MaxHp / 8));
+            BattleCreature c = Active(slot);
+            BattleSlot? recipientSlot = Topology.SlotsFor(Opponent(slot.Side)).FirstOrDefault(IsLive);
+            if (!c.IsFainted && c.Seeded && recipientSlot is { } recipient)
+                DrainLife(c, slot.Side, Active(recipient), recipient.Side, Math.Max(1, c.MaxHp / 8));
         }
 
         // Partial trap (Bind/Wrap/…): residual chip while trapped, then count down and release.
-        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+        foreach (BattleSlot slot in Topology.Slots)
         {
-            BattleCreature c = Active(side);
+            BattleCreature c = Active(slot);
             if (c.IsFainted || !c.IsTrapped)
                 continue;
-            Sap(c, side, Math.Max(1, c.MaxHp / 8), amt => new BoundHurt(side, amt));
+            Sap(c, slot.Side, Math.Max(1, c.MaxHp / 8), amt => new BoundHurt(slot.Side, amt));
             c.TickTrap();
             if (!c.IsTrapped)
-                _log.Add(new BindReleased(side));
+                _log.Add(new BindReleased(slot.Side));
         }
 
         ApplyEndOfTurnHooks();
@@ -1626,14 +2160,17 @@ public sealed class BattleController
 
     private void ApplyEndOfTurnHooks()
     {
-        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
-            foreach (BattleHookInvocation invocation in BattleHookDispatcher.EndOfTurn(side, HookSources()))
-                ApplyEndOfTurnHook(side, invocation.Effect);
+        foreach (BattleSlot slot in Topology.Slots)
+            foreach (BattleHookInvocation invocation in Topology.ActiveSlotsPerSide == 1
+                ? BattleHookDispatcher.EndOfTurn(slot.Side, HookSources())
+                : BattleHookDispatcher.EndOfTurn(slot, HookSources()))
+                ApplyEndOfTurnHook(slot, invocation.Effect);
     }
 
-    private void ApplyEndOfTurnHook(BattleSide side, Effect effect)
+    private void ApplyEndOfTurnHook(BattleSlot slot, Effect effect)
     {
-        BattleCreature c = Active(side);
+        BattleSide side = slot.Side;
+        BattleCreature c = Active(slot);
         if (c.IsFainted)
             return;
 
@@ -1695,12 +2232,12 @@ public sealed class BattleController
         WeatherDef def = WeatherConditions.For(_weather);
         if (def.ResidualDenominator > 0)
         {
-            foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
+            foreach (BattleSlot slot in Topology.Slots)
             {
-                BattleCreature c = Active(side);
+                BattleCreature c = Active(slot);
                 if (c.IsFainted || c.Types.Any(t => def.ResidualImmuneTypes.Contains(t.Slug)))
                     continue;
-                Sap(c, side, Math.Max(1, c.MaxHp / def.ResidualDenominator), amt => new WeatherDamage(side, amt));
+                Sap(c, slot.Side, Math.Max(1, c.MaxHp / def.ResidualDenominator), amt => new WeatherDamage(slot.Side, amt));
             }
         }
 
@@ -1714,24 +2251,27 @@ public sealed class BattleController
 
     private void ReevaluateConditionForms()
     {
-        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
-            ReevaluateConditionForm(side);
+        foreach (BattleSlot slot in Topology.Slots)
+            ReevaluateConditionForm(slot);
     }
 
     private void ReevaluateConditionForm(BattleSide side)
+        => ReevaluateConditionForm(new BattleSlot(side, 0));
+
+    private void ReevaluateConditionForm(BattleSlot slot)
     {
-        (bool changed, string? formId) = Active(side).ReevaluateConditionForm(_weather);
+        (bool changed, string? formId) = Active(slot).ReevaluateConditionForm(_weather);
         if (changed)
-            _log.Add(new FormChanged(side, formId));
+            _log.Add(new FormChanged(slot, formId));
     }
 
     private void TickTimedForms()
     {
-        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
-            if (Active(side).TickTimedForm())
+        foreach (BattleSlot slot in Topology.Slots)
+            if (Active(slot).TickTimedForm())
             {
-                _log.Add(new FormChanged(side, null));
-                ReevaluateConditionForm(side);
+                _log.Add(new FormChanged(slot, null));
+                ReevaluateConditionForm(slot);
             }
     }
 
@@ -1751,37 +2291,47 @@ public sealed class BattleController
                     _log.Add(new FormChanged(side, null));
     }
 
-    /// <summary>After a faint, auto-switch a side to its first healthy reserve.</summary>
-    // ponytail: auto-picks the first reserve; a UI-driven forced-switch choice is a later refinement.
-    private void AutoReplaceFainted()
+    private void RequestReplacements()
     {
+        _pendingReplacementSlots.Clear();
         foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
         {
-            if (!Active(side).IsFainted)
-                continue;
-            int next = _parties[(int)side].FindIndex(c => !c.IsFainted);
-            if (next >= 0)
-                SwitchTo(side, next);
+            int reserves = _parties[(int)side]
+                .Select((creature, partyIndex) => (creature, partyIndex))
+                .Count(candidate => !candidate.creature.IsFainted && !_activeSlots.IsActive(side, candidate.partyIndex));
+            foreach (BattleSlot slot in Topology.SlotsFor(side))
+            {
+                if (reserves == 0)
+                    break;
+                if (IsLive(slot))
+                    continue;
+                _pendingReplacementSlots.Add(slot);
+                reserves--;
+            }
         }
+
+        foreach (BattleSlot slot in _pendingReplacementSlots)
+            _log.Add(new ReplacementRequested(slot));
     }
 
-    private void CheckEnd()
+    private bool CheckEnd()
     {
         if (Outcome is not null)
-            return;
+            return true;
 
         bool playerDown = _parties[0].All(c => c.IsFainted);
         bool enemyDown = _parties[1].All(c => c.IsFainted);
         if (!playerDown && !enemyDown)
-            return;
+            return false;
 
-        BattleSide winner = playerDown ? BattleSide.Enemy : BattleSide.Player;
-        EndBattle(winner);
+        EndBattle(playerDown == enemyDown ? null : playerDown ? BattleSide.Enemy : BattleSide.Player);
+        return true;
     }
 
-    private void EndBattle(BattleSide winner)
+    private void EndBattle(BattleSide? winner)
     {
         Outcome = new BattleOutcome(winner);
+        _pendingReplacementSlots.Clear();
         RevertBattleEndForms();
         _log.Add(new BattleEnded(winner));
     }

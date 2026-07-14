@@ -119,14 +119,16 @@ public sealed class BattleHazardTests
     [Fact]
     public void FaintReplacement_TakesHazardDamage()
     {
-        // Enemy A faints; the auto-sent replacement B walks into the spikes.
+        // Enemy A faints; the selected replacement B walks into the spikes.
         var enemyA = Slow(1, Inert());
         var enemyB = Slow(400, Inert());
         var player = Fast(400, Spikes(), new BattleMove(EntityId.Parse("move:big"), Normal, DamageClass.Physical, 250, 100, 25, 0, 0));
         var battle = new BattleController([player], [enemyA, enemyB], Chart(), new Rng(1));
 
         battle.ResolveTurn(new UseMove(0), new UseMove(0)); // spikes on enemy side
-        battle.ResolveTurn(new UseMove(1), new UseMove(0)); // KO enemy A → B auto-replaces into spikes
+        battle.ResolveTurn(new UseMove(1), new UseMove(0)); // KO enemy A and request a replacement
+
+        battle.ResolveReplacements([new(new BattleSlot(BattleSide.Enemy, 0), 1)]);
 
         Assert.True(enemyA.IsFainted);
         Assert.Equal(400 - 400 / 8, enemyB.CurrentHp); // replacement took 1 layer of spikes

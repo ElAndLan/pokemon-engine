@@ -95,6 +95,158 @@ ailment, stat stage, drain, recoil, heal, multi-hit, multi-turn, critical, and f
 do not imply missing behavior because prose-only and unique mechanics require later normalization.
 An entry with no structured family receives `unclassified`; it is never treated as a no-op.
 
+## Phase 15H source-field disposition and normalized Move boundary
+
+The local PokeAPI wrappers are immutable evidence, not the game's move format. Never delete fields
+from `docs/pokeapi-results/move/*.json`: doing so changes source hashes, invalidates the locked corpus
+digest, and destroys the evidence needed to revisit an ambiguous normalization. “Remove” means omit
+the field from the canonical normalized definition, project data, packs, fixtures, and Runtime.
+
+### Complete corpus field audit
+
+On 2026-07-13 a deterministic property scan loaded all 937 wrapper files whose ordered source hashes
+produce manifest digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
+It inspected every wrapper/payload property and every non-null `payload.meta` object. Counts below are
+`present / non-null / non-empty`; scalar zero and false are non-empty because they are real values.
+
+Disposition meanings:
+
+- **direct** — maps to one compact authored `Move` field after ID/enum normalization;
+- **expand** — consumed into ordered generic effects, ruleset/profile data, topology, or derived tags,
+  then omitted as a source-shaped field;
+- **research** — may answer a mechanics ambiguity, but prose/source structure is never copied;
+- **manifest** — retained only as sanitized conformance provenance;
+- **validate** — checked against another source identity/value, then omitted; and
+- **discard** — irrelevant to the engine's move mechanics and never enters normalized output.
+
+#### Wrapper fields
+
+| Source field | Count | Disposition | Destination/reason |
+|---|---:|---|---|
+| `content_hash` | 937 / 937 / 937 | manifest | `payloadContentHash`; never part of `Move` |
+| `endpoint` | 937 / 937 / 937 | validate | Must equal `move` |
+| `fetched_at` | 937 / 937 / 937 | discard | Fetch-time provenance has no mechanic meaning |
+| `import_batch_id` | 937 / 937 / 937 | discard | Acquisition bookkeeping only |
+| `payload` | 937 / 937 / 937 | expand | Source container; children are classified below |
+| `resource_id` | 937 / 937 / 937 | validate | Must agree with `payload.id`; numeric key comes from the payload/manifest |
+| `resource_name` | 937 / 937 / 937 | validate | Must agree with payload/file identity; never copied to sanitized output |
+| `url` | 937 / 937 / 937 | discard | Network/source locator; Runtime and Creator never fetch it |
+
+#### Payload fields
+
+| Source field | Count | Disposition | Destination/reason |
+|---|---:|---|---|
+| `accuracy` | 937 / 649 / 649 | direct | `Move.Accuracy`; null is the explicit bypass/no-check value |
+| `contest_combos` | 937 / 205 / 205 | discard | Contest subsystem is outside the product |
+| `contest_effect` | 937 / 354 / 354 | discard | Contest subsystem is outside the product |
+| `contest_type` | 937 / 467 / 467 | discard | Contest subsystem is outside the product |
+| `damage_class` | 937 / 937 / 937 | direct | `Move.DamageClass`, normalized to the closed enum |
+| `effect_chance` | 937 / 218 / 218 | expand | Copied only onto the exact effect/gate it qualifies |
+| `effect_changes` | 937 / 937 / 39 | research | Historical prose/reference input; normalized as explicit ruleset effects |
+| `effect_entries` | 937 / 937 / 826 | research | Semantics evidence only; prose is never stored or shipped |
+| `flavor_text_entries` | 937 / 937 / 914 | discard | Localization/flavor content, not mechanics |
+| `generation` | 937 / 937 / 937 | expand | Normalization routing/profile evidence; not an authored move field |
+| `id` | 937 / 937 / 937 | manifest | `sourceId` and neutral `referenceKey`; never a project `EntityId` |
+| `learned_by_pokemon` | 937 / 937 / 833 | discard | Learnsets belong to authored species definitions |
+| `machines` | 937 / 937 / 358 | discard | Machine/item acquisition belongs to content/progression data |
+| `meta` | 937 / 827 / 827 | expand | Structured mechanic source; children are classified below |
+| `name` | 937 / 937 / 937 | validate | File/source identity only; official names never enter sanitized definitions |
+| `names` | 937 / 937 / 937 | discard | Localized display strings; projects author original names |
+| `past_values` | 937 / 937 / 168 | expand | Explicit ruleset/profile overrides, then removed from `Move` |
+| `power` | 937 / 599 / 599 | direct | `Move.Power`; null means no fixed standard base-power value |
+| `pp` | 937 / 919 / 919 | direct | `Move.Pp`; the 18 null rows are normalization gaps, not default zero/one |
+| `priority` | 937 / 937 / 937 | direct | `Move.Priority` |
+| `stat_changes` | 937 / 937 / 174 | expand | Ordered generic `statStage` effects with explicit chance/target |
+| `super_contest_effect` | 937 / 467 / 467 | discard | Contest subsystem is outside the product |
+| `target` | 937 / 937 / 937 | direct | Closed `Move.Target`; URLs are discarded |
+| `type` | 937 / 937 / 937 | direct | `Move.Type`; source name maps to a local `type:*` ID, URL discarded |
+
+#### `payload.meta` fields
+
+`meta` is absent on 110 entries. Absence means structured hints are unavailable; it does not prove
+that a move has no executable effect.
+
+| Source field | Count | Disposition | Destination/reason |
+|---|---:|---|---|
+| `ailment` | 827 / 827 / 827 | expand | Generic condition/ailment effect; `none` expands to nothing |
+| `ailment_chance` | 827 / 827 / 827 | expand | Chance on the exact ailment effect/gate |
+| `category` | 827 / 827 / 827 | expand | Routing/derived mechanic tags only; not stored |
+| `crit_rate` | 827 / 827 / 827 | direct | `Move.CritStage`; missing meta defaults explicitly to stage 0 |
+| `drain` | 827 / 827 / 827 | expand | Positive drain or negative recoil effect, with exact signed percentage |
+| `flinch_chance` | 827 / 827 / 827 | expand | Generic flinch effect/gate |
+| `healing` | 827 / 827 / 827 | expand | Generic heal effect with exact percentage |
+| `max_hits` | 827 / 28 / 28 | expand | Multi-hit effect bound; paired and validated with `min_hits` |
+| `max_turns` | 827 / 44 / 44 | expand | Queue/lock/duration data; paired with `min_turns` |
+| `min_hits` | 827 / 28 / 28 | expand | Multi-hit effect bound; paired and validated with `max_hits` |
+| `min_turns` | 827 / 44 / 44 | expand | Queue/lock/duration data; paired with `max_turns` |
+| `stat_chance` | 827 / 827 / 827 | expand | Chance on the exact secondary stat-stage effects |
+
+Reference objects contribute only their normalized `name` key where a mapping above needs it. Every
+reference `url`, localized string, effect prose body, version-group wrapper, and source collection
+shape is discarded after its information has been converted to generic data. Array order is retained
+only where it carries mechanics (`stat_changes`, `past_values`, and the final explicit effect list).
+
+The null-PP gap is exactly `move-10001` through `move-10018`. Each remains unresolved until its
+selection/PP behavior is explicitly normalized from approved mechanics evidence; membership in this
+numeric range is audit evidence, never permission for a range check in Core.
+
+### Locked compact Move structure
+
+The project/pack move remains the smallest mechanics-complete authored object:
+
+```text
+Move
+  schemaVersion
+  id                    local immutable `move:*` EntityId
+  name                  original project-authored display name
+  type                  local `type:*` EntityId
+  damageClass           physical | special | status
+  power                 nullable integer
+  accuracy              nullable integer; null = skip the ordinary accuracy check
+  pp                    required positive integer
+  priority              integer
+  critStage             integer
+  makesContact          explicit boolean; not present in this PokeAPI payload and must be enriched
+  target                closed `MoveTarget`
+  effects[]             ordered `{ op, chance?, params? }` from the closed catalogs
+```
+
+Hit/turn counts, drain/recoil/healing, ailments, flinch, stat changes, variable formulas, conditions,
+queues, move references, ruleset differences, presentation-only markers, and non-/post-battle actions
+belong in ordered effects/conditions/policies. They do not justify parallel top-level PokeAPI-shaped
+fields. Mechanic-family tags and topology are derived from `target` plus expanded effects. Official
+source identity, hashes, ruleset/topology certification requirements, definition hash, status, and
+test IDs belong to the design-time envelope below, never to `Move`.
+
+```text
+NormalizedMoveRecordV1                 # design-time only; sanitized
+  referenceKey                         # neutral numeric key
+  sourceFileHash
+  payloadContentHash
+  requiredRuleset
+  requiredTopology
+  mechanicFamilies[]                   # sorted derived tags
+  mechanics                            # canonical Move fields excluding project id/name/schemaVersion
+  normalizedDefinitionHash             # hash of canonical mechanics only
+  status
+  testIds[]
+```
+
+Canonical mechanics use stable property order, explicit nullable values, explicit defaults, closed
+enum/op/param/tag vocabularies, and authored effect order. Presets expand before hashing. Source names,
+URLs, prose, fetch metadata, contest data, learnsets, and machine data cannot affect the normalized
+hash. A required direct field that is missing, an unknown effect, or semantics that structured data
+cannot prove produces a reference/engine routing row; generation never guesses or silently no-ops.
+
+### Schema consequence and non-conflicting handoff
+
+This audit locks the boundary but deliberately does not edit `Move.cs`, `DATA_SCHEMA.md`,
+`BATTLE_SYSTEM_SPEC.md`, `MoveCompiler`, or the resolver while the active Phase 15 move-engine package
+owns those files. The existing top-level `Move` shape already matches the compact boundary. Future
+schema changes are justified only by a corpus-required generic effect/condition/policy that cannot be
+expressed through the closed effect structure; they follow the schema-change workflow and must not
+reintroduce discarded PokeAPI fields.
+
 ## Current Support Snapshot
 
 The engine already supports normal damage, type effectiveness, accuracy, crits, priority,
@@ -106,12 +258,13 @@ damage-stat overrides for offensive/defensive damage queries, target-HP-threshol
 and user/target-status base-power modifiers, explicit `noBattleEffect`, explicit `postBattleReward`,
 and the Phase 15 ability/held-item/form hook slice.
 
-Authored `Move.Target` now compiles into `BattleMove`. In singles, `selected`,
-`all-opponents`, and `all-other-pokemon` resolve to the active opponent through the shared
-active-target resolver; `user` resolves to the source active creature. `users-field` and
-`entire-field` classify as side/field scopes for field-scoped ops. True multi-creature targeting,
-ally targeting, party-slot targeting, and unsupported field effects still need generic Core
-topology support.
+Authored `Move.Target` now compiles into `BattleMove`. The shared topology supports one or two active
+slots per side, all 16 typed target shapes, live target materialization/fallback, ordered spread
+resolution, ally selection and position exchange, redirection, side/field action scopes, and
+slot-addressed faint replacement. Party-member and move-reference scopes are typed but their
+mechanic-specific execution remains with later Phase 15 packages. Capability is not certification:
+the target/topology cohort still needs sanitized normalized definitions, registered conformance
+vectors, generated manifest status changes, the cumulative 15B golden, and the 15B exit review.
 
 ## Iteration Protocol For Future Agents
 
@@ -448,18 +601,13 @@ Guardrails:
 - Do not implement economy, reward UI, or celebration presentation in the battle primitive.
 - Do not broaden this into an arbitrary post-battle scripting system.
 
-## Recommended Build Order
+## Build Order Authority
 
-1. Reference-data enrichment for no-meta failures.
-2. Target selector and ordered effect execution cleanup.
-3. Scoped conditions and battle query hooks.
-4. Mutation helpers and queued intents.
-5. Move reference execution and damage memory.
-6. Snapshot overlays.
-7. Final audit regeneration and golden replay batches.
-
-This order is intentionally boring. It unlocks many moves early while avoiding speculative
-systems that only one move would use.
+`IMPLEMENTATION_PLAN.md` section 10 is the only current build order. The older family-level order
+has been superseded because 15B target/doubles execution is implemented while its normalization and
+certification cohort remains open, and the remaining 15C-15G packages now have explicit dependency
+ordering. Use the primitive-family sections below to classify requirements, never to bypass that
+queue.
 
 ## Engine Work Groups
 
@@ -469,14 +617,16 @@ Add a reusable target resolver for all opponents, all other creatures, allies, u
 user-and-allies, all-allies, all-pokemon, fainted party targets, side fields, opponent fields,
 entire field, and specific previous-move targets. The resolver should produce a deterministic
 ordered target set and a target scope passed into generic effect execution.
-Implemented slice: current singles active-target resolver maps `selected`, `all-opponents`,
-`all-other-pokemon`, and `user`; side/field scopes are explicitly rejected as active creature
-targets. Current singles field-scope classification maps `users-field` to the source side and
-`entire-field` to the whole battlefield for field-scoped ops.
+Implemented slice: the pure resolver classifies all 16 target shapes into stable active, party,
+side, field, or move-reference scopes for singles and doubles. The controller materializes live
+active targets with the specified invalidation/fallback and random-draw rules, resolves ordered
+spread actions, and keeps side/field scopes distinct from creature targets. Ally selection,
+redirection, allied position exchange, slot-aware outcomes, and typed replacement are implemented.
 
-Representative tests: selected target maps to active opponent in singles; all-opponents maps to
-active opponent in singles; ally-only targets fail in singles until ally topology exists; side
-and field scopes do not pretend to be creature targets.
+Current evidence includes pure resolver coverage, doubles admission/materialization matrices,
+per-target RNG/event/trace tests, redirect/position vectors, outcome/replacement vectors, and three
+focused family goldens. Remaining evidence is the normalized target/topology cohort, its registered
+per-reference vectors/statuses, the cumulative 15B golden, and the focused 15B exit review.
 
 Moves: `acupressure`, `aromatherapy`, `aromatic-mist`, `aurora-veil`, `bleakwind-storm`,
 `blizzard`, `burning-jealousy`, `captivate`, `chilly-reception`, `clanging-scales`,

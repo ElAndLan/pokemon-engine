@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\src\Cgm.Core\Cgm.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Battle\Goldens\*.golden" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

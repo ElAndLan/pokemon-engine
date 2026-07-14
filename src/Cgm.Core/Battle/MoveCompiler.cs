@@ -144,6 +144,27 @@ public static class MoveCompiler
                     effects.Add(new ForceSwitchEffect());
                     break;
 
+                case "positionSwap":
+                    if (chance != 100)
+                        throw new ArgumentException("positionSwap does not support chance.");
+                    CheckAllowedParams(e);
+                    if (move.Target != MoveTarget.Ally)
+                        throw new ArgumentException("positionSwap requires the ally target.");
+                    effects.Add(new PositionSwapEffect());
+                    break;
+
+                case "redirect":
+                    if (chance != 100)
+                        throw new ArgumentException("redirect does not support chance.");
+                    CheckAllowedParams(e, "priority", "classes", "bypassClasses", "tags", "bypassTags");
+                    effects.Add(new RedirectEffect(
+                        e.Params?.ContainsKey("priority") == true ? Int(e, "priority") : 0,
+                        ParseClasses(Str(e, "classes")),
+                        e.Params?.ContainsKey("bypassClasses") == true ? ParseClasses(Str(e, "bypassClasses")) : new HashSet<DamageClass>(),
+                        e.Params?.ContainsKey("tags") == true ? ParseRedirectTags(Str(e, "tags")) : new HashSet<string>(),
+                        e.Params?.ContainsKey("bypassTags") == true ? ParseRedirectTags(Str(e, "bypassTags")) : new HashSet<string>()));
+                    break;
+
                 case "counterDamage": // deal_damage(counter_received_damage) (catalog §9.2)
                     counterCategory = Parse<DamageClass>(Str(e, "category"), "category");
                     break;
@@ -388,4 +409,27 @@ public static class MoveCompiler
         "eva" or "evasion" => StatKind.Evasion,
         _ => Parse<StatKind>(value, "stat"),
     };
+
+    private static IReadOnlySet<DamageClass> ParseClasses(string value)
+    {
+        DamageClass[] parsed = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => Parse<DamageClass>(part, "classes"))
+            .ToArray();
+        if (parsed.Distinct().Count() != parsed.Length)
+            throw new ArgumentException("redirect classes must not contain duplicates.");
+        HashSet<DamageClass> classes = [.. parsed];
+        return classes.Count > 0 ? classes : throw new ArgumentException("redirect classes must not be empty.");
+    }
+
+    private static IReadOnlySet<string> ParseRedirectTags(string value)
+    {
+        string[] tags = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(tag => tag.ToLowerInvariant())
+            .ToArray();
+        if (tags.Length == 0 || tags.Any(tag => tag is not ("damaging" or "status" or "contact")))
+            throw new ArgumentException("redirect tags must be damaging, status, or contact.");
+        if (tags.Distinct(StringComparer.Ordinal).Count() != tags.Length)
+            throw new ArgumentException("redirect tags must not contain duplicates.");
+        return new HashSet<string>(tags, StringComparer.Ordinal);
+    }
 }
