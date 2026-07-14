@@ -17,6 +17,22 @@ public sealed record Pass : BattleAction;
 /// <summary>What happened during resolution — the stream the UI renders (BATTLE_SYSTEM_SPEC).
 /// UI consumes these; it never reads or mutates state to infer what happened.</summary>
 public abstract record BattleEvent;
+public sealed record ConditionApplied(BattleConditionId Condition, BattleConditionScope Scope,
+    BattleConditionOwner Owner, long Sequence) : BattleEvent;
+public sealed record ConditionApplicationRejected(BattleConditionId Condition, BattleConditionScope Scope,
+    BattleConditionOwner Owner, long Sequence, BattleConditionRejectionReason Reason) : BattleEvent;
+public sealed record ConditionRefreshed(BattleConditionId Condition, BattleConditionScope Scope,
+    BattleConditionOwner Owner, long Sequence, int? RemainingDuration) : BattleEvent;
+public sealed record ConditionReplaced(BattleConditionId Condition, BattleConditionScope Scope,
+    BattleConditionOwner Owner, long ReplacedSequence, long Sequence) : BattleEvent;
+public sealed record ConditionStacked(BattleConditionId Condition, BattleConditionScope Scope,
+    BattleConditionOwner Owner, long Sequence, int Stacks) : BattleEvent;
+public sealed record ConditionExpired(BattleConditionId Condition, BattleConditionScope Scope,
+    BattleConditionOwner Owner, long Sequence) : BattleEvent;
+public sealed record ConditionRemoved(BattleConditionId Condition, BattleConditionScope Scope,
+    BattleConditionOwner Owner, long Sequence, BattleConditionCleanupReason Reason) : BattleEvent;
+public sealed record ConditionTransferred(BattleConditionId Condition, BattleConditionScope Scope,
+    BattleConditionOwner PreviousOwner, BattleConditionOwner Owner, long Sequence) : BattleEvent;
 public sealed record MoveUsed(BattleSlot Slot, EntityId Move) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

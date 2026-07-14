@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1, and 15D-1 complete; 937 inventoried, 57/937 certified; next package 15E-1** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1, 15D-1, and 15E-1 complete; 937 inventoried, 57/937 certified; next package 15E-2** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -421,7 +421,7 @@ Current readiness ledger:
 | 15C-1 unified query pipeline | SPEC READY | IMPLEMENTED | Exact integer/fraction service, modifier order/clamps, controller/AI consumers, and query traces |
 | 15C-2 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
-| 15E scoped conditions/hooks | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15E-1 through 15E-7 ownership/order/cleanup defaults |
+| 15E scoped conditions/hooks | 15E-1 SPEC READY; 15E-2 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed condition definitions/stores and lifecycle evidence are complete; apply 15E-2 through 15E-7 hook/mechanic defaults |
 | 15F mutation/snapshots | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15F-1 through 15F-7 overlay/mutation/reversion defaults |
 | 15G switch/recovery/memory/non-battle | PLANNED — SPEC LOCK AUTHORIZED | FOUNDATION ONLY — NOT ACTIVE | HP primitives exist; apply 15G-1 through 15G-6 defaults |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
@@ -1320,7 +1320,7 @@ Primary groups: field/side conditions (53), cleanup (5), protect variants (8).
 
 Ordered feature packages:
 
-1. **15E-1 — Scoped condition model and stores (`PLANNED`; prerequisite 15B-6).** Lock definition and
+1. **15E-1 — Scoped condition model and stores (`IMPLEMENTED`; prerequisite 15B-6).** Lock definition and
    instance fields: generic ID, scope, owner, source slot/creature, applied turn/sequence, duration,
    counters, tags, hook list, stacking key/policy (`reject`, `refresh`, `replace`, `stack`), maximum
    stacks, and switch/faint/battle-end cleanup. Stores exist for creature, side, slot, field, weather,
@@ -1368,6 +1368,30 @@ Ordered feature packages:
    request reset. Validate incompatible source/destination scopes before mutation. **Acceptance:**
    no-match visible no-op policy, partial/all tag selection, source filtering, atomic failure,
    duration/source preservation, slot/side swap, and proof that no helper enumerates content names.
+
+Progress (2026-07-14): **15E-1 COMPLETE — focused review: GO.** The battle spec and effect catalog
+now lock condition IDs, the complete hook-ID list, immutable definitions, instances, seven exact
+stores (`field`, `weather`, `terrain`, `room`, `side`, `slot`, `creature`), scope-owner/source tuples,
+duration completion, reject/refresh/replace/stack behavior, topology-stable enumeration, lifecycle
+events/traces, and switch/faint/end cleanup. `BattleConditionRegistry` strictly validates and
+normalizes definitions; `BattleConditionStores` applies them atomically, preserves source and applied
+metadata, ticks finite durations only after their named checkpoint, follows/removes creature owners,
+and clears every scope at battle end. Neutral tests cover all scopes, every duplicate policy,
+duration 1/N and variable durations, active/inactive source and owner identity, cleanup/transfer,
+invalid tuples/enums/tags/counters/hooks/families, deterministic events/traces, and replay-stable JSON.
+The general condition test matrix's hook execution is owned by 15E-2 and removal-by-tag/explicit
+cross-owner transfer/side swap are owned by 15E-7; 15E-1 implements only its prerequisite model and
+lifecycle, not those later behaviors. Focused review fixed null lifecycle trace transitions, optional
+inactive-creature ownership, and primary-type file layout before returning GO. Schema/migration
+impact: none. Dependency impact: none. RNG impact: none; the store has no RNG dependency. No move
+cohort is newly certified because definitions and hook payloads arrive in later packages;
+deterministic regeneration remained 937 inventoried / 57 certified with digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed 1,163 tests (971 Core,
+104 Creator, 21 Runtime, 67 Tools); the focused condition suite passed 12 tests and the Battle filter
+passed 694 tests; regeneration was byte-identical; and `git diff --check` passed. Next eligible
+package: **15E-2**.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
@@ -2175,9 +2199,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1 and 15D-1. ACTIVE — 15E-1.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1, 15D-1, and 15E-1. ACTIVE — 15E-2.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15E-1**; **15E-2**; **15F-1**; **15C-2**; **15C-3**;
+   **15E-2**; **15F-1**; **15C-2**; **15C-3**;
    **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared

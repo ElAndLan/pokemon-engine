@@ -471,6 +471,14 @@ Hook execution must have deterministic ordering and must record enough trace dat
 
 ## 6. Condition Scopes
 
+Phase 15E-1 represents the battle-owned rows below through the shared scoped model in
+`BATTLE_SYSTEM_SPEC.md`. Runtime store scopes are `creature`, `side`, `slot`, `field`, `weather`,
+`terrain`, and `room`; persistent/volatile are definition tags and cleanup policies on the creature
+store, while weather/terrain/room are specialized field stores. Ruleset, form, item, ability, and map
+state retain their owning systems until their ordered Phase 15 packages. Definitions use the closed
+hook IDs in §5 and the shared reject/refresh/replace/stack lifecycle; a new condition family cannot
+create a private timer or pending list.
+
 | Scope | Lifetime | Examples |
 |---|---|---|
 | `persistent_status` | Stored on creature instance; usually persists after switch/battle until cured. | burn, freeze, paralysis, poison, toxic, sleep. |

@@ -815,6 +815,83 @@ Neutral acceptance vectors: `queue-order`, `queue-same-checkpoint-defer`, `queue
 `queue-target-snapshot-live`, `queue-owner-cleanup`, `queue-debug-snapshot`,
 `queue-no-pp-rng`, and `queue-replay`.
 
+### Scoped condition model and stores (Phase 15E-1)
+
+Every later condition mechanic uses one `BattleConditionRegistry` and one
+`BattleConditionStores`; existing bespoke status/weather/volatile fields remain compatibility
+consumers until their owning 15E package migrates them. No new mechanic may add another condition
+list, timer, or content-name branch. Audit evidence for the foundation includes neutralized rows
+`move-0115` (timed side scope), `move-0182` (creature/turn scope), `move-0191` and `move-0390`
+(stacked side scope), `move-0248` (slot scope), `move-0240` (weather replacement), `move-0356` and
+`move-0433` (field/room scope), and `move-0366` (timed side query). These keys justify shapes only;
+executable fixtures use neutral IDs.
+
+The closed store scopes are ordered `field`, `weather`, `terrain`, `room`, `side`, `slot`, then
+`creature`. A definition declares:
+
+- a lowercase `<family>:<slug>` condition ID and a nonblank lowercase stacking key;
+- exactly one store scope;
+- a duplicate-free hook list drawn from Effect Types Catalog §5 and normalized to hook-enum order;
+- optional positive default duration and its `BattleIntentCheckpoint` tick point; a checkpoint with
+  no default declares that every application must supply a positive duration;
+- nonnegative named initial counters and sorted unique lowercase tags;
+- duplicate policy `reject`, `refresh`, `replace`, or `stack`, plus maximum stacks; only `stack`
+  permits a maximum above one;
+- switch policy `remove`, `followOwner`, or `stayScope` and faint policy `remove` or `persist`.
+
+An instance copies the immutable definition and records store sequence, scope-exact owner, optional
+source slot/party identity, applied turn/action sequence, remaining duration, counters, tags, and
+stack count. Creature owners contain side, party index, and an optional current slot; side owners
+contain one side; slot owners contain one exact slot; field/weather/terrain/room owners contain no
+side, slot, or creature. A source either contains both a valid slot and nonnegative party index or
+contains neither. Application turns and action sequences are nonnegative. Runtime condition state is
+diagnostic battle state, not project/save schema.
+
+Definitions and instances are admitted atomically. Unknown IDs; duplicate definition IDs; malformed
+IDs, keys, counters, or tags; duplicate/unknown hooks; invalid enums; scope/owner mismatch; invalid
+cleanup policy; nonpositive durations; inconsistent duration checkpoints; and sequence overflow fail
+before mutation. Definitions sharing one `(scope, stackingKey)` must share one duplicate policy; this
+allows replacement families such as weather while preventing ambiguous duplicate behavior.
+
+Duplicate behavior is exact:
+
+| Policy | Existing matching `(scope, owner, stackingKey)` |
+|---|---|
+| `reject` | Preserve the existing instance and emit/trace duplicate rejection. |
+| `refresh` | Preserve sequence, source, counters, tags, stacks, and applied metadata; replace only remaining duration. |
+| `replace` | Remove the existing instance and create one new instance with a new sequence and application metadata. |
+| `stack` | Preserve the instance and increment its stack count by one; at maximum, preserve it and emit/trace stack-limit rejection. |
+
+`CompleteCheckpoint(checkpoint)` is called only after that checkpoint's condition hooks finish. It
+enumerates the captured matching instances in stable store order, decrements each finite duration
+once, traces the tick, and then expires instances that reach zero. Duration 1 therefore receives its
+checkpoint hook once and expires immediately afterward; duration N receives exactly N such
+completions. Infinite conditions have no tick checkpoint and never decrement. Work applied after a
+checkpoint snapshot waits for the next matching checkpoint; 15E-2 owns dispatch snapshots.
+
+Stable enumeration is scope order, owner side (`player`, `enemy`, none), owner slot position, owner
+party index, then condition sequence. Dictionary insertion order never selects simulation behavior;
+counters and tags are normalized in ordinal key order. Presentation-relevant apply/reject/refresh/
+replace/stack/expire/remove/transfer changes return typed `BattleEvent` rows; every mutation,
+including a duration tick, returns deterministic condition-trace rows. Traces include turn/action,
+condition and replaced sequence where applicable, scope/owner, duration before/after, stacks
+before/after, and cleanup reason. Events never drive simulation.
+
+Cleanup is independent of hook payloads:
+
+| Scope / policy | Position move or switch | Owner faint | Battle end |
+|---|---|---|---|
+| creature + `remove` | remove | apply faint policy | remove |
+| creature + `followOwner` | preserve identity and update/clear current slot | apply faint policy | remove |
+| slot + `stayScope` | remain on the slot through occupant changes | persist | remove |
+| side + `stayScope` | remain on the side | persist | remove |
+| field/weather/terrain/room + `stayScope` | remain in its store | persist | remove |
+
+Neutral acceptance vectors: `condition-every-scope`, `condition-duplicate-policies`,
+`condition-duration-one-many`, `condition-source-identity`, `condition-cleanup-transfer`,
+`condition-stable-enumeration`, `condition-strict-validation`, `condition-events-trace`, and
+`condition-replay`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

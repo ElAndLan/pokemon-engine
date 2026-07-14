@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B and 15C-1 complete; Phase 15 conformance continues at 57/937.**
+Status: **Phase 15B plus the 15C-1, 15D-1, and 15E-1 foundations are complete; Phase 15 conformance continues at 57/937.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -115,6 +115,16 @@ registry clamps, invalid and overflow boundaries, and stable step traces. Contro
 asserts action-addressed base-power/stat/final-damage/healing traces, slot-owned doubles hooks,
 accuracy threshold flooring, and unchanged fixed damage. The full 15C-1 closeout is 1,141 green tests;
 manifest/definition regeneration remains byte-identical at 57 certified entries.
+
+## Phase 15D-1 and 15E-1 stateful-foundation evidence
+
+The typed intent suite covers ordered preview/consume/complete boundaries, same-checkpoint deferral,
+all target policies, owner cleanup, atomic turn rejection, PP/RNG preservation, debug serialization,
+and replay determinism. The scoped-condition suite covers all seven stores, exact owner/source
+tuples, reject/refresh/replace/stack, duration 1/N and variable duration, topology ordering,
+switch/faint/end cleanup, typed lifecycle events/traces, strict definition/application rejection,
+and replay-stable snapshots. Hook invocation order remains the explicit 15E-2 package; tag/source
+removal and general transfer/swap remain 15E-7 and are not claimed by the 15E-1 foundation.
 
 ## Golden format
 
