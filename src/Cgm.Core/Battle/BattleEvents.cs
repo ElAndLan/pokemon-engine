@@ -17,6 +17,8 @@ public sealed record Pass : BattleAction;
 /// <summary>What happened during resolution — the stream the UI renders (BATTLE_SYSTEM_SPEC).
 /// UI consumes these; it never reads or mutates state to infer what happened.</summary>
 public abstract record BattleEvent;
+public sealed record HookDispatchFailed(int ActionSequence, BattleConditionHook Checkpoint,
+    BattleHookDispatchFailureKind Reason, int Limit) : BattleEvent;
 public sealed record ConditionApplied(BattleConditionId Condition, BattleConditionScope Scope,
     BattleConditionOwner Owner, long Sequence) : BattleEvent;
 public sealed record ConditionApplicationRejected(BattleConditionId Condition, BattleConditionScope Scope,

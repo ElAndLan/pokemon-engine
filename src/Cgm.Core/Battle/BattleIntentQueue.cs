@@ -111,16 +111,29 @@ public sealed class BattleIntentQueue
     public int Count => _entries.Count;
 
     public BattleIntent Enqueue(BattleIntentRequest request)
+        => EnqueueRange([request]).Single();
+
+    public IReadOnlyList<BattleIntent> EnqueueRange(IEnumerable<BattleIntentRequest> requests)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        Validate(request);
-        if (_nextSequence == long.MaxValue)
+        ArgumentNullException.ThrowIfNull(requests);
+        BattleIntentRequest[] captured = requests.ToArray();
+        foreach (BattleIntentRequest request in captured)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            ValidateRequest(request);
+        }
+        if (captured.Length > long.MaxValue - _nextSequence)
             throw new OverflowException("Battle intent sequence is exhausted.");
 
-        var intent = new BattleIntent(_nextSequence++, request.DueTurn, request.Checkpoint, request.Owner,
-            request.Target, request.Payload, request.SourceMove, request.SourceActionSequence, request.Ruleset);
-        _entries.Add(intent);
-        return intent;
+        var enqueued = new List<BattleIntent>(captured.Length);
+        foreach (BattleIntentRequest request in captured)
+        {
+            var intent = new BattleIntent(_nextSequence++, request.DueTurn, request.Checkpoint, request.Owner,
+                request.Target, request.Payload, request.SourceMove, request.SourceActionSequence, request.Ruleset);
+            _entries.Add(intent);
+            enqueued.Add(intent);
+        }
+        return enqueued.ToArray();
     }
 
     public BattleIntentPreview Preview(int turn, BattleIntentCheckpoint checkpoint)
@@ -256,7 +269,7 @@ public sealed class BattleIntentQueue
         .ThenBy(intent => intent.Checkpoint)
         .ThenBy(intent => intent.Sequence);
 
-    private static void Validate(BattleIntentRequest request)
+    internal static void ValidateRequest(BattleIntentRequest request)
     {
         if (request.DueTurn < 0)
             throw new ArgumentOutOfRangeException(nameof(request), "Intent due turn cannot be negative.");

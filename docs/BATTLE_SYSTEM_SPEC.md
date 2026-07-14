@@ -892,6 +892,54 @@ Neutral acceptance vectors: `condition-every-scope`, `condition-duplicate-polici
 `condition-stable-enumeration`, `condition-strict-validation`, `condition-events-trace`, and
 `condition-replay`.
 
+### Hook dispatcher (Phase 15E-2)
+
+`BattleHookDispatcher` is the one Core hook-collection boundary. Its earlier Battle v6
+ability/item `Effect` methods remain compatibility adapters until the packages owning those
+mechanics migrate them; new condition work uses the typed dispatcher path and may not add a second
+collector. A dispatch identifies one nonnegative action sequence and one checkpoint from the closed
+`BattleConditionHook` catalog. Checkpoint order is the enum/catalog order from action selection
+through turn end (with the non-turn lifecycle hooks following in their catalog positions).
+
+The dispatcher captures all submitted registrations before it filters or sorts them. A registration
+declares checkpoint, signed hook priority, source scope, exact owner topology, stable instance ID,
+nonnegative instance sequence, nonnegative payload index, and exactly one typed payload. Condition
+registrations must name a hook declared by their captured condition definition and use that
+condition's store scope, owner, and sequence. Other registrations use scope `ability`, `item`, or
+`move`. The closed typed payload union is:
+
+- a `BattleQueryId` plus `BattleQueryModifier`;
+- a lowercase filter ID plus allow/deny decision; or
+- a validated `BattleIntentRequest`.
+
+Collection is pure. It neither changes condition stores nor enqueues intents. The captured order is
+checkpoint, hook priority descending, scope `field -> side -> slot -> creature -> ability -> item ->
+move`, owner side (`player -> enemy -> none`), owner slot position, owner party index, condition/source
+sequence, stable instance ID, then payload index. Weather, terrain, and room condition stores belong
+to the field ordering bucket while retaining their instance sequence tie-break. Every field in this
+order is explicit; dictionary or caller enumeration order never resolves a tie.
+
+At most one registration for `(action sequence, checkpoint, instance ID, payload index)` invokes.
+After canonical sorting the first registration wins and later duplicates are traced as suppressed.
+Duplicate identities must otherwise be record-identical; conflicting priority, scope, owner,
+sequence, or payload data is ambiguous and fails admission before sorting.
+The dispatch trace records both invoked and suppressed rows with their complete ordering identity and
+payload kind. Invalid registrations fail before a snapshot is returned.
+
+Intent emission is a root-action budget, not a fresh allowance per nested dispatch. Dispatch context
+carries the number already emitted by its root action; collecting more than 64 total intent payloads
+fails the whole snapshot, returns no query/filter/intent outputs, and emits one typed
+`HookDispatchFailed` engine event. A failed snapshot performs no tail work. On success, resolver code
+completes the snapshot once: all validated intent payloads enqueue atomically at checkpoint tail in
+the captured order. Registrations or condition instances added or removed after capture do not join
+or leave the current snapshot and are observed only by the next collection. AI/query preview reads
+the same immutable collected query payloads but does not complete the snapshot, so resolver and AI
+cannot acquire different hook order or arithmetic inputs.
+
+Neutral acceptance vectors: `hook-complete-order`, `hook-checkpoint-snapshot`,
+`hook-duplicate-suppression`, `hook-intent-cap`, `hook-no-dictionary-drift`,
+`hook-resolver-ai-query-parity`, `hook-tail-atomic`, and `hook-replay`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

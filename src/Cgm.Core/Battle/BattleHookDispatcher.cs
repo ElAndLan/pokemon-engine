@@ -22,7 +22,7 @@ public sealed record BattleHookInvocation(BattleSlot Slot, BattleHookSourceKind 
         : this(new BattleSlot(side, 0), kind, effect) { }
 }
 
-public static class BattleHookDispatcher
+public static partial class BattleHookDispatcher
 {
     public static IReadOnlyList<BattleHookInvocation> SwitchIn(
         BattleSide incoming,

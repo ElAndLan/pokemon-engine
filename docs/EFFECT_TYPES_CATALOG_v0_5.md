@@ -333,6 +333,14 @@ These helpers are not all effect primitives. They are shared implementation serv
 | `PreventInfiniteHookLoop(trace)` | Guards against reflection/copy/retrigger loops. |
 | `ValidateHookPurity(hook)` | Ensures hooks mutate only through allowed primitives. |
 
+Phase 15E-2 implements these helpers through the single typed `BattleHookDispatcher` contract in
+`BATTLE_SYSTEM_SPEC.md`. A collected hook returns exactly one query modifier, filter decision, or
+intent request. Collection is snapshot-pure; only successful one-shot completion may atomically
+enqueue the collected intents at checkpoint tail. The binding order is checkpoint, descending hook
+priority, field/side/slot/creature/ability/item/move scope, owner topology, source sequence, stable
+instance ID, and payload index. Duplicate `(action, checkpoint, instance, payload)` invocations are
+suppressed, and one root action may emit at most 64 nested intents.
+
 #### 4.5.1 Numeric query contract
 
 `BattleQuery` is the single implemented `ApplyQueryModifiers` path. Its closed initial IDs are

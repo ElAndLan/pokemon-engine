@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1, 15D-1, and 15E-1 complete; 937 inventoried, 57/937 certified; next package 15E-2** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1, 15D-1, and 15E-1/2 complete; 937 inventoried, 57/937 certified; next package 15F-1** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -421,7 +421,7 @@ Current readiness ledger:
 | 15C-1 unified query pipeline | SPEC READY | IMPLEMENTED | Exact integer/fraction service, modifier order/clamps, controller/AI consumers, and query traces |
 | 15C-2 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
-| 15E scoped conditions/hooks | 15E-1 SPEC READY; 15E-2 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed condition definitions/stores and lifecycle evidence are complete; apply 15E-2 through 15E-7 hook/mechanic defaults |
+| 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed condition stores and the shared deterministic hook dispatcher are complete; apply 15E-3 through 15E-7 mechanic defaults after their prerequisites |
 | 15F mutation/snapshots | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15F-1 through 15F-7 overlay/mutation/reversion defaults |
 | 15G switch/recovery/memory/non-battle | PLANNED — SPEC LOCK AUTHORIZED | FOUNDATION ONLY — NOT ACTIVE | HP primitives exist; apply 15G-1 through 15G-6 defaults |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
@@ -1328,7 +1328,7 @@ Ordered feature packages:
    at the registry row's named checkpoint and expire after that checkpoint's hooks finish. **Acceptance:**
    every scope, duplicate policy, duration 1/N, source identity, cleanup/transfer matrix, stable
    enumeration, strict validation, events/traces, and round-trip if serialized shape changes.
-2. **15E-2 — Hook dispatcher (`PLANNED`; prerequisite 15E-1).** Lock checkpoints from selection through
+2. **15E-2 — Hook dispatcher (`IMPLEMENTED`; prerequisite 15E-1).** Lock checkpoints from selection through
    end turn and collect hooks in checkpoint → hook priority descending → scope order (field, side,
    slot, creature, ability, item, move) → owner topology order → condition sequence. Hooks return typed
    query modifiers, filters, or intents; they do not mutate while enumeration is active. Enqueue
@@ -1392,6 +1392,33 @@ deterministic regeneration remained 937 inventoried / 57 certified with digest
 104 Creator, 21 Runtime, 67 Tools); the focused condition suite passed 12 tests and the Battle filter
 passed 694 tests; regeneration was byte-identical; and `git diff --check` passed. Next eligible
 package: **15E-2**.
+
+Progress (2026-07-14): **15E-2 COMPLETE — focused review: GO.** `BattleHookDispatcher` now owns the
+typed Phase 15E collection path while retaining the earlier Battle v6 ability/item methods as
+compatibility adapters until their owning mechanic packages migrate. A collection captures all
+registrations before filtering, validates condition hook membership and scope-exact owners, and
+orders by checkpoint, descending priority, field/side/slot/creature/ability/item/move scope, owner
+topology, sequence, stable instance ID, and payload index. Exact duplicate invocation identities run
+once and trace suppression; conflicting duplicates fail admission, so caller or dictionary order
+cannot select behavior. The closed output union carries query modifiers, allow/deny filters, or
+validated intent requests. Query collection is immutable and shared by resolver/AI consumers; one-
+shot completion atomically enqueues intents at checkpoint tail. Root-action intent accounting is
+carried across nested collections and a 65th intent fails the whole snapshot with a typed visible
+`HookDispatchFailed` event and no queue mutation. Conditions or registrations added/removed after
+capture wait for the next checkpoint. Neutral tests cover the complete order and every checkpoint,
+condition add/remove snapshot behavior, duplicate suppression/conflict rejection, exact/capped
+intent budgets, atomic one-shot tail completion, resolver/AI query parity, dictionary-order drift,
+and strict registration/condition admission. Concrete weather, terrain, room, side, hazard, protect,
+item, ability, and move hook payload families remain with 15E-3 through 15E-7 and 15F; no content-name
+branches or parallel stores were added. Schema/migration impact: none. Dependency impact: none. RNG
+impact: none; collection and completion draw no RNG. No move cohort is newly certified because this
+is the shared dispatcher foundation; deterministic regeneration remained 937 inventoried / 57
+certified with digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f` and byte-identical outputs.
+Verification: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0
+warnings/errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed 1,173 tests
+(981 Core, 104 Creator, 21 Runtime, 67 Tools); the focused dispatcher suite passed 9 tests and the
+combined dispatcher/legacy-hook/condition/intent/query filter passed 51 tests; regeneration and
+`git diff --check` passed. Next eligible package: **15F-1**.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
@@ -2199,9 +2226,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1, 15D-1, and 15E-1. ACTIVE — 15E-2.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1, 15D-1, and 15E-1/2. ACTIVE — 15F-1.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15E-2**; **15F-1**; **15C-2**; **15C-3**;
+   **15F-1**; **15C-2**; **15C-3**;
    **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared

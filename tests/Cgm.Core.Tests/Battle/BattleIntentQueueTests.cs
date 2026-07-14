@@ -147,6 +147,20 @@ public sealed class BattleIntentQueueTests
     }
 
     [Fact]
+    public void EnqueueRangeValidatesWholeBatchBeforeMutation()
+    {
+        var queue = new BattleIntentQueue();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => queue.EnqueueRange(
+            [Request(0), Request(-1), Request(1)]));
+
+        Assert.Equal(0, queue.Count);
+        Assert.Empty(queue.DebugSnapshot());
+        Assert.Equal([0L, 1L], queue.EnqueueRange([Request(0), Request(1)])
+            .Select(intent => intent.Sequence).ToArray());
+    }
+
+    [Fact]
     public void DebugSnapshotIsStableAndJsonSerializable()
     {
         var left = new BattleIntentQueue();
