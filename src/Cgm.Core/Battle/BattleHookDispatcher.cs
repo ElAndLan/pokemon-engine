@@ -59,6 +59,22 @@ public static class BattleHookDispatcher
         ];
     }
 
+    public static IReadOnlyList<BattleHookInvocation> Damage(
+        BattleSlot attacker,
+        BattleSlot defender,
+        IEnumerable<BattleHookSource> sources)
+    {
+        var list = sources.ToList();
+        return
+        [
+            .. Emit(list.Where(s => s.Hook == AbilityHookPoint.OnModifyOutgoingDamage), attacker, BattleHookSourceKind.Ability),
+            .. Emit(list.Where(s => s.Hook == AbilityHookPoint.OnModifyOutgoingDamage), attacker, BattleHookSourceKind.HeldItem),
+            .. Emit(list.Where(s => s.Hook == AbilityHookPoint.OnModifyIncomingDamage), defender, BattleHookSourceKind.Ability),
+            .. Emit(list.Where(s => s.Hook == AbilityHookPoint.OnModifyIncomingDamage), defender, BattleHookSourceKind.HeldItem),
+            .. Emit(list.Where(s => s.Hook == AbilityHookPoint.OnModifyOutgoingDamage), attacker, BattleHookSourceKind.Field),
+        ];
+    }
+
     public static IReadOnlyList<BattleHookInvocation> EndOfTurn(
         BattleSide side,
         IEnumerable<BattleHookSource> sources)

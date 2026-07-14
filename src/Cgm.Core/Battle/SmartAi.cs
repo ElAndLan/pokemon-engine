@@ -100,7 +100,14 @@ public static class SmartAi
         var c = new List<AiScoreComponent>();
 
         double damage = ExpectedDamage(attacker, defender, move, chart);
-        double accuracy = move.BypassAccuracy ? 1 : (move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, defender.Level) : move.Accuracy ?? 100) / 100.0;
+        int authoredAccuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, defender.Level) : move.Accuracy ?? 100;
+        int resolvedAccuracy = BattleQuery.ResolveInteger(BattleQueryId.Accuracy, authoredAccuracy,
+            move.BypassAccuracy || (!move.Ohko && move.Accuracy is null)
+                ? []
+                : [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                    BattleQuery.AccuracyStageMultiplier(attacker.Stage(StatKind.Accuracy), defender.Stage(StatKind.Evasion)),
+                    InsertionOrder: 0)]);
+        double accuracy = move.BypassAccuracy || (!move.Ohko && move.Accuracy is null) ? 1 : resolvedAccuracy / 100.0;
         c.Add(new("damage", damage * accuracy));
         if (damage >= defender.CurrentHp && damage > 0)
             c.Add(new("ko", weights.KoBonus * accuracy));
@@ -123,7 +130,8 @@ public static class SmartAi
             c.Add(new("forceSwitch", weights.ForceSwitchValue));
 
         if (move.Heal is { } heal && attacker.CurrentHp < attacker.MaxHp / 2)
-            c.Add(new("recovery", EffectMath.HealAmount(attacker.MaxHp, heal.Num, heal.Den)));
+            c.Add(new("recovery", BattleQuery.ResolveInteger(BattleQueryId.Healing,
+                EffectMath.HealAmount(attacker.MaxHp, heal.Num, heal.Den))));
 
         if (move.Recoil is { } recoil && damage > 0)
             c.Add(new("recoilRisk", -EffectMath.RecoilDamage((int)damage, recoil.Num, recoil.Den)));
@@ -214,22 +222,31 @@ public static class SmartAi
             return 0;
 
         if (move.Ohko)
-            return attacker.Level >= defender.Level ? defender.CurrentHp : 0;
+            return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
+                attacker.Level >= defender.Level ? defender.CurrentHp : 0);
         if (move.FixedDamageLevel)
-            return attacker.Level;
+            return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage, attacker.Level);
         if (move.FixedDamage is int fixedDamage)
-            return fixedDamage;
+            return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage, fixedDamage);
         if (move.Power is not int power)
             return 0;
 
         bool physical = move.DamageClass == DamageClass.Physical;
-        int a = (int)((physical ? attacker.Stats.Atk : attacker.Stats.Spa)
-            * StatStages.Multiplier(attacker.Stage(physical ? StatKind.Atk : StatKind.Spa)));
-        int d = Math.Max(1, (int)((physical ? defender.Stats.Def : defender.Stats.Spd)
-            * StatStages.Multiplier(defender.Stage(physical ? StatKind.Def : StatKind.Spd))));
+        power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, power);
+        StatKind attackStat = physical ? StatKind.Atk : StatKind.Spa;
+        StatKind defenseStat = physical ? StatKind.Def : StatKind.Spd;
+        int a = BattleQuery.ResolveInteger(BattleQueryId.OffensiveStat,
+            physical ? attacker.Stats.Atk : attacker.Stats.Spa,
+            [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                BattleQuery.StatStageMultiplier(attacker.Stage(attackStat)), InsertionOrder: 0)]);
+        int d = BattleQuery.ResolveInteger(BattleQueryId.DefensiveStat,
+            physical ? defender.Stats.Def : defender.Stats.Spd,
+            [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                BattleQuery.StatStageMultiplier(defender.Stage(defenseStat)), InsertionOrder: 0)]);
         double stab = TypeChart.Stab(move.Type, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical;
-        int oneHit = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn);
+        int oneHit = BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
+            DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn));
         double hits = move.MultiHitMax >= 2 ? (move.MultiHitMin + move.MultiHitMax) / 2.0 : 1;
         return oneHit * hits;
     }

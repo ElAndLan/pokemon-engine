@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A and 15B complete; 937 inventoried, 57/937 certified; next package 15C-1** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, and 15C-1 complete; 937 inventoried, 57/937 certified; next package 15D-1** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -418,7 +418,8 @@ Current readiness ledger:
 | 15B-4 spread and per-target execution | SPEC READY | IMPLEMENTED | Closeout review passed; singles/doubles resolver, trace, and family-golden evidence |
 | 15B-5 redirection and position | SPEC READY | IMPLEMENTED | Position-swap and redirection acceptance matrix, deterministic trace, and closeout review passed |
 | 15B-6 faint outcome and replacement | SPEC READY | IMPLEMENTED | Draw-capable outcome, atomic replacement loop, slot-addressed entry hooks, and replacement golden |
-| 15C query/formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15C-1 through 15C-7 defaults and publish each exact formula table before implementation |
+| 15C-1 unified query pipeline | SPEC READY | IMPLEMENTED | Exact integer/fraction service, modifier order/clamps, controller/AI consumers, and query traces |
+| 15C-2 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | PLANNED — SPEC LOCK AUTHORIZED | FOUNDATION ONLY — NOT ACTIVE | Existing move gates are implemented; apply 15D-1 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15E-1 through 15E-7 ownership/order/cleanup defaults |
 | 15F mutation/snapshots | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15F-1 through 15F-7 overlay/mutation/reversion defaults |
@@ -1103,8 +1104,8 @@ dependency impact: none. Verification: full solution build/tests and determinist
 passed. `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` completed with 0 warnings/
 errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed 1,122 tests (930 Core,
 104 Creator, 21 Runtime, 67 Tools); regeneration was byte-identical; and `git diff --check` passed.
-Next eligible package: **15C-1 unified query pipeline specification lock**, followed by its
-implementation and affected certification.
+Completed next package: **15C-1 unified query pipeline specification lock and implementation**.
+The topological queue now advances to **15D-1 queued-intent foundation**.
 
 #### 15C — Query hooks and variable formulas
 
@@ -1117,7 +1118,7 @@ Primary groups: damage query modifiers (64), special accuracy (36), stat expansi
 
 Ordered feature packages:
 
-1. **15C-1 — Unified query pipeline (`PLANNED`; prerequisite 15B-4).** First lock the battle-spec
+1. **15C-1 — Unified query pipeline (`IMPLEMENTED`; prerequisite 15B-4).** First lock the battle-spec
    query registry: query ID; integer or reduced-fraction value type; base source; ordered modifier
    stages; replace/add/multiply/min/max precedence; floor point after every multiplication; final
    clamp; source/target/field/ruleset inputs; and trace fields. The locked stage order is move
@@ -1186,6 +1187,26 @@ Progress (2026-07-10): reusable status-conditioned base-power handling is in pla
 can suppress the physical burn penalty only when its authored condition matches. Compiler validation,
 numeric rounding, target/user resolution, and burn interaction are covered by tests. The remaining
 formula families and normalized per-move conformance definitions remain open.
+
+Progress (2026-07-14): **15C-1 COMPLETE.** The battle spec and effect catalog now lock the closed
+numeric query registry, exact reduced-fraction values, immutable stage order, operation precedence,
+per-multiplication floor points, hook priority/scope/insertion order, clamps, failure rules, context,
+and deterministic step trace. `BattleQuery` is the one normal Core service for base power,
+offensive/defensive stats, accuracy, speed, healing, final damage, and AI previews; critical chance,
+priority, and effectiveness have typed registry seams for their later 15C owners. Existing HP/status
+power modifiers, ability/held-item stat and damage hooks, and weather damage modifiers now produce
+typed query modifiers. Damage hooks are slot-addressed in doubles. Fixed, level-based, OHKO, and
+counter damage cross the final-damage query unchanged. Focused query tests cover every modifier kind,
+exact reduction/flooring, ordering, first-replace behavior, clamps, negative/zero/overflow guards,
+invalid IDs/stages/operands/context, resolver traces, doubles hook ownership, accuracy rounding, and
+fixed-damage regression. Schema/migration impact: none. Dependency impact: none. RNG order is
+unchanged; accuracy uses the queried integer threshold before the existing single draw. Battle events
+and existing effect traces are unchanged; `BattleController.QueryTrace` adds deterministic query
+evidence. Manifest status remains 57/937 because this foundation alone does not close a new reference
+formula family; regeneration was byte-identical. Verification: `dotnet build CreatureGameMaker.slnx`
+passed with 0 warnings/errors; `dotnet test CreatureGameMaker.slnx --no-build` passed 1,141 tests
+(949 Core, 104 Creator, 21 Runtime, 67 Tools). Focused review findings (critical-chance clamp and
+fixed-family final-query coverage) were fixed; verdict GO. Next eligible package: **15D-1**.
 
 Exit: formula families have table tests, exact rounding, compiler/validation coverage, and all
 affected moves receive conformance cases.
@@ -2133,9 +2154,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **ACTIVE — 15C-1.** Follow this topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1. ACTIVE — 15D-1.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15C-1**; **15D-1**; **15E-1**; **15E-2**; **15F-1**; **15C-2**; **15C-3**;
+   **15D-1**; **15E-1**; **15E-2**; **15F-1**; **15C-2**; **15C-3**;
    **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared

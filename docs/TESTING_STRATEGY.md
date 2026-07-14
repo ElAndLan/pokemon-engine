@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B complete; Phase 15 conformance continues at 57/937.**
+Status: **Phase 15B and 15C-1 complete; Phase 15 conformance continues at 57/937.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -106,6 +106,15 @@ spread resolution, two captured-action invalidations, atomic replacement, and a 
 The generated target/topology catalog registers 57 sanitized reference vectors whose exact target,
 effect, contact, event-slot, and typed compilation assertions pass in doubles. The focused 15B exit
 review found and fixed side-only active-event and timed-move lifecycle drift, then returned GO.
+
+## Phase 15C-1 query evidence
+
+The unified numeric-query suite covers every modifier operation, exact rational reduction,
+per-multiplication integer flooring, stage/priority/scope/insertion ordering, replacement precedence,
+registry clamps, invalid and overflow boundaries, and stable step traces. Controller integration
+asserts action-addressed base-power/stat/final-damage/healing traces, slot-owned doubles hooks,
+accuracy threshold flooring, and unchanged fixed damage. The full 15C-1 closeout is 1,141 green tests;
+manifest/definition regeneration remains byte-identical at 57 certified entries.
 
 ## Golden format
 

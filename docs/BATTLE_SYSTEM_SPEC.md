@@ -63,6 +63,53 @@ Validation: every defined `MoveTarget` must classify, and unknown enum values th
 out-of-range error. Promotion rationale: field-scoped effects such as weather can be expressed as
 field/side effects without requiring a fake active creature target or full doubles topology.
 
+### Unified numeric query pipeline (Battle v6, Phase 15C-1)
+
+Every battle number migrated by 15C resolves through `BattleQuery`; later 15C packages must extend
+this path rather than add parallel arithmetic. The initial registry contains `basePower`,
+`offensiveStat`, `defensiveStat`, `accuracy`, `speed`,
+`healing`, `finalDamage`, `criticalChance`, `priority`, and `effectiveness`. Type/class selection is
+not coerced into a number; 15C-6 supplies its typed effective-value query while feeding its numeric
+outputs back through this registry. Direct legacy fields supply only the authored-base value.
+
+Query values are either integers or exact reduced fractions. Fractions use a positive denominator,
+normalize zero to `0/1`, and reject arithmetic overflow. Integer queries require an integral base
+and operand for replace/add/min/max; multiply accepts a fraction and floors immediately after each
+individual multiplication. Fraction queries remain exact and reduce after each operation. No query
+uses floating-point arithmetic.
+
+The immutable stage order is:
+
+1. move identity (select the query ID; it cannot change the value);
+2. authored base;
+3. source/target state;
+4. ability/item/condition hooks;
+5. ruleset override; and
+6. final registry clamp.
+
+Within each mutable stage, operation precedence is `replace -> add -> multiply -> min -> max`.
+At one operation, modifiers order by descending hook priority, then owner scope
+`source -> sourceSide -> target -> targetSide -> field`, then authored insertion order. The first
+replace at an operation/stage wins; later replaces at that same point are traced as skipped. Every
+other modifier applies in order. Dictionary enumeration and RNG never participate in query order.
+Invalid query IDs, stages, operations, owner scopes, duplicate insertion identities, nonpositive
+multiplier denominators, nonintegral operands where an integer is required, and arithmetic overflow
+are rejected before evaluation.
+
+Registry clamps are inclusive: base power/offensive stat/defensive stat/speed `1..int.MaxValue`;
+accuracy `0..100`; healing/final damage `0..int.MaxValue`; critical chance `0/1..1/1`;
+effectiveness `0/1..4/1`; priority `-7..7`. An empty modifier list returns the clamped authored base. A clamp is not a failure;
+its before/after values are traced. Query context carries optional source and target slots plus
+creatures, field weather, and a nonblank ruleset profile. The numeric service does not mutate them.
+
+`BattleQueryResult` records query ID, value type, authored base, final value, source/target slots,
+weather, ruleset, and every applied or
+skipped modifier with stage, operation, priority, scope, insertion index, input, operand, and output.
+The controller exposes action-addressed query traces for resolver/debug/golden consumers. Accuracy
+resolution records the resolved threshold before its ordinary RNG draw; speed ordering, healing,
+damage inputs/final damage, and AI preview use the same service. Query evaluation itself draws no RNG
+and emits no battle event.
+
 ## Effect-op numeric formulas (Battle v5, Phase 14)
 
 The closed op palette lives on `Move.Effects` (`{ op, chance?, params }`). Ops split into pure numeric
@@ -216,9 +263,9 @@ The Core event stream locks this visible switch-in order: `SwitchedIn`, any cond
 `FormChanged` from the pre-hook check, `WeatherChanged` from switch-in hooks, any weather-triggered
 condition-form `FormChanged`, then end-turn held-item events.
 
-Damage modifiers are multiplicative and floor only after the final product, matching the existing
-weather damage-query behavior. Apply modifier sources in this order: outgoing ability, outgoing
-held item, incoming ability, incoming held item, weather, then move-specific v5 modifiers.
+Damage-query modifiers use exact fractions and floor after each multiplication through the unified
+query pipeline. Apply modifier sources in this order: outgoing ability, outgoing held item, incoming
+ability, incoming held item, weather, then move-specific v5 modifiers at their owned query stage.
 
 End-of-turn order is: existing status/volatile residuals, held-item residual heal/damage, ability
 residual heal/damage, weather residual, weather expiry, form timed-expiry/revert. A faint caused by

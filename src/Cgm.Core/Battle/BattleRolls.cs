@@ -15,8 +15,11 @@ public static class BattleRolls
     public static bool Hits(int? accuracy, int accuracyStage, int evasionStage, IRng rng, out int? draw)
     {
         if (accuracy is not int acc) { draw = null; return true; }
+        acc = BattleQuery.ResolveInteger(BattleQueryId.Accuracy, acc,
+            [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                BattleQuery.AccuracyStageMultiplier(accuracyStage, evasionStage), InsertionOrder: 0)]);
         draw = rng.Next(100);
-        return draw.Value < acc * StatStages.AccuracyMultiplier(accuracyStage, evasionStage);
+        return draw.Value < acc;
     }
 
     /// <summary>Gen III/IV crit chance by stage: 1/16, 1/8, 1/4, 1/3, then 1/2.</summary>

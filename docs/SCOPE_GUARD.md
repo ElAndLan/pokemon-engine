@@ -21,8 +21,9 @@ Starting baseline:
 - Strict end-to-end conformance certification: 57/937. Phase 15A and the complete 15B target/
   topology workstream are complete. Its generated normalized definitions, per-reference doubles
   vectors, cumulative golden, and focused exit review are green; remaining entries are owned by
-  15C-15G mechanics or later 15H reference closure. Reusable status-power, queued-gate, and
-  HP-mutation packages have also landed outside that certified cohort.
+  15C-15G mechanics or later 15H reference closure. The 15C-1 exact numeric-query foundation,
+  reusable status-power, queued-gate, and HP-mutation packages have also landed outside that
+  certified cohort.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
   `IMPLEMENTATION_PLAN.md` record the growing verified suite; test count is evidence, not phase exit.
 

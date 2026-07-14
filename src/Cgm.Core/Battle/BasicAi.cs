@@ -45,12 +45,14 @@ public static class BasicAi
         if (eff <= 0)
             return 0; // immune — useless
 
+        power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, power);
         bool physical = move.DamageClass == DamageClass.Physical;
-        int a = physical ? atk.Stats.Atk : atk.Stats.Spa;
-        int d = physical ? def.Stats.Def : def.Stats.Spd;
+        int a = BattleQuery.ResolveInteger(BattleQueryId.OffensiveStat, physical ? atk.Stats.Atk : atk.Stats.Spa);
+        int d = BattleQuery.ResolveInteger(BattleQueryId.DefensiveStat, physical ? def.Stats.Def : def.Stats.Spd);
         double stab = TypeChart.Stab(move.Type, atk.Types);
 
-        return DamageCalc.Compute(atk.Level, power, a, d, eff, stab, crit: false, roll: 92, burn: false);
+        return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
+            DamageCalc.Compute(atk.Level, power, a, d, eff, stab, crit: false, roll: 92, burn: false));
     }
 
     private static int FirstUsableOrZero(BattleCreature atk)

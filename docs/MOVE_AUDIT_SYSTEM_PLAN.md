@@ -262,9 +262,11 @@ Authored `Move.Target` now compiles into `BattleMove`. The shared topology suppo
 slots per side, all 16 typed target shapes, live target materialization/fallback, ordered spread
 resolution, ally selection and position exchange, redirection, side/field action scopes, and
 slot-addressed faint replacement. Party-member and move-reference scopes are typed but their
-mechanic-specific execution remains with later Phase 15 packages. Capability is not certification:
-the target/topology cohort still needs sanitized normalized definitions, registered conformance
-vectors, generated manifest status changes, the cumulative 15B golden, and the 15B exit review.
+mechanic-specific execution remains with later Phase 15 packages. Capability is not certification.
+The target/topology cohort has sanitized definitions, registered vectors, generated statuses, the
+cumulative golden, and a GO exit review at 57 certifications. The 15C-1 exact numeric-query
+foundation is also complete, but it advances no additional entry until a later formula package
+supplies each affected reference's complete normalized mechanics and vectors.
 
 ## Iteration Protocol For Future Agents
 

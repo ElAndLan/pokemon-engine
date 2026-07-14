@@ -324,6 +324,16 @@ These helpers are not all effect primitives. They are shared implementation serv
 | `PreventInfiniteHookLoop(trace)` | Guards against reflection/copy/retrigger loops. |
 | `ValidateHookPurity(hook)` | Ensures hooks mutate only through allowed primitives. |
 
+#### 4.5.1 Numeric query contract
+
+`BattleQuery` is the single implemented `ApplyQueryModifiers` path. Its closed initial IDs are
+base power, offensive stat, defensive stat, accuracy, speed, healing, final damage, critical chance,
+priority, and effectiveness. Values are integers or reduced exact fractions; modifiers are typed
+replace/add/multiply/min/max records assigned to source/target state, ability/item/condition, or
+ruleset stages. Ordering, per-multiply flooring, clamps, validation, and deterministic trace fields
+are locked in `BATTLE_SYSTEM_SPEC.md` under “Unified numeric query pipeline.” Conditions and hooks
+produce modifiers; they do not perform their own numeric stacking or rounding.
+
 ### 4.6 Accuracy, Damage, And HP Helpers
 
 | Helper | Purpose |
