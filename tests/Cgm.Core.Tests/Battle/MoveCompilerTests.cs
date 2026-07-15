@@ -124,6 +124,96 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
+    public void CompilesWeatherAccuracyOp()
+    {
+        BattleMove move = MoveCompiler.ToBattleMove(Move(DamageClass.Special, 80,
+            Op("weatherAccuracy", null, ("bypass", "rain,hail"), ("overrides", "sun:50"))));
+
+        WeatherAccuracyEffect effect = Assert.Single(move.SecondaryEffects.OfType<WeatherAccuracyEffect>());
+        Assert.Equal([Weather.Rain, Weather.Hail], effect.BypassWeather);
+        Assert.Equal(50, effect.AccuracyOverrides[Weather.Sun]);
+    }
+
+    [Fact]
+    public void CompilesWeatherHealingRowsOnTheGenericHealOp()
+    {
+        BattleMove move = MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("heal", null, ("num", 1), ("den", 2),
+                ("weather", "sun:2/3,rain:1/4,sandstorm:1/4,hail:1/4"))));
+
+        HealEffect effect = Assert.Single(move.SecondaryEffects.OfType<HealEffect>());
+        Assert.Equal(new Fraction(1, 2), effect.Fraction);
+        Assert.Equal(new Fraction(2, 3), effect.WeatherFractions![Weather.Sun]);
+        Assert.Equal(new Fraction(1, 4), effect.WeatherFractions[Weather.Rain]);
+        Assert.Equal(new Fraction(1, 4), effect.WeatherFractions[Weather.Sandstorm]);
+        Assert.Equal(new Fraction(1, 4), effect.WeatherFractions[Weather.Hail]);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("none:1/2")]
+    [InlineData("1:1/2")]
+    [InlineData("sun")]
+    [InlineData("sun:1")]
+    [InlineData("sun:0/1")]
+    [InlineData("sun:1/0")]
+    [InlineData("sun:2/1")]
+    [InlineData("sun:x/2")]
+    [InlineData("sun:1/2,sun:2/3")]
+    [InlineData("sun:1/2,")]
+    [InlineData("sun:1/2,,rain:1/4")]
+    public void Heal_RejectsInvalidWeatherRows(string rows)
+    {
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("heal", null, ("weather", rows)))));
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("none", null)]
+    [InlineData("1", null)]
+    [InlineData("rain,rain", null)]
+    [InlineData(null, "sun:0")]
+    [InlineData(null, "")]
+    [InlineData(null, "sun:101")]
+    [InlineData(null, "1:50")]
+    [InlineData(null, "sun:50,sun:60")]
+    [InlineData("rain", "rain:50")]
+    public void WeatherAccuracyOp_RejectsInvalidRows(string? bypass, string? overrides)
+    {
+        var values = new List<(string Key, object Value)>();
+        if (bypass is not null) values.Add(("bypass", bypass));
+        if (overrides is not null) values.Add(("overrides", overrides));
+
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 80, Op("weatherAccuracy", null, values.ToArray()))));
+    }
+
+    [Fact]
+    public void WeatherAccuracyOp_RequiresAuthoredAccuracyAndRejectsChanceAndUnknownParams()
+    {
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 80, Op("weatherAccuracy", null, ("bypass", "rain")))
+                with { Accuracy = null }));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 80, Op("weatherAccuracy", 50, ("bypass", "rain")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 80, Op("weatherAccuracy", null, ("bypass", "rain"), ("extra", 1)))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("weatherAccuracy", null, ("bypass", "rain")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 80,
+                Op("weatherAccuracy", null, ("bypass", "rain")),
+                Op("weatherAccuracy", null, ("bypass", "hail")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 80,
+                Op("accuracyBypass"), Op("weatherAccuracy", null, ("bypass", "rain")))));
+        Move weatherOhko = Move(DamageClass.Special, 80,
+            Op("weatherAccuracy", null, ("bypass", "rain")), Op("ohko"));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(weatherOhko));
+    }
+
+    [Fact]
     public void CompilesAilmentOp()
     {
         BattleMove bm = MoveCompiler.ToBattleMove(

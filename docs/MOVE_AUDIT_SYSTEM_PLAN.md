@@ -254,8 +254,9 @@ statuses, stat stages including accuracy/evasion, ordered multiple `statStage` e
 recoil, crash recoil via `recoil` plus `onMiss: true`, healing, multi-hit, fixed damage, OHKO,
 crit boost, self destruct, leech seed, spikes, stealth rock, weather, bind, protect, force
 switch, counter damage, accuracy bypass, charge turns, rampage locks, ailment, flinch,
-damage-stat overrides for offensive/defensive damage queries, the complete 15C-2 HP/status and
-15C-3 effective-speed/physical-metric formula registries, explicit `noBattleEffect`, explicit
+damage-stat overrides for offensive/defensive damage queries, the complete 15C-2 HP/status,
+15C-3 effective-speed/physical-metric, 15C-4 action-history, and 15C-5 party/resource/stage/item/
+random-table formula registries, explicit `noBattleEffect`, explicit
 `postBattleReward`,
 and the Phase 15 ability/held-item/form hook slice.
 
@@ -266,7 +267,8 @@ slot-addressed faint replacement. Party-member and move-reference scopes are typ
 mechanic-specific execution remains with later Phase 15 packages. Capability is not certification.
 The target/topology cohort has sanitized definitions, registered vectors, generated statuses, the
 cumulative golden, and a GO exit review. The 15C-1 exact numeric-query foundation, 15C-2 HP/status,
-and 15C-3 speed/metric formula packages are complete at 74 certifications; later formula packages
+15C-3 speed/metric, 15C-4 action-history, and 15C-5 party/resource formula packages are complete at
+84 certifications; later formula packages
 own the remaining entries.
 
 ## Iteration Protocol For Future Agents
@@ -766,6 +768,17 @@ Moves: `aurora-veil`, `blizzard`, `body-slam`, `camouflage`, `chilly-reception`,
 `tailwind`, `terrain-pulse`, `thunder`, `toxic-spikes`, `trick-room`, `water-sport`,
 `weather-ball`, `wide-guard`, `wonder-room`.
 
+The 15E-3 weather-status audit found seven immutable source rows whose generic `ailment: freeze`
+attempt must pass through the sun field filter: `move-0008`, `move-0058`, `move-0059`, `move-0181`,
+`move-0423`, `move-0573`, and `move-0821`. This is a shared status-admission requirement, not seven
+move implementations. These rows remain uncertified until their other declared mechanics are green.
+
+The weather-healing audit found four immutable source rows requiring authored `heal.weather`
+fractions: `move-0234`, `move-0235`, and `move-0236` use clear `1/2`, sun `2/3`, and
+rain/sandstorm/hail `1/4`; `move-0659` uses clear `1/2` and sandstorm `2/3` while other weather stays
+neutral. They remain inventory-only until the complete weather family and their conformance vectors
+close together.
+
 ### Held Item And Berry Mutation
 
 Add helpers to query, consume, steal, swap, remove, destroy, restore, and depend on held items
@@ -868,8 +881,12 @@ Moves: `power-trick`, `relic-song`, `shed-tail`, `substitute`, `tidy-up`, `trans
 
 ### Counter, Revenge, And Stored Damage
 
-Add damage memory by turn, side, target, source, category, and hit count. Reuse it for counter,
-revenge, stored damage, switch interception, and hit-count scaling.
+The 15G-2 foundation now records bounded typed per-hit damage by turn/action, stable side/party
+source and target plus resolution slot, move, class/type, cause, outcome, calculated/applied/actual
+amounts, hit count, critical/contact/substitute, and faint result. Immutable queries retain current
+and previous-turn evidence without parsing events. Reusing those records for counter, revenge,
+stored damage, switch interception, and hit-count scaling remains the 15G-3 consumer package; the
+existing counter resolver has not yet been migrated to query the new store.
 
 Moves: `bide`, `comeuppance`, `counter`, `final-gambit`, `metal-burst`, `mirror-coat`,
 `pursuit`, `rage-fist`.

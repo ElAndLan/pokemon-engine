@@ -85,8 +85,11 @@ public sealed record DrainEffect(Fraction Fraction) : MoveEffect;
 /// <summary>apply_recoil_or_crash(percent_damage_dealt) — the user takes a fraction of the damage dealt.</summary>
 public sealed record RecoilEffect(Fraction Fraction) : MoveEffect;
 
-/// <summary>heal_hp(percent_max_hp) on the user or target.</summary>
-public sealed record HealEffect(Fraction Fraction, HpFractionRecipient Recipient = HpFractionRecipient.Self) : MoveEffect;
+/// <summary>heal_hp(percent_max_hp) on the user or target, with optional weather fraction overrides.</summary>
+public sealed record HealEffect(
+    Fraction Fraction,
+    HpFractionRecipient Recipient = HpFractionRecipient.Self,
+    IReadOnlyDictionary<Weather, Fraction>? WeatherFractions = null) : MoveEffect;
 
 /// <summary>Mutates a recipient's current or max-HP fraction through the shared HP primitives.</summary>
 public sealed record HpFractionEffect(
@@ -130,6 +133,20 @@ public sealed record MetricRatioPowerEffect(
     HpRatioPowerSource Numerator,
     HpRatioPowerSource Denominator,
     IReadOnlyList<FormulaPowerBand> Bands) : MoveEffect;
+public sealed record ConsecutivePowerEffect(
+    ConsecutivePowerScope Scope,
+    ConsecutivePowerMode Mode,
+    int Step,
+    int Cap) : MoveEffect;
+public sealed record HistoryPowerEffect(HistoryPowerCondition Condition, Fraction Multiplier) : MoveEffect;
+public sealed record PartyCountPowerEffect(
+    PartyMemberFilter Filter, int Base, int PerMember, int? Cap) : MoveEffect;
+public sealed record FriendshipPowerEffect(FriendshipPowerMode Mode) : MoveEffect;
+public sealed record PpPowerEffect(PpPowerTiming Timing, IReadOnlyList<FormulaPowerBand> Bands) : MoveEffect;
+public sealed record PositiveStagePowerEffect(
+    StatusPowerSubject Subject, int Base, int PerStage, int? Cap) : MoveEffect;
+public sealed record ItemDataPowerEffect(ItemPowerField Field) : MoveEffect;
+public sealed record RandomTablePowerEffect(IReadOnlyList<WeightedPowerEntry> Entries) : MoveEffect;
 
 /// <summary>apply_condition(volatile:focus_energy) — raises the user's crit stage.</summary>
 public sealed record CritBoostEffect(int Stages) : MoveEffect;
@@ -143,6 +160,11 @@ public sealed record EntryHazardEffect : MoveEffect;
 
 /// <summary>apply_condition(field:weather) — sets battlefield weather (catalog §7.6).</summary>
 public sealed record SetWeatherEffect(Weather Weather) : MoveEffect;
+
+/// <summary>Changes this move's accuracy under authored weather conditions.</summary>
+public sealed record WeatherAccuracyEffect(
+    IReadOnlySet<Weather> BypassWeather,
+    IReadOnlyDictionary<Weather, int> AccuracyOverrides) : MoveEffect;
 
 /// <summary>apply_condition(side:entry_hazard_damage, type_scaled) — Stealth-Rock-style hazard on the
 /// target's side, dealing type-scaled damage on switch-in (catalog §7.3).</summary>

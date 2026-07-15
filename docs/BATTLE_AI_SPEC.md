@@ -184,6 +184,19 @@ Capabilities beyond Beginner:
 
 - Uses true expected damage with stat stages, burn, type chart, STAB, weather field effects, and
   accuracy.
+- Weather scoring consumes the controller's immutable condition snapshot and collects the same
+  typed `DamageQuery` registrations as the resolver. A missing snapshot means clear weather; AI
+  code never reconstructs weather from presentation events or a parallel timer.
+- Weather-sensitive move accuracy consumes the same typed `AccuracyQuery` registration and bypass
+  filter as the resolver. It changes only the existing `damage`/`ko` expected-value components,
+  consumes no additional AI RNG, and preserves the visible-field-only fairness boundary.
+- Weather-sensitive status scoring consumes the same typed `StatusAttempt` filter as the resolver.
+  A denied status contributes no `status` component; unlisted statuses and a missing condition
+  snapshot retain their ordinary value. Preview does not mutate or complete the hook snapshot.
+- Weather-sensitive recovery consumes the same typed `HealingQuery` replacement as the resolver.
+  The named `recovery` component uses the direct recipient-max-HP amount capped at missing HP; an
+  absent condition snapshot or unlisted weather retains the authored healing fraction and consumes
+  no additional AI RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

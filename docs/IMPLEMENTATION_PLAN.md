@@ -129,7 +129,7 @@ Roadmap baseline commit: `b69bcb2` (`Lock Phase 15 doubles execution roadmap`).
 - PokeAPI move corpus: 937 JSON files in `docs/pokeapi-results/move/`.
 - Existing expressibility audit: 468 PASS / 469 FAIL. PASS means “current generic operations appear
   capable of expressing this move”; it does **not** yet mean end-to-end certification.
-- Certified Phase 15 move coverage: **74/937** from the generated 15B target/topology and 15C-2/3
+- Certified Phase 15 move coverage: **84/937** from the generated 15B target/topology and 15C-2/3/4/5
   formula cohorts; the earlier 0/937 value remains the locked Phase 15A baseline.
 
 Roadmap audit (2026-07-11): the prior plan fully locked 15B but still left 15C-15I and Phases 16-19
@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3, 15D-1, 15E-1/2, and 15F-1 complete; 937 inventoried, 74/937 certified; next package 15C-4** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2 plus 15E-3 weather store/damage/residual/accuracy/status/healing checkpoints, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-3 weather hooks** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -421,11 +421,13 @@ Current readiness ledger:
 | 15C-1 unified query pipeline | SPEC READY | IMPLEMENTED | Exact integer/fraction service, modifier order/clamps, controller/AI consumers, and query traces |
 | 15C-2 HP and status formulas | SPEC READY | IMPLEMENTED | Boundary/compiler/resolver/trace/AI matrices and 18 generated neutral formula vectors |
 | 15C-3 speed and physical-metric formulas | SPEC READY | IMPLEMENTED | Exact speed/metric bands, schema v5 metrics, effective overlays, resolver/AI parity, and 2 generated certifications |
-| 15C-4 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
+| 15C-4 action-history formulas | SPEC READY | IMPLEMENTED | Bounded typed attempts/streaks, resolver/AI parity, replacement-faint aging, and 4 generated certifications |
+| 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
+| 15C-6 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
-| 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed condition stores and the shared deterministic hook dispatcher are complete; apply 15E-3 through 15E-7 mechanic defaults after their prerequisites |
+| 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; 15E-3 IN PROGRESS (WEATHER STORE/DAMAGE/RESIDUAL/ACCURACY/STATUS/HEALING CHECKPOINTS COMPLETE) | Weather now owns shared condition state, duration, damage/accuracy/status/healing hooks, residuals, trace, and AI visibility; finish its remaining interaction matrix before terrain/room/gravity/sport work |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
-| 15G switch/recovery/memory/non-battle | PLANNED — SPEC LOCK AUTHORIZED | FOUNDATION ONLY — NOT ACTIVE | HP primitives exist; apply 15G-1 through 15G-6 defaults |
+| 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
 | 15I AI awareness | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15I-1 through 15I-5 legality/scoring/tuning defaults after mechanics stabilize |
 | 15J certification/closeout | PROCESS READY | NOT COMPLETE | Generated manifest, registered tests, scans, fuzz/soak, and GO review |
@@ -1144,7 +1146,7 @@ Ordered feature packages:
    key. Weight/speed changes must enter central effective queries rather than mutate definitions.
    **Acceptance:** every band edge±1, minimum/maximum values, modified versus base inputs, grounded
    variants, overflow-safe arithmetic, resolver/trace evidence, and affected conformance vectors.
-4. **15C-4 — Action history and consecutive-use formulas (`PLANNED`; prerequisite 15C-1).** Lock
+4. **15C-4 — Action history and consecutive-use formulas (`IMPLEMENTED`; prerequisite 15C-1).** Lock
    attempt/success/connect/fail
    meanings; turn/action/hit retention; source/target keys; consecutive reset on different action,
    switch, fail, or miss per formula row; moved-first/last checkpoint; retaliation qualification;
@@ -1152,7 +1154,7 @@ Ordered feature packages:
    parsing. Implement the minimal bounded action-attempt history this family needs; 15G-2 extends the
    same service with complete per-hit damage records. **Acceptance:** first use, repeat to cap, interruption/reset matrix, switch/faint boundary,
    doubles source/target isolation, turn aging, and replay-stable traces.
-5. **15C-5 — Party, resource, stage, item, and random-table inputs (`PLANNED`; prerequisites 15C-1
+5. **15C-5 — Party, resource, stage, item, and random-table inputs (`IMPLEMENTED`; prerequisites 15C-1
    and effective-query portion of 15F-1).** Lock living/fainted/contributing party filters,
    friendship range, PP timing (before or after current spend), positive-stage sum and comparison,
    item-data lookup failure, and random-table ordered weights. Random tables use cumulative positive
@@ -1253,6 +1255,60 @@ byte-identical; and `git diff --check` passed. The focused closeout review corre
 resolution for unrelated moves, routed stat overlays into effective Speed, and verified that
 later-dependent weight rows remain uncertified;
 verdict GO. Next eligible package: **15C-4**.
+
+Progress (2026-07-14): **15C-4 COMPLETE.** The battle spec and effect catalog now lock typed
+`prevented`/`failed`/`missed`/`succeeded`/`connected` outcomes, bounded current/previous-turn attempt
+records, creature-connected and side-attempted streaks, actual moved-before/after state, immediately
+previous failure, and previous-turn ally-faint memory. `consecutivePower` supplies capped exponential
+or linear replacement power and `historyPower` supplies a conditional rational multiplier through
+the shared 15C-1 BasePower query. Singles and doubles use the same controller lifecycle; every faint
+source uses one history-aware path, including repeat replacement entry-hazard faints. Switch, faint,
+different action, prevention, failure, miss, turn-gap, Pass/item, and side/creature ownership reset
+semantics are deterministic. Smart AI previews only public effective Speed under the locked
+equal-priority/tie-neutral rule while reusing visible streak/faint memory; private submitted action
+kinds remain resolver-only. The generated catalog adds `move-0371`, `move-0514`, `move-0707`, and
+`move-0915` for 937 inventoried / 78 certified with unchanged corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; consecutive rows whose
+sound/slicing interactions are still open remain uncertified. Schema/migration and dependency
+impact: none. Verification: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore`
+passed with 0 warnings/errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build
+--no-restore` passed 1,333 tests (1,116 Core, 104 Creator, 21 Runtime, 92 Tools); the complete Core
+coverage run exercised 167/169 changed instrumented production lines (98.82%); deterministic
+regeneration was byte-identical; and `git diff --check` passed. The focused closeout review found and
+fixed side-chain prior-turn counting, move-gate/Protect failure classification, source-faint state
+recreation, and target-fraction damage bookkeeping; verdict GO. Next eligible package: **15G-2**.
+
+Progress (2026-07-15): **15C-5 COMPLETE.** The battle spec and effect catalog now lock six typed,
+mutually exclusive replacement-power ops: party counts over living/fainted/contributing slots,
+current/missing friendship, PP bands captured before or after the actual spend, positive sums across
+all seven stat stages, effective held-item `flingPower`, and authored-order weighted random tables.
+`PartyResourceFormulas` supplies checked/clamped integer math and immutable action inputs;
+`BattleController` routes every result through the shared BasePower query, fails unavailable item
+data after PP/`MoveUsed` but before accuracy or RNG, and selects random power once per action after
+accuracy for reuse across spread targets and multi-hits. `EffectTraceKind.PowerTable` records the
+selection; Smart AI uses its own visible party/item data plus the exact floored weighted mean without
+an extra formula draw. Runtime battle boot now supplies the exported item catalog. Friendship is
+carried from the existing creature instance, so schema/migration and dependency impact are none.
+
+Changed production files: `PartyResourceFormulas.cs`, `MoveEffects.cs`, `MoveCompiler.cs`,
+`HpStatusFormulas.cs`, `BattleController.cs`, `BattleCreature.cs`, `BattleEvents.cs`,
+`EffectTrace.cs`, `PhysicalMetricFormulas.cs`, `SmartAi.cs`, `MoveRules.cs`,
+`ExportedGameBoot.cs`, and `MoveConformanceNormalizer.cs`. Focused Core and Tools tests add compiler,
+formula-boundary, party-duplicate/filter, PP charge/spend, stage, item failure/suppression, exact RNG
+endpoint/no-draw/spread/multi-hit/replay, AI, validation, and generated conformance evidence. The
+generated catalog adds six fully closed party/resource rows for 937 inventoried / 84 certified
+with unchanged corpus digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`;
+Magnitude, Present, Fling, Beat Up, and Last Respects remain uncertified because their non-formula
+behavior or cumulative-faint history belongs to later packages. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore`
+passed with 0 warnings/errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build
+--no-restore` passed 1,382 tests (1,159 Core, 104 Creator, 21 Runtime, 98 Tools); the complete dirty-
+worktree Core coverage run exercised 893/917 changed instrumented production lines (97.38%); the
+audit command reported 84 certifications and regenerated both artifacts byte-identically; and
+`git diff --check` passed. Focused
+closeout review found and fixed missing MoveRule registration, zero-power friendship boundaries,
+single-entry trace bounds, and checked linear overflow/clamping; verdict GO. Next eligible package:
+**15E-3**.
 
 Exit: formula families have table tests, exact rounding, compiler/validation coverage, and all
 affected moves receive conformance cases.
@@ -1382,7 +1438,8 @@ Ordered feature packages:
    payload)` and cap nested emitted intents at 64 with a visible engine error. **Acceptance:** complete
    order golden, add/remove during dispatch, duplicate suppression, cap failure, no dictionary drift,
    and identical resolver/AI query collection.
-3. **15E-3 — Weather, terrain, room, gravity, and sport families (`PLANNED`; prerequisites 15E-1/2
+3. **15E-3 — Weather, terrain, room, gravity, and sport families (`IN PROGRESS`; weather shared-store,
+   damage/residual/accuracy/status/healing checkpoints complete; prerequisites 15E-1/2
    and 15C query seam).** Build these as field-scoped condition definitions. Each registry row locks
    duration/default, replace/coexist rules, damage/accuracy/status/heal/type/grounded/order hooks,
    residual timing, source, and removal. Weather and terrain each permit one effective instance;
@@ -1465,6 +1522,116 @@ warnings/errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` p
 (981 Core, 104 Creator, 21 Runtime, 67 Tools); the focused dispatcher suite passed 9 tests and the
 combined dispatcher/legacy-hook/condition/intent/query filter passed 51 tests; regeneration and
 `git diff --check` passed. Next eligible package: **15F-1**.
+
+Progress (2026-07-15): **15E-3 WEATHER SHARED-STORE CHECKPOINT COMPLETE; PACKAGE REMAINS IN
+PROGRESS — focused review: GO.** The four currently supported weather rows now use
+`BattleConditionStores` as their sole state and duration owner: rain/sun publish typed exact
+`DamageQuery` multipliers through `BattleHookDispatcher`, sandstorm/hail run topology-ordered
+`TurnEnd` residuals, and the common checkpoint ticks/expires only after the weather hook. Apply,
+replace, tick, expire, and battle-end cleanup publish generic condition events/traces alongside the
+existing weather presentation events. Same-weather move or ability application is a no-op and does
+not restart duration; different weather captures source slot/party and replaces the instance.
+Condition-triggered forms retain their event order. `BattleController` exposes immutable condition
+and hook snapshots, and Runtime passes that snapshot to Smart AI, which now collects the same exact
+weather damage registrations as resolver queries. The old private weather enum/timer and unused
+parallel damage helper were removed. New neutral tests cover all four definitions, source identity,
+same/different application, duration one and ordinary expiry, exact boosted/weakened/absent query
+rows, residual topology and immunity, battle-end cleanup, no added RNG, AI choice parity, and replay.
+Owning-spec, AI, catalog, test-strategy, and roadmap documents record the checkpoint boundary.
+
+This is not the 15E-3 weather-family exit: accuracy, freeze/status, healing, move type/base-power/
+charge, grounded/stat, natural-input, and ruleset-difference hooks remain. Review removed a proposed
+four-row weather certification because those setting moves are not yet 100% intended while that
+interaction matrix is incomplete. Schema/migration impact: none. Dependency impact: none. RNG
+impact: none. Changed files for this checkpoint: `docs/BATTLE_SYSTEM_SPEC.md`,
+`docs/BATTLE_AI_SPEC.md`, `docs/EFFECT_TYPES_CATALOG_v0_5.md`, `docs/TESTING_STRATEGY.md`, this plan,
+`src/Cgm.Core/Battle/WeatherConditions.cs`, `src/Cgm.Core/Battle/BattleController.cs`,
+`src/Cgm.Core/Battle/SmartAi.cs`, `src/Cgm.Runtime/Engine/ExportedGameBoot.cs`, and
+`tests/Cgm.Core.Tests/Battle/BattleWeatherConditionTests.cs`. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --no-restore` passed 1,397 tests
+(1,174 Core, 104 Creator, 21 Runtime, 98 Tools); the focused weather/legacy/doubles/hook filter
+passed 95 tests; the new weather-condition suite contributes 15 cases; measured checkpoint
+production lines exercised 193/194 (99.48%); deterministic regeneration remained 937 inventoried /
+84 certified with digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`
+and byte-identical outputs; and `git diff --check` passed. Next continuation: finish the remaining
+weather query/ruleset interaction matrix, then add weather conformance rows only when every setting
+move is fully intended.
+
+Progress (2026-07-15): **15E-3 WEATHER ACCURACY CHECKPOINT COMPLETE; PACKAGE REMAINS IN PROGRESS.**
+The reusable `weatherAccuracy` move op strictly compiles authored bypass-weather and accuracy-
+override rows. Rain/sun/hail conditions publish typed `AccuracyQuery` hooks through the existing
+dispatcher: bypass rows ignore accuracy/evasion and consume no accuracy draw, while override rows
+replace authored accuracy before stage multiplication and retain one per-target d100. Resolver query/
+effect/hook traces and Smart AI expected-value scoring consume the same snapshot; missing/unlisted
+weather is neutral, no new event or RNG source exists, and no move ID/name branch was added. Neutral
+tests cover compilation and every invalid row, bypass/stage/draw boundaries, absent/unlisted weather,
+resolver integration, and AI choice parity. Exact reference families affected are `move-0059`,
+`move-0087`, and `move-0542`; certification remains unchanged because their remaining ailment,
+semi-invulnerable, protection, and multi-turn requirements are not all closed. Schema/migration and
+dependency impact: none. Remaining weather work: freeze/status, healing, move type/base-power/charge,
+grounded/stat, natural field inputs, and ruleset differences; only then close weather and proceed to
+terrain/room/gravity/sport inside 15E-3. Verification: the focused compiler/weather/Smart-AI filter
+passed 118 tests; the complete Core battle filter passed 917 tests; the full Core coverage run passed
+1,194 tests and the final full solution passed 1,418 tests (1,195 Core, 104 Creator, 21 Runtime, 98
+Tools). `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+the 149 instrumented production lines belonging to this checkpoint were all exercised (100%);
+deterministic audit regeneration was byte-identical at 937 inventoried / 84 certified with digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; and `git diff --check`
+passed. Focused review found no scope, schema, dependency, determinism, AI-fairness, or named-move
+branch defect: GO for this checkpoint, not for 15E-3 package exit. No checkpoint commit was created
+because the shared worktree already contained overlapping uncommitted Phase 15 package changes;
+unrelated changes were not staged or rewritten.
+
+Progress (2026-07-15): **15E-3 WEATHER STATUS CHECKPOINT COMPLETE; PACKAGE REMAINS IN PROGRESS.**
+The shared condition hook catalog now includes `StatusAttempt`. Sun declares that hook and owns a
+data row denying `freeze`; the resolver runs it through the generic ailment admission boundary, so a
+blocked attempt emits no status event and consumes no secondary-status RNG. Other statuses and
+weather rows remain neutral, existing freeze is not cured, and replacement/expiry changes admission
+immediately. Smart AI collects the identical visible condition snapshot and removes only the denied
+`status` score component. The immutable corpus audit found seven affected generic freeze rows:
+`move-0008`, `move-0058`, `move-0059`, `move-0181`, `move-0423`, `move-0573`, and `move-0821`; none
+is newly certified because its full move contract is not yet closed. Schema/migration and dependency
+impact: none. Remaining weather work: healing, move type/base-power/charge, grounded/stat, natural
+field inputs, and ruleset difference rows; only then close weather and proceed to terrain/room/
+gravity/sport inside 15E-3. Verification: the focused weather suite passed 37 tests, the focused
+weather/status/Smart-AI/hook suite passed 86 tests, and the complete Battle filter passed 930 tests.
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+the final full solution passed 1,431 tests (1,208 Core, 104 Creator, 21 Runtime, 98 Tools); the full
+Core coverage run passed 1,208 tests and exercised all 50 instrumented checkpoint production lines
+(100%); deterministic audit regeneration was byte-identical at 937 inventoried / 84 certified with
+digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; and
+`git diff --check` passed. Focused review found no blocking scope, schema, dependency, determinism,
+AI-fairness, IP, or named-move branch defect: GO for this checkpoint, not for 15E-3 package exit.
+
+Progress (2026-07-15): **15E-3 WEATHER HEALING CHECKPOINT COMPLETE; PACKAGE REMAINS IN PROGRESS.**
+Generic `heal` effects can now author a strict weather-to-fraction table. The active field weather
+publishes a typed `HealingQuery` replacement using the recipient's maximum HP, so direct fraction
+rounding occurs before normal HP clamping; absent or unlisted weather preserves the authored base
+fraction. Self and target recipients share the same resolver boundary, hook/query traces expose the
+decision, actual `Healed` events remain clamped to missing HP, and no RNG is consumed. Smart AI uses
+the identical visible condition snapshot and caps expected recovery at missing HP. The immutable
+corpus audit identified the exact affected authored family as `move-0234`, `move-0235`, `move-0236`,
+and `move-0659`; certification remains unchanged because their complete move contracts are not yet
+closed. Changed production files: `BattleConditions.cs`, `MoveEffects.cs`, `MoveCompiler.cs`,
+`WeatherConditions.cs`, `BattleController.cs`, and `SmartAi.cs`. Changed focused tests:
+`MoveCompilerTests.cs` and `BattleWeatherConditionTests.cs`. Contract/evidence updates:
+`BATTLE_SYSTEM_SPEC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`, `BATTLE_AI_SPEC.md`,
+`TESTING_STRATEGY.md`, `MOVE_AUDIT_SYSTEM_PLAN.md`, `SCOPE_GUARD.md`, `docs/AGENTS.md`, and this
+plan. Schema/migration and dependency impact: none. Remaining weather work: move type/base-power/
+charge, grounded/stat, natural field inputs, and ruleset difference rows; only then close weather and
+proceed to terrain/room/gravity/sport inside 15E-3. Verification: the focused compiler/weather/
+Smart-AI filter passed 157 tests; the weather suite passed 50 tests; the complete Battle filter passed
+956 tests; and the final full solution passed 1,457 tests (1,234 Core, 104 Creator, 21 Runtime, 98
+Tools). `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/
+errors. The full Core coverage run passed 1,234 tests; repository line coverage was 94.77%, while all
+111 instrumented production lines belonging to this checkpoint were exercised (100%). Deterministic
+audit regeneration was byte-identical at 937 inventoried / 84 certified with digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check` passed.
+Focused review found no blocking scope, schema, dependency, determinism, AI-fairness, IP, event/RNG,
+or named-move branch defect: GO for this checkpoint, not for 15E-3 package exit. No checkpoint commit
+was created because the shared worktree contains overlapping uncommitted Phase 15 package changes;
+unrelated changes were not staged or rewritten.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
@@ -1592,7 +1759,7 @@ Ordered feature packages:
    persistent status, HP, item, ability, non-passable volatiles, queues, and slot conditions never
    transfer. **Acceptance:** every intent valid/no-candidate/trapped, pivot miss/faint, random draws,
    doubles slot, entry hooks, transfer/cleanup matrix, creature conservation, and golden.
-2. **15G-2 — Bounded action and damage memory (`PLANNED`; prerequisite 15B-4).** Extend the minimal
+2. **15G-2 — Bounded action and damage memory (`IMPLEMENTED`; prerequisite 15B-4).** Extend the minimal
    history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
    sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,
    amount before/after mitigation, actual HP removed, critical/contact/substitute flags, hit number,
@@ -1641,6 +1808,35 @@ declares a self or target recipient, and `hpFraction` supports deterministic cur
 or damage through the existing `Heal` and `Sap` primitives. Compiler validation and resolver/event
 tests cover both paths. Team/party healing, cures, revival, HP equalization, switch-linked recovery,
 and the normalized per-move conformance definitions remain open.
+
+Progress (2026-07-14): **15G-2 COMPLETE — focused review: GO.** `BattleActionHistory` now owns
+immutable typed per-hit damage records beside its 15C-4 attempts, bounded to the current and
+immediately previous turn. Records preserve stable side/party creature identity plus the slot at
+resolution, move/class/type, standard/fixed/level/OHKO/counter/HP-formula cause, target-level or
+resolved-hit outcome, calculated/applied/actual damage, hit number, critical/contact/substitute,
+and faint evidence. Source/target queries match stable creature identity across slot movement,
+return copies, sum only actual creature HP removal with checked overflow, and survive switch/faint
+until normal aging or battle end. The shared singles/doubles resolver writes the same service beside
+existing miss/block/damage paths for standard, spread, multi-hit, fixed, level, OHKO, legacy counter,
+target HP fraction, and status-class source-matching HP damage without adding events, traces, RNG,
+schema, dependencies, or a second store. Substitute interception remains a validated typed service
+vector for its owning overlay package; 15G-3 remains the consumer migration package.
+
+Files: `src/Cgm.Core/Battle/BattleActionHistory.cs`, `src/Cgm.Core/Battle/BattleController.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleDamageHistoryTests.cs`,
+`tests/Cgm.Core.Tests/Battle/BattleDamageMemoryIntegrationTests.cs`, `docs/BATTLE_SYSTEM_SPEC.md`,
+`docs/EFFECT_TYPES_CATALOG_v0_5.md`, `docs/TESTING_STRATEGY.md`, `docs/MOVE_AUDIT_SYSTEM_PLAN.md`,
+`docs/AGENTS.md`, `docs/SCOPE_GUARD.md`, and this plan. Schema/migration and dependency impact: none.
+No new move is certified because this is a shared evidence foundation; deterministic full-argument
+normalization remained byte-identical at 937 inventoried / 78 certified with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`. Verification:
+the focused 15G-2 matrix passed 20 tests; `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx
+--no-restore` passed with 0 warnings/errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx
+--no-build --no-restore` passed 1,353 tests (1,136 Core, 104 Creator, 21 Runtime, 92 Tools); and the
+complete Core coverage run exercised 574/586 changed instrumented production lines (97.95%). The
+review found and fixed non-comparable slot sorting, status-class HP-formula admission, typed cause on
+pre-hit failures, and exact-slot query matching that would lose a creature's records after position
+movement; `git diff --check` passed. Next eligible package: **15C-5**.
 
 #### 15H — Reference-gap closure and full normalization
 
@@ -2302,9 +2498,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3, 15D-1, 15E-1/2, and 15F-1. ACTIVE — 15C-4.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, and 15G-2. ACTIVE — 15E-3.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
+   **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.

@@ -26,9 +26,9 @@
 | Runtime loop, renderer, input, scenes | ENGINE_RUNTIME_SPEC.md | Implemented baseline; detailed 16A-16G contracts locked, implementation awaits Phase 15 GO |
 | Import/slicing layers, pack format | ASSET_PIPELINE_SPEC.md | v0-v2/v5 implemented; remaining 17B/18C spec locks authorized by plan v4 §§7-8 |
 | Map editor tools & layers | MAP_EDITOR_SPEC.md | Tool baseline implemented; remaining 17C spec lock authorized by plan v4 §7 |
-| Battle formulas, effect ops, events, AI | BATTLE_SYSTEM_SPEC.md + MOVE_AUDIT_SYSTEM_PLAN.md | **Phase 15 active** - 15B plus 15C-1/2/3 query/formula, 15D-1 intent, 15E-1/2 condition/hook, and 15F-1 overlay foundations are complete; 74 generated certifications; 15C-4 is next |
+| Battle formulas, effect ops, events, AI | BATTLE_SYSTEM_SPEC.md + MOVE_AUDIT_SYSTEM_PLAN.md | **Phase 15 active** - 15B plus 15C-1/2/3/4/5 query/formula, 15D-1 intent, 15E-1/2 condition/hook, 15F-1 overlay, and 15G-2 damage-memory foundations are complete; 84 generated certifications; 15E-3 weather interactions are in progress through healing |
 | Export & smoke test | EXPORT_PIPELINE_SPEC.md | Data path implemented; remaining 18C-18E/19C spec locks authorized by plan v4 §§8-9 |
-| Phase status and current/future work | IMPLEMENTATION_PLAN.md | **Executable v4.0; Phase 15 active at 74/937 strict certification** |
+| Phase status and current/future work | IMPLEMENTATION_PLAN.md | **Executable v4.0; Phase 15 active at 84/937 strict certification** |
 | Test policy, goldens, fixtures | TESTING_STRATEGY.md | Active Phase 15 matrices plus authorized Phase 16-19 product evidence contract |
 | Vision & legal boundary | PROJECT_OVERVIEW.md | See MASTER_PLAN §1–2 until written |
 

@@ -12,6 +12,7 @@ internal sealed class BattleActionContext(BattleMove move, BattleCreature source
     public BattleSide SourceSide => SourceSlot.Side;
     public IReadOnlyList<BattleTargetContext> Targets => _targets;
     public int TotalDamage { get; private set; }
+    public bool Failed { get; private set; }
 
     public BattleTargetContext AddTarget(BattleCreature target, BattleSlot targetSlot)
     {
@@ -21,6 +22,7 @@ internal sealed class BattleActionContext(BattleMove move, BattleCreature source
     }
 
     internal void AddDamage(int amount) => TotalDamage += amount;
+    internal void MarkFailed() => Failed = true;
 }
 
 /// <summary>One materialized target's state within an action.</summary>

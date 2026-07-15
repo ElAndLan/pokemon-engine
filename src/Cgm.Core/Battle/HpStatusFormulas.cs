@@ -53,7 +53,8 @@ public static class HpStatusFormulas
         + volatileStatuses.Count(value => Matches(creature, null, value));
 
     public static HpStatusPowerQuery PowerQuery(BattleMove move, BattleCreature source, BattleCreature target,
-        PhysicalFormulaInputs? physicalInputs = null)
+        PhysicalFormulaInputs? physicalInputs = null, BattleActionFormulaInputs? actionInputs = null,
+        PartyResourceFormulaInputs? resourceInputs = null)
     {
         var modifiers = new List<BattleQueryModifier>();
         int insertion = 0;
@@ -129,13 +130,72 @@ public static class HpStatusFormulas
                 PhysicalMetricFormulas.Value(inputs, metricRatio.Metric, metricRatio.Denominator),
                 metricRatio.Bands), insertion++));
         }
+        if (move.SecondaryEffects.OfType<ConsecutivePowerEffect>().SingleOrDefault() is { } consecutive)
+        {
+            BattleActionFormulaInputs inputs = actionInputs ?? new(0, 0, false, false, false, false);
+            int prior = consecutive.Scope == ConsecutivePowerScope.CreatureConnected
+                ? inputs.PriorCreatureConnections
+                : inputs.PriorSideAttemptedTurns;
+            modifiers.Add(Replace(ActionHistoryFormulas.ConsecutivePower(
+                move.Power ?? 1, prior, consecutive.Mode, consecutive.Step, consecutive.Cap), insertion++));
+        }
+        if (move.SecondaryEffects.OfType<HistoryPowerEffect>().SingleOrDefault() is { } historyPower
+            && Matches(historyPower.Condition, actionInputs ?? new(0, 0, false, false, false, false)))
+            modifiers.Add(Multiply(historyPower.Multiplier, insertion++));
+
+        if (PartyResourceFormulas.HasPowerFormula(move))
+        {
+            PartyResourceFormulaInputs inputs = resourceInputs
+                ?? throw new InvalidOperationException("Party/resource power formulas require captured action inputs.");
+            if (move.SecondaryEffects.OfType<PartyCountPowerEffect>().SingleOrDefault() is { } party)
+            {
+                int count = party.Filter switch
+                {
+                    PartyMemberFilter.Living => inputs.LivingParty,
+                    PartyMemberFilter.Fainted => inputs.FaintedParty,
+                    PartyMemberFilter.Contributing => inputs.ContributingParty,
+                    _ => throw new ArgumentOutOfRangeException(nameof(party.Filter)),
+                };
+                modifiers.Add(Replace(PartyResourceFormulas.Linear(
+                    count, party.Base, party.PerMember, party.Cap), insertion++));
+            }
+            if (move.SecondaryEffects.OfType<FriendshipPowerEffect>().SingleOrDefault() is { } friendship)
+                modifiers.Add(Replace(PartyResourceFormulas.FriendshipPower(
+                    inputs.Friendship, friendship.Mode), insertion++));
+            if (move.SecondaryEffects.OfType<PpPowerEffect>().SingleOrDefault() is { } pp)
+                modifiers.Add(Replace(PartyResourceFormulas.PpPower(
+                    pp.Timing == PpPowerTiming.BeforeSpend ? inputs.PpBeforeSpend : inputs.PpAfterSpend,
+                    pp.Bands), insertion++));
+            if (move.SecondaryEffects.OfType<PositiveStagePowerEffect>().SingleOrDefault() is { } stages)
+                modifiers.Add(Replace(PartyResourceFormulas.Linear(
+                    stages.Subject == StatusPowerSubject.User
+                        ? inputs.SourcePositiveStages : inputs.TargetPositiveStages,
+                    stages.Base, stages.PerStage, stages.Cap), insertion++));
+            if (move.SecondaryEffects.OfType<ItemDataPowerEffect>().Any())
+                modifiers.Add(Replace(inputs.ItemPower
+                    ?? throw new InvalidOperationException("Item-data power requires an available item value."), insertion++));
+            if (move.SecondaryEffects.OfType<RandomTablePowerEffect>().Any())
+                modifiers.Add(Replace(inputs.RandomPower
+                    ?? throw new InvalidOperationException("Random-table power requires an action selection."), insertion++));
+        }
 
         return new HpStatusPowerQuery(move.Power ?? 1, modifiers, ignoreBurn);
     }
 
     public static bool HasBasePower(BattleMove move) => move.Power is not null || move.HpBandPower is not null
         || move.HpRatioPower?.Scale is not null || move.SecondaryEffects.Any(effect => effect is StatusCountPowerEffect
-            or SpeedRatioPowerEffect or MetricBandPowerEffect or MetricRatioPowerEffect);
+            or SpeedRatioPowerEffect or MetricBandPowerEffect or MetricRatioPowerEffect or ConsecutivePowerEffect
+            or PartyCountPowerEffect or FriendshipPowerEffect or PpPowerEffect or PositiveStagePowerEffect
+            or ItemDataPowerEffect or RandomTablePowerEffect);
+
+    private static bool Matches(HistoryPowerCondition condition, BattleActionFormulaInputs inputs) => condition switch
+    {
+        HistoryPowerCondition.SourceBeforeTarget => inputs.SourceBeforeTarget,
+        HistoryPowerCondition.SourceAfterTarget => inputs.SourceAfterTarget,
+        HistoryPowerCondition.PreviousActionFailed => inputs.PreviousActionFailed,
+        HistoryPowerCondition.AllyFaintedPreviousTurn => inputs.AllyFaintedPreviousTurn,
+        _ => throw new ArgumentOutOfRangeException(nameof(condition), condition, "Unknown history-power condition."),
+    };
 
     public static int CannotKoFloor(BattleMove move) =>
         move.SecondaryEffects.OfType<CannotKoEffect>().SingleOrDefault()?.Floor ?? 0;

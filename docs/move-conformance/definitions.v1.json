@@ -846,6 +846,78 @@
       ]
     },
     {
+      "referenceKey": "move-0216",
+      "sourceFileHash": "b870bb7d82f1d9abdc2f3ae901256fe528383e6fffaabb1c16e8a5485c6d9c41",
+      "payloadContentHash": "cdf47299419e878e48c472a721e57b3cf40690f3becd966032570849a73839d5",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "friendshipPower",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "friendshipPower",
+            "params": {
+              "mode": "current"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "f09e85ec3cd50b59d5facd061f323aab7cf7a64ade60d25c97d3277103b48579",
+      "testIds": [
+        "PartyResourceFormulaConformanceTests.Certified(move-0216)"
+      ]
+    },
+    {
+      "referenceKey": "move-0218",
+      "sourceFileHash": "f160c1f7d6994c4af8e29dc397025dfcef7172953d7874eefeabc5c3ef5685b5",
+      "payloadContentHash": "9fd395177b32718183e186361f975b64139ad76c76d07c0576b0b7afa521f320",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "friendshipPower",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "friendshipPower",
+            "params": {
+              "mode": "missing"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "b9ae630ebb53ce485af265e2c8fec76990ed33bf4d3634fcc77d5b2e8f16a270",
+      "testIds": [
+        "PartyResourceFormulaConformanceTests.Certified(move-0218)"
+      ]
+    },
+    {
       "referenceKey": "move-0220",
       "sourceFileHash": "53901f29192572fcf1aabb9f55aadcd7a2598267d3881b58a45059d331a63b98",
       "payloadContentHash": "73a0e98311a34fdaf181d9690985fdaac41970e18cff9625496428ba360cdbd3",
@@ -1327,6 +1399,82 @@
       ]
     },
     {
+      "referenceKey": "move-0371",
+      "sourceFileHash": "bcbbf3a0a30819c95ada4fa95ec12c50d462b32c7902f7b004e4ebc9023d8c84",
+      "payloadContentHash": "2be3cf3a73e4b1929f353680efde0194cb89903ed98ff1f8f850258b8f5cc724",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "historyPower",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "physical",
+        "power": 50,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "historyPower",
+            "params": {
+              "condition": "sourceAfterTarget",
+              "multiplierNum": 2,
+              "multiplierDen": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "7459a8814affff57e61088d8db0828db23d0d2e7f7cb288d681ff29a7ca70c43",
+      "testIds": [
+        "ActionHistoryFormulaConformanceTests.Certified(move-0371)"
+      ]
+    },
+    {
+      "referenceKey": "move-0376",
+      "sourceFileHash": "18256f53afc8de13f33a18ce931e4f8c7afce9d51ad2c17d05f7b9f871d61875",
+      "payloadContentHash": "dde31503eccc06911103b5370a2f9bafbf3869b464e6696e41cb67a285beb6e4",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ppPower",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "special",
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ppPower",
+            "params": {
+              "timing": "afterSpend",
+              "bands": "0:200,1:80,2:60,3:50,4:40"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "8594177f27a1ab3596797278530cd7244baedc8407439d270a10f1e8b5388167",
+      "testIds": [
+        "PartyResourceFormulaConformanceTests.Certified(move-0376)"
+      ]
+    },
+    {
       "referenceKey": "move-0378",
       "sourceFileHash": "d593bf020572f0f1b8ed4280c8a63ce6635612fbe62655d25ed8efe10fa02dec",
       "payloadContentHash": "df9e14696bfa5632f0f40e28ff874530ef6b9d20fa382f0d3eb7b42a06c22042",
@@ -1363,6 +1511,45 @@
       "normalizedDefinitionHash": "2f1aa1b073686e31aa8eea2e36ceb5fc39c0ef93efdbeee26e605fdbd21d7c45",
       "testIds": [
         "HpStatusFormulaConformanceTests.Certified(move-0378)"
+      ]
+    },
+    {
+      "referenceKey": "move-0386",
+      "sourceFileHash": "ce29b3635d1a58b6cdec7b8c29b3ea685c3e5b0f24977cbf6b1bb2185607885c",
+      "payloadContentHash": "4095320c21d88361471b6f5b615ebead781671f49699bfc62f39c2ed8ed8b59f",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "positiveStagePower",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "physical",
+        "accuracy": 100,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "positiveStagePower",
+            "params": {
+              "subject": "target",
+              "base": 60,
+              "perStage": 20,
+              "cap": 200
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "28ca911f5690486387311a1efe058b2d489376ccc6b7c180b6b420b110d490c0",
+      "testIds": [
+        "PartyResourceFormulaConformanceTests.Certified(move-0386)"
       ]
     },
     {
@@ -1636,6 +1823,46 @@
       ]
     },
     {
+      "referenceKey": "move-0500",
+      "sourceFileHash": "782d304dafd56c67b3a76187baf66a0c6f1fe7c219fe2d4d50a33fca52c3cac9",
+      "payloadContentHash": "a06dae2fafb8dcfb28a1f20ad789154622b0bced41e96f4c90f8482a5a3836e7",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "positiveStagePower",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "special",
+        "power": 20,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "positiveStagePower",
+            "params": {
+              "subject": "user",
+              "base": 20,
+              "perStage": 20
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "b591b7c844d4d0eb374d6b5e03afe7e132b43eaba826fa38b95c7262e5cfd0cc",
+      "testIds": [
+        "PartyResourceFormulaConformanceTests.Certified(move-0500)"
+      ]
+    },
+    {
       "referenceKey": "move-0506",
       "sourceFileHash": "1b013da0c1b63fb2f46eafdfe7415bc026422d8274c9518cff1abea4739e82b7",
       "payloadContentHash": "9fcdbe6a3ea6c1cc3c29b5255ecd3c5962e9af9ae7beb27f9de2c50306685c88",
@@ -1675,6 +1902,46 @@
       "normalizedDefinitionHash": "27becbc239c7b05fdbd8cbe9440d13acb94973ec6c086e371875472574e1c52a",
       "testIds": [
         "HpStatusFormulaConformanceTests.Certified(move-0506)"
+      ]
+    },
+    {
+      "referenceKey": "move-0514",
+      "sourceFileHash": "a54d77a2649f18a752b160b1f3b68baee0e9928c550895664415101a0f330544",
+      "payloadContentHash": "068b0bbc38508b14f9ec094912606d4402d1e277710d3f47703d83bbf550f2d4",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "historyPower",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "power": 70,
+        "accuracy": 100,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "historyPower",
+            "params": {
+              "condition": "allyFaintedPreviousTurn",
+              "multiplierNum": 2,
+              "multiplierDen": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "c45148bd0192bd8e2665029a3f4a0d0f85e1d9284379d3ec4c441c6fa8818fe9",
+      "testIds": [
+        "ActionHistoryFormulaConformanceTests.Certified(move-0514)"
       ]
     },
     {
@@ -2291,6 +2558,46 @@
       ]
     },
     {
+      "referenceKey": "move-0681",
+      "sourceFileHash": "3f7754a1e78b03ccdf85335c322b8fdffc829f48e35dca2b4ff6d007ac1672c3",
+      "payloadContentHash": "18fb601deda0523a6ed7bc5a70b2adaa517adc18682fd40e2432899eab098a85",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "positiveStagePower",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "physical",
+        "power": 20,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "positiveStagePower",
+            "params": {
+              "subject": "user",
+              "base": 20,
+              "perStage": 20
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "cd343d907d5db6402516457aed6aec09b7db9635e55f18d0b41e361084769b0b",
+      "testIds": [
+        "PartyResourceFormulaConformanceTests.Certified(move-0681)"
+      ]
+    },
+    {
       "referenceKey": "move-0691",
       "sourceFileHash": "0ea8bcbb26178b530d67ab5ffcc09004725bf767f4f34a1b2426f5bf9671a8dd",
       "payloadContentHash": "5cdfa2a130a99fb40eafb4b189a5883cc8d69026be79303d5fa384437bba15b9",
@@ -2406,6 +2713,46 @@
       "normalizedDefinitionHash": "0ed70f5f8e87613858bdacbe33b3aa851b9ff6ecd9a8dba7eb17783227de2abc",
       "testIds": [
         "HpStatusFormulaConformanceTests.Certified(move-0698)"
+      ]
+    },
+    {
+      "referenceKey": "move-0707",
+      "sourceFileHash": "f1ac38507ed86886db074d3819ffed871c4d26b93a54b1c2bcf34cd1c469a2ea",
+      "payloadContentHash": "aa2cca5a8b47b52d0c6e4b8b5521bda7124896a231b214cd0d2f9ee8061446e1",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "historyPower",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_05",
+        "damageClass": "physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "historyPower",
+            "params": {
+              "condition": "previousActionFailed",
+              "multiplierNum": 2,
+              "multiplierDen": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "78ad32c9aed17abff853100d20b2728bfe83e2e15acf8031c3c4fedbc1e0a2ad",
+      "testIds": [
+        "ActionHistoryFormulaConformanceTests.Certified(move-0707)"
       ]
     },
     {
@@ -2736,6 +3083,46 @@
       "normalizedDefinitionHash": "a0e88d31ba253c1a1daa7959ddcb9783d491a407c7afc41f04c7780388c67338",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0833)"
+      ]
+    },
+    {
+      "referenceKey": "move-0915",
+      "sourceFileHash": "21322840f43d5bb725bd197281dc0cbaaa16f445268e4556c30a61737b0f4d5d",
+      "payloadContentHash": "432af99f8861d39420679d699b94992b6dd38ab4d14681bcee96c5bc0a8cb801",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "historyPower",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_10",
+        "damageClass": "physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "historyPower",
+            "params": {
+              "condition": "previousActionFailed",
+              "multiplierNum": 2,
+              "multiplierDen": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "a4e7f8aec13a7fcbd74342ab544d3128a023270bbf637c9b57cf4ba949204b2a",
+      "testIds": [
+        "ActionHistoryFormulaConformanceTests.Certified(move-0915)"
       ]
     }
   ]

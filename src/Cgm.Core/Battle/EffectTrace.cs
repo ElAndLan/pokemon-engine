@@ -13,6 +13,7 @@ public enum EffectTraceKind
     TurnOrderTie,
     TargetSelection,
     Accuracy,
+    PowerTable,
     HitCount,
     Immunity,
     Critical,

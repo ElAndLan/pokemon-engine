@@ -54,7 +54,10 @@ public sealed record SmartAiContext(
     SmartAiWeights? Weights = null,
     int OwnSpikeLayers = 0,
     bool OwnStealthRock = false,
-    BattleOverlayStore? Overlays = null);
+    BattleOverlayStore? Overlays = null,
+    BattleActionHistory? ActionHistory = null,
+    IReadOnlyDictionary<EntityId, Item>? ItemData = null,
+    IReadOnlyList<BattleConditionInstance>? Conditions = null);
 
 public sealed record AiScoreComponent(string Name, double Value);
 public sealed record AiCandidateScore(BattleAction Action, double Score, IReadOnlyList<AiScoreComponent> Components);
@@ -106,22 +109,46 @@ public static class SmartAi
                     new BattleOverlayOwner(BattleSide.Enemy, context.EnemyActive, new BattleSlot(BattleSide.Enemy, 0)),
                     new BattleOverlayOwner(BattleSide.Player, context.PlayerActive, new BattleSlot(BattleSide.Player, 0)))
                 : PhysicalMetricFormulas.Inputs(attacker, defender);
-        double damage = ExpectedDamage(attacker, defender, move, context.Chart, inputs);
+        BattleActionFormulaInputs? actionInputs = null;
+        if (ActionHistoryFormulas.HasPowerFormula(move))
+        {
+            int sourceSpeed = AiSpeed(attacker, BattleSide.Enemy, context.EnemyActive, context);
+            int targetSpeed = AiSpeed(defender, BattleSide.Player, context.PlayerActive, context);
+            actionInputs = (context.ActionHistory ?? new BattleActionHistory()).PreviewPowerInputs(
+                new BattleHistoryOwner(BattleSide.Enemy, context.EnemyActive, new BattleSlot(BattleSide.Enemy, 0)),
+                new BattleHistoryOwner(BattleSide.Player, context.PlayerActive, new BattleSlot(BattleSide.Player, 0)),
+                move.Move, sourceSpeed > targetSpeed, sourceSpeed < targetSpeed);
+        }
+        bool hasResourceInputs = TryResourceInputs(attacker, defender, move, context.EnemyParty,
+            context.EnemyActive, BattleSide.Enemy, context, out PartyResourceFormulaInputs? resourceInputs);
+        double damage = hasResourceInputs
+            ? ExpectedDamage(attacker, defender, move, context.Chart, inputs, actionInputs, resourceInputs,
+                WeatherDamageModifiers(context, move))
+            : 0;
         int authoredAccuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, defender.Level) : move.Accuracy ?? 100;
+        BattleHookDispatchSnapshot? weatherAccuracy = WeatherAccuracyHooks(context, move);
+        bool weatherBypass = weatherAccuracy?.Filters().Any(filter => filter is
+            { Filter.Value: "accuracy_bypass", Decision: BattleHookFilterDecision.Allow }) == true;
+        bool alwaysHits = move.BypassAccuracy || (!move.Ohko && move.Accuracy is null) || weatherBypass;
+        var accuracyModifiers = weatherAccuracy?.QueryModifiers(BattleQueryId.Accuracy).ToList() ?? [];
+        if (!alwaysHits)
+        {
+            accuracyModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
+                BattleQueryOperation.Multiply,
+                BattleQuery.AccuracyStageMultiplier(attacker.Stage(StatKind.Accuracy), defender.Stage(StatKind.Evasion)),
+                InsertionOrder: accuracyModifiers.Count));
+        }
         int resolvedAccuracy = BattleQuery.ResolveInteger(BattleQueryId.Accuracy, authoredAccuracy,
-            move.BypassAccuracy || (!move.Ohko && move.Accuracy is null)
-                ? []
-                : [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
-                    BattleQuery.AccuracyStageMultiplier(attacker.Stage(StatKind.Accuracy), defender.Stage(StatKind.Evasion)),
-                    InsertionOrder: 0)]);
-        double accuracy = move.BypassAccuracy || (!move.Ohko && move.Accuracy is null) ? 1 : resolvedAccuracy / 100.0;
+            accuracyModifiers);
+        double accuracy = alwaysHits ? 1 : resolvedAccuracy / 100.0;
         c.Add(new("damage", damage * accuracy));
         if (damage >= defender.CurrentHp && damage > 0)
             c.Add(new("ko", weights.KoBonus * accuracy));
 
         if (move.Ailment is { } ailment && move.AilmentChance > 0
             && StatusEffects.CanApplyStatus(defender.Status)
-            && !StatusEffects.TypeImmuneToStatus(ailment, defender.Types))
+            && !StatusEffects.TypeImmuneToStatus(ailment, defender.Types)
+            && WeatherAllowsStatus(context, ailment))
         {
             AilmentEffect? effect = move.SecondaryEffects.OfType<AilmentEffect>().FirstOrDefault();
             int chance = effect is null ? move.AilmentChance
@@ -129,21 +156,28 @@ public static class SmartAi
             c.Add(new("status", weights.StatusValue * HpFraction(defender) * chance / 100.0));
         }
 
-        if (move.StageEffect is { OnSelf: true, Delta: > 0 } setup && !ThreatensKo(defender, attacker, context.Chart))
+        if (move.StageEffect is { OnSelf: true, Delta: > 0 } setup
+            && !ThreatensKo(defender, attacker, context.Chart, context))
             c.Add(new("setup", weights.SetupValue * setup.Delta));
 
         if ((move.SetsSpikes || move.SetsStealthRock) && context.PlayerParty.Count(p => !p.IsFainted) > 1)
             c.Add(new("hazard", weights.HazardValue * (context.PlayerParty.Count(p => !p.IsFainted) - 1)));
 
-        if (move.IsProtect && ThreatensKo(defender, attacker, context.Chart))
+        if (move.IsProtect && ThreatensKo(defender, attacker, context.Chart, context))
             c.Add(new("protect", weights.ProtectValue / Math.Pow(2, attacker.ProtectChain)));
 
         if (move.ForcesSwitch && HasDangerousBoost(defender))
             c.Add(new("forceSwitch", weights.ForceSwitchValue));
 
         if (move.Heal is { } heal && attacker.CurrentHp < attacker.MaxHp / 2)
-            c.Add(new("recovery", BattleQuery.ResolveInteger(BattleQueryId.Healing,
-                EffectMath.HealAmount(attacker.MaxHp, heal.Num, heal.Den))));
+        {
+            int recovery = EffectMath.HealAmount(attacker.MaxHp, heal.Num, heal.Den);
+            if (move.SecondaryEffects.OfType<HealEffect>().LastOrDefault(effect =>
+                    effect.Recipient == HpFractionRecipient.Self) is { } healEffect)
+                recovery = BattleQuery.ResolveInteger(BattleQueryId.Healing, recovery,
+                    WeatherHealingModifiers(context, healEffect, attacker.MaxHp));
+            c.Add(new("recovery", Math.Min(recovery, attacker.MaxHp - attacker.CurrentHp)));
+        }
 
         if (move.Recoil is { } recoil && damage > 0)
             c.Add(new("recoilRisk", -EffectMath.RecoilDamage((int)damage, recoil.Num, recoil.Den)));
@@ -167,7 +201,8 @@ public static class SmartAi
             // Value the switch RELATIVE to staying: how much better is the incoming matchup than the
             // current one, net of the turn we forfeit and the hazard the incoming eats on entry. Absolute
             // offense would double-count what the current mon already provides and overvalue switching.
-            double offenseGain = BestDamage(incoming, player, context.Chart) - BestDamage(active, player, context.Chart);
+            double offenseGain = BestDamage(incoming, player, context.Chart, context, context.EnemyParty, i)
+                - BestDamage(active, player, context.Chart, context, context.EnemyParty, context.EnemyActive);
             double damageAvoided = PredictedDamage(player, active, context) - PredictedDamage(player, incoming, context);
             var c = new List<AiScoreComponent>
             {
@@ -211,24 +246,41 @@ public static class SmartAi
         }
     }
 
-    private static double BestDamage(BattleCreature attacker, BattleCreature defender, TypeChart chart) =>
-        attacker.Moves.Where(m => m.HasPp).Select(m => ExpectedDamage(attacker, defender, m, chart)).DefaultIfEmpty(0).Max();
+    private static double BestDamage(BattleCreature attacker, BattleCreature defender, TypeChart chart,
+        SmartAiContext? context = null, IReadOnlyList<BattleCreature>? sourceParty = null, int sourceIndex = 0) =>
+        attacker.Moves.Where(m => m.HasPp).Select(move =>
+        {
+            if (context is null)
+                return ExpectedDamage(attacker, defender, move, chart);
+            if (sourceParty is null)
+                return ExpectedDamage(attacker, defender, move, chart,
+                    modifiers: WeatherDamageModifiers(context, move));
+            return TryResourceInputs(attacker, defender, move, sourceParty, sourceIndex, BattleSide.Enemy,
+                context, out PartyResourceFormulaInputs? inputs)
+                    ? ExpectedDamage(attacker, defender, move, chart, resourceInputs: inputs,
+                        modifiers: WeatherDamageModifiers(context, move))
+                    : 0;
+        }).DefaultIfEmpty(0).Max();
 
     private static double PredictedDamage(BattleCreature attacker, BattleCreature defender, SmartAiContext context)
     {
         if (context.Memory?.RepeatedPlayerMoveCount >= 2
             && context.Memory.LastPlayerMove is { } last
             && attacker.Moves.FirstOrDefault(m => m.Move == last && m.HasPp) is { } repeated)
-            return ExpectedDamage(attacker, defender, repeated, context.Chart);
+            return ExpectedDamage(attacker, defender, repeated, context.Chart,
+                modifiers: WeatherDamageModifiers(context, repeated));
 
-        return BestDamage(attacker, defender, context.Chart);
+        return BestDamage(attacker, defender, context.Chart, context);
     }
 
-    private static bool ThreatensKo(BattleCreature attacker, BattleCreature defender, TypeChart chart) =>
-        BestDamage(attacker, defender, chart) >= defender.CurrentHp;
+    private static bool ThreatensKo(BattleCreature attacker, BattleCreature defender, TypeChart chart,
+        SmartAiContext? context = null) =>
+        BestDamage(attacker, defender, chart, context) >= defender.CurrentHp;
 
     private static double ExpectedDamage(BattleCreature attacker, BattleCreature defender, BattleMove move, TypeChart chart,
-        PhysicalFormulaInputs? physicalInputs = null)
+        PhysicalFormulaInputs? physicalInputs = null, BattleActionFormulaInputs? actionInputs = null,
+        PartyResourceFormulaInputs? resourceInputs = null,
+        IReadOnlyList<BattleQueryModifier>? modifiers = null)
     {
         double eff = chart.Effectiveness(move.Type, defender.Types);
         if (eff <= 0)
@@ -256,8 +308,20 @@ public static class SmartAi
         if (!HpStatusFormulas.HasBasePower(move))
             return 0;
 
+        if (PartyResourceFormulas.HasPowerFormula(move) && resourceInputs is null)
+        {
+            if (move.SecondaryEffects.OfType<ItemDataPowerEffect>().Any())
+                return 0;
+            int? randomPower = move.SecondaryEffects.OfType<RandomTablePowerEffect>().SingleOrDefault() is { } table
+                ? PartyResourceFormulas.ExpectedWeightedPower(table.Entries)
+                : null;
+            resourceInputs = PartyResourceFormulas.Inputs([attacker], attacker, defender,
+                move.Pp, Math.Max(0, move.Pp - 1), randomPower: randomPower);
+        }
+
         bool physical = move.DamageClass == DamageClass.Physical;
-        HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, defender, physicalInputs);
+        HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(
+            move, attacker, defender, physicalInputs, actionInputs, resourceInputs);
         int power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, powerQuery.AuthoredBase, powerQuery.Modifiers);
         StatKind attackStat = physical ? StatKind.Atk : StatKind.Spa;
         StatKind defenseStat = physical ? StatKind.Def : StatKind.Spd;
@@ -272,11 +336,63 @@ public static class SmartAi
         double stab = TypeChart.Stab(move.Type, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
         int oneHit = BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
-            DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn));
+            DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn), modifiers);
         double hits = move.MultiHitMax >= 2 ? (move.MultiHitMin + move.MultiHitMax) / 2.0 : 1;
         double total = oneHit * hits;
         int floor = HpStatusFormulas.CannotKoFloor(move);
         return floor > 0 ? Math.Min(total, Math.Max(0, defender.CurrentHp - floor)) : total;
+    }
+
+    private static IReadOnlyList<BattleQueryModifier> WeatherDamageModifiers(
+        SmartAiContext context, BattleMove move) => context.Conditions is null
+        ? []
+        : WeatherConditions.CollectDamageHooks(context.Conditions, move.Type.Slug, actionSequence: 0)
+            .QueryModifiers(BattleQueryId.FinalDamage);
+
+    private static BattleHookDispatchSnapshot? WeatherAccuracyHooks(SmartAiContext context, BattleMove move) =>
+        context.Conditions is not null
+        && move.SecondaryEffects.OfType<WeatherAccuracyEffect>().SingleOrDefault() is { } effect
+            ? WeatherConditions.CollectAccuracyHooks(context.Conditions, effect, actionSequence: 0)
+            : null;
+
+    private static bool WeatherAllowsStatus(SmartAiContext context, PersistentStatus status) =>
+        context.Conditions is null || !WeatherConditions.CollectStatusHooks(context.Conditions, status, 0)
+            .Filters().Any(filter => filter is
+                { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
+
+    private static IReadOnlyList<BattleQueryModifier> WeatherHealingModifiers(
+        SmartAiContext context, HealEffect effect, int maxHp) => context.Conditions is null
+        ? []
+        : WeatherConditions.CollectHealingHooks(context.Conditions, effect, maxHp, actionSequence: 0)
+            .QueryModifiers(BattleQueryId.Healing);
+
+    private static bool TryResourceInputs(BattleCreature attacker, BattleCreature defender, BattleMove move,
+        IReadOnlyList<BattleCreature> sourceParty, int sourceIndex, BattleSide sourceSide, SmartAiContext context,
+        out PartyResourceFormulaInputs? inputs)
+    {
+        inputs = null;
+        if (!PartyResourceFormulas.HasPowerFormula(move))
+            return true;
+
+        int? itemPower = null;
+        if (move.SecondaryEffects.OfType<ItemDataPowerEffect>().Any())
+        {
+            EntityId? heldItem = context.Overlays is { } overlays
+                ? PhysicalMetricFormulas.EffectiveValues(attacker, overlays,
+                    new BattleOverlayOwner(sourceSide, sourceIndex, new BattleSlot(sourceSide, 0))).HeldItem
+                : attacker.HeldItem;
+            if (heldItem is not { } itemId || context.ItemData is null
+                || !context.ItemData.TryGetValue(itemId, out Item? item) || item.FlingPower is not > 0)
+                return false;
+            itemPower = item.FlingPower;
+        }
+
+        int? randomPower = move.SecondaryEffects.OfType<RandomTablePowerEffect>().SingleOrDefault() is { } table
+            ? PartyResourceFormulas.ExpectedWeightedPower(table.Entries)
+            : null;
+        inputs = PartyResourceFormulas.Inputs(sourceParty, attacker, defender,
+            move.Pp, Math.Max(0, move.Pp - 1), itemPower, randomPower);
+        return true;
     }
 
     /// <summary>Expected HP a reserve loses on switch-in to the AI's own side (stealth rock, type-scaled,
@@ -296,6 +412,12 @@ public static class SmartAi
         c.Stage(StatKind.Atk) > 1 || c.Stage(StatKind.Spa) > 1 || c.Stage(StatKind.Spe) > 1;
 
     private static bool CanSwitch(BattleCreature c) => !c.IsTrapped && !c.IsCharging && !c.IsLocked;
+
+    private static int AiSpeed(BattleCreature creature, BattleSide side, int partyIndex, SmartAiContext context) =>
+        context.Overlays is { } overlays
+            ? PhysicalMetricFormulas.SpeedQuery(creature, overlays,
+                new BattleOverlayOwner(side, partyIndex, new BattleSlot(side, 0))).FinalValue.ToInt32()
+            : PhysicalMetricFormulas.SpeedQuery(creature).FinalValue.ToInt32();
 
     private static double HpFraction(BattleCreature c) => c.CurrentHp / (double)c.MaxHp;
 

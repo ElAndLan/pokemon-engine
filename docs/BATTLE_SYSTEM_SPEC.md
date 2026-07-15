@@ -129,8 +129,11 @@ the ops and their tests are unambiguous. All damage/heal amounts are **≥1** un
 - **ohko** — one-hit KO: accuracy = `userLevel − targetLevel + 30`, and the move **fails outright** if
   `targetLevel > userLevel` (accuracy 0). On hit, damage = target's current HP.
 - **healFraction** — `heal` restores `max(1, floor(maxHp × num/den))` (default ½) to
-  `recipient: self|target` (default self). (Weather-scaled variant is a later slot; v5 is the
-  flat fraction.)
+  `recipient: self|target` (default self). Optional `weather` is a comma-separated table of unique
+  active `weather:num/den` overrides. Every numerator and denominator must be positive and the
+  fraction cannot exceed one. The active row replaces the authored fraction before amount
+  calculation, so `maxHp=101` at `2/3` restores 67 rather than scaling a pre-rounded half-HP amount.
+  Missing weather, absent weather, and unlisted weather use the authored fraction.
 - **hpFraction** — applies a fractional HP mutation to `recipient: self|target`. Params are
   `{ recipient, operation: "heal"|"damage", basis: "maxHp"|"currentHp", num, den }`;
   all are required and `num`/`den` must be positive. The amount is
@@ -282,7 +285,154 @@ inputs, base versus overlaid metrics, 1 and `int.MaxValue` inputs, zero-denomina
 checked overflow, unchanged results across grounded/airborne creature types, resolver and AI parity,
 and deterministic base-power query traces. No battle event is added.
 
+### Action-history formula registry (Battle v6, Phase 15C-4)
+
+`BattleActionHistory` is the single bounded mechanical record of selected actions. It retains typed
+attempt records only for the current and immediately previous turn, plus compact active consecutive
+aggregates. Records are keyed by turn, action sequence, source side/party/slot, move ID, target
+side/party/slot, whether the move started, and one terminal result: `prevented`, `failed`, `missed`,
+`succeeded`, or `connected`. `prevented` means an admitted move action lost its action to a status,
+flinch, or confusion gate before `MoveUsed`; `failed` means a move gate, unavailable/protected
+target, immunity, or other resolver-visible failure; `missed` means its accuracy check failed;
+`succeeded` means a started non-damaging/timed action completed without a recorded failure; and
+`connected` means a damaging move removed positive HP from at least one intended target. Mechanical
+queries read this store directly and never parse `BattleEvent` or effect-trace presentation output.
+
+Turn planning captures only action kind and actor identity after atomic admission. Resolver formulas
+may therefore distinguish a target with a pending move, a target whose move action completed, a
+same-turn switch-in, and a target that selected no move. This planned-action state is private battle
+resolution data and is never exposed to Smart AI. AI previews use visible effective Speed under an
+equal-priority assumption; a tie conservatively receives neither before-target nor after-target
+bonus. Switch or faint clears creature-owned streak/result state. Side-scoped consecutive state
+survives member changes but resets after a turn with no qualifying attempt. Faints caused in the
+replacement checkpoint remain attributed to the just-completed turn, so the next ordinary turn can
+observe them. All lists and aggregates prune deterministically; no whole-battle mutable list exists.
+
+| Formula/op | Exact result and qualification | Reset/cap | Role |
+|---|---|---|---|
+| `consecutivePower` / `creatureConnected` | `exponential`: `min(cap, authoredPower * step^priorConnectedStreak)` | a different action, prevention, fail, miss, switch, or faint resets; positive step/cap | base-power replace |
+| `consecutivePower` / `sideAttemptedTurns` | `linear`: `min(cap, authoredPower + step * priorConsecutiveTurns)`; all qualifying friendly attempts in one turn read the same turn count | a turn without a started matching attempt resets; member switch/faint does not | base-power replace |
+| `historyPower(sourceBeforeTarget)` | multiply when the current target either switched in this turn or still has a pending move action | target selecting Pass/item does not qualify | base-power multiply |
+| `historyPower(sourceAfterTarget)` | multiply when the current target completed its move action and did not switch afterward | prevented/failed/missed target moves still count as completed | base-power multiply |
+| `historyPower(previousActionFailed)` | multiply when the source's immediately previous admitted move ended `prevented`, `failed`, or `missed` | success, non-move action, switch, or faint clears qualification | base-power multiply |
+| `historyPower(allyFaintedPreviousTurn)` | multiply when any creature on the source side fainted in the immediately previous completed turn | same-turn and older faints do not qualify | base-power multiply |
+
+`consecutivePower` accepts exactly `{ scope, mode, step, cap }`, requires authored positive power,
+draws no RNG, and rejects nonpositive values or duplicate replacement formulas. `historyPower`
+accepts exactly `{ condition, multiplierNum, multiplierDen }`, requires a positive reduced fraction,
+draws no RNG, and permits only one history condition per move. Both enter the ordinary
+`BattleQuery.BasePower` modifier/trace path and emit no new presentation event; the bounded typed
+history snapshot is deterministic debug/replay evidence.
+
+The `modern_reference` rows are: `move-0210` creature-connected exponential step 2/cap 160;
+`move-0497` side-attempted linear step 40/cap 200; `move-0371` source-after-target x2;
+`move-0754` and `move-0755` source-before-target x2; `move-0514` prior-turn ally-faint x2; and
+`move-0707` plus `move-0915` previous-action-failed x2. `move-0205` and `move-0301` additionally
+need their fixed five-action lock and defense-boost interaction, while `move-0496` needs same-turn
+ally reprioritization; those rows stay with their timing/condition owners. Formula vectors may be
+registered now, but rows with still-unmodeled sound, bite, or slicing interaction tags remain
+uncertified until the tag/filter package closes them.
+
+Acceptance covers first use through cap, every interruption/result, Pass/item/switch/faint reset,
+turn gaps and aging, same-turn side reuse, voluntary and replacement switches, tie/randomized action
+order, target Pass versus pending/completed moves, doubles actor/target isolation, replacement-hook
+faints, AI fairness, checked overflow, stable snapshots, and base-power query traces.
+
 Rounding is floor throughout (matches Gen III/IV integer math and BATTLE_DAMAGE_CALC).
+
+### Party, resource, stage, item, and random-table formulas (Battle v6, Phase 15C-5)
+
+These replacement-power ops extend the single `BattleQuery.BasePower` path. They draw no RNG except
+`randomTablePower`, emit no presentation event, and cannot compose with another replacement-power
+formula. Arithmetic uses checked signed 64-bit intermediates and floors before the query's inclusive
+`1..int.MaxValue` clamp.
+
+| Op | Authored params | Locked result |
+|---|---|---|
+| `partyCountPower` | `filter: living|fainted|contributing`, `base >= 0`, `perMember >= 0`, optional positive `cap >= base` | replace with `min(cap, base + count * perMember)` when capped; living means HP > 0, fainted means HP <= 0, and contributing means living with no persistent status |
+| `friendshipPower` | `mode: current|missing` | replace with `max(1, floor(value * 10 / 25))`, where current uses friendship and missing uses `255 - friendship`; battle friendship is always `0..255` |
+| `ppPower` | `timing: beforeSpend|afterSpend`, `bands: "minimum:power,..."` | replace with the last increasing minimum band containing the selected remaining PP; first minimum is 0, every power is positive, and no minimum exceeds the move's maximum PP |
+| `positiveStagePower` | `subject: user|target`, `base >= 0`, `perStage >= 0`, optional positive `cap >= base` | sum only positive Atk/Def/SpA/SpD/Spe/Accuracy/Evasion stages, then replace with the same capped linear result as party count |
+| `itemDataPower` | `field: flingPower` | resolve the user's effective held-item ID through the battle item catalog and replace with its positive authored `Item.flingPower` |
+| `randomTablePower` | `entries: "weight:power,..."` | choose one authored-order entry by cumulative half-open positive-weight ranges; zero weights are skipped, powers are positive, and at least one weight is positive |
+
+Party filters count party slots in party-index order; duplicate creature definitions or references in
+different slots remain distinct contributors. Party and stage inputs are live at hit resolution.
+PP inputs are snapshotted around the current action's actual PP spend: charge release and locked
+continuation, which spend no PP, therefore expose equal before/after values. Friendship comes from the
+source battle instance. Item lookup uses the 15F-1 effective held item, so suppression produces no
+item. Missing/suppressed items, unknown item IDs, absent/nonpositive `flingPower`, or a missing catalog
+fail after PP and `MoveUsed` but before accuracy, damage, or RNG, emitting `MoveFailed` with
+`formulaInputUnavailable` and a target-level no-qualifying-damage memory record.
+
+`randomTablePower` is selected once per action after at least one target passes accuracy and before
+hit-count, critical, or damage-roll draws; every target and hit reuses the selected power. All targets
+missing means no table draw. With exactly one positive-weight entry it returns that power without a
+draw. Otherwise it performs exactly one `IRng.Next(totalWeight)` call; checked total-weight overflow
+is rejected. `EffectTraceKind.PowerTable` records the zero-based draw, total bound, and selected power.
+The ordinary BasePower query trace records the resulting replacement modifier.
+
+Smart AI evaluates these same visible inputs for its own party and active creature. It previews PP as
+before=current and after=`max(0,current-1)`, treats unavailable item data as zero expected damage, and
+uses the floored exact weighted mean for `randomTablePower` without consuming battle or AI RNG beyond
+its existing score noise. It does not inspect unrevealed opposing party, friendship, items, or moves.
+
+Strict compilation rejects chance-gating, unknown params/enums/fields, status-class use, malformed or
+uncovered bands, negative or all-zero linear terms, cap below base, duplicate replacement formulas,
+empty/all-zero/negative/overflowing random weights, nonpositive random powers, and item-power moves
+without the `flingPower` field. This package does not consume/mutate the held item, execute one hit per
+party contributor, or implement random healing/secondary outcomes; those remain with their owning
+item-mutation, hit-wrapper, and HP-effect packages and keep dependent corpus rows uncertified.
+
+Acceptance covers empty/full/duplicate parties; every filter; friendship 0/1/254/255; PP 0/1/max and
+real before/after spend; all seven stage slots, negative stages, ties, and +6 extremes; present,
+missing, unknown, and suppressed item data; zero-weight entries, exact random endpoints, single-entry
+no-draw, overflow, action-scoped spread/multi-hit reuse, all-miss no-draw, deterministic replay/query
+trace, Smart-AI parity/fairness, and compiler rejection matrices.
+
+### Bounded action and damage memory (Battle v6, Phase 15G-2)
+
+`BattleActionHistory` also owns the one bounded mechanical index of move damage; no parallel counter,
+revenge, multi-hit, or stored-damage list is permitted. A `BattleDamageRecord` identifies its pending
+or completed `BattleActionAttemptId`, source and target `BattleHistoryOwner` (party index is the stable
+creature identity; slot is the location at resolution), move ID, effective damage class/type, typed
+cause, target hit number, outcome, three nonnegative damage amounts, critical/contact/substitute
+flags, and whether that record fainted the target. Records retain only the current and immediately
+previous turn and order by turn, action sequence, target topology, then hit number.
+
+| Field | Locked meaning |
+|---|---|
+| `cause` | `standard`, `fixed`, `level`, `oneHitKnockout`, `counter`, or `hpFormula`; later non-move causes require their owning package |
+| `attempted` | accuracy and protection gates passed and the resolver reached hit/immunity resolution |
+| `connected` | positive HP was removed from the intended creature target; substitute-only damage is not a creature connection |
+| `failure` | `none`, `missed`, `protected`, `immune`, `noDamage`, `noQualifyingDamage`, or `substitute` |
+| `calculatedDamage` | final damage-query result before survival, cannot-KO, substitute, or HP-pool mitigation |
+| `appliedDamage` | nonnegative amount after those mitigation rules but before the selected HP pool clamps overkill |
+| `actualHpRemoved` | exact HP removed from the creature; this is the only amount summed by damage-memory queries |
+| `hitNumber` | `0` for a target-level miss/protection/no-qualifying-damage result; otherwise one-based within that target |
+
+Validation rejects foreign attempt/source/move identities, duplicate `(attempt,target,hitNumber)`
+records, negative amounts, applied damage above calculated damage, actual HP removal above applied
+damage, inconsistent attempted/connected/failure/faint states, and undefined enum values. Missed and
+protected records have hit number zero and are not attempted; immune/no-damage/substitute records
+are attempted but not connected; connected records have no failure and positive actual HP removal.
+An overkill may have `appliedDamage > actualHpRemoved`. A target survival/cannot-KO rule may have
+`calculatedDamage > appliedDamage`. An immune target records zeroes and consumes no critical/damage
+roll beyond the resolver's existing rules.
+
+The resolver writes records beside the existing damage/miss/block events without parsing those
+events. Multi-hit and spread actions write one record per resolved target/hit in existing topology
+and hit order. Fixed, level, OHKO, counter, and target-damaging HP formula paths use the same writer.
+The current substitute flag/failure is a typed extension point and service-level acceptance vector;
+normal resolver interception remains with the substitute overlay package. Snapshots and source/target
+queries return copies, never mutable backing collections. Switch and faint do not erase completed
+records; normal turn aging and battle end do. This package changes no RNG draw, BattleEvent, effect
+trace, AI choice, serialized project/save shape, or existing counter consumer.
+
+Acceptance covers complete fields and validation, standard/fixed/level/OHKO/counter/formula damage,
+overkill and survival mitigation, crit/contact/faint, misses/protection/immunity/zero/substitute,
+multi-hit and spread ordering, source/target doubles isolation, immutable source/target queries,
+current/previous aging, duplicate rejection, end-battle cleanup, and replay-identical snapshots.
 
 ### Stateful ops — batch 1 (self-targeting)
 
@@ -1020,6 +1170,81 @@ cannot acquire different hook order or arithmetic inputs.
 Neutral acceptance vectors: `hook-complete-order`, `hook-checkpoint-snapshot`,
 `hook-duplicate-suppression`, `hook-intent-cap`, `hook-no-dictionary-drift`,
 `hook-resolver-ai-query-parity`, `hook-tail-atomic`, and `hook-replay`.
+
+### Weather field conditions (Phase 15E-3 weather slice)
+
+Weather is the first concrete 15E-3 family on the shared condition path. The closed registry rows
+are `weather:rain`, `weather:sun`, `weather:sandstorm`, and `weather:hail`. All use scope `weather`,
+stacking key `weather`, duplicate policy `replace`, `stayScope`/`persist` cleanup, a default duration
+of five `TurnEnd` checkpoints, and a tag matching the weather slug. A move attempting to apply the
+currently effective weather is an admitted no-op; a successful different-weather application
+replaces the existing instance, captures the applying slot/party as source, and starts a fresh
+duration. Ability duration extensions alter only the supplied application duration. This preserves
+the existing move-failure boundary while making the condition store the sole weather state/timer.
+
+Rain and sun declare `DamageQuery`: rain contributes a field-owned `3/2` final-damage multiplier for
+water and `1/2` for fire, while sun reverses those type rows. Sandstorm and hail declare `TurnEnd`:
+after ordinary status, seed, trap, and ability/item end-turn hooks, each damages every live active in
+topology order for `max(1, maxHp / 16)` unless its current types include sandstorm immunity
+(`rock`, `ground`, or `steel`) or hail immunity (`ice`). Weather hooks draw no RNG. Duration completion
+runs after the weather hook, so duration one executes once and then expires. Replacement and expiry
+reevaluate condition-based forms after the effective weather changes.
+
+Rain, sun, and hail also declare `AccuracyQuery`. A move opts into this hook with the reusable
+`weatherAccuracy` op: `{ bypass?: "rain,hail,...", overrides?: "sun:50,..." }`. At least one row is
+required; weather values must be active and unique; override values are inclusive `1..100`; the same
+weather cannot appear in both lists; authored move accuracy is required; and the op rejects `chance`
+and unknown params. Status/OHKO moves, duplicate declarations, and combination with unconditional
+`accuracyBypass` are rejected. A bypass row skips accuracy/evasion stages and the accuracy RNG draw. An override
+replaces the authored accuracy before the ordinary accuracy/evasion multiplier and still draws the
+normal per-target d100. Unlisted or absent weather changes nothing. The move supplies the interaction
+rows as data, while the active weather condition supplies the shared hook; neither path inspects a
+move ID or name. Rain-bypass and sun-50 rows cover the relevant storm-accuracy family, while hail-
+bypass covers the blizzard-accuracy family. Semi-invulnerable and protection exceptions remain with
+their own later accuracy/protection packages and are not implied here.
+
+Sun additionally declares `StatusAttempt` and publishes a field-owned deny filter for `freeze`.
+The filter runs after the ordinary move hit boundary but before secondary-status chance admission:
+a denied attempt applies no status, emits no `StatusApplied`, and consumes no status-chance RNG,
+matching the existing ineligible/type-immune/side-protected status path. It applies to every freeze
+source represented by the generic `ailment` effect and never inspects the move ID. Other statuses and
+other weather rows are unchanged. Starting sun does not cure an existing freeze; replacing or
+expiring sun makes subsequent freeze attempts eligible immediately. `gen4_like` and
+`modern_reference` share this row; neither profile defines a difference here.
+
+All four supported weather rows declare `HealingQuery`. A `heal` effect opts in with its authored
+`weather` fraction table. The active weather contributes a field-owned replacement equal to
+`max(1, floor(recipient.maxHp × row.num/row.den))`; unlisted and absent weather contribute nothing.
+The replacement uses the actual recipient for both self- and selected-target healing, clamps through
+the existing shared heal primitive, emits the ordinary `Healed` event only for HP actually restored,
+and draws no RNG. The three solar-recovery reference rows use clear `1/2`, sun `2/3`, and
+rain/sandstorm/hail `1/4`; the sand-recovery row uses clear `1/2`, sandstorm `2/3`, and leaves other
+weather unlisted. These ratios and floor behavior are identical in `gen4_like` and
+`modern_reference` for the supported weather set. Resolver and Smart AI collect the same immutable
+hook snapshot and exact replacement; AI caps its visible `recovery` component at missing HP.
+
+Condition apply/replace/tick/expire events and traces remain visible alongside the compatibility
+`WeatherChanged`, `WeatherDamage`, and `WeatherEnded` presentation events. Damage and accuracy hook
+traces use the shared dispatcher. Resolver and AI scoring collect the same weather condition
+registrations, exact rational damage modifiers, accuracy/healing replacements, and bypass filters; callers
+that do not supply a battle-condition snapshot score clear weather. Battle end removes the instance through ordinary condition cleanup. Terrain,
+rooms, gravity, and sports remain in the rest of 15E-3 and are not implied by this slice.
+
+This checkpoint migrates the already-supported weather behavior; it is not the 15E-3 weather-family
+exit. Weather-gated move type/base power/charge, grounded/stat
+queries, natural field inputs, and ruleset difference rows remain in 15E-3. No weather-setting corpus
+row is certified until that complete interaction matrix and its conformance vectors are green.
+
+Weather acceptance vectors: `weather-start-source`, `weather-same-noop`, `weather-replace`,
+`weather-duration-one-many`, `weather-damage-query-present-absent`, `weather-residual-topology`,
+`weather-immunity`, `weather-form-order`, `weather-ai-query-parity`, `weather-no-rng`, and
+`weather-replay`, plus `weather-accuracy-bypass`, `weather-accuracy-override-stage-order`,
+`weather-accuracy-present-absent`, `weather-accuracy-rng`, and `weather-accuracy-ai-parity`, plus
+`weather-status-deny`, `weather-status-present-absent`, `weather-status-no-rng`,
+`weather-status-no-cure`, `weather-status-replacement`, and `weather-status-ai-parity`, plus
+`weather-healing-compile`, `weather-healing-direct-rounding`, `weather-healing-present-absent`,
+`weather-healing-recipient`, `weather-healing-clamp-event`, `weather-healing-no-rng`, and
+`weather-healing-ai-parity`.
 
 ### Effective-value overlays (Phase 15F-1)
 

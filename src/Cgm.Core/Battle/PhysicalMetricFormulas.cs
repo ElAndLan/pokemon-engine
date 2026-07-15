@@ -20,7 +20,7 @@ public static class PhysicalMetricFormulas
 
     public static BattleQueryResult SpeedQuery(BattleCreature creature, BattleOverlayStore overlays,
         BattleOverlayOwner owner, BattleQueryContext? context = null) =>
-        SpeedQuery(creature, Effective(creature, overlays, owner).Stats.Spe, context);
+        SpeedQuery(creature, EffectiveValues(creature, overlays, owner).Stats.Spe, context);
 
     private static BattleQueryResult SpeedQuery(BattleCreature creature, int authoredSpeed,
         BattleQueryContext? context) =>
@@ -44,8 +44,8 @@ public static class PhysicalMetricFormulas
     public static PhysicalFormulaInputs Inputs(BattleCreature source, BattleCreature target,
         BattleOverlayStore overlays, BattleOverlayOwner sourceOwner, BattleOverlayOwner targetOwner)
     {
-        BattleEffectiveValues sourceValues = Effective(source, overlays, sourceOwner);
-        BattleEffectiveValues targetValues = Effective(target, overlays, targetOwner);
+        BattleEffectiveValues sourceValues = EffectiveValues(source, overlays, sourceOwner);
+        BattleEffectiveValues targetValues = EffectiveValues(target, overlays, targetOwner);
         return new PhysicalFormulaInputs(
             SpeedQuery(source, sourceValues.Stats.Spe).FinalValue.ToInt32(),
             SpeedQuery(target, targetValues.Stats.Spe).FinalValue.ToInt32(),
@@ -90,7 +90,7 @@ public static class PhysicalMetricFormulas
         _ => throw new ArgumentOutOfRangeException(nameof(subject), subject, "Unknown formula subject."),
     };
 
-    private static BattleEffectiveValues Effective(BattleCreature creature, BattleOverlayStore overlays,
+    public static BattleEffectiveValues EffectiveValues(BattleCreature creature, BattleOverlayStore overlays,
         BattleOverlayOwner owner) => overlays.Resolve(owner, new BattleEffectiveValues(
             creature.HeldItem,
             null,

@@ -192,6 +192,7 @@ before use.
 | Primitive | What It Does | Covers |
 |---|---|---|
 | `accuracy_check` | Resolves hit/miss using move accuracy, stages, bypasses, weather, gravity, lock-on, and ruleset policy. | normal accuracy, sure-hit, No Guard-like effects, Lock-On, Gravity, weather accuracy changes. |
+| `weatherAccuracy` | Move-authored weather rows feed the shared weather `on_accuracy_query`; bypass rows skip stages/draws and override rows replace authored accuracy before stages. | rain-bypass/sun-50 storm families, hail-bypass blizzard family. |
 | `deal_damage` | Deals damage using a selected damage model. | standard, fixed, level, percent max HP, percent current HP, counter, stored, variable formula, OHKO. |
 | `modify_base_power` | Changes base power before damage calculation. | Weather Ball, Gyro Ball, Low Kick, Facade, Acrobatics, terrain/weather boosts, item boosts. |
 | `modify_damage` | Multiplies, reduces, blocks, redirects, or floors final damage. | STAB, type effectiveness, burn, screens, spread reduction, weather, resist berries, Life Orb, raid shields. |
@@ -218,6 +219,7 @@ Damage model values for `deal_damage`:
 | Primitive | What It Does | Covers |
 |---|---|---|
 | `heal_hp` | Restores HP by flat, percent, full, delayed, drain-derived, slot-derived, or formula amount. | Recover, Roost, Synthesis, Wish, potions, Grassy Terrain, Aqua Ring, Strength Sap. |
+| `heal` weather table | Optional unique `weather:num/den` rows replace the authored max-HP fraction through `on_healing_query`; unlisted weather is neutral. | solar recovery family, sand-amplified recovery family. |
 | `restore_resource` | Restores PP, cures status, restores item/ability state, or refreshes limited-use state. | Ether, Leppa Berry, Heal Bell, Aromatherapy, Recycle, Lunar Blessing. |
 | `pay_cost` | Pays HP, PP, item, turn, fainting, stat, or condition cost. | Substitute, Belly Drum, Curse-Ghost, Mind Blown-like costs, Healing Wish self-faint. |
 | `apply_recoil_or_crash` | Damages user after damage, miss, failure, or contact. | recoil, Jump Kick crash, Life Orb, Steel Beam-style cost. |
@@ -367,6 +369,23 @@ draw no RNG, emit no event, and are mutually exclusive with every other replacem
 Exact params, units, validation, corpus rows, and boundary vectors are locked in
 `BATTLE_SYSTEM_SPEC.md` under “Speed and physical-metric formula registry.”
 
+Phase 15C-4 adds `consecutivePower(scope, mode, step, cap)` for bounded creature-connected or
+side-attempted-turn streaks and `historyPower(condition, multiplierNum, multiplierDen)` for
+source-before/after-target, previous-action-failed, and prior-turn-ally-faint predicates.
+`BattleActionHistory` retains current/previous-turn typed attempts plus compact streak aggregates,
+never parses events, never exposes planned opponent actions to AI, draws no RNG, and is the only
+15G-2 per-hit damage memory. It records immutable target-level miss/block results and one-based
+resolved hits with typed cause/outcome, calculated/post-mitigation/actual damage, crit/contact/
+substitute/faint flags, and source/target party+slot identity. It adds no effect op, RNG draw, or
+presentation event; later damage consumers query this one bounded index.
+
+Phase 15C-5 adds six mutually exclusive replacement-power ops on that same query path:
+`partyCountPower`, `friendshipPower`, `ppPower`, `positiveStagePower`, `itemDataPower`, and
+`randomTablePower`. Party/resource/stage/item inputs, exact integer formulas, item lookup failure,
+action-scoped weighted selection, RNG/trace order, Smart-AI preview, validation, and intentional
+exclusions are locked in `BATTLE_SYSTEM_SPEC.md` under “Party, resource, stage, item, and
+random-table formulas.” No op owns a second damage resolver or mutates party, PP, stages, or items.
+
 ### 4.6 Accuracy, Damage, And HP Helpers
 
 | Helper | Purpose |
@@ -478,10 +497,12 @@ Hooks are the main extension surface. New mechanics should usually be new condit
 | `on_base_power_query` | Base power formulas and modifiers. |
 | `on_critical_query` | Crit chance, forced crit, crit blocking, stage-ignore policy. |
 | `on_damage_query` | Final damage modifiers, blocks, floors, spread reduction. |
+| `on_healing_query` | Healing amount replacements/modifiers from weather, terrain, items, abilities, and conditions. |
 | `on_hit` | Damage application and on-hit hooks. |
 | `on_after_damage` | Drain/recoil/item/ability triggers after damage. |
 | `on_contact` | Contact punishment/prevention, Rocky Helmet/Rough Skin-like logic. |
 | `on_secondary_effect` | Secondary effect filters such as Shield Dust/Covert Cloak/Sheer Force-like behavior. |
+| `on_status_attempt` | Persistent-status admission filters from field, side, ability, item, and target state. |
 | `on_after_move` | Pivot, recharge, lock cleanup, delayed setup. |
 | `on_switch_out` | Volatile cleanup, Baton Pass transfer, Natural Cure-like hooks. |
 | `on_switch_in` | Hazards, terrain seeds, weather abilities, Intimidate-like effects. |
@@ -635,7 +656,7 @@ create a private timer or pending list.
 | Weather | Key Hooks |
 |---|---|
 | `rain` | water/fire damage modifier, move accuracy/charge interactions, ability/item hooks. |
-| `sun` | fire/water damage modifier, freeze prevention, healing/charge interactions. |
+| `sun` | fire/water damage modifier, `on_status_attempt` freeze denial, healing/charge interactions. |
 | `sandstorm` | residual damage, Rock Sp. Def modifier, weather ability/item hooks. |
 | `hail` | residual damage, Blizzard accuracy policy, legacy profile. |
 | `snow` | Ice Defense modifier, Blizzard accuracy policy, modern profile. |
@@ -644,6 +665,10 @@ create a private timer or pending list.
 | `harsh_sun` | extreme weather profile; blocks Water moves. |
 | `strong_winds` | suppresses Flying-type weaknesses. |
 | `shadowy_aura` | optional spin-off profile; residual against non-shadow creatures. |
+
+Phase 15E-3 places rain/sun damage modifiers, sandstorm/hail residuals, and data-authored rain/sun/
+hail accuracy bypass/override rows on the shared typed condition/hook path. The other hooks named above remain required work; the table
+describes the complete family contract, not the checkpoint's current certification surface.
 
 ### 7.7 Terrain Conditions
 

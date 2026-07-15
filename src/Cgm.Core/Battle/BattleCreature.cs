@@ -292,12 +292,14 @@ public sealed class BattleCreature
     public BattleCreature(EntityId species, string name, int level,
         IReadOnlyList<EntityId> types, Stats stats, IReadOnlyList<BattleMove> moves, int catchRate = 45,
         IReadOnlyList<AbilityHook>? abilityHooks = null, IReadOnlyList<Effect>? heldItemBattleEffects = null,
-        EntityId? heldItem = null, int weightHectograms = 1, int heightDecimeters = 1)
+        EntityId? heldItem = null, int weightHectograms = 1, int heightDecimeters = 1, int friendship = 70)
     {
         if (weightHectograms <= 0)
             throw new ArgumentOutOfRangeException(nameof(weightHectograms), "Battle weight must be positive.");
         if (heightDecimeters <= 0)
             throw new ArgumentOutOfRangeException(nameof(heightDecimeters), "Battle height must be positive.");
+        if (friendship is < 0 or > 255)
+            throw new ArgumentOutOfRangeException(nameof(friendship), "Battle friendship must be within 0..255.");
         Species = species;
         Name = name;
         Level = level;
@@ -312,6 +314,7 @@ public sealed class BattleCreature
         HeldItem = heldItem;
         WeightHectograms = weightHectograms;
         HeightDecimeters = heightDecimeters;
+        Friendship = friendship;
         _baseStats = stats;
         _baseTypes = types;
         _baseAbilityHooks = AbilityHooks;
@@ -332,6 +335,7 @@ public sealed class BattleCreature
     public EntityId? HeldItem { get; }
     public int WeightHectograms { get; }
     public int HeightDecimeters { get; }
+    public int Friendship { get; }
 
     public PersistentStatus? Status { get; private set; }
     public int StatusCounter { get; private set; }
@@ -412,7 +416,7 @@ public sealed class BattleCreature
         Stats stats = StatCalc.Compute(form?.StatOverrides ?? species.BaseStats, instance.Ivs, instance.Evs, instance.Nature, instance.Level);
         var creature = new BattleCreature(instance.Species, instance.Nickname ?? species.Name, instance.Level,
             form?.TypeOverrides ?? species.Types, stats, moves, species.CatchRate, ability?.Hooks, held?.BattleEffects,
-            instance.HeldItem, species.WeightHectograms, species.HeightDecimeters);
+            instance.HeldItem, species.WeightHectograms, species.HeightDecimeters, instance.Happiness);
         creature._forms = BuildRuntimeForms(species, instance, db, ability?.Hooks ?? []);
         creature.TakeDamage(stats.Hp - Math.Clamp(instance.CurHp, 0, stats.Hp));
         if (instance.Status is { } status)

@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B plus the 15C-1/2/3, 15D-1, 15E-1/2, and 15F-1 foundations are complete; Phase 15 conformance continues at 74/937.**
+Status: **Phase 15B plus the 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, and 15G-2 foundations are complete; Phase 15 conformance continues at 84/937.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -125,6 +125,40 @@ schema round-trip/migration, and invalid metric definitions. The generated catal
 new speed-formula vectors and advances strict certification to 74; weight rows remain routed to
 later condition/timing dependencies rather than being over-certified.
 
+## Phase 15C-4 action-history evidence
+
+Typed history tests cover first/repeat/cap boundaries, checked overflow, every terminal outcome,
+different-action/Pass/switch/faint/miss/failure resets, one-turn aging, actual seeded tie order,
+doubles owner isolation, same-turn ally reuse, replacement entry-hazard faints, immutable bounded
+snapshots, BasePower traces, and Smart AI fairness. Compiler matrices reject unknown, duplicate,
+chance-gated, non-damaging, nonpositive, and malformed formulas. Four generated history vectors
+advance strict certification to 78; rows with separate sound/slicing or timing dependencies remain
+uncertified. The changed instrumented Core production lines measured 98.82% line coverage.
+
+## Phase 15C-5 party/resource formula evidence
+
+Twenty-three focused Core tests cover empty/full/duplicate party slots and every living/fainted/
+contributing filter; friendship 0/1/254/255; PP 0/1/max plus ordinary spend and charge-release
+snapshots; all seven positive-stage inputs; present, absent, unknown, nonpositive, and suppressed item
+data; weighted endpoints, zero weights, single-entry no-draw, overflow, all-miss preservation, spread
+and multi-hit reuse, deterministic replay/query traces, compiler/validation rejection, and Smart AI
+expected-value/item parity. Six generated Tools theories validate every newly certified normalized
+row through MoveRule, MoveCompiler, and BasePower query resolution. The full solution passes 1,382
+tests; the dirty-worktree Core coverage run exercises 893/917 changed instrumented production lines
+(97.38%); strict certification is 84/937.
+
+## Phase 15G-2 damage-memory evidence
+
+Twenty focused tests cover immutable complete records and stable source/target creature queries,
+pending and completed attempts, current/previous-turn aging, battle-end reset, checked totals,
+strict malformed/outcome rejection, target-level miss/protection/no-qualifying results, resolved
+immunity/no-damage/substitute vectors, calculated versus mitigated versus actual overkill damage,
+critical/contact/faint evidence, multi-hit stop/order, doubles topology/party isolation, fixed/level/
+OHKO/counter/HP-formula causes, status-class HP equalization, and seeded replay identity. The full
+Core suite passes 1,136 tests; the complete dirty-worktree Core coverage run exercises 574/586
+changed instrumented production lines (97.95%). No new event, trace, RNG draw, schema, dependency,
+or certification is introduced.
+
 ## Phase 15D-1 and 15E-1/2 stateful-foundation evidence
 
 The typed intent suite covers ordered preview/consume/complete boundaries, same-checkpoint deferral,
@@ -136,7 +170,20 @@ and replay-stable snapshots. Tag/source removal and general transfer/swap remain
 completed 15E-2 dispatcher additionally covers
 stable scope/priority/topology ordering, duplicate suppression/conflict rejection, bounded atomic
 intent emission, immutable collection snapshots, and resolver/AI query parity; concrete condition
-payload families remain with 15E-3 through 15E-7.
+payload families remain with 15E-3 through 15E-7. The first 15E-3 weather checkpoint additionally
+covers exact registry rows, source identity, same-weather no-op and replacement, duration-one and
+ordinary expiry, typed damage modifiers, topology-ordered residual/immunity behavior, battle-end
+cleanup, zero added RNG, resolver/AI parity, and replay. Weather corpus certification remains blocked
+until the remaining type/base-power/charge/stat/ruleset interaction matrix passes. The
+weather-accuracy checkpoint adds strict compiler rejection, bypass/no-draw behavior, override-before-
+stage ordering, present/absent/unlisted weather, resolver hook/query traces, and Smart AI parity. The
+weather-status checkpoint covers the exact sun/freeze row, absent/unlisted weather and status,
+invalid-status rejection, no chance draw or status event on denial, no cure of an existing freeze,
+immediate replacement semantics, unrelated-status preservation, resolver hook trace, and Smart AI
+status-component parity. The weather-healing checkpoint covers strict table compilation and malformed
+rows, every supported weather ratio, odd-max-HP direct rounding, self/target recipients, full-HP
+event suppression, absent/unlisted weather, replacement and expiry, zero RNG, query/hook traces, and
+missing-HP-capped Smart AI parity.
 
 ## Golden format
 
@@ -159,7 +206,7 @@ names, prose, assets, URLs, or raw reference JSON.
 
 - Tool unit tests pass without the local corpus.
 - The Phase 15A baseline command (without a decision catalog) reports exactly 937 entries and 0
-  certified; the current Phase 15 command with its decision catalog reports 74 certified.
+  certified; the current Phase 15 command with its decision catalog reports 84 certified.
 - Regenerating the manifest from unchanged files is byte-identical.
 - Generated output contains no payload names or source filenames.
 - Full solution build/tests remain green.

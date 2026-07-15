@@ -101,6 +101,21 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
         record = Assert.Single(MoveConformanceNormalizer.Build(_folder, speedDecisions).Entries);
         Assert.Equal(["PhysicalMetricFormulaConformanceTests.Certified(move-0901)"], record.TestIds);
 
+        var historyFormula = new Effect
+        {
+            Op = "historyPower",
+            Params = new Dictionary<string, JsonElement>
+            {
+                ["condition"] = JsonSerializer.SerializeToElement("previousActionFailed"),
+                ["multiplierNum"] = JsonSerializer.SerializeToElement(2),
+                ["multiplierDen"] = JsonSerializer.SerializeToElement(1),
+            },
+        };
+        var historyDecisions = new MoveConformanceDecisionCatalog(1, ["neutral-test-evidence"],
+            [new("move-0900", false, [historyFormula])]);
+        record = Assert.Single(MoveConformanceNormalizer.Build(_folder, historyDecisions).Entries);
+        Assert.Equal(["ActionHistoryFormulaConformanceTests.Certified(move-0900)"], record.TestIds);
+
         var unowned = new MoveConformanceDecisionCatalog(1, ["neutral-test-evidence"], [new("move-0900", false)]);
         Assert.Throws<InvalidDataException>(() => MoveConformanceNormalizer.Build(_folder, unowned));
     }

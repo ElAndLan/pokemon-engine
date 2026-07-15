@@ -128,7 +128,8 @@ public static class MoveConformanceNormalizer
         JsonElement? meta = OptionalObject(payload, "meta");
 
         bool replacementPower = decision.AdditionalEffects?.Any(effect => effect.Op is "hpBandPower" or "statusCountPower" or "hpFraction" or "hpEqualize"
-            or "speedRatioPower" or "metricBandPower" or "metricRatioPower"
+            or "speedRatioPower" or "metricBandPower" or "metricRatioPower" or "partyCountPower"
+            or "friendshipPower" or "ppPower" or "positiveStagePower" or "itemDataPower" or "randomTablePower"
             || effect.Op == "hpRatioPower" && effect.Params?.ContainsKey("scale") == true) == true;
         if (damageClass == DamageClass.Status ? power is not null : power is not > 0 && !replacementPower)
             throw Invalid(path, "power is inconsistent with damage_class");
@@ -175,6 +176,10 @@ public static class MoveConformanceNormalizer
             testIds.Add($"HpStatusFormulaConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => IsPhysicalMetricFormula(effect.Op)))
             testIds.Add($"PhysicalMetricFormulaConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => IsActionHistoryFormula(effect.Op)))
+            testIds.Add($"ActionHistoryFormulaConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => IsPartyResourceFormula(effect.Op)))
+            testIds.Add($"PartyResourceFormulaConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
@@ -287,6 +292,11 @@ public static class MoveConformanceNormalizer
 
     private static bool IsPhysicalMetricFormula(string op) =>
         op is "speedRatioPower" or "metricBandPower" or "metricRatioPower";
+
+    private static bool IsActionHistoryFormula(string op) => op is "consecutivePower" or "historyPower";
+
+    private static bool IsPartyResourceFormula(string op) => op is "partyCountPower" or "friendshipPower"
+        or "ppPower" or "positiveStagePower" or "itemDataPower" or "randomTablePower";
 
     private static MoveTarget ParseTarget(string value, string path) => value switch
     {

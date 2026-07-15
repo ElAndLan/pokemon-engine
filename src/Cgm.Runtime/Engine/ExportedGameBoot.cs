@@ -60,7 +60,8 @@ public static class ExportedGameBoot
             ?? throw new InvalidDataException("Smoke battle needs a trainer with a party.");
         IReadOnlyList<BattleCreature> enemies = trainer.Party.Select(p => BuildCreature(db, p)).ToList();
         var chart = new TypeChart(db.All<TypeDef>());
-        var battle = new BattleController(players, enemies, chart, new Rng(1));
+        IReadOnlyDictionary<EntityId, Item> itemData = db.All<Item>().ToDictionary(item => item.Id);
+        var battle = new BattleController(players, enemies, chart, new Rng(1), itemData: itemData.Values);
         AddTemporaryFormTrainerItems(db, battle, players.Select(p => p.Species));
 
         var aiRng = new Rng(2);
@@ -78,7 +79,9 @@ public static class ExportedGameBoot
                 Turn: b.Turn,
                 Memory: memory,
                 OwnSpikeLayers: b.SpikeLayers(BattleSide.Enemy),
-                OwnStealthRock: b.HasStealthRock(BattleSide.Enemy)));
+                OwnStealthRock: b.HasStealthRock(BattleSide.Enemy),
+                ItemData: itemData,
+                Conditions: b.ConditionSnapshot));
         }
 
         return new BattleScene(battle, EnemyAction, FormChoices(db, players.Select(p => p.Species)), id => NameOf(db, id));

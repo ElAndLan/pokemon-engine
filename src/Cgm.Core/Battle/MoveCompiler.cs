@@ -59,14 +59,14 @@ public static class MoveCompiler
                     break;
 
                 case "heal":
-                    CheckAllowedParams(e, "num", "den", "recipient");
+                    CheckAllowedParams(e, "num", "den", "recipient", "weather");
                     Fraction healFraction = ReadFraction(e, 1, 2);
                     HpFractionRecipient healRecipient = e.Params?.ContainsKey("recipient") == true
                         ? Parse<HpFractionRecipient>(Str(e, "recipient"), "recipient")
                         : HpFractionRecipient.Self;
                     if (healRecipient == HpFractionRecipient.Self)
                         heal = healFraction;
-                    effects.Add(new HealEffect(healFraction, healRecipient));
+                    effects.Add(new HealEffect(healFraction, healRecipient, ParseWeatherFractions(e)));
                     break;
 
                 case "hpFraction":
@@ -173,6 +173,21 @@ public static class MoveCompiler
 
                 case "accuracyBypass": // sure-hit (catalog §3.3 accuracy_check bypass)
                     bypassAccuracy = true;
+                    break;
+
+                case "weatherAccuracy":
+                    if (chance != 100)
+                        throw new ArgumentException("weatherAccuracy does not support chance.");
+                    if (move.Accuracy is null || move.DamageClass == DamageClass.Status || ohko)
+                        throw new ArgumentException("weatherAccuracy requires a non-OHKO damaging move with authored accuracy.");
+                    CheckAllowedParams(e, "bypass", "overrides");
+                    IReadOnlySet<Weather> bypassWeather = ParseWeatherList(e, "bypass");
+                    IReadOnlyDictionary<Weather, int> weatherOverrides = ParseWeatherAccuracyOverrides(e);
+                    if (bypassWeather.Count == 0 && weatherOverrides.Count == 0)
+                        throw new ArgumentException("weatherAccuracy requires bypass or overrides.");
+                    if (bypassWeather.Overlaps(weatherOverrides.Keys))
+                        throw new ArgumentException("weatherAccuracy cannot bypass and override the same weather.");
+                    effects.Add(new WeatherAccuracyEffect(bypassWeather, weatherOverrides));
                     break;
 
                 case "chargeTurn": // two-turn move (catalog §7.2 charge)
@@ -373,6 +388,83 @@ public static class MoveCompiler
                         metricNumerator, metricDenominator, ParseFormulaBands(Str(e, "bands"))));
                     break;
 
+                case "consecutivePower":
+                    if (chance != 100)
+                        throw new ArgumentException("consecutivePower does not support chance.");
+                    CheckAllowedParams(e, "scope", "mode", "step", "cap");
+                    if (move.DamageClass == DamageClass.Status || move.Power is not > 0)
+                        throw new ArgumentException("consecutivePower requires authored power on a damaging move.");
+                    int consecutiveStep = Int(e, "step");
+                    int consecutiveCap = Int(e, "cap");
+                    if (consecutiveStep <= 0 || consecutiveCap < move.Power)
+                        throw new ArgumentException("consecutivePower step must be positive and cap cannot be below authored power.");
+                    effects.Add(new ConsecutivePowerEffect(
+                        Parse<ConsecutivePowerScope>(Str(e, "scope"), "scope"),
+                        Parse<ConsecutivePowerMode>(Str(e, "mode"), "mode"),
+                        consecutiveStep, consecutiveCap));
+                    break;
+
+                case "historyPower":
+                    if (chance != 100)
+                        throw new ArgumentException("historyPower does not support chance.");
+                    CheckAllowedParams(e, "condition", "multiplierNum", "multiplierDen");
+                    if (move.DamageClass == DamageClass.Status || move.Power is not > 0)
+                        throw new ArgumentException("historyPower requires authored power on a damaging move.");
+                    var historyMultiplier = new BattleQueryValue(
+                        Int(e, "multiplierNum"), Int(e, "multiplierDen"));
+                    if (historyMultiplier.Numerator <= 0)
+                        throw new ArgumentException("historyPower multiplier must be positive.");
+                    effects.Add(new HistoryPowerEffect(
+                        Parse<HistoryPowerCondition>(Str(e, "condition"), "condition"),
+                        new Fraction(checked((int)historyMultiplier.Numerator),
+                            checked((int)historyMultiplier.Denominator))));
+                    break;
+
+                case "partyCountPower":
+                    RequireReplacementPower(move, e, "filter", "base", "perMember", "cap");
+                    int partyBase = Int(e, "base"), perMember = Int(e, "perMember");
+                    int? partyCap = e.Params?.ContainsKey("cap") == true ? Int(e, "cap") : null;
+                    ValidateLinearPower("partyCountPower", partyBase, perMember, partyCap);
+                    effects.Add(new PartyCountPowerEffect(
+                        Parse<PartyMemberFilter>(Str(e, "filter"), "party filter"), partyBase, perMember, partyCap));
+                    break;
+
+                case "friendshipPower":
+                    RequireReplacementPower(move, e, "mode");
+                    effects.Add(new FriendshipPowerEffect(
+                        Parse<FriendshipPowerMode>(Str(e, "mode"), "friendship mode")));
+                    break;
+
+                case "ppPower":
+                    RequireReplacementPower(move, e, "timing", "bands");
+                    IReadOnlyList<FormulaPowerBand> ppBands = ParseFormulaBands(Str(e, "bands"));
+                    if (ppBands.Any(band => band.MinInclusive > move.Pp))
+                        throw new ArgumentException("ppPower band minima cannot exceed the move's maximum PP.");
+                    effects.Add(new PpPowerEffect(Parse<PpPowerTiming>(Str(e, "timing"), "PP timing"), ppBands));
+                    break;
+
+                case "positiveStagePower":
+                    RequireReplacementPower(move, e, "subject", "base", "perStage", "cap");
+                    int stageBase = Int(e, "base"), perStage = Int(e, "perStage");
+                    int? stageCap = e.Params?.ContainsKey("cap") == true ? Int(e, "cap") : null;
+                    ValidateLinearPower("positiveStagePower", stageBase, perStage, stageCap);
+                    effects.Add(new PositiveStagePowerEffect(
+                        Parse<StatusPowerSubject>(Str(e, "subject"), "stage subject"),
+                        stageBase, perStage, stageCap));
+                    break;
+
+                case "itemDataPower":
+                    RequireReplacementPower(move, e, "field");
+                    effects.Add(new ItemDataPowerEffect(Parse<ItemPowerField>(Str(e, "field"), "item power field")));
+                    break;
+
+                case "randomTablePower":
+                    RequireReplacementPower(move, e, "entries");
+                    IReadOnlyList<WeightedPowerEntry> entries = ParseWeightedPowerEntries(Str(e, "entries"));
+                    _ = PartyResourceFormulas.ExpectedWeightedPower(entries);
+                    effects.Add(new RandomTablePowerEffect(entries));
+                    break;
+
                 case "ailment":
                     string a = Str(e, "ailment", "status");
                     if (a.Equals("confusion", StringComparison.OrdinalIgnoreCase))
@@ -455,9 +547,16 @@ public static class MoveCompiler
         effects = BindStatusChance(effects);
         int replacementPowerFormulas = (hpRatioPower?.Scale is not null ? 1 : 0) + (hpBandPower is not null ? 1 : 0)
             + effects.Count(effect => effect is StatusCountPowerEffect or SpeedRatioPowerEffect
-                or MetricBandPowerEffect or MetricRatioPowerEffect);
+                or MetricBandPowerEffect or MetricRatioPowerEffect or ConsecutivePowerEffect
+                or PartyCountPowerEffect or FriendshipPowerEffect or PpPowerEffect
+                or PositiveStagePowerEffect or ItemDataPowerEffect or RandomTablePowerEffect);
         if (replacementPowerFormulas > 1)
             throw new ArgumentException("A move can declare only one replacement base-power formula.");
+        if (effects.OfType<HistoryPowerEffect>().Count() > 1)
+            throw new ArgumentException("A move can declare only one historyPower condition.");
+        if (effects.OfType<WeatherAccuracyEffect>().Count() > 1
+            || (bypassAccuracy || ohko) && effects.OfType<WeatherAccuracyEffect>().Any())
+            throw new ArgumentException("A move can declare one weatherAccuracy op and cannot combine it with accuracyBypass or ohko.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
             && fixedDamage is null && !fixedDamageLevel && !ohko && counterCategory is null
             && !effects.OfType<HpFractionEffect>().Any(effect => effect.Operation == HpFractionOperation.Damage)
@@ -554,6 +653,38 @@ public static class MoveCompiler
         return bands;
     }
 
+    private static IReadOnlyList<WeightedPowerEntry> ParseWeightedPowerEntries(string value)
+    {
+        WeightedPowerEntry[] entries = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => part.Split(':', StringSplitOptions.TrimEntries))
+            .Select(parts => parts.Length == 2
+                && int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int weight)
+                && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int power)
+                ? new WeightedPowerEntry(weight, power)
+                : throw new ArgumentException("randomTablePower entries must use comma-separated weight:power integers."))
+            .ToArray();
+        if (entries.Length == 0 || entries.Any(entry => entry.Weight < 0 || entry.Power <= 0)
+            || entries.All(entry => entry.Weight == 0))
+            throw new ArgumentException("randomTablePower requires nonnegative weights, positive powers, and a positive total weight.");
+        return entries;
+    }
+
+    private static void RequireReplacementPower(Move move, Effect effect, params string[] parameters)
+    {
+        if ((effect.Chance ?? 100) != 100)
+            throw new ArgumentException($"{effect.Op} does not support chance.");
+        if (move.DamageClass == DamageClass.Status)
+            throw new ArgumentException($"{effect.Op} requires a damaging move.");
+        CheckAllowedParams(effect, parameters);
+    }
+
+    private static void ValidateLinearPower(string op, int basePower, int perUnit, int? cap)
+    {
+        if (basePower < 0 || perUnit < 0 || basePower == 0 && perUnit == 0
+            || cap is <= 0 || cap is { } maximum && maximum < basePower)
+            throw new ArgumentException($"{op} requires nonnegative nonzero terms and a positive cap not below base.");
+    }
+
     private static (PersistentStatus? Status, BattleVolatileStatus? Volatile) ParseStatusPredicate(Effect effect)
     {
         bool hasStatus = effect.Params?.ContainsKey("status") == true;
@@ -629,6 +760,78 @@ public static class MoveCompiler
             throw new ArgumentException("redirect classes must not contain duplicates.");
         HashSet<DamageClass> classes = [.. parsed];
         return classes.Count > 0 ? classes : throw new ArgumentException("redirect classes must not be empty.");
+    }
+
+    private static IReadOnlySet<Weather> ParseWeatherList(Effect effect, string key)
+    {
+        if (effect.Params?.ContainsKey(key) != true)
+            return new HashSet<Weather>();
+        Weather[] values = Str(effect, key)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => ParseWeather(value, key))
+            .ToArray();
+        if (values.Length == 0 || values.Contains(Weather.None) || values.Distinct().Count() != values.Length)
+            throw new ArgumentException($"weatherAccuracy {key} must contain unique active weather values.");
+        return new HashSet<Weather>(values);
+    }
+
+    private static IReadOnlyDictionary<Weather, int> ParseWeatherAccuracyOverrides(Effect effect)
+    {
+        if (effect.Params?.ContainsKey("overrides") != true)
+            return new Dictionary<Weather, int>();
+        var overrides = new Dictionary<Weather, int>();
+        foreach (string entry in Str(effect, "overrides")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string[] parts = entry.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2
+                || !TryParseWeather(parts[0], out Weather weather)
+                || !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int accuracy)
+                || accuracy is < 1 or > 100
+                || !overrides.TryAdd(weather, accuracy))
+                throw new ArgumentException("weatherAccuracy overrides require unique weather:accuracy rows in the 1..100 range.");
+        }
+        if (overrides.Count == 0)
+            throw new ArgumentException("weatherAccuracy overrides cannot be empty.");
+        return overrides;
+    }
+
+    private static IReadOnlyDictionary<Weather, Fraction>? ParseWeatherFractions(Effect effect)
+    {
+        if (effect.Params?.ContainsKey("weather") != true)
+            return null;
+        var fractions = new Dictionary<Weather, Fraction>();
+        foreach (string entry in Str(effect, "weather")
+            .Split(',', StringSplitOptions.TrimEntries))
+        {
+            string[] row = entry.Split(':', StringSplitOptions.TrimEntries);
+            string[] ratio = row.Length == 2
+                ? row[1].Split('/', StringSplitOptions.TrimEntries)
+                : [];
+            if (row.Length != 2 || ratio.Length != 2
+                || !TryParseWeather(row[0], out Weather weather)
+                || !int.TryParse(ratio[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int numerator)
+                || !int.TryParse(ratio[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int denominator)
+                || numerator <= 0 || denominator <= 0 || numerator > denominator
+                || !fractions.TryAdd(weather, new Fraction(numerator, denominator)))
+                throw new ArgumentException("heal weather requires unique active weather:num/den rows with fractions in (0,1].");
+        }
+        return fractions.Count > 0
+            ? fractions
+            : throw new ArgumentException("heal weather cannot be empty.");
+    }
+
+    private static Weather ParseWeather(string value, string what) => TryParseWeather(value, out Weather weather)
+        ? weather
+        : throw new ArgumentException($"Unknown {what} '{value}'.");
+
+    private static bool TryParseWeather(string value, out Weather weather)
+    {
+        weather = Weather.None;
+        return !int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+            && Enum.TryParse(value, true, out weather)
+            && weather != Weather.None
+            && Enum.IsDefined(weather);
     }
 
     private static IReadOnlySet<string> ParseRedirectTags(string value)

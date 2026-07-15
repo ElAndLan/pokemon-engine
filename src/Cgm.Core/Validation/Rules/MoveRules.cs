@@ -17,6 +17,8 @@ public sealed class MoveRule : IValidationRule
 
             bool formulaPower = m.Effects.Any(effect => effect.Op is "fixedDamage" or "ohko" or "counterDamage" or "hpFraction" or "hpEqualize"
                 or "hpBandPower" or "statusCountPower" or "speedRatioPower" or "metricBandPower" or "metricRatioPower"
+                or "partyCountPower" or "friendshipPower" or "ppPower" or "positiveStagePower"
+                or "itemDataPower" or "randomTablePower"
                 || effect.Op == "hpRatioPower" && effect.Params?.ContainsKey("scale") == true);
             if (damaging && m.Power is not > 0 && !formulaPower)
                 yield return new ValidationIssue(Id, ValidationSeverity.Error, m.Id,
