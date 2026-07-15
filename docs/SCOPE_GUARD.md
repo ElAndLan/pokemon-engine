@@ -18,8 +18,9 @@ Starting baseline:
 - Legacy expressibility audit: 468 PASS / 469 FAIL.
 - Phase 15A manifest: 937/937 inventory-only, corpus digest
   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
-- Strict end-to-end conformance certification: 72/937. Phase 15A, the complete 15B target/topology
-  workstream, and 15C-2 HP/status formulas are complete. Their generated normalized definitions and
+- Strict end-to-end conformance certification: 74/937. Phase 15A, the complete 15B target/topology
+  workstream, and 15C-2/3 HP/status/speed formulas are complete. Their generated normalized
+  definitions and
   per-reference formula/doubles vectors are green; the 15B cumulative golden and focused exit review
   are also green. Remaining entries are owned by
   15C-15G mechanics or later 15H reference closure. The 15C-1 exact numeric-query, 15D-1 typed-intent,

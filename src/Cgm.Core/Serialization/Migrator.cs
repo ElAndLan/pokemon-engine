@@ -21,7 +21,8 @@ public static class Migrator
 {
     public const int CurrentVersion = SchemaVersions.Current;
 
-    private static readonly IReadOnlyList<IJsonMigration> Registered = [new V1ToV2(), new V2ToV3(), new V3ToV4()];
+    private static readonly IReadOnlyList<IJsonMigration> Registered =
+        [new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5()];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
 
@@ -63,5 +64,17 @@ public static class Migrator
     {
         public int FromVersion => 3;
         public void Apply(JsonObject json) { }
+    }
+
+    private sealed class V4ToV5 : IJsonMigration
+    {
+        public int FromVersion => 4;
+        public void Apply(JsonObject json)
+        {
+            if (json["id"]?.GetValue<string>().StartsWith("species:", StringComparison.Ordinal) != true)
+                return;
+            json["weightHectograms"] ??= 1;
+            json["heightDecimeters"] ??= 1;
+        }
     }
 }

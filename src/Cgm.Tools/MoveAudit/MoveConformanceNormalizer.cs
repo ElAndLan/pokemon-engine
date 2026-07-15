@@ -128,6 +128,7 @@ public static class MoveConformanceNormalizer
         JsonElement? meta = OptionalObject(payload, "meta");
 
         bool replacementPower = decision.AdditionalEffects?.Any(effect => effect.Op is "hpBandPower" or "statusCountPower" or "hpFraction" or "hpEqualize"
+            or "speedRatioPower" or "metricBandPower" or "metricRatioPower"
             || effect.Op == "hpRatioPower" && effect.Params?.ContainsKey("scale") == true) == true;
         if (damageClass == DamageClass.Status ? power is not null : power is not > 0 && !replacementPower)
             throw Invalid(path, "power is inconsistent with damage_class");
@@ -172,6 +173,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"TargetTopologyConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => IsHpStatusFormula(effect.Op)))
             testIds.Add($"HpStatusFormulaConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => IsPhysicalMetricFormula(effect.Op)))
+            testIds.Add($"PhysicalMetricFormulaConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
@@ -281,6 +284,9 @@ public static class MoveConformanceNormalizer
     private static bool IsHpStatusFormula(string op) => op is "targetHpThresholdPower" or "hpRatioPower"
         or "hpBandPower" or "statusPower" or "statusCountPower" or "hpFraction" or "hpEqualize"
         or "cannotKo" or "statusChance";
+
+    private static bool IsPhysicalMetricFormula(string op) =>
+        op is "speedRatioPower" or "metricBandPower" or "metricRatioPower";
 
     private static MoveTarget ParseTarget(string value, string path) => value switch
     {

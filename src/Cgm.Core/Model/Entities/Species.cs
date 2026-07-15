@@ -17,6 +17,8 @@ public sealed record Species : IEntity
 
     public IReadOnlyList<EntityId> Types { get; init; } = [];
     public Stats BaseStats { get; init; }
+    public int WeightHectograms { get; init; } = 1;
+    public int HeightDecimeters { get; init; } = 1;
     public Stats EvYield { get; init; }
     public int BaseExp { get; init; }
     public string GrowthRate { get; init; } = "medium-fast";

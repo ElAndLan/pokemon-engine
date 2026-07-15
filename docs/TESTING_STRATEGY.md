@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B plus the 15C-1/2, 15D-1, and 15E-1 foundations are complete; Phase 15 conformance continues at 72/937.**
+Status: **Phase 15B plus the 15C-1/2/3, 15D-1, 15E-1/2, and 15F-1 foundations are complete; Phase 15 conformance continues at 74/937.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -116,15 +116,27 @@ asserts action-addressed base-power/stat/final-damage/healing traces, slot-owned
 accuracy threshold flooring, and unchanged fixed damage. The full 15C-1 closeout is 1,141 green tests;
 manifest/definition regeneration remains deterministic; the later 15C-2 package advances it to 72 certified entries.
 
-## Phase 15D-1 and 15E-1 stateful-foundation evidence
+## Phase 15C-3 physical-formula evidence
+
+Speed and physical-metric tables cover every inclusive lower band edge, linear floors/caps,
+effective speed stages and paralysis, immutable base versus overlaid metrics, maximum integers,
+zero denominators, checked overflow, airborne/grounded invariance, resolver query traces, AI parity,
+schema round-trip/migration, and invalid metric definitions. The generated catalog registers two
+new speed-formula vectors and advances strict certification to 74; weight rows remain routed to
+later condition/timing dependencies rather than being over-certified.
+
+## Phase 15D-1 and 15E-1/2 stateful-foundation evidence
 
 The typed intent suite covers ordered preview/consume/complete boundaries, same-checkpoint deferral,
 all target policies, owner cleanup, atomic turn rejection, PP/RNG preservation, debug serialization,
 and replay determinism. The scoped-condition suite covers all seven stores, exact owner/source
 tuples, reject/refresh/replace/stack, duration 1/N and variable duration, topology ordering,
 switch/faint/end cleanup, typed lifecycle events/traces, strict definition/application rejection,
-and replay-stable snapshots. Hook invocation order remains the explicit 15E-2 package; tag/source
-removal and general transfer/swap remain 15E-7 and are not claimed by the 15E-1 foundation.
+and replay-stable snapshots. Tag/source removal and general transfer/swap remain 15E-7. The
+completed 15E-2 dispatcher additionally covers
+stable scope/priority/topology ordering, duplicate suppression/conflict rejection, bounded atomic
+intent emission, immutable collection snapshots, and resolver/AI query parity; concrete condition
+payload families remain with 15E-3 through 15E-7.
 
 ## Golden format
 
@@ -147,7 +159,7 @@ names, prose, assets, URLs, or raw reference JSON.
 
 - Tool unit tests pass without the local corpus.
 - The Phase 15A baseline command (without a decision catalog) reports exactly 937 entries and 0
-  certified; the current Phase 15 command with its decision catalog reports 72 certified.
+  certified; the current Phase 15 command with its decision catalog reports 74 certified.
 - Regenerating the manifest from unchanged files is byte-identical.
 - Generated output contains no payload names or source filenames.
 - Full solution build/tests remain green.

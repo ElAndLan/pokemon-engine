@@ -34,11 +34,18 @@ public sealed class MigratorTests
         public void Apply(JsonObject json) { }
     }
 
+    private sealed class NoOpV4ToV5 : IJsonMigration
+    {
+        public int FromVersion => 4;
+        public void Apply(JsonObject json) { }
+    }
+
     [Fact]
     public void Migrate_AppliesStepAndBumpsVersion()
     {
         var json = new JsonObject { ["schemaVersion"] = 0, ["foo"] = 42 };
-        JsonObject result = Migrator.Migrate(json, [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4()]);
+        JsonObject result = Migrator.Migrate(json,
+            [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4(), new NoOpV4ToV5()]);
 
         Assert.Equal(Migrator.CurrentVersion, result["schemaVersion"]!.GetValue<int>());
         Assert.Null(result["foo"]);
@@ -83,5 +90,20 @@ public sealed class MigratorTests
         Migrator.Migrate(json);
         Assert.Equal(Migrator.CurrentVersion, json["schemaVersion"]!.GetValue<int>());
         Assert.Equal("item:berry", json["id"]!.GetValue<string>());
+        Assert.Null(json["weightHectograms"]);
+        Assert.Null(json["heightDecimeters"]);
+    }
+
+    [Fact]
+    public void Migrate_V4Species_AddsPositiveMetricDefaultsWithoutOverwritingAuthoredValues()
+    {
+        string text = File.ReadAllText(TestPaths.Fixture("schema-v4/species.json"));
+        var json = JsonNode.Parse(text)!.AsObject();
+
+        Migrator.Migrate(json);
+
+        Assert.Equal(5, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(1, json["weightHectograms"]!.GetValue<int>());
+        Assert.Equal(9, json["heightDecimeters"]!.GetValue<int>());
     }
 }

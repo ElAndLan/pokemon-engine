@@ -179,8 +179,12 @@ public sealed class ValidationTests
     {
         Species zeroHp = Species("a") with { BaseStats = new Stats(0, 45, 45, 45, 45, 45) };
         Species badCatch = Species("b") with { CatchRate = 300 };
+        Species badWeight = Species("c") with { WeightHectograms = 0 };
+        Species badHeight = Species("d") with { HeightDecimeters = -1 };
         Assert.NotEmpty(Run(new SpeciesStatsRule(), Project(zeroHp)));
         Assert.NotEmpty(Run(new SpeciesStatsRule(), Project(badCatch)));
+        Assert.NotEmpty(Run(new SpeciesStatsRule(), Project(badWeight)));
+        Assert.NotEmpty(Run(new SpeciesStatsRule(), Project(badHeight)));
         Assert.Empty(Run(new SpeciesStatsRule(), Project(Species())));
     }
 

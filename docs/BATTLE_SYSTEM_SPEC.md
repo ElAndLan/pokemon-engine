@@ -241,6 +241,47 @@ power `move-0362`; persistent-status power `move-0263`, `move-0265`, `move-0358`
 coverage required by the audited family; their source entries retain later timing/condition
 dependencies and are not certified by this package alone.
 
+### Speed and physical-metric formula registry (Battle v6, Phase 15C-3)
+
+Species definitions author positive integer `weightHectograms` and `heightDecimeters`; schema v5
+defaults each to 1 when older project data is migrated. Formula arithmetic uses checked signed
+64-bit intermediates and floor division. Speed inputs are the effective `BattleQuery.Speed` result,
+including stat stages and paralysis. Weight/height inputs are the effective 15F-1 metric
+overlay result; 15F-1 stat overlays likewise feed the authored Speed input. Neither path mutates the
+species definition. Formula evaluation draws no RNG and
+replaces base power through the ordinary `BattleQuery.BasePower` trace.
+
+| Formula/op | Inputs and exact result | Bounds, zero, and scope | Role |
+|---|---|---|---|
+| `speedRatioPower` linear | effective speed `numerator: user|target` and `denominator: user|target`; `offset + floor(scale * numerator / denominator)`, then optional inclusive `cap` | opposite subjects required; positive scale/denominator, nonnegative offset, positive cap; speed query clamps inputs to at least 1 | base-power query replace |
+| `speedRatioPower` bands | floor(effective numerator speed / effective denominator speed), then the last authored `minInclusive:power` band whose minimum is met | first minimum 0; strictly increasing nonnegative minima and positive powers; opposite subjects required | base-power query replace |
+| `metricBandPower` | effective `metric: weight|height` for `subject: user|target`, then the last authored `minInclusive:power` band whose minimum is met | species and overlays require positive metrics; first minimum 0; strictly increasing nonnegative minima and positive powers | base-power query replace |
+| `metricRatioPower` | floor(effective numerator metric / effective denominator metric), then the last authored `minInclusive:power` band whose minimum is met | same metric on both subjects; opposite subjects; positive inputs; band rules as above | base-power query replace |
+
+`speedRatioPower` accepts exactly one of `{ scale, offset?, cap? }` or `{ bands }`.
+`metricBandPower` accepts `{ metric, subject, bands }`; `metricRatioPower` accepts
+`{ metric, numerator, denominator, bands }`. Unknown params, chance gates, duplicate formulas,
+same-subject ratios, missing bands, overflow, and composition with another replacement-power formula
+are rejected. The ratio-band boundary belongs to the higher band (`ratio == minInclusive` selects
+that band); direct metric thresholds use the same inclusive-lower rule. A positive denominator is
+guaranteed by schema/query/overlay validation, while the pure helper rejects zero explicitly.
+
+The `modern_reference` speed rows are `move-0360` linear target/user speed with scale 25, offset 1,
+cap 150, and `move-0486` user/target speed bands `0:40,1:60,2:80,3:120,4:150`. The weight-band rows
+`move-0067` and `move-0447` use target weight bands
+`0:20,100:40,250:60,500:80,1000:100,2000:120`; weight-ratio rows `move-0484` and `move-0535` use
+user/target bands `0:40,2:60,3:80,4:100,5:120`. Weight is therefore measured in hectograms,
+matching the authored thresholds exactly. No audited power formula reads height or grounded state;
+height remains a validated metric input for authored games, while airborne/semi-invulnerable hit
+eligibility and Minimize-style conditional damage stay in their owning condition/timing packages and
+do not alter these power formulas. Consequently only the two speed rows are fully certifiable here;
+the four weight rows retain those later eligibility/condition dependencies.
+
+Neutral acceptance vectors cover every threshold at edge-1/edge/edge+1, speed stage and paralysis
+inputs, base versus overlaid metrics, 1 and `int.MaxValue` inputs, zero-denominator rejection,
+checked overflow, unchanged results across grounded/airborne creature types, resolver and AI parity,
+and deterministic base-power query traces. No battle event is added.
+
 Rounding is floor throughout (matches Gen III/IV integer math and BATTLE_DAMAGE_CALC).
 
 ### Stateful ops — batch 1 (self-targeting)

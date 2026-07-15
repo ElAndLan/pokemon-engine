@@ -359,6 +359,14 @@ failure, event, trace, and composition rules are the HP/status formula registry 
 `BATTLE_SYSTEM_SPEC.md`. Power-producing rows feed `BattleQuery.BasePower`; chance-producing rows
 feed the existing secondary chance gate; HP-changing rows use the shared controller HP path.
 
+Phase 15C-3 adds three replacement-power formula ops on the same query path: `speedRatioPower`
+(linear or inclusive-lower ratio bands), `metricBandPower` (one effective weight/height), and
+`metricRatioPower` (effective user/target weight or height ratio). Speed reads the central speed
+query; metrics read immutable species values plus 15F-1 overlays. All use checked integer floor math,
+draw no RNG, emit no event, and are mutually exclusive with every other replacement-power formula.
+Exact params, units, validation, corpus rows, and boundary vectors are locked in
+`BATTLE_SYSTEM_SPEC.md` under “Speed and physical-metric formula registry.”
+
 ### 4.6 Accuracy, Damage, And HP Helpers
 
 | Helper | Purpose |

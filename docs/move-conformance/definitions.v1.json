@@ -1245,6 +1245,46 @@
       ]
     },
     {
+      "referenceKey": "move-0360",
+      "sourceFileHash": "5dba0aeff8ae1c9cd7070271d3774382e603032ae165198562d550bf6ea6c600",
+      "payloadContentHash": "5d0ba087a9c757aa319dff78fdd45c7b7be0ca9440881b03b0c454598cde7541",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "speedRatioPower",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_09",
+        "damageClass": "physical",
+        "accuracy": 100,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "speedRatioPower",
+            "params": {
+              "numerator": "target",
+              "denominator": "user",
+              "scale": 25,
+              "offset": 1,
+              "cap": 150
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "1b7200f3aad2e3c9b9859997575f43b9f87da2bc4dc8c1c0db25a2f971017c0b",
+      "testIds": [
+        "PhysicalMetricFormulaConformanceTests.Certified(move-0360)"
+      ]
+    },
+    {
       "referenceKey": "move-0362",
       "sourceFileHash": "9fb9dd9e492e8888b48bbd9eae7973bab817a256f62870c9b52d0fcc86afe733",
       "payloadContentHash": "b60130321bc1e254c721fd839cf2f5c47f80f14116321efde54d27334d2b9363",
@@ -1555,6 +1595,44 @@
       "normalizedDefinitionHash": "5140d5f6e44a3b5b5d2a290d5a641ba9c3448d0b8024a0c9e3993a96ccff1dd5",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0482)"
+      ]
+    },
+    {
+      "referenceKey": "move-0486",
+      "sourceFileHash": "ee2e6b7e43850cdcc946c630140482b33a932b7f804e0c2aab9543e798a18bbc",
+      "payloadContentHash": "5a1a43f761a7f08b2b84a55db0b486b9039dbae6036c641e69df257f21a8ab03",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "speedRatioPower",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_13",
+        "damageClass": "special",
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "speedRatioPower",
+            "params": {
+              "numerator": "user",
+              "denominator": "target",
+              "bands": "0:40,1:60,2:80,3:120,4:150"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "967c5fdecafb51327b422f34f24a74e170fe2e19347b62f34b9cd5da8ddf781e",
+      "testIds": [
+        "PhysicalMetricFormulaConformanceTests.Certified(move-0486)"
       ]
     },
     {

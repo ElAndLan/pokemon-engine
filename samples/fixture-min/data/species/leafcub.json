@@ -4,6 +4,8 @@
   "name": "Leafcub",
   "types": [ "type:grass" ],
   "baseStats": { "hp": 45, "atk": 49, "def": 49, "spa": 65, "spd": 65, "spe": 45 },
+  "weightHectograms": 69,
+  "heightDecimeters": 7,
   "evYield": { "hp": 0, "atk": 0, "def": 0, "spa": 1, "spd": 0, "spe": 0 },
   "baseExp": 64,
   "growthRate": "medium-slow",

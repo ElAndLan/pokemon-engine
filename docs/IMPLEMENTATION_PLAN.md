@@ -129,8 +129,8 @@ Roadmap baseline commit: `b69bcb2` (`Lock Phase 15 doubles execution roadmap`).
 - PokeAPI move corpus: 937 JSON files in `docs/pokeapi-results/move/`.
 - Existing expressibility audit: 468 PASS / 469 FAIL. PASS means “current generic operations appear
   capable of expressing this move”; it does **not** yet mean end-to-end certification.
-- Certified Phase 15 move coverage: **72/937** from the generated 15B target/topology and 15C-2
-  HP/status-formula cohorts; the earlier 0/937 value remains the locked Phase 15A baseline.
+- Certified Phase 15 move coverage: **74/937** from the generated 15B target/topology and 15C-2/3
+  formula cohorts; the earlier 0/937 value remains the locked Phase 15A baseline.
 
 Roadmap audit (2026-07-11): the prior plan fully locked 15B but still left 15C-15I and Phases 16-19
 as capability summaries or “spec later” outlines. Version 4 replaces those with package IDs,
@@ -147,7 +147,7 @@ whitespace checks passed.
 |---:|---|---|---|
 | 0 | Product Architecture and Governance | VERIFIED | Stack, repository rules, ADRs, and product split exist |
 | 1 | Toolchain and Solution Foundation | VERIFIED | .NET 10 solution, CI build/test, Creator and Runtime hosts |
-| 2 | Schema, Serialization, and Validation Foundation | VERIFIED | Schema foundation, migrations, loaders, IDs, validators; current project schema is v4 after Phase 15 additions |
+| 2 | Schema, Serialization, and Validation Foundation | VERIFIED | Schema foundation, migrations, loaders, IDs, validators; current project schema is v5 after Phase 15 metric additions |
 | 3 | Creator Shell and Editor Pattern | PARTIAL | Shell/undo/pathfinder editors exist; lifecycle/manual gates and shared controls incomplete |
 | 4 | Asset Processing and Slicing | CORE BASELINE | Decode/slice/atlas algorithms tested; asset browser and slicer canvas absent |
 | 5 | World Authoring | CORE BASELINE | Map layer/collision/tool helpers tested; tileset/map/entity UI absent |
@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2, 15D-1, 15E-1/2, and 15F-1 complete; 937 inventoried, 72/937 certified; next package 15C-3** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3, 15D-1, 15E-1/2, and 15F-1 complete; 937 inventoried, 74/937 certified; next package 15C-4** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -420,7 +420,8 @@ Current readiness ledger:
 | 15B-6 faint outcome and replacement | SPEC READY | IMPLEMENTED | Draw-capable outcome, atomic replacement loop, slot-addressed entry hooks, and replacement golden |
 | 15C-1 unified query pipeline | SPEC READY | IMPLEMENTED | Exact integer/fraction service, modifier order/clamps, controller/AI consumers, and query traces |
 | 15C-2 HP and status formulas | SPEC READY | IMPLEMENTED | Boundary/compiler/resolver/trace/AI matrices and 18 generated neutral formula vectors |
-| 15C-3 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
+| 15C-3 speed and physical-metric formulas | SPEC READY | IMPLEMENTED | Exact speed/metric bands, schema v5 metrics, effective overlays, resolver/AI parity, and 2 generated certifications |
+| 15C-4 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed condition stores and the shared deterministic hook dispatcher are complete; apply 15E-3 through 15E-7 mechanic defaults after their prerequisites |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
@@ -1137,7 +1138,7 @@ Ordered feature packages:
    damages, supplies power, or modifies a query. Reuse `statusPower`, `heal`, and `hpFraction` where
    exact. **Acceptance:** threshold±1 tables, 1 HP and full-HP boundaries, mismatch/no-status cases,
    floor/clamp conservation, normal resolver/trace, and all affected neutral conformance vectors.
-3. **15C-3 — Speed, weight, and physical metric formulas (`PLANNED`; prerequisite 15C-1).** Lock
+3. **15C-3 — Speed, weight, and physical metric formulas (`IMPLEMENTED`; prerequisite 15C-1).** Lock
    ratio bands and inclusivity, effective-versus-base speed/weight choice, zero-denominator behavior,
    airborne/grounded inputs, height/size units, caps, and ruleset differences for every cited audit
    key. Weight/speed changes must enter central effective queries rather than mutate definitions.
@@ -1230,6 +1231,28 @@ production lines (100%); deterministic regeneration was byte-identical; and `git
 passed. The closeout review found and fixed current-HP damage bypassing its cannot-KO floor,
 source-matching HP damage bypassing immunity/bookkeeping, and Smart AI omitting formula previews;
 verdict GO. Next eligible package: **15C-3**.
+
+Progress (2026-07-14): **15C-3 COMPLETE.** The battle spec and effect catalog now lock exact linear
+and banded effective-speed ratios plus direct and ratio-based physical metrics. Species schema v5
+adds positive hectogram weight and decimeter height with a v4-to-v5 migration; battle instances
+carry those immutable base values while the existing 15F-1 overlay store supplies effective metric
+replacements. `speedRatioPower`, `metricBandPower`, and `metricRatioPower` compile through strict
+typed validation, replace base power through the shared 15C-1 query trace, and are scored by Smart
+AI through the same formula path. Boundary evidence covers every speed, weight, and weight-ratio
+band edge, stage/paralysis inputs, base and overlaid values, grounded/airborne invariance, maximum
+integers, zero denominators, checked overflow, resolver damage/traces, AI choice, schema round-trip,
+migration, and validation. The generated catalog adds the two fully closed speed rows for 937
+inventoried / 74 certified with unchanged corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; four weight-formula rows
+remain uncertified because their separate semi-invulnerability, Minimize, or transformation gates
+belong to later packages. Dependency impact: none. `dotnet build CreatureGameMaker.slnx
+--no-restore` passed with 0 warnings/errors; `dotnet test CreatureGameMaker.slnx --no-build` passed
+1,304 tests (1,091 Core, 104 Creator, 21 Runtime, 88 Tools); the complete Core coverage run exercised
+75/75 coverable lines in the new formula service (100%); deterministic regeneration was
+byte-identical; and `git diff --check` passed. The focused closeout review corrected eager overlay
+resolution for unrelated moves, routed stat overlays into effective Speed, and verified that
+later-dependent weight rows remain uncertified;
+verdict GO. Next eligible package: **15C-4**.
 
 Exit: formula families have table tests, exact rounding, compiler/validation coverage, and all
 affected moves receive conformance cases.
@@ -2279,9 +2302,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2, 15D-1, 15E-1/2, and 15F-1. ACTIVE — 15C-3.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3, 15D-1, 15E-1/2, and 15F-1. ACTIVE — 15C-4.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15C-3**; **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
+   **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.

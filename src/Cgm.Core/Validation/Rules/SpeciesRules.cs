@@ -59,6 +59,12 @@ public sealed class SpeciesStatsRule : IValidationRule
             if (s.GenderFemaleEighths is < -1 or > 8)
                 yield return new ValidationIssue(Id, ValidationSeverity.Error, s.Id,
                     $"genderFemaleEighths is {s.GenderFemaleEighths}; must be -1..8.");
+            if (s.WeightHectograms <= 0)
+                yield return new ValidationIssue(Id, ValidationSeverity.Error, s.Id,
+                    $"Weight is {s.WeightHectograms} hectograms; must be positive.");
+            if (s.HeightDecimeters <= 0)
+                yield return new ValidationIssue(Id, ValidationSeverity.Error, s.Id,
+                    $"Height is {s.HeightDecimeters} decimeters; must be positive.");
         }
     }
 

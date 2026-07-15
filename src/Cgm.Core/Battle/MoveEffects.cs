@@ -24,6 +24,7 @@ public enum HpFractionBasis { MaxHp, CurrentHp }
 public enum StatusPowerSubject { User, Target }
 public enum StatusCountSubject { User, Target, Both }
 public enum BattleVolatileStatus { Confusion, Flinch, Bound, Seeded, Protected }
+public sealed record FormulaPowerBand(int MinInclusive, int Power);
 public sealed record StatusChanceFormula(
     StatusPowerSubject Subject,
     PersistentStatus? Status,
@@ -113,6 +114,22 @@ public sealed record StatusChanceEffect(StatusChanceFormula Formula) : MoveEffec
 public enum HpEqualizeMode { Average, MatchSource }
 public sealed record HpEqualizeEffect(HpEqualizeMode Mode) : MoveEffect;
 public sealed record CannotKoEffect(int Floor) : MoveEffect;
+public sealed record SpeedRatioPowerEffect(
+    HpRatioPowerSource Numerator,
+    HpRatioPowerSource Denominator,
+    int? Scale,
+    int Offset,
+    int? Cap,
+    IReadOnlyList<FormulaPowerBand> Bands) : MoveEffect;
+public sealed record MetricBandPowerEffect(
+    BattleMetric Metric,
+    HpRatioPowerSource Subject,
+    IReadOnlyList<FormulaPowerBand> Bands) : MoveEffect;
+public sealed record MetricRatioPowerEffect(
+    BattleMetric Metric,
+    HpRatioPowerSource Numerator,
+    HpRatioPowerSource Denominator,
+    IReadOnlyList<FormulaPowerBand> Bands) : MoveEffect;
 
 /// <summary>apply_condition(volatile:focus_energy) — raises the user's crit stage.</summary>
 public sealed record CritBoostEffect(int Stages) : MoveEffect;

@@ -26,6 +26,8 @@ public sealed class ProjectLoaderTests
         Species leafcub = p.Find<Species>(EntityId.Parse("species:leafcub"))!;
         Assert.NotNull(leafcub);
         Assert.Equal(45, leafcub.BaseStats.Hp);
+        Assert.Equal(69, leafcub.WeightHectograms);
+        Assert.Equal(7, leafcub.HeightDecimeters);
         Assert.Equal([EntityId.Parse("type:grass")], leafcub.Types);
         Assert.Equal(2, leafcub.Learnset.Count);
         Assert.Equal(7, leafcub.Learnset[1].Level);

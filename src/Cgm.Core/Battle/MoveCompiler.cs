@@ -331,6 +331,48 @@ public static class MoveCompiler
                     effects.Add(new CannotKoEffect(hpFloor));
                     break;
 
+                case "speedRatioPower":
+                    if (chance != 100)
+                        throw new ArgumentException("speedRatioPower does not support chance.");
+                    CheckAllowedParams(e, "numerator", "denominator", "scale", "offset", "cap", "bands");
+                    HpRatioPowerSource speedNumerator = Parse<HpRatioPowerSource>(Str(e, "numerator"), "numerator");
+                    HpRatioPowerSource speedDenominator = Parse<HpRatioPowerSource>(Str(e, "denominator"), "denominator");
+                    if (speedNumerator == speedDenominator)
+                        throw new ArgumentException("speedRatioPower numerator and denominator must differ.");
+                    bool hasScale = e.Params?.ContainsKey("scale") == true;
+                    bool hasBands = e.Params?.ContainsKey("bands") == true;
+                    if (hasScale == hasBands)
+                        throw new ArgumentException("speedRatioPower requires exactly one of scale or bands.");
+                    int? speedScale = hasScale ? Int(e, "scale") : null;
+                    int speedOffset = e.Params?.ContainsKey("offset") == true ? Int(e, "offset") : 0;
+                    int? speedCap = e.Params?.ContainsKey("cap") == true ? Int(e, "cap") : null;
+                    if (speedScale is <= 0 || speedOffset < 0 || speedCap is <= 0
+                        || hasBands && (e.Params!.ContainsKey("offset") || e.Params.ContainsKey("cap")))
+                        throw new ArgumentException("speedRatioPower scale/cap must be positive and offset nonnegative; bands cannot compose them.");
+                    effects.Add(new SpeedRatioPowerEffect(speedNumerator, speedDenominator, speedScale, speedOffset,
+                        speedCap, hasBands ? ParseFormulaBands(Str(e, "bands")) : []));
+                    break;
+
+                case "metricBandPower":
+                    if (chance != 100)
+                        throw new ArgumentException("metricBandPower does not support chance.");
+                    CheckAllowedParams(e, "metric", "subject", "bands");
+                    effects.Add(new MetricBandPowerEffect(Parse<BattleMetric>(Str(e, "metric"), "metric"),
+                        Parse<HpRatioPowerSource>(Str(e, "subject"), "subject"), ParseFormulaBands(Str(e, "bands"))));
+                    break;
+
+                case "metricRatioPower":
+                    if (chance != 100)
+                        throw new ArgumentException("metricRatioPower does not support chance.");
+                    CheckAllowedParams(e, "metric", "numerator", "denominator", "bands");
+                    HpRatioPowerSource metricNumerator = Parse<HpRatioPowerSource>(Str(e, "numerator"), "numerator");
+                    HpRatioPowerSource metricDenominator = Parse<HpRatioPowerSource>(Str(e, "denominator"), "denominator");
+                    if (metricNumerator == metricDenominator)
+                        throw new ArgumentException("metricRatioPower numerator and denominator must differ.");
+                    effects.Add(new MetricRatioPowerEffect(Parse<BattleMetric>(Str(e, "metric"), "metric"),
+                        metricNumerator, metricDenominator, ParseFormulaBands(Str(e, "bands"))));
+                    break;
+
                 case "ailment":
                     string a = Str(e, "ailment", "status");
                     if (a.Equals("confusion", StringComparison.OrdinalIgnoreCase))
@@ -412,7 +454,8 @@ public static class MoveCompiler
 
         effects = BindStatusChance(effects);
         int replacementPowerFormulas = (hpRatioPower?.Scale is not null ? 1 : 0) + (hpBandPower is not null ? 1 : 0)
-            + effects.OfType<StatusCountPowerEffect>().Count();
+            + effects.Count(effect => effect is StatusCountPowerEffect or SpeedRatioPowerEffect
+                or MetricBandPowerEffect or MetricRatioPowerEffect);
         if (replacementPowerFormulas > 1)
             throw new ArgumentException("A move can declare only one replacement base-power formula.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
@@ -491,6 +534,23 @@ public static class MoveCompiler
         if (bands.Length == 0 || bands.Any(band => band.UpperInclusive < 0 || band.Power <= 0)
             || bands.Zip(bands.Skip(1)).Any(pair => pair.First.UpperInclusive >= pair.Second.UpperInclusive))
             throw new ArgumentException("hpBandPower bands require increasing nonnegative bounds and positive powers.");
+        return bands;
+    }
+
+    private static IReadOnlyList<FormulaPowerBand> ParseFormulaBands(string value)
+    {
+        FormulaPowerBand[] bands = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => part.Split(':', StringSplitOptions.TrimEntries))
+            .Select(parts => parts.Length == 2
+                && int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int minimum)
+                && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int power)
+                ? new FormulaPowerBand(minimum, power)
+                : throw new ArgumentException("Formula bands must use comma-separated minimum:power integers."))
+            .ToArray();
+        if (bands.Length == 0 || bands[0].MinInclusive != 0
+            || bands.Any(band => band.MinInclusive < 0 || band.Power <= 0)
+            || bands.Zip(bands.Skip(1)).Any(pair => pair.First.MinInclusive >= pair.Second.MinInclusive))
+            throw new ArgumentException("Formula bands require a zero first bound, increasing nonnegative minima, and positive powers.");
         return bands;
     }
 

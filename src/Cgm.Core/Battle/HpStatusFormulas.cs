@@ -52,7 +52,8 @@ public static class HpStatusFormulas
         (creature.Status is { } status && persistent.Contains(status) ? 1 : 0)
         + volatileStatuses.Count(value => Matches(creature, null, value));
 
-    public static HpStatusPowerQuery PowerQuery(BattleMove move, BattleCreature source, BattleCreature target)
+    public static HpStatusPowerQuery PowerQuery(BattleMove move, BattleCreature source, BattleCreature target,
+        PhysicalFormulaInputs? physicalInputs = null)
     {
         var modifiers = new List<BattleQueryModifier>();
         int insertion = 0;
@@ -104,11 +105,37 @@ public static class HpStatusFormulas
             modifiers.Add(Replace(checked(statusCount.Base + count * statusCount.PerStatus), insertion++));
         }
 
+        if (move.SecondaryEffects.OfType<SpeedRatioPowerEffect>().SingleOrDefault() is { } speedRatio)
+        {
+            PhysicalFormulaInputs inputs = physicalInputs ?? PhysicalMetricFormulas.Inputs(source, target);
+            int numerator = PhysicalMetricFormulas.Speed(inputs, speedRatio.Numerator);
+            int denominator = PhysicalMetricFormulas.Speed(inputs, speedRatio.Denominator);
+            int power = speedRatio.Scale is { } scale
+                ? PhysicalMetricFormulas.LinearRatio(numerator, denominator, scale, speedRatio.Offset, speedRatio.Cap)
+                : PhysicalMetricFormulas.RatioBand(numerator, denominator, speedRatio.Bands);
+            modifiers.Add(Replace(power, insertion++));
+        }
+        if (move.SecondaryEffects.OfType<MetricBandPowerEffect>().SingleOrDefault() is { } metricBand)
+        {
+            PhysicalFormulaInputs inputs = physicalInputs ?? PhysicalMetricFormulas.Inputs(source, target);
+            modifiers.Add(Replace(PhysicalMetricFormulas.Band(
+                PhysicalMetricFormulas.Value(inputs, metricBand.Metric, metricBand.Subject), metricBand.Bands), insertion++));
+        }
+        if (move.SecondaryEffects.OfType<MetricRatioPowerEffect>().SingleOrDefault() is { } metricRatio)
+        {
+            PhysicalFormulaInputs inputs = physicalInputs ?? PhysicalMetricFormulas.Inputs(source, target);
+            modifiers.Add(Replace(PhysicalMetricFormulas.RatioBand(
+                PhysicalMetricFormulas.Value(inputs, metricRatio.Metric, metricRatio.Numerator),
+                PhysicalMetricFormulas.Value(inputs, metricRatio.Metric, metricRatio.Denominator),
+                metricRatio.Bands), insertion++));
+        }
+
         return new HpStatusPowerQuery(move.Power ?? 1, modifiers, ignoreBurn);
     }
 
     public static bool HasBasePower(BattleMove move) => move.Power is not null || move.HpBandPower is not null
-        || move.HpRatioPower?.Scale is not null || move.SecondaryEffects.OfType<StatusCountPowerEffect>().Any();
+        || move.HpRatioPower?.Scale is not null || move.SecondaryEffects.Any(effect => effect is StatusCountPowerEffect
+            or SpeedRatioPowerEffect or MetricBandPowerEffect or MetricRatioPowerEffect);
 
     public static int CannotKoFloor(BattleMove move) =>
         move.SecondaryEffects.OfType<CannotKoEffect>().SingleOrDefault()?.Floor ?? 0;

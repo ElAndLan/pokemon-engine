@@ -28,6 +28,7 @@ public sealed class BattleController
     private readonly List<BattleQueryTraceEntry> _queryTrace = [];
     private readonly List<RedirectCondition> _redirects = [];
     private readonly BattleIntentQueue _intentQueue = new();
+    private readonly BattleOverlayStore _overlays = new();
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
     private bool _dispatchingWeatherChange;
     private int _traceActionSequence;
@@ -87,6 +88,7 @@ public sealed class BattleController
     public IReadOnlyList<BattleQueryTraceEntry> QueryTrace => _queryTrace;
     public IReadOnlyList<BattleIntentDebugEntry> IntentQueueSnapshot => _intentQueue.DebugSnapshot();
     public IReadOnlyList<BattleSlot> PendingReplacementSlots => _pendingReplacementSlots;
+    public BattleOverlayStore Overlays => _overlays;
 
     public BattleTopology Topology => _activeSlots.Topology;
     public BattleCreature Active(BattleSide side)
@@ -937,7 +939,9 @@ public sealed class BattleController
         outgoing.ResetStages();
         outgoing.ClearVolatiles();
         TraceCleanup(_intentQueue.OwnerSwitched(slot.Side, outgoingPartyIndex, null));
+        _overlays.OwnerSwitched(slot.Side, outgoingPartyIndex, null, Turn, _traceActionSequence);
         _activeSlots.Assign(slot, index);
+        _overlays.OwnerSwitched(slot.Side, index, slot, Turn, _traceActionSequence);
         _log.Add(new SwitchedIn(slot, index));
         OnSwitchIn(slot);
     }
@@ -1013,13 +1017,9 @@ public sealed class BattleController
     private int Speed(BattleSlot slot)
     {
         BattleCreature c = Active(slot);
-        BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.Speed, new BattleQueryValue(c.Stats.Spe),
-        [
-            new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply, BattleQuery.StatStageMultiplier(c.Stage(StatKind.Spe)),
-                InsertionOrder: 0),
-            new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply, StatusSpeedMultiplier(c.Status),
-                InsertionOrder: 1),
-        ], new BattleQueryContext(slot, c, Weather: _weather));
+        BattleQueryResult result = PhysicalMetricFormulas.SpeedQuery(c, _overlays,
+            new BattleOverlayOwner(slot.Side, ActiveIndex(slot), slot),
+            new BattleQueryContext(slot, c, Weather: _weather));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, 0, slot, null, result));
         return result.FinalValue.ToInt32();
     }
@@ -1335,7 +1335,8 @@ public sealed class BattleController
             case HpEqualizeEffect equalize:
                 ApplyHpEqualize(ctx, equalize);
                 break;
-            case StatusPowerEffect or StatusCountPowerEffect or CannotKoEffect:
+            case StatusPowerEffect or StatusCountPowerEffect or CannotKoEffect or SpeedRatioPowerEffect
+                or MetricBandPowerEffect or MetricRatioPowerEffect:
                 break; // evaluated in ComputeHit before DamageCalc.
             case RecoilEffect r when ctx.ActionDamageDealt > 0:
                 Sap(ctx.Source, ctx.SourceSlot, EffectMath.RecoilDamage(ctx.ActionDamageDealt, r.Fraction.Num, r.Fraction.Den),
@@ -1997,7 +1998,12 @@ public sealed class BattleController
     {
         critDraw = null;
         damageRollDraw = null;
-        HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, target);
+        PhysicalFormulaInputs? physicalInputs = PhysicalMetricFormulas.HasPowerFormula(move)
+            ? PhysicalMetricFormulas.Inputs(attacker, target, _overlays,
+                new BattleOverlayOwner(sourceSlot.Side, ActiveIndex(sourceSlot), sourceSlot),
+                new BattleOverlayOwner(targetSlot.Side, ActiveIndex(targetSlot), targetSlot))
+            : null;
+        HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, target, physicalInputs);
         BattleQueryResult powerResult = BattleQuery.Evaluate(BattleQueryId.BasePower,
             new BattleQueryValue(powerQuery.AuthoredBase), powerQuery.Modifiers,
             new BattleQueryContext(sourceSlot, attacker, targetSlot, target, _weather));
@@ -2180,9 +2186,6 @@ public sealed class BattleController
         StatKind.Evasion => "evasion",
         _ => stat.ToString().ToLowerInvariant(),
     };
-
-    private static BattleQueryValue StatusSpeedMultiplier(PersistentStatus? status) =>
-        status == PersistentStatus.Paralysis ? new BattleQueryValue(1, 4) : new BattleQueryValue(1);
 
     private bool BlocksStatus(BattleSlot target, PersistentStatus status) =>
         BattleHookDispatcher.StatusAttempt(target, HookSources())
@@ -2498,7 +2501,10 @@ public sealed class BattleController
     private void RequestReplacements()
     {
         foreach (BattleSlot slot in Topology.Slots.Where(slot => !IsLive(slot)))
+        {
             TraceCancelled(_intentQueue.OwnerFainted(slot.Side, ActiveIndex(slot)));
+            _overlays.OwnerFainted(slot.Side, ActiveIndex(slot), Turn, _traceActionSequence);
+        }
         _pendingReplacementSlots.Clear();
         foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
         {
@@ -2539,6 +2545,7 @@ public sealed class BattleController
         Outcome = new BattleOutcome(winner);
         _pendingReplacementSlots.Clear();
         TraceCancelled(_intentQueue.EndBattle());
+        _overlays.EndBattle(Turn, _traceActionSequence);
         RevertBattleEndForms();
         _log.Add(new BattleEnded(winner));
     }

@@ -1,13 +1,14 @@
 # DATA_SCHEMA
 
-Status: **Schema v4 (2026-07-10)** — the single source of truth for all serialized shapes.
+Status: **Schema v5 (2026-07-14)** — the single source of truth for all serialized shapes.
 Derived from the local PokeAPI corpus per [ADR-010](adr/ADR-010-pokeapi-derived-schema.md).
 Changes require a `schemaVersion` bump + migration + this doc edited in the same change
 (CLAUDE.md §2). v3 adds the move contact marker used by Phase 15 contact hooks; v4 expands the
-move target vocabulary required by Phase 15B topology. Save-file
+move target vocabulary required by Phase 15B topology; v5 adds positive species weight/height
+metrics required by Phase 15C-3 formulas. Save-file
 ability/form progression remains under `saveFormatVersion`.
 
-Scope of v4: the MVP + vertical-slice entities plus Phase 15 Core authoring data. Numbers in
+Scope of v5: the MVP + vertical-slice entities plus Phase 15 Core authoring data. Numbers in
 `(PokeAPI: x)` note the source field.
 
 ---
@@ -15,7 +16,7 @@ Scope of v4: the MVP + vertical-slice entities plus Phase 15 Core authoring data
 ## 1. Conventions
 - One JSON file per entity: `data/<category>/<id-slug>.json`. UTF-8, `\n`, 2-space indent,
   **stable property order** (byte-stable output so git diffs and fixtures stay honest).
-- Every file starts: `{ "schemaVersion": 4, "id": "<category:slug>", "name": "<display>", ... }`.
+- Every file starts: `{ "schemaVersion": 5, "id": "<category:slug>", "name": "<display>", ... }`.
 - Unknown fields tolerated on read (forward-compat); never written back.
 - All numbers are integers unless the field says otherwise. `null` = "not applicable" (e.g. a
   status move has `power: null`), distinct from `0`.
@@ -71,6 +72,8 @@ The full effectiveness matrix is **derived** from these lists (see BATTLE_DAMAGE
 | id, name | | |
 | types | id[1..2] `type:*` | `pokemon.types[].type` (slot order) |
 | baseStats | `{hp,atk,def,spa,spd,spe}` | `pokemon.stats[].base_stat` |
+| weightHectograms | int > 0 | `pokemon.weight`; defaults to 1 for migrated v1-v4 projects |
+| heightDecimeters | int > 0 | `pokemon.height`; defaults to 1 for migrated v1-v4 projects |
 | evYield | `{hp,atk,def,spa,spd,spe}` | `pokemon.stats[].effort` (mostly 0/1/2/3) |
 | baseExp | int | `pokemon.base_experience` |
 | growthRate | id `growthrate:*`? | `pokemon-species.growth_rate` → stored as a curve key (§4.11) |
@@ -252,3 +255,5 @@ Volatile battle state (stat stages, confusion, flinch) is NOT saved — it lives
 - v2→v3: no-op data migration. `move.makesContact` defaults to false for old moves.
 - v3→v4: no-op data migration. This is an additive target-enum expansion; every prior target
   value remains valid and older files require no rewritten fields.
+- v4→v5: additive species metric migration. Species rows missing `weightHectograms` or
+  `heightDecimeters` receive 1; non-species rows are unchanged.

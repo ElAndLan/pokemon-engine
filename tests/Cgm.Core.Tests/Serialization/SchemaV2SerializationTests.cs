@@ -76,6 +76,8 @@ public sealed class SchemaV2SerializationTests
             Id = EntityId.Parse("species:leafcub"),
             Name = "Leafcub",
             Types = [EntityId.Parse("type:grass")],
+            WeightHectograms = 69,
+            HeightDecimeters = 7,
             Abilities = [EntityId.Parse("ability:sturdy_root")],
             HiddenAbility = EntityId.Parse("ability:sap_veil"),
             Forms =
@@ -99,6 +101,8 @@ public sealed class SchemaV2SerializationTests
         Assert.Equal(SchemaVersions.Current, back.SchemaVersion);
         Assert.Equal([EntityId.Parse("ability:sturdy_root")], back.Abilities);
         Assert.Equal(FormActivation.BattleTemporary, back.Forms.Single().Activation);
+        Assert.Equal(69, back.WeightHectograms);
+        Assert.Equal(7, back.HeightDecimeters);
         Assert.Equal(EntityId.Parse("move:root_crash"),
             back.Forms.Single().MoveRemap![EntityId.Parse("move:tackle")]);
     }

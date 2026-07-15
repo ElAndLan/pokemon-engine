@@ -53,7 +53,8 @@ public sealed record SmartAiContext(
     SmartAiMemory? Memory = null,
     SmartAiWeights? Weights = null,
     int OwnSpikeLayers = 0,
-    bool OwnStealthRock = false);
+    bool OwnStealthRock = false,
+    BattleOverlayStore? Overlays = null);
 
 public sealed record AiScoreComponent(string Name, double Value);
 public sealed record AiCandidateScore(BattleAction Action, double Score, IReadOnlyList<AiScoreComponent> Components);
@@ -77,7 +78,7 @@ public static class SmartAi
 
         for (int i = 0; i < active.Moves.Count; i++)
             if (active.Moves[i].HasPp)
-                scores.Add(ScoreMove(new UseMove(i), active, target, context.PlayerParty, context.Chart, weights, context.Rng));
+                scores.Add(ScoreMove(new UseMove(i), active, target, context, weights, context.Rng));
 
         scores.AddRange(ScoreItems(context, weights));
 
@@ -94,12 +95,18 @@ public static class SmartAi
     }
 
     private static AiCandidateScore ScoreMove(UseMove action, BattleCreature attacker, BattleCreature defender,
-        IReadOnlyList<BattleCreature> playerParty, TypeChart chart, SmartAiWeights weights, IRng rng)
+        SmartAiContext context, SmartAiWeights weights, IRng rng)
     {
         BattleMove move = attacker.Moves[action.MoveIndex];
         var c = new List<AiScoreComponent>();
 
-        double damage = ExpectedDamage(attacker, defender, move, chart);
+        PhysicalFormulaInputs? inputs = !PhysicalMetricFormulas.HasPowerFormula(move) ? null
+            : context.Overlays is { } overlays
+                ? PhysicalMetricFormulas.Inputs(attacker, defender, overlays,
+                    new BattleOverlayOwner(BattleSide.Enemy, context.EnemyActive, new BattleSlot(BattleSide.Enemy, 0)),
+                    new BattleOverlayOwner(BattleSide.Player, context.PlayerActive, new BattleSlot(BattleSide.Player, 0)))
+                : PhysicalMetricFormulas.Inputs(attacker, defender);
+        double damage = ExpectedDamage(attacker, defender, move, context.Chart, inputs);
         int authoredAccuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, defender.Level) : move.Accuracy ?? 100;
         int resolvedAccuracy = BattleQuery.ResolveInteger(BattleQueryId.Accuracy, authoredAccuracy,
             move.BypassAccuracy || (!move.Ohko && move.Accuracy is null)
@@ -122,13 +129,13 @@ public static class SmartAi
             c.Add(new("status", weights.StatusValue * HpFraction(defender) * chance / 100.0));
         }
 
-        if (move.StageEffect is { OnSelf: true, Delta: > 0 } setup && !ThreatensKo(defender, attacker, chart))
+        if (move.StageEffect is { OnSelf: true, Delta: > 0 } setup && !ThreatensKo(defender, attacker, context.Chart))
             c.Add(new("setup", weights.SetupValue * setup.Delta));
 
-        if ((move.SetsSpikes || move.SetsStealthRock) && playerParty.Count(p => !p.IsFainted) > 1)
-            c.Add(new("hazard", weights.HazardValue * (playerParty.Count(p => !p.IsFainted) - 1)));
+        if ((move.SetsSpikes || move.SetsStealthRock) && context.PlayerParty.Count(p => !p.IsFainted) > 1)
+            c.Add(new("hazard", weights.HazardValue * (context.PlayerParty.Count(p => !p.IsFainted) - 1)));
 
-        if (move.IsProtect && ThreatensKo(defender, attacker, chart))
+        if (move.IsProtect && ThreatensKo(defender, attacker, context.Chart))
             c.Add(new("protect", weights.ProtectValue / Math.Pow(2, attacker.ProtectChain)));
 
         if (move.ForcesSwitch && HasDangerousBoost(defender))
@@ -220,7 +227,8 @@ public static class SmartAi
     private static bool ThreatensKo(BattleCreature attacker, BattleCreature defender, TypeChart chart) =>
         BestDamage(attacker, defender, chart) >= defender.CurrentHp;
 
-    private static double ExpectedDamage(BattleCreature attacker, BattleCreature defender, BattleMove move, TypeChart chart)
+    private static double ExpectedDamage(BattleCreature attacker, BattleCreature defender, BattleMove move, TypeChart chart,
+        PhysicalFormulaInputs? physicalInputs = null)
     {
         double eff = chart.Effectiveness(move.Type, defender.Types);
         if (eff <= 0)
@@ -249,7 +257,7 @@ public static class SmartAi
             return 0;
 
         bool physical = move.DamageClass == DamageClass.Physical;
-        HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, defender);
+        HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, defender, physicalInputs);
         int power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, powerQuery.AuthoredBase, powerQuery.Modifiers);
         StatKind attackStat = physical ? StatKind.Atk : StatKind.Spa;
         StatKind defenseStat = physical ? StatKind.Def : StatKind.Spd;

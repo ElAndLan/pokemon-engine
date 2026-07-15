@@ -85,12 +85,29 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
         MoveConformanceRecord record = Assert.Single(MoveConformanceNormalizer.Build(_folder, decisions).Entries);
         Assert.Equal(["HpStatusFormulaConformanceTests.Certified(move-0900)"], record.TestIds);
 
+        WriteMove("neutral_speed_formula", 901, "selected-pokemon", power: null);
+        var speedFormula = new Effect
+        {
+            Op = "speedRatioPower",
+            Params = new Dictionary<string, JsonElement>
+            {
+                ["numerator"] = JsonSerializer.SerializeToElement("user"),
+                ["denominator"] = JsonSerializer.SerializeToElement("target"),
+                ["bands"] = JsonSerializer.SerializeToElement("0:40,1:60"),
+            },
+        };
+        var speedDecisions = new MoveConformanceDecisionCatalog(1, ["neutral-test-evidence"],
+            [new("move-0901", false, [speedFormula])]);
+        record = Assert.Single(MoveConformanceNormalizer.Build(_folder, speedDecisions).Entries);
+        Assert.Equal(["PhysicalMetricFormulaConformanceTests.Certified(move-0901)"], record.TestIds);
+
         var unowned = new MoveConformanceDecisionCatalog(1, ["neutral-test-evidence"], [new("move-0900", false)]);
         Assert.Throws<InvalidDataException>(() => MoveConformanceNormalizer.Build(_folder, unowned));
     }
 
-    private string WriteMove(string name, int id, string target = "all-opponents")
+    private string WriteMove(string name, int id, string target = "all-opponents", int? power = 40)
     {
+        string powerJson = power?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null";
         string json = $$"""
         {
           "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -100,7 +117,7 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
             "name": "{{name}}",
             "type": { "name": "neutral", "url": "https://example.invalid/type/1/" },
             "damage_class": { "name": "special" },
-            "power": 40,
+            "power": {{powerJson}},
             "accuracy": 100,
             "pp": 20,
             "priority": 0,
