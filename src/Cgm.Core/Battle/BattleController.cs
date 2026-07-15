@@ -612,7 +612,7 @@ public sealed class BattleController
             return;
         }
 
-        if (move.Power is null)
+        if (!HpStatusFormulas.HasBasePower(move))
         {
             ApplyDoublesMoveEffects(actionContext, accurateTargets);
             return;
@@ -637,14 +637,15 @@ public sealed class BattleController
             {
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Immunity, false, null, 1, _log.Count, _log.Count);
                 (int damage, bool crit, _) = ComputeHit(
-                    sourceSlot, targetContext.TargetSlot, attacker, targetContext.Target, move, move.Power!.Value,
+                    sourceSlot, targetContext.TargetSlot, attacker, targetContext.Target, move, move.Power ?? 1,
                     targetSlots.Count, traceAction,
                     out double? critDraw, out int? damageRollDraw);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Critical, true,
                     critDraw, crit ? 1 : 0, _log.Count, _log.Count, 1);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.DamageRoll, true,
                     damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
-                int dealt = DealMoveDamage(targetContext.Target, targetContext.TargetSlot, damage, effectiveness, crit);
+                int dealt = DealMoveDamage(targetContext.Target, targetContext.TargetSlot, damage, effectiveness, crit,
+                    HpStatusFormulas.CannotKoFloor(move));
                 targetContext.Target.RecordDamageTaken(move.DamageClass, dealt);
                 targetContext.AddDamage(actionContext, dealt);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Damage, false, null, dealt,
@@ -681,7 +682,8 @@ public sealed class BattleController
         StatChangeEffect { OnSelf: false } or StatChangeAllEffect { OnSelf: false } or StatInvertEffect { OnSelf: false } => true,
         StatResetEffect { Scope: not StageEffectScope.Self } => true,
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
-        HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target } => true,
+        HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
+            or HpEqualizeEffect => true,
         _ => false,
     };
 
@@ -1166,7 +1168,7 @@ public sealed class BattleController
             {
                 int dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target,
                     checked(received * 2), traceAction);
-                int dealt = DealMoveDamage(target, targetSlot, dmg, 1.0, crit: false);
+                int dealt = DealMoveDamage(target, targetSlot, dmg, 1.0, crit: false, HpStatusFormulas.CannotKoFloor(move));
                 targetContext.AddDamage(actionContext, dealt);
             }
             else
@@ -1183,11 +1185,12 @@ public sealed class BattleController
                 : move.FixedDamageLevel ? attacker.Level
                 : move.FixedDamage!.Value;
             dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target, dmg, traceAction);
-            int dealt = DealMoveDamage(target, targetSlot, dmg, eff, crit: false);
+            int dealt = DealMoveDamage(target, targetSlot, dmg, eff, crit: false, HpStatusFormulas.CannotKoFloor(move));
             targetContext.AddDamage(actionContext, dealt);
         }
-        else if (move.Power is int power)
+        else if (HpStatusFormulas.HasBasePower(move))
         {
+            int power = move.Power ?? 1;
             // Single-hit is a 1-iteration loop, so the crit→roll draw order is identical to before;
             // HitCount only draws for actual multi-hit moves. Each hit rolls crit/damage independently.
             int? hitCountDraw = null;
@@ -1209,7 +1212,7 @@ public sealed class BattleController
                     AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.DamageRoll, true,
                         damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
                 }
-                int dealt = DealMoveDamage(target, targetSlot, dmg, eff, crit);
+                int dealt = DealMoveDamage(target, targetSlot, dmg, eff, crit, HpStatusFormulas.CannotKoFloor(move));
                 target.RecordDamageTaken(move.DamageClass, dealt); // for Counter/Mirror Coat
                 targetContext.AddDamage(actionContext, dealt);
                 AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Damage, false, null, dealt,
@@ -1329,7 +1332,10 @@ public sealed class BattleController
             case HpFractionEffect h:
                 ApplyHpFraction(ctx, h);
                 break;
-            case StatusPowerEffect:
+            case HpEqualizeEffect equalize:
+                ApplyHpEqualize(ctx, equalize);
+                break;
+            case StatusPowerEffect or StatusCountPowerEffect or CannotKoEffect:
                 break; // evaluated in ComputeHit before DamageCalc.
             case RecoilEffect r when ctx.ActionDamageDealt > 0:
                 Sap(ctx.Source, ctx.SourceSlot, EffectMath.RecoilDamage(ctx.ActionDamageDealt, r.Fraction.Num, r.Fraction.Den),
@@ -1403,7 +1409,49 @@ public sealed class BattleController
             return;
         }
 
+        int floor = HpStatusFormulas.CannotKoFloor(ctx.Move);
+        if (floor > 0)
+            amount = Math.Min(amount, Math.Max(0, recipient.CurrentHp - floor));
         Sap(recipient, slot, amount, damaged => new HpFractionDamaged(slot, damaged));
+    }
+
+    private void ApplyHpEqualize(EffectContext ctx, HpEqualizeEffect effect)
+    {
+        int eventStart = _log.Count;
+        int sourceBefore = ctx.Source.CurrentHp, targetBefore = ctx.Target.CurrentHp;
+        if (effect.Mode == HpEqualizeMode.MatchSource)
+        {
+            double effectiveness = _chart.Effectiveness(ctx.Move.Type, ctx.Target.Types);
+            if (targetBefore <= sourceBefore || effectiveness <= 0)
+            {
+                AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.HpFormula, false,
+                    null, targetBefore, eventStart, eventStart);
+                return;
+            }
+            int dealt = DealMoveDamage(ctx.Target, ctx.TargetSlot, targetBefore - sourceBefore, 1.0, crit: false);
+            ctx.Target.RecordDamageTaken(ctx.Move.DamageClass, dealt);
+            ctx.TargetContext!.AddDamage(ctx.Action, dealt);
+            _log.Add(new HpFormulaChanged(ctx.TargetSlot, targetBefore, ctx.Target.CurrentHp, effect.Mode));
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.HpFormula, false,
+                null, ctx.Target.CurrentHp, eventStart, _log.Count);
+            return;
+        }
+
+        int average = (int)(((long)sourceBefore + targetBefore) / 2);
+        SetFormulaHp(ctx.Source, ctx.SourceSlot, average, effect.Mode);
+        SetFormulaHp(ctx.Target, ctx.TargetSlot, average, effect.Mode);
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.HpFormula, false,
+            null, ctx.Target.CurrentHp, eventStart, _log.Count);
+    }
+
+    private void SetFormulaHp(BattleCreature creature, BattleSlot slot, int value, HpEqualizeMode formula)
+    {
+        int before = creature.CurrentHp;
+        int after = Math.Clamp(value, 0, creature.MaxHp);
+        if (after < before) creature.TakeDamage(before - after);
+        else if (after > before) creature.Heal(after - before);
+        if (after != before)
+            _log.Add(new HpFormulaChanged(slot, before, after, formula));
     }
 
     private static (BattleCreature Creature, BattleSlot Slot) FractionRecipient(
@@ -1552,7 +1600,7 @@ public sealed class BattleController
             && StatusEffects.CanApplyStatus(ctx.Target.Status)
             && !StatusEffects.TypeImmuneToStatus(effect.Status, ctx.Target.Types)
             && !BlocksStatus(ctx.TargetSlot, effect.Status);
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, eligible);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), eligible);
         if (chance.Passed)
         {
             ctx.Target.SetStatus(effect.Status);
@@ -1566,7 +1614,7 @@ public sealed class BattleController
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !recipient.IsFainted);
         if (!chance.Passed)
         {
             TraceEffectChance(ctx, chance, start);
@@ -1589,7 +1637,7 @@ public sealed class BattleController
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !recipient.IsFainted);
         if (!chance.Passed)
         {
             TraceEffectChance(ctx, chance, start);
@@ -1617,7 +1665,7 @@ public sealed class BattleController
         (BattleCreature Creature, BattleSlot Slot)[] recipients = StageRecipients(ctx, effect.Scope)
             .Where(recipient => !recipient.Creature.IsFainted).ToArray();
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, recipients.Length > 0);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), recipients.Length > 0);
         if (!chance.Passed)
         {
             TraceEffectChance(ctx, chance, start);
@@ -1634,7 +1682,7 @@ public sealed class BattleController
         (BattleCreature from, _) = StageRecipient(ctx, effect.From);
         (BattleCreature to, BattleSlot toSlot) = StageRecipient(ctx, effect.To);
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, !from.IsFainted && !to.IsFainted);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !from.IsFainted && !to.IsFainted);
         if (!chance.Passed)
         {
             TraceEffectChance(ctx, chance, start);
@@ -1648,7 +1696,7 @@ public sealed class BattleController
     private void ApplyStatSwap(EffectContext ctx, StatSwapEffect effect)
     {
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, !ctx.Source.IsFainted && !ctx.Target.IsFainted);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !ctx.Source.IsFainted && !ctx.Target.IsFainted);
         if (!chance.Passed)
         {
             TraceEffectChance(ctx, chance, start);
@@ -1669,7 +1717,7 @@ public sealed class BattleController
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, !recipient.IsFainted);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !recipient.IsFainted);
         if (!chance.Passed)
         {
             TraceEffectChance(ctx, chance, start);
@@ -1692,6 +1740,19 @@ public sealed class BattleController
     }
 
     private readonly record struct EffectChanceResult(bool Passed, bool Performed, int? Draw);
+
+    private int EffectiveEffectChance(EffectContext ctx, MoveEffect effect)
+    {
+        if (effect.ChanceFormula is null)
+            return effect.Chance;
+        BattleQueryResult calculated = HpStatusFormulas.SecondaryChanceQuery(effect, ctx.Source, ctx.Target);
+        BattleQueryResult result = calculated with
+        {
+            Inputs = new BattleQueryInputs(ctx.SourceSlot, ctx.TargetSlot, _weather, calculated.Inputs.Ruleset),
+        };
+        _queryTrace.Add(new BattleQueryTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, result));
+        return result.FinalValue.ToInt32();
+    }
 
     private EffectChanceResult CheckEffectChance(int chance, bool eligible)
     {
@@ -1738,7 +1799,7 @@ public sealed class BattleController
     private void ApplyConfusion(EffectContext ctx, ConfusionEffect effect)
     {
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, !ctx.Target.IsFainted && !ctx.Target.IsConfused);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !ctx.Target.IsFainted && !ctx.Target.IsConfused);
         TraceEffectChance(ctx, chance, start);
         if (!chance.Passed)
             return;
@@ -1772,7 +1833,7 @@ public sealed class BattleController
     {
         // Flinch only bites if the target hasn't acted yet — resolution order gives us that for free.
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(effect.Chance, !ctx.Target.IsFainted);
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !ctx.Target.IsFainted);
         if (chance.Passed)
             ctx.Target.SetFlinch();
         TraceEffectChance(ctx, chance, start);
@@ -1894,10 +1955,13 @@ public sealed class BattleController
 
     /// <summary>One hit of a damaging move — draws crit then damage roll (fixed order), applies
     /// crit's stat-stage ignore rule and burn. Returned <c>eff</c> feeds the DamageDealt event.</summary>
-    private int DealMoveDamage(BattleCreature target, BattleSlot targetSlot, int amount, double effectiveness, bool crit)
+    private int DealMoveDamage(BattleCreature target, BattleSlot targetSlot, int amount, double effectiveness, bool crit,
+        int hpFloor = 0)
     {
         int before = target.CurrentHp;
         amount = ApplySurviveFromFull(target, targetSlot, amount);
+        if (hpFloor > 0)
+            amount = Math.Min(amount, Math.Max(0, target.CurrentHp - hpFloor));
         target.TakeDamage(amount);
         int dealt = before - target.CurrentHp;
         _log.Add(new DamageDealt(targetSlot, dealt, effectiveness, crit));
@@ -1933,43 +1997,9 @@ public sealed class BattleController
     {
         critDraw = null;
         damageRollDraw = null;
-        var powerModifiers = new List<BattleQueryModifier>();
-        int insertion = 0;
-        if (move.TargetHpThresholdPower is { } hpPower)
-        {
-            bool thresholdMet = target.MaxHp > 0
-                && (long)target.CurrentHp * hpPower.Threshold.Den <= (long)target.MaxHp * hpPower.Threshold.Num;
-            if (thresholdMet)
-                powerModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
-                    BattleQueryOperation.Multiply,
-                    new BattleQueryValue(hpPower.Multiplier.Num, hpPower.Multiplier.Den),
-                    InsertionOrder: insertion++));
-        }
-        if (move.HpRatioPower is { } ratioPower)
-        {
-            BattleCreature ratioSource = ratioPower.Source == HpRatioPowerSource.User ? attacker : target;
-            if (ratioSource.MaxHp > 0)
-                powerModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
-                    BattleQueryOperation.Multiply,
-                    new BattleQueryValue(ratioSource.CurrentHp, ratioSource.MaxHp),
-                    InsertionOrder: insertion++));
-        }
-
-        bool ignoreSourceBurnPenalty = false;
-        if (move.SecondaryEffects.OfType<StatusPowerEffect>().SingleOrDefault() is { } statusPower)
-        {
-            BattleCreature statusSubject = statusPower.Subject == StatusPowerSubject.User ? attacker : target;
-            bool conditionMet = statusSubject.Status is { } status
-                && (statusPower.Status is null || statusPower.Status == status);
-            if (conditionMet)
-                powerModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
-                    BattleQueryOperation.Multiply,
-                    new BattleQueryValue(statusPower.Multiplier.Num, statusPower.Multiplier.Den),
-                    InsertionOrder: insertion++));
-            ignoreSourceBurnPenalty = conditionMet && statusPower.IgnoreSourceBurnPenalty;
-        }
-
-        BattleQueryResult powerResult = BattleQuery.Evaluate(BattleQueryId.BasePower, new BattleQueryValue(power), powerModifiers,
+        HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, target);
+        BattleQueryResult powerResult = BattleQuery.Evaluate(BattleQueryId.BasePower,
+            new BattleQueryValue(powerQuery.AuthoredBase), powerQuery.Modifiers,
             new BattleQueryContext(sourceSlot, attacker, targetSlot, target, _weather));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, powerResult));
         power = powerResult.FinalValue.ToInt32();
@@ -2015,7 +2045,7 @@ public sealed class BattleController
         int a = attackResult.FinalValue.ToInt32();
         int d = defenseResult.FinalValue.ToInt32();
         double stab = TypeChart.Stab(move.Type, attacker.Types);
-        bool burn = attacker.Status == PersistentStatus.Burn && physical && !ignoreSourceBurnPenalty;
+        bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
 
         int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn, snapshottedLiveTargets);
         BattleQueryResult damageResult = BattleQuery.Evaluate(BattleQueryId.FinalDamage, new BattleQueryValue(dmg),

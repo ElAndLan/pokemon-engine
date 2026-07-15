@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B plus the 15C-1, 15D-1, and 15E-1 foundations are complete; Phase 15 conformance continues at 57/937.**
+Status: **Phase 15B plus the 15C-1/2, 15D-1, and 15E-1 foundations are complete; Phase 15 conformance continues at 72/937.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -114,7 +114,7 @@ per-multiplication integer flooring, stage/priority/scope/insertion ordering, re
 registry clamps, invalid and overflow boundaries, and stable step traces. Controller integration
 asserts action-addressed base-power/stat/final-damage/healing traces, slot-owned doubles hooks,
 accuracy threshold flooring, and unchanged fixed damage. The full 15C-1 closeout is 1,141 green tests;
-manifest/definition regeneration remains byte-identical at 57 certified entries.
+manifest/definition regeneration remains deterministic; the later 15C-2 package advances it to 72 certified entries.
 
 ## Phase 15D-1 and 15E-1 stateful-foundation evidence
 
@@ -147,7 +147,7 @@ names, prose, assets, URLs, or raw reference JSON.
 
 - Tool unit tests pass without the local corpus.
 - The Phase 15A baseline command (without a decision catalog) reports exactly 937 entries and 0
-  certified; the current 15B command with its decision catalog reports 57 certified.
+  certified; the current Phase 15 command with its decision catalog reports 72 certified.
 - Regenerating the manifest from unchanged files is byte-identical.
 - Generated output contains no payload names or source filenames.
 - Full solution build/tests remain green.

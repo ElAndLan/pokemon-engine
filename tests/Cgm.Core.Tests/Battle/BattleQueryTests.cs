@@ -79,6 +79,8 @@ public sealed class BattleQueryTests
     [InlineData(BattleQueryId.Accuracy, 101, 100)]
     [InlineData(BattleQueryId.Healing, -1, 0)]
     [InlineData(BattleQueryId.Healing, 0, 0)]
+    [InlineData(BattleQueryId.SecondaryChance, -1, 0)]
+    [InlineData(BattleQueryId.SecondaryChance, 101, 100)]
     [InlineData(BattleQueryId.Priority, -99, -7)]
     [InlineData(BattleQueryId.Priority, 99, 7)]
     public void Registry_ClampsIntegerBoundaries(BattleQueryId query, int value, int expected)

@@ -68,7 +68,8 @@ field/side effects without requiring a fake active creature target or full doubl
 Every battle number migrated by 15C resolves through `BattleQuery`; later 15C packages must extend
 this path rather than add parallel arithmetic. The initial registry contains `basePower`,
 `offensiveStat`, `defensiveStat`, `accuracy`, `speed`,
-`healing`, `finalDamage`, `criticalChance`, `priority`, and `effectiveness`. Type/class selection is
+`healing`, `finalDamage`, `criticalChance`, `priority`, and `effectiveness`; 15C-2 adds
+`secondaryChance`. Type/class selection is
 not coerced into a number; 15C-6 supplies its typed effective-value query while feeding its numeric
 outputs back through this registry. Direct legacy fields supply only the authored-base value.
 
@@ -97,7 +98,7 @@ multiplier denominators, nonintegral operands where an integer is required, and 
 are rejected before evaluation.
 
 Registry clamps are inclusive: base power/offensive stat/defensive stat/speed `1..int.MaxValue`;
-accuracy `0..100`; healing/final damage `0..int.MaxValue`; critical chance `0/1..1/1`;
+accuracy/secondary chance `0..100`; healing/final damage `0..int.MaxValue`; critical chance `0/1..1/1`;
 effectiveness `0/1..4/1`; priority `-7..7`. An empty modifier list returns the clamped authored base. A clamp is not a failure;
 its before/after values are traced. Query context carries optional source and target slots plus
 creatures, field weather, and a nonblank ruleset profile. The numeric service does not mutate them.
@@ -200,6 +201,45 @@ the ops and their tests are unambiguous. All damage/heal amounts are **≥1** un
   `ignoreSourceBurnPenalty` takes effect only when the condition matches, and only suppresses the normal
   physical burn penalty for the source. Promotion rationale: this covers user/target status base-power
   archetypes through the normal damage formula without a move-name branch.
+
+### HP and status formula registry (Battle v6, Phase 15C-2)
+
+All HP arithmetic uses signed 64-bit intermediates, positive denominators, and floor division before
+the result enters `BattleQuery`. HP comparisons cross-multiply and therefore never use floating point.
+Formula evaluation draws no RNG. Query formulas append their ordinary `BattleQueryTraceEntry`; HP
+mutations emit the ordinary HP/faint events plus the formula event named below.
+
+| Formula/op | Inputs and exact result | Bounds, zero, and scope | Role |
+|---|---|---|---|
+| `targetHpThresholdPower` | target `currentHp/maxHp`; multiply by `multiplierNum/multiplierDen` when the ratio is below the threshold, or equal when `inclusive` is true (default) | positive fractions; nonpositive max HP leaves power unchanged; selected live target | base-power query multiply |
+| `hpRatioPower` | `source: user|target`, `basis: current|missing` (default current); if `scale` is absent, multiply authored power by `basisHp/maxHp`; otherwise replace with `max(1, offset + floor(scale * basisHp/maxHp))` | `scale >= 0`, `offset >= 0`, not both zero; nonpositive max HP leaves authored power unchanged; selected live battler | base-power query multiply or replace |
+| `hpBandPower` | compute `floor(scale * currentHp/maxHp)` for `source: user|target`, then select the first authored `upperInclusive:power` band whose upper bound contains the value | positive scale; strictly increasing nonnegative bounds; positive powers; final bound must be at least scale; nonpositive max HP leaves authored power unchanged | base-power query replace |
+| `statusPower` | persistent `status: any|value` or `volatile: confusion|flinch|bound|seeded|protected`; matching subject multiplies by the exact authored fraction | exactly one predicate, positive multiplier, `subject: user|target`; absent/mismatch is a no-op; burn-penalty bypass remains source-persistent-only | base-power query multiply |
+| `statusCountPower` | count the authored persistent/volatile predicates present on `subject: user|target|both`; replace power with `base + count * perStatus` | nonnegative base/per-status, at least one positive; duplicate predicate tokens rejected; absent statuses count zero; final query clamp supplies minimum 1 | base-power query replace |
+| `hpFraction` | existing `floor(currentHp or maxHp * num/den)`, minimum 1 | positive fraction; live recipient; heal clamps, damage may faint | current/max-HP damage or healing |
+| `hpEqualize` | `average`: set both live battlers to `floor((source currentHp + target currentHp)/2)` independently clamped to each max; `matchSource`: set target to source current HP only when target HP is higher | no effect for fainted battlers; match mismatch is a traced no-op; average uses one pre-mutation snapshot | set HP by formula |
+| `cannotKo` | ordinary or `hpFraction` move damage is capped at `target currentHp - floor`, after survive-from-full policy and before HP mutation | `floor >= 1`; no effect when target is already at/below floor; selected damage target | final move-damage floor |
+| `statusChance` | when the authored source/target persistent or volatile predicate matches, multiply the immediately following chance-gated secondary effect's percent by `num/den`, flooring and clamping to `0..100` | exactly one predicate; positive fraction; must be followed by exactly one chance-capable effect; mismatch uses authored chance; ordinary chance draw rules remain unchanged | secondary-effect chance query |
+
+Formula rows are compiled data, never move IDs. At most one HP power producer
+(`targetHpThresholdPower`, `hpRatioPower`, `hpBandPower`, or `statusCountPower`) may replace authored
+power; multiplicative threshold/status rows may compose in authored order through `BattleQuery`.
+`cannotKo` is target-scoped but is not itself chance-gated; current-HP corpus fractions compose it at
+floor 1, so a 1-HP target receives zero damage. `hpEqualize:average` does not count as move damage and
+does not populate damage memory. `hpEqualize:matchSource` observes type immunity, ignores non-immunity
+effectiveness multipliers, counts the removed HP as ordinary noncritical move damage, and populates
+existing damage memory. Both modes emit `HpFormulaChanged(slot, before, after, formula)` for each
+changed slot. `statusChance` consumes no extra draw: it changes only the bound passed to the existing
+secondary chance gate, which still skips a draw for 0%, 100%, or an ineligible effect.
+
+The locked corpus inventory for this package is: current/max HP power `move-0284`, `move-0323`,
+`move-0378`, `move-0462`, and `move-0912`; inverse HP bands `move-0175` and `move-0179`; threshold
+power `move-0362`; persistent-status power `move-0263`, `move-0265`, `move-0358`, `move-0474`,
+`move-0506`, `move-0839`, `move-0841`, and `move-0844`; current-HP fractional damage `move-0162`,
+`move-0698`, and `move-0717`; HP matching/equalization `move-0220` and `move-0283`; cannot-KO
+`move-0206` and `move-0610`. Status-count and volatile/status-dependent chance rows are registry
+coverage required by the audited family; their source entries retain later timing/condition
+dependencies and are not certified by this package alone.
 
 Rounding is floor throughout (matches Gen III/IV integer math and BATTLE_DAMAGE_CALC).
 

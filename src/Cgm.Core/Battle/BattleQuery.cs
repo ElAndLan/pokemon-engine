@@ -14,6 +14,7 @@ public enum BattleQueryId
     CriticalChance,
     Priority,
     Effectiveness,
+    SecondaryChance,
 }
 
 public enum BattleQueryValueType { Integer, Fraction }
@@ -144,6 +145,7 @@ public static class BattleQuery
         BattleQueryId.CriticalChance => Fraction(query, 0, 1),
         BattleQueryId.Priority => Integer(query, -7, 7),
         BattleQueryId.Effectiveness => Fraction(query, 0, 4),
+        BattleQueryId.SecondaryChance => Integer(query, 0, 100),
         _ => throw new ArgumentOutOfRangeException(nameof(query), query, "Unknown battle query."),
     };
 

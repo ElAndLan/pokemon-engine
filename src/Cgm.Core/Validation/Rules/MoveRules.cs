@@ -15,9 +15,12 @@ public sealed class MoveRule : IValidationRule
         {
             bool damaging = m.DamageClass != DamageClass.Status;
 
-            if (damaging && m.Power is not > 0)
+            bool formulaPower = m.Effects.Any(effect => effect.Op is "fixedDamage" or "ohko" or "counterDamage" or "hpFraction" or "hpEqualize"
+                or "hpBandPower" or "statusCountPower"
+                || effect.Op == "hpRatioPower" && effect.Params?.ContainsKey("scale") == true);
+            if (damaging && m.Power is not > 0 && !formulaPower)
                 yield return new ValidationIssue(Id, ValidationSeverity.Error, m.Id,
-                    "Damaging move must have power > 0.");
+                    "Damaging move must have power > 0 or a replacement base-power formula.");
             if (!damaging && m.Power is not null)
                 yield return new ValidationIssue(Id, ValidationSeverity.Error, m.Id,
                     "Status move must have null power.");

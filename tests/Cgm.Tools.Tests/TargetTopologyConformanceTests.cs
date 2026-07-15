@@ -9,7 +9,9 @@ namespace Cgm.Tools.Tests;
 
 public sealed class TargetTopologyConformanceTests
 {
-    public static IEnumerable<object[]> CertifiedRecords() => Catalog.Entries.Select(entry => new object[] { entry });
+    public static IEnumerable<object[]> CertifiedRecords() => Catalog.Entries
+        .Where(entry => entry.TestIds.Any(id => id.StartsWith("TargetTopologyConformanceTests.", StringComparison.Ordinal)))
+        .Select(entry => new object[] { entry });
 
     private static MoveConformanceCatalog Catalog => CgmJson.Deserialize<MoveConformanceCatalog>(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "MoveConformance", "definitions.v1.json")));
@@ -88,7 +90,7 @@ public sealed class TargetTopologyConformanceTests
         Assert.Equal(compiled.MakesContact,
             events.Any(e => e is ContactDamaged { Slot: { Side: BattleSide.Player, Position: 0 }, Amount: 1 }));
 
-        Assert.Equal([$"TargetTopologyConformanceTests.Certified({record.ReferenceKey})"], record.TestIds);
+        Assert.Contains($"TargetTopologyConformanceTests.Certified({record.ReferenceKey})", record.TestIds);
         Assert.Equal("doubles", record.RequiredTopology);
     }
 

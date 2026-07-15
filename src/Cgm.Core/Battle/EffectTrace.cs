@@ -18,6 +18,7 @@ public enum EffectTraceKind
     Critical,
     DamageRoll,
     Damage,
+    HpFormula,
     LockDuration,
     TrapDuration,
     ConfusionDuration,

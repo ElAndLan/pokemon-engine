@@ -18,13 +18,14 @@ Starting baseline:
 - Legacy expressibility audit: 468 PASS / 469 FAIL.
 - Phase 15A manifest: 937/937 inventory-only, corpus digest
   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
-- Strict end-to-end conformance certification: 57/937. Phase 15A and the complete 15B target/
-  topology workstream are complete. Its generated normalized definitions, per-reference doubles
-  vectors, cumulative golden, and focused exit review are green; remaining entries are owned by
+- Strict end-to-end conformance certification: 72/937. Phase 15A, the complete 15B target/topology
+  workstream, and 15C-2 HP/status formulas are complete. Their generated normalized definitions and
+  per-reference formula/doubles vectors are green; the 15B cumulative golden and focused exit review
+  are also green. Remaining entries are owned by
   15C-15G mechanics or later 15H reference closure. The 15C-1 exact numeric-query, 15D-1 typed-intent,
   15E-1 scoped-condition-store, 15E-2 typed-hook-dispatcher, and 15F-1 effective-value-overlay
-  foundations, plus reusable status-power, queued-gate, and HP-mutation packages, have also landed
-  outside that certified cohort.
+  foundations, plus reusable queued-gate and HP-mutation packages, have also landed outside that
+  certified cohort.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
   `IMPLEMENTATION_PLAN.md` record the growing verified suite; test count is evidence, not phase exit.
 

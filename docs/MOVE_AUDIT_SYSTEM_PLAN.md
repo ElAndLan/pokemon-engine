@@ -254,8 +254,8 @@ statuses, stat stages including accuracy/evasion, ordered multiple `statStage` e
 recoil, crash recoil via `recoil` plus `onMiss: true`, healing, multi-hit, fixed damage, OHKO,
 crit boost, self destruct, leech seed, spikes, stealth rock, weather, bind, protect, force
 switch, counter damage, accuracy bypass, charge turns, rampage locks, ailment, flinch,
-damage-stat overrides for offensive/defensive damage queries, target-HP-threshold, HP-ratio,
-and user/target-status base-power modifiers, explicit `noBattleEffect`, explicit `postBattleReward`,
+damage-stat overrides for offensive/defensive damage queries, the complete 15C-2 HP/status formula
+registry, explicit `noBattleEffect`, explicit `postBattleReward`,
 and the Phase 15 ability/held-item/form hook slice.
 
 Authored `Move.Target` now compiles into `BattleMove`. The shared topology supports one or two active
@@ -264,9 +264,8 @@ resolution, ally selection and position exchange, redirection, side/field action
 slot-addressed faint replacement. Party-member and move-reference scopes are typed but their
 mechanic-specific execution remains with later Phase 15 packages. Capability is not certification.
 The target/topology cohort has sanitized definitions, registered vectors, generated statuses, the
-cumulative golden, and a GO exit review at 57 certifications. The 15C-1 exact numeric-query
-foundation is also complete, but it advances no additional entry until a later formula package
-supplies each affected reference's complete normalized mechanics and vectors.
+cumulative golden, and a GO exit review. The 15C-1 exact numeric-query foundation and 15C-2 HP/status
+formula package are complete at 72 certifications; later formula packages own the remaining entries.
 
 ## Iteration Protocol For Future Agents
 

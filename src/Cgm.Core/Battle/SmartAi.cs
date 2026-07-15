@@ -115,7 +115,12 @@ public static class SmartAi
         if (move.Ailment is { } ailment && move.AilmentChance > 0
             && StatusEffects.CanApplyStatus(defender.Status)
             && !StatusEffects.TypeImmuneToStatus(ailment, defender.Types))
-            c.Add(new("status", weights.StatusValue * HpFraction(defender) * move.AilmentChance / 100.0));
+        {
+            AilmentEffect? effect = move.SecondaryEffects.OfType<AilmentEffect>().FirstOrDefault();
+            int chance = effect is null ? move.AilmentChance
+                : HpStatusFormulas.SecondaryChanceQuery(effect, attacker, defender).FinalValue.ToInt32();
+            c.Add(new("status", weights.StatusValue * HpFraction(defender) * chance / 100.0));
+        }
 
         if (move.StageEffect is { OnSelf: true, Delta: > 0 } setup && !ThreatensKo(defender, attacker, chart))
             c.Add(new("setup", weights.SetupValue * setup.Delta));
@@ -221,6 +226,18 @@ public static class SmartAi
         if (eff <= 0)
             return 0;
 
+        if (move.SecondaryEffects.OfType<HpFractionEffect>().SingleOrDefault() is
+            { Recipient: HpFractionRecipient.Target, Operation: HpFractionOperation.Damage } fraction)
+        {
+            int amount = EffectMath.HpFractionAmount(defender.CurrentHp, defender.MaxHp, fraction.Basis, fraction.Fraction);
+            int fractionFloor = HpStatusFormulas.CannotKoFloor(move);
+            return fractionFloor > 0
+                ? Math.Min(amount, Math.Max(0, defender.CurrentHp - fractionFloor))
+                : amount;
+        }
+        if (move.SecondaryEffects.OfType<HpEqualizeEffect>().SingleOrDefault() is { Mode: HpEqualizeMode.MatchSource })
+            return Math.Max(0, defender.CurrentHp - attacker.CurrentHp);
+
         if (move.Ohko)
             return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
                 attacker.Level >= defender.Level ? defender.CurrentHp : 0);
@@ -228,11 +245,12 @@ public static class SmartAi
             return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage, attacker.Level);
         if (move.FixedDamage is int fixedDamage)
             return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage, fixedDamage);
-        if (move.Power is not int power)
+        if (!HpStatusFormulas.HasBasePower(move))
             return 0;
 
         bool physical = move.DamageClass == DamageClass.Physical;
-        power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, power);
+        HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, defender);
+        int power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, powerQuery.AuthoredBase, powerQuery.Modifiers);
         StatKind attackStat = physical ? StatKind.Atk : StatKind.Spa;
         StatKind defenseStat = physical ? StatKind.Def : StatKind.Spd;
         int a = BattleQuery.ResolveInteger(BattleQueryId.OffensiveStat,
@@ -244,11 +262,13 @@ public static class SmartAi
             [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
                 BattleQuery.StatStageMultiplier(defender.Stage(defenseStat)), InsertionOrder: 0)]);
         double stab = TypeChart.Stab(move.Type, attacker.Types);
-        bool burn = attacker.Status == PersistentStatus.Burn && physical;
+        bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
         int oneHit = BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
             DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn));
         double hits = move.MultiHitMax >= 2 ? (move.MultiHitMin + move.MultiHitMax) / 2.0 : 1;
-        return oneHit * hits;
+        double total = oneHit * hits;
+        int floor = HpStatusFormulas.CannotKoFloor(move);
+        return floor > 0 ? Math.Min(total, Math.Max(0, defender.CurrentHp - floor)) : total;
     }
 
     /// <summary>Expected HP a reserve loses on switch-in to the AI's own side (stealth rock, type-scaled,

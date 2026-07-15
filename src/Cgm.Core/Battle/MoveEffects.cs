@@ -12,6 +12,7 @@ public abstract record MoveEffect
 {
     /// <summary>Percent chance the effect applies (chance_gate); 100 = guaranteed.</summary>
     public int Chance { get; init; } = 100;
+    public StatusChanceFormula? ChanceFormula { get; init; }
 }
 
 public enum StageEffectScope { Self, Target, Both }
@@ -21,6 +22,13 @@ public enum HpFractionRecipient { Self, Target }
 public enum HpFractionOperation { Heal, Damage }
 public enum HpFractionBasis { MaxHp, CurrentHp }
 public enum StatusPowerSubject { User, Target }
+public enum StatusCountSubject { User, Target, Both }
+public enum BattleVolatileStatus { Confusion, Flinch, Bound, Seeded, Protected }
+public sealed record StatusChanceFormula(
+    StatusPowerSubject Subject,
+    PersistentStatus? Status,
+    BattleVolatileStatus? Volatile,
+    Fraction Multiplier);
 
 /// <summary>apply_condition(persistent status) — burn/poison/paralysis/… on the target.</summary>
 public sealed record AilmentEffect(PersistentStatus Status) : MoveEffect;
@@ -91,7 +99,20 @@ public sealed record StatusPowerEffect(
     StatusPowerSubject Subject,
     PersistentStatus? Status,
     Fraction Multiplier,
-    bool IgnoreSourceBurnPenalty) : MoveEffect;
+    bool IgnoreSourceBurnPenalty,
+    BattleVolatileStatus? Volatile = null) : MoveEffect;
+
+public sealed record StatusCountPowerEffect(
+    StatusCountSubject Subject,
+    IReadOnlyList<PersistentStatus> PersistentStatuses,
+    IReadOnlyList<BattleVolatileStatus> VolatileStatuses,
+    int Base,
+    int PerStatus) : MoveEffect;
+
+public sealed record StatusChanceEffect(StatusChanceFormula Formula) : MoveEffect;
+public enum HpEqualizeMode { Average, MatchSource }
+public sealed record HpEqualizeEffect(HpEqualizeMode Mode) : MoveEffect;
+public sealed record CannotKoEffect(int Floor) : MoveEffect;
 
 /// <summary>apply_condition(volatile:focus_energy) — raises the user's crit stage.</summary>
 public sealed record CritBoostEffect(int Stages) : MoveEffect;

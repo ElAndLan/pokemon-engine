@@ -127,7 +127,9 @@ public static class MoveConformanceNormalizer
         EntityId type = EntityId.Parse($"type:reference_{ReferenceId(payload, "type", path):D2}");
         JsonElement? meta = OptionalObject(payload, "meta");
 
-        if (damageClass == DamageClass.Status ? power is not null : power is not > 0)
+        bool replacementPower = decision.AdditionalEffects?.Any(effect => effect.Op is "hpBandPower" or "statusCountPower" or "hpFraction" or "hpEqualize"
+            || effect.Op == "hpRatioPower" && effect.Params?.ContainsKey("scale") == true) == true;
+        if (damageClass == DamageClass.Status ? power is not null : power is not > 0 && !replacementPower)
             throw Invalid(path, "power is inconsistent with damage_class");
         if (accuracy is not null && accuracy is < 1 or > 100)
             throw Invalid(path, "accuracy must be 1-100 or null");
@@ -165,7 +167,13 @@ public static class MoveConformanceNormalizer
         MoveCompiler.ToBattleMove(mechanics.ToMove(referenceKey));
         string definitionHash = Hash(Encoding.UTF8.GetBytes(CgmJson.Serialize(mechanics)));
         string topology = RequiresDoubles(target) ? "doubles" : "singles-or-doubles";
-        string testId = $"TargetTopologyConformanceTests.Certified({referenceKey})";
+        var testIds = new List<string>();
+        if (RequiresDoubles(target))
+            testIds.Add($"TargetTopologyConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => IsHpStatusFormula(effect.Op)))
+            testIds.Add($"HpStatusFormulaConformanceTests.Certified({referenceKey})");
+        if (testIds.Count == 0)
+            throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
             referenceKey,
             Hash(bytes),
@@ -175,7 +183,7 @@ public static class MoveConformanceNormalizer
             Families(mechanics),
             mechanics,
             definitionHash,
-            [testId]);
+            testIds);
     }
 
     private static void AddAilment(JsonElement meta, List<Effect> effects, string path)
@@ -269,6 +277,10 @@ public static class MoveConformanceNormalizer
         MoveTarget.AllOpponents or MoveTarget.AllOtherPokemon or MoveTarget.AllAllies or MoveTarget.AllPokemon
         or MoveTarget.Ally or MoveTarget.RandomOpponent or MoveTarget.SelectedPokemonMeFirst
         or MoveTarget.UserAndAllies or MoveTarget.UserOrAlly;
+
+    private static bool IsHpStatusFormula(string op) => op is "targetHpThresholdPower" or "hpRatioPower"
+        or "hpBandPower" or "statusPower" or "statusCountPower" or "hpFraction" or "hpEqualize"
+        or "cannotKo" or "statusChance";
 
     private static MoveTarget ParseTarget(string value, string path) => value switch
     {

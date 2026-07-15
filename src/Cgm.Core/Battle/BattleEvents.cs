@@ -112,6 +112,7 @@ public sealed record HpFractionDamaged(BattleSlot Slot, int Amount) : BattleEven
     public BattleSide Side => Slot.Side;
     public HpFractionDamaged(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
 }
+public sealed record HpFormulaChanged(BattleSlot Slot, int Before, int After, HpEqualizeMode Formula) : BattleEvent;
 public sealed record HpCostPaid(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

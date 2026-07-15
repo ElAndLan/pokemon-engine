@@ -148,6 +148,81 @@ public sealed class SmartAiTests
     }
 
     [Fact]
+    public void FormulaPower_WithNoAuthoredPower_IsScoredFromTheCurrentTargetSnapshot()
+    {
+        var formula = new BattleMove(EntityId.Parse("move:formula"), Normal, DamageClass.Physical,
+            null, 100, 10, 0, 0,
+            hpBandPower: new HpBandPower(HpRatioPowerSource.Target, 64,
+                [new HpPowerBand(32, 200), new HpPowerBand(64, 20)]));
+        var attacker = Attacker(Damage(Normal, 5, slug: "weak"), formula);
+
+        Assert.Equal(1, SmartAi.ChooseMove(attacker, Defender(Normal, curHp: 80), Chart(), new Rng(1)));
+    }
+
+    [Fact]
+    public void HpFractionDamage_WithNoAuthoredPower_IsScoredAsDirectDamage()
+    {
+        var fraction = new BattleMove(EntityId.Parse("move:fraction"), Normal, DamageClass.Physical,
+            null, 100, 10, 0, 0, secondaryEffects:
+            [new HpFractionEffect(HpFractionRecipient.Target, HpFractionOperation.Damage,
+                HpFractionBasis.CurrentHp, new Fraction(1, 2)), new CannotKoEffect(1)]);
+        var attacker = Attacker(Damage(Normal, 5, slug: "weak"), fraction);
+
+        Assert.Equal(1, SmartAi.ChooseMove(attacker, Defender(Normal), Chart(), new Rng(1)));
+    }
+
+    [Fact]
+    public void HpEqualizeMatchSource_IsScoredAsExactDamage()
+    {
+        var equalize = new BattleMove(EntityId.Parse("move:equalize"), Normal, DamageClass.Status,
+            null, 100, 10, 0, 0, secondaryEffects: [new HpEqualizeEffect(HpEqualizeMode.MatchSource)]);
+        BattleCreature attacker = Attacker(Damage(Normal, 5, slug: "weak"), equalize);
+        attacker.TakeDamage(80);
+
+        Assert.Equal(1, SmartAi.ChooseMove(attacker, Defender(Normal), Chart(), new Rng(1)));
+    }
+
+    [Fact]
+    public void StatusChanceFormula_ChangesSmartAiStatusValue()
+    {
+        var conditional = new BattleMove(EntityId.Parse("move:conditional"), Normal, DamageClass.Status,
+            null, 100, 10, 0, 0, ailment: PersistentStatus.Paralysis, ailmentChance: 40,
+            secondaryEffects: [new AilmentEffect(PersistentStatus.Paralysis)
+            {
+                Chance = 40,
+                ChanceFormula = new StatusChanceFormula(StatusPowerSubject.User, PersistentStatus.Burn,
+                    null, new Fraction(2, 1)),
+            }]);
+        var plain = new BattleMove(EntityId.Parse("move:plain"), Normal, DamageClass.Status,
+            null, 100, 10, 0, 0, ailment: PersistentStatus.Paralysis, ailmentChance: 60);
+        BattleCreature attacker = Attacker(plain, conditional);
+        attacker.SetStatus(PersistentStatus.Burn);
+
+        SmartAiDecision decision = SmartAi.ChooseAction(Ctx([attacker], [Defender(Normal)]));
+
+        Assert.Equal(new UseMove(1), decision.Action);
+        double conditionalValue = decision.Scores.Single(score => score.Action == new UseMove(1))
+            .Components.Single(component => component.Name == "status").Value;
+        double plainValue = decision.Scores.Single(score => score.Action == new UseMove(0))
+            .Components.Single(component => component.Name == "status").Value;
+        Assert.Equal(48, conditionalValue);
+        Assert.Equal(36, plainValue);
+    }
+
+    [Fact]
+    public void LegacyAilmentMetadata_RemainsSafeWhenTypedEffectsAreExplicitlyEmpty()
+    {
+        var legacy = new BattleMove(EntityId.Parse("move:legacy"), Normal, DamageClass.Status,
+            null, 100, 10, 0, 0, ailment: PersistentStatus.Paralysis, ailmentChance: 60,
+            secondaryEffects: []);
+        BattleCreature attacker = Attacker(legacy);
+
+        AiCandidateScore score = Assert.Single(SmartAi.ChooseAction(Ctx([attacker], [Defender(Normal)])).Scores);
+
+        Assert.Equal(36, score.Components.Single(component => component.Name == "status").Value);
+    }
+
+    [Fact]
     public void Memory_RecordsSeenAndRepeatedPlayerMoves()
     {
         var memory = new SmartAiMemory();

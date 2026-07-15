@@ -345,11 +345,19 @@ suppressed, and one root action may emit at most 64 nested intents.
 
 `BattleQuery` is the single implemented `ApplyQueryModifiers` path. Its closed initial IDs are
 base power, offensive stat, defensive stat, accuracy, speed, healing, final damage, critical chance,
-priority, and effectiveness. Values are integers or reduced exact fractions; modifiers are typed
+priority, effectiveness, and the 15C-2 secondary chance extension. Values are integers or reduced exact fractions; modifiers are typed
 replace/add/multiply/min/max records assigned to source/target state, ability/item/condition, or
 ruleset stages. Ordering, per-multiply flooring, clamps, validation, and deterministic trace fields
 are locked in `BATTLE_SYSTEM_SPEC.md` under “Unified numeric query pipeline.” Conditions and hooks
 produce modifiers; they do not perform their own numeric stacking or rounding.
+
+Phase 15C-2 extends the closed formula vocabulary without adding a damage resolver: `hpRatioPower`
+(current/missing, multiply or linear replacement), `hpBandPower`, `targetHpThresholdPower`,
+`statusPower` (persistent or volatile predicate), `statusCountPower`, `statusChance`, the existing
+`hpFraction`, `hpEqualize`, and `cannotKo`. Their typed params, inclusivity, floor/clamp, zero,
+failure, event, trace, and composition rules are the HP/status formula registry in
+`BATTLE_SYSTEM_SPEC.md`. Power-producing rows feed `BattleQuery.BasePower`; chance-producing rows
+feed the existing secondary chance gate; HP-changing rows use the shared controller HP path.
 
 ### 4.6 Accuracy, Damage, And HP Helpers
 

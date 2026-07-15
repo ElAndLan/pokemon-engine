@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Cgm.Core.Model;
+using Cgm.Core.Battle;
 using Cgm.Tools.MoveAudit;
 
 namespace Cgm.Tools.Tests;
@@ -63,7 +64,32 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
         Assert.Throws<InvalidDataException>(() => MoveConformanceNormalizer.Build(_folder, valid));
     }
 
-    private string WriteMove(string name, int id)
+    [Fact]
+    public void Build_RegistersFormulaVectorsAndRejectsUnownedSinglesRows()
+    {
+        WriteMove("neutral_formula", 900, "selected-pokemon");
+        var formula = new Effect
+        {
+            Op = "targetHpThresholdPower",
+            Params = new Dictionary<string, JsonElement>
+            {
+                ["thresholdNum"] = JsonSerializer.SerializeToElement(1),
+                ["thresholdDen"] = JsonSerializer.SerializeToElement(2),
+                ["multiplierNum"] = JsonSerializer.SerializeToElement(2),
+                ["multiplierDen"] = JsonSerializer.SerializeToElement(1),
+            },
+        };
+        var decisions = new MoveConformanceDecisionCatalog(1, ["neutral-test-evidence"],
+            [new("move-0900", false, [formula])]);
+
+        MoveConformanceRecord record = Assert.Single(MoveConformanceNormalizer.Build(_folder, decisions).Entries);
+        Assert.Equal(["HpStatusFormulaConformanceTests.Certified(move-0900)"], record.TestIds);
+
+        var unowned = new MoveConformanceDecisionCatalog(1, ["neutral-test-evidence"], [new("move-0900", false)]);
+        Assert.Throws<InvalidDataException>(() => MoveConformanceNormalizer.Build(_folder, unowned));
+    }
+
+    private string WriteMove(string name, int id, string target = "all-opponents")
     {
         string json = $$"""
         {
@@ -78,7 +104,7 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
             "accuracy": 100,
             "pp": 20,
             "priority": 0,
-            "target": { "name": "all-opponents" },
+            "target": { "name": "{{target}}" },
             "stat_changes": [{ "change": -1, "stat": { "name": "special-defense" } }],
             "meta": {
               "ailment": { "name": "none" },

@@ -129,8 +129,8 @@ Roadmap baseline commit: `b69bcb2` (`Lock Phase 15 doubles execution roadmap`).
 - PokeAPI move corpus: 937 JSON files in `docs/pokeapi-results/move/`.
 - Existing expressibility audit: 468 PASS / 469 FAIL. PASS means “current generic operations appear
   capable of expressing this move”; it does **not** yet mean end-to-end certification.
-- Certified Phase 15 move coverage: **57/937** from the generated 15B target/topology cohort; the
-  earlier 0/937 value remains the locked Phase 15A baseline.
+- Certified Phase 15 move coverage: **72/937** from the generated 15B target/topology and 15C-2
+  HP/status-formula cohorts; the earlier 0/937 value remains the locked Phase 15A baseline.
 
 Roadmap audit (2026-07-11): the prior plan fully locked 15B but still left 15C-15I and Phases 16-19
 as capability summaries or “spec later” outlines. Version 4 replaces those with package IDs,
@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1, 15D-1, 15E-1/2, and 15F-1 complete; 937 inventoried, 57/937 certified; next package 15C-2** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2, 15D-1, 15E-1/2, and 15F-1 complete; 937 inventoried, 72/937 certified; next package 15C-3** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -419,7 +419,8 @@ Current readiness ledger:
 | 15B-5 redirection and position | SPEC READY | IMPLEMENTED | Position-swap and redirection acceptance matrix, deterministic trace, and closeout review passed |
 | 15B-6 faint outcome and replacement | SPEC READY | IMPLEMENTED | Draw-capable outcome, atomic replacement loop, slot-addressed entry hooks, and replacement golden |
 | 15C-1 unified query pipeline | SPEC READY | IMPLEMENTED | Exact integer/fraction service, modifier order/clamps, controller/AI consumers, and query traces |
-| 15C-2 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
+| 15C-2 HP and status formulas | SPEC READY | IMPLEMENTED | Boundary/compiler/resolver/trace/AI matrices and 18 generated neutral formula vectors |
+| 15C-3 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed condition stores and the shared deterministic hook dispatcher are complete; apply 15E-3 through 15E-7 mechanic defaults after their prerequisites |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
@@ -1128,7 +1129,7 @@ Ordered feature packages:
    healing, AI preview, and trace. Direct legacy fields feed authored-base only. **Acceptance:** one
    vector per modifier kind, negative/zero/overflow guards, exact intermediate floors, stable hook
    ordering, unknown query/modifier rejection, and old fixed-damage results unchanged.
-2. **15C-2 — HP and status formula registry (`PLANNED`; prerequisite 15C-1).** Inventory every
+2. **15C-2 — HP and status formula registry (`IMPLEMENTED`; prerequisite 15C-1).** Inventory every
    HP/status audit key and lock rows for current/max/missing HP ratio, exact HP bands, source/target
    persistent/volatile status predicates, status-count, HP equalization, cannot-KO floor, current-HP
    and max-HP damage, and status-dependent secondary chance. Every row names numerator/denominator,
@@ -1207,6 +1208,28 @@ formula family; regeneration was byte-identical. Verification: `dotnet build Cre
 passed with 0 warnings/errors; `dotnet test CreatureGameMaker.slnx --no-build` passed 1,141 tests
 (949 Core, 104 Creator, 21 Runtime, 67 Tools). Focused review findings (critical-chance clamp and
 fixed-family final-query coverage) were fixed; verdict GO. Next eligible package: **15D-1**.
+
+Progress (2026-07-14): **15C-2 COMPLETE.** The battle spec and effect catalog now publish the closed
+HP/status formula registry and exact integer semantics for HP thresholds, current/missing-HP linear
+power, authored HP bands, persistent/volatile status predicates and counts, status-conditioned
+secondary chance, HP averaging and source matching, current/max-HP mutation, and cannot-KO floors.
+All formula power enters the 15C-1 base-power query; secondary chance has its own clamped query ID;
+source-matching HP reduction uses the shared damage path and observes type immunity; and formula
+damage is visible to Smart AI without bespoke move identities. Compiler validation rejects unknown,
+duplicate, malformed, mis-targeted, and invalidly composed formula ops. Resolver evidence covers
+threshold±1, every band edge, 1/full HP, persistent and every supported volatile predicate,
+no-status/mismatch, per-target doubles snapshots, rounding/clamping, immunity, damage bookkeeping,
+cannot-KO interaction, unchanged chance-draw counts, events, and query/effect traces. The generated
+catalog adds 15 newly complete entries and attaches HP/status vectors to three already-certified
+topology entries, for 937 inventoried / 72 certified with unchanged corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`. Schema/migration and
+dependency impact: none. `dotnet build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/
+errors; `dotnet test CreatureGameMaker.slnx --no-build` passed 1,258 tests (1,047 Core, 104 Creator,
+21 Runtime, 86 Tools); the complete Core and Tools coverage runs exercised 383/383 newly coverable
+production lines (100%); deterministic regeneration was byte-identical; and `git diff --check`
+passed. The closeout review found and fixed current-HP damage bypassing its cannot-KO floor,
+source-matching HP damage bypassing immunity/bookkeeping, and Smart AI omitting formula previews;
+verdict GO. Next eligible package: **15C-3**.
 
 Exit: formula families have table tests, exact rounding, compiler/validation coverage, and all
 affected moves receive conformance cases.
@@ -2256,10 +2279,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1, 15D-1, 15E-1/2, and 15F-1. ACTIVE — 15C-2.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2, 15D-1, 15E-1/2, and 15F-1. ACTIVE — 15C-3.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15C-2**; **15C-3**;
-   **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
+   **15C-3**; **15C-4**; **15G-2**; **15C-5**; **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.

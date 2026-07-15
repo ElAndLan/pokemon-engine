@@ -11,9 +11,13 @@ public sealed record StageAllEffect(int Delta, bool OnSelf, int Chance);
 /// <summary>A rational fraction (num/den) for drain/recoil/heal effect amounts.</summary>
 public readonly record struct Fraction(int Num, int Den);
 
-public sealed record TargetHpThresholdPower(Fraction Threshold, Fraction Multiplier);
+public sealed record TargetHpThresholdPower(Fraction Threshold, Fraction Multiplier, bool Inclusive = true);
 public enum HpRatioPowerSource { User, Target }
-public sealed record HpRatioPower(HpRatioPowerSource Source);
+public enum HpRatioPowerBasis { Current, Missing }
+public sealed record HpRatioPower(HpRatioPowerSource Source, HpRatioPowerBasis Basis = HpRatioPowerBasis.Current,
+    int? Scale = null, int Offset = 0);
+public sealed record HpPowerBand(int UpperInclusive, int Power);
+public sealed record HpBandPower(HpRatioPowerSource Source, int Scale, IReadOnlyList<HpPowerBand> Bands);
 
 /// <summary>A move as it exists in battle: static data + remaining PP (BATTLE_SYSTEM_SPEC).</summary>
 public sealed class BattleMove
@@ -33,7 +37,8 @@ public sealed class BattleMove
         MoveTarget target = MoveTarget.Selected, StageAllEffect? stageAllEffect = null,
         IReadOnlyList<MoveEffect>? secondaryEffects = null,
         StatKind? offensiveStatOverride = null, StatKind? defensiveStatOverride = null,
-        TargetHpThresholdPower? targetHpThresholdPower = null, HpRatioPower? hpRatioPower = null)
+        TargetHpThresholdPower? targetHpThresholdPower = null, HpRatioPower? hpRatioPower = null,
+        HpBandPower? hpBandPower = null)
     {
         Move = move;
         Type = type;
@@ -78,6 +83,7 @@ public sealed class BattleMove
         DefensiveStatOverride = defensiveStatOverride;
         TargetHpThresholdPower = targetHpThresholdPower;
         HpRatioPower = hpRatioPower;
+        HpBandPower = hpBandPower;
         SecondaryEffects = secondaryEffects ?? BuildSecondaryEffects();
     }
 
@@ -127,6 +133,7 @@ public sealed class BattleMove
         DefensiveStatOverride = source.DefensiveStatOverride;
         TargetHpThresholdPower = source.TargetHpThresholdPower;
         HpRatioPower = source.HpRatioPower;
+        HpBandPower = source.HpBandPower;
         SecondaryEffects = source.SecondaryEffects;
     }
 
@@ -258,6 +265,7 @@ public sealed class BattleMove
     public StatKind? DefensiveStatOverride { get; }
     public TargetHpThresholdPower? TargetHpThresholdPower { get; }
     public HpRatioPower? HpRatioPower { get; }
+    public HpBandPower? HpBandPower { get; }
 
     public bool HasPp => Pp > 0;
     public void UsePp() => Pp = Math.Max(0, Pp - 1);
