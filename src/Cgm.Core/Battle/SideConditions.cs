@@ -10,6 +10,7 @@ public enum BattleSideCondition
     StatusGuard,
     StageDropGuard,
     SpeedBoost,
+    CriticalGuard,
 }
 
 public static class SideConditions
@@ -27,6 +28,7 @@ public static class SideConditions
             [BattleSideCondition.StageDropGuard] = Guard("side:stage_drop_guard", "side_stage_drop_guard",
                 BattleConditionHook.SecondaryEffect, "stage_guard"),
             [BattleSideCondition.SpeedBoost] = Speed("side:speed_boost", "side_speed_boost"),
+            [BattleSideCondition.CriticalGuard] = Critical("side:critical_guard", "side_critical_guard"),
         };
 
     public static IReadOnlyList<BattleConditionDefinition> Definitions { get; } = [.. Rows.Values];
@@ -105,6 +107,24 @@ public static class SideConditions
             new BattleHookDispatchContext(actionSequence, BattleConditionHook.StatQuery), registrations);
     }
 
+    public static BattleHookDispatchSnapshot CollectCriticalHooks(
+        IEnumerable<BattleConditionInstance> conditions, BattleSide sourceSide, BattleSide targetSide,
+        int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        if (!Enum.IsDefined(sourceSide) || !Enum.IsDefined(targetSide))
+            throw new ArgumentOutOfRangeException(nameof(targetSide));
+        BattleConditionInstance? instance = sourceSide == targetSide ? null : conditions.SingleOrDefault(item =>
+            item.Owner == Owner(targetSide) && item.Definition.Id == For(BattleSideCondition.CriticalGuard).Id);
+        BattleHookRegistration[] registrations = instance is null ? []
+            : [BattleHookRegistration.ForCondition(instance, BattleConditionHook.CriticalQuery, 0, 0,
+                new BattleHookQueryModifier(BattleQueryId.CriticalChance,
+                    new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Min,
+                        new BattleQueryValue(0), OwnerScope: BattleQueryOwnerScope.TargetSide)))];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.CriticalQuery), registrations);
+    }
+
     private static bool Applies(BattleConditionInstance instance, DamageClass damageClass) =>
         instance.Definition.Id == For(BattleSideCondition.AllDamageScreen).Id
         || damageClass == DamageClass.Physical
@@ -169,6 +189,20 @@ public static class SideConditions
         DefaultDuration = 4,
         DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
         Tags = ["speed_order"],
+        StackingKey = stackingKey,
+        StackingPolicy = BattleConditionStackingPolicy.Reject,
+        SwitchPolicy = BattleConditionSwitchPolicy.StayScope,
+        FaintPolicy = BattleConditionFaintPolicy.Persist,
+    };
+
+    private static BattleConditionDefinition Critical(string id, string stackingKey) => new()
+    {
+        Id = new BattleConditionId(id),
+        Scope = BattleConditionScope.Side,
+        Hooks = [BattleConditionHook.CriticalQuery],
+        DefaultDuration = DefaultTurns,
+        DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
+        Tags = ["critical_guard"],
         StackingKey = stackingKey,
         StackingPolicy = BattleConditionStackingPolicy.Reject,
         SwitchPolicy = BattleConditionSwitchPolicy.StayScope,

@@ -770,6 +770,15 @@ current turn. Later schedules and speed-based formulas use the same query. Trick
 finished ordering rather than altering the multiplier. No bypass, barrier cleanup, private timer,
 or additional RNG belongs to this row.
 
+### 7.7e Side Critical Guard
+
+`sideCondition { condition: criticalGuard, duration? }` creates a five-checkpoint, source-independent,
+reject-on-duplicate side condition tagged `critical_guard`. Its `CriticalQuery` hook clamps the
+opposing per-hit `CriticalChance` to zero for owning-side targets. The ordinary critical draw still
+occurs before the damage roll, preserving deterministic draw order while removing crit damage and
+crit-only stage bypass; screens therefore see the hit as noncritical. One instance serves both
+doubles slots. The row has no bypass, barrier tag, private timer, or early-removal special case.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

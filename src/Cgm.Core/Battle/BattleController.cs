@@ -2645,7 +2645,15 @@ public sealed class BattleController
             return (0, false, eff);
 
         bool physical = move.DamageClass == DamageClass.Physical;
-        bool crit = BattleRolls.IsCrit(move.CritStage + attacker.CritStageBonus, _rng, out double critRoll);
+        BattleHookDispatchSnapshot critical = SideConditions.CollectCriticalHooks(
+            ConditionSnapshot, sourceSlot.Side, targetSlot.Side, traceAction);
+        _hookTrace.AddRange(critical.Trace);
+        BattleQueryResult criticalResult = BattleQuery.Evaluate(BattleQueryId.CriticalChance,
+            BattleRolls.CritChanceValue(move.CritStage + attacker.CritStageBonus),
+            critical.QueryModifiers(BattleQueryId.CriticalChance),
+            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather, Ruleset, CurrentTerrain));
+        _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, criticalResult));
+        bool crit = BattleRolls.IsCrit(criticalResult.FinalValue, _rng, out double critRoll);
         critDraw = critRoll;
         int roll = BattleRolls.DamageRoll(_rng, out int randomRoll);
         damageRollDraw = randomRoll;

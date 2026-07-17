@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-4 after green screen, side-guard, and side speed/order checkpoints** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-4 after green screen, side-guard, side speed/order, and critical-guard checkpoints** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -1966,6 +1966,31 @@ inventoried / 84 certified with corpus digest
 `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check`
 passed. The package remains `IN PROGRESS`: critical guards are next; pledges and side-wide
 protection remain later criteria. No per-move certification count advances at this checkpoint.
+
+**15E-4 side critical-guard checkpoint (`IN PROGRESS`; 2026-07-17).** The reusable critical-guard
+criterion is green. `criticalGuard` is a typed five-checkpoint side-owned `CriticalQuery` condition
+that clamps opposing per-hit critical chance to exact zero for either owning-side doubles slot.
+The ordinary critical draw remains before the damage roll, so RNG count/order is unchanged while
+crit damage, crit-only stage bypass, and crit-based screen bypass are suppressed. Duplicate
+application rejects without refresh; source switch/faint does not remove the shared instance; same-
+side and formula-bypassing damage remain outside the filter. Resolver traces expose the exact
+critical query and side hook. Smart AI sees the immutable condition but remains intentionally neutral
+because its current shared damage estimate is already noncritical; no speculative score term or RNG
+was added. Production changes: `SideConditions.cs`, `BattleRolls.cs`, and `BattleController.cs`.
+Tests: `BattleSideCriticalGuardTests.cs` plus exact-rational crit-stage assertions in
+`BattleRollsTests.cs`. Owning contracts updated: `BATTLE_SYSTEM_SPEC.md`,
+`BATTLE_DAMAGE_CALC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`, `BATTLE_AI_SPEC.md`,
+`TESTING_STRATEGY.md`, `SCOPE_GUARD.md`, and this plan. Schema/migration, dependency, and new-event
+impact: none. Verification: focused critical-guard tests passed 8/8; the broader side/roll/damage/
+query/AI/replay/doubles regression filter passed 187 tests; full solution build passed with 0
+warnings/errors; full solution passed 1,591 tests (1,368 Core, 104 Creator, 21 Runtime, 98 Tools).
+Decision-catalog regeneration was byte-identical at 937 inventoried / 84 certified with corpus
+digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check`
+passed. Focused review changed the initial zero replacement to a zero clamp so same-stage source
+critical additions/multipliers cannot override the guard; no blocking scope, schema, dependency,
+determinism, AI-fairness, IP, lifecycle, query-order, or event finding remains. The package remains
+`IN PROGRESS`: pledge side conditions are next; side-wide protection remains the final criterion.
+No per-move certification count advances at this checkpoint.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup

@@ -48,16 +48,17 @@ public sealed class BattleRollsTests
     }
 
     [Theory]
-    [InlineData(0, 1.0 / 16)]
-    [InlineData(-3, 1.0 / 16)] // clamped low
-    [InlineData(1, 1.0 / 8)]
-    [InlineData(2, 1.0 / 4)]
-    [InlineData(3, 1.0 / 3)]
-    [InlineData(4, 1.0 / 2)]
-    [InlineData(9, 1.0 / 2)] // clamped high
-    public void CritChance_ByStage(int stage, double expected)
+    [InlineData(0, 1, 16)]
+    [InlineData(-3, 1, 16)] // clamped low
+    [InlineData(1, 1, 8)]
+    [InlineData(2, 1, 4)]
+    [InlineData(3, 1, 3)]
+    [InlineData(4, 1, 2)]
+    [InlineData(9, 1, 2)] // clamped high
+    public void CritChance_ByStage(int stage, int numerator, int denominator)
     {
-        Assert.Equal(expected, BattleRolls.CritChance(stage), precision: 10);
+        Assert.Equal(new BattleQueryValue(numerator, denominator), BattleRolls.CritChanceValue(stage));
+        Assert.Equal((double)numerator / denominator, BattleRolls.CritChance(stage), precision: 10);
     }
 
     [Fact]

@@ -249,6 +249,10 @@ Capabilities beyond Beginner:
   stages, status, and overlays. It feeds existing action-history before/after inputs and speed-ratio
   power scoring; Trick Room reverses the completed effective-Speed comparison. The AI adds no
   speed-condition score term, reads no submitted opposing action, and consumes no additional RNG.
+- Side critical-guard state is visible through the resolver's target-side `CriticalChance` query.
+  The current deterministic estimate already uses a noncritical midpoint, so the guard adds no score
+  component and does not alter present damage/KO values. AI preview neither rolls critical RNG nor
+  infers hidden state; a future critical expected-value model must consume this same query.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

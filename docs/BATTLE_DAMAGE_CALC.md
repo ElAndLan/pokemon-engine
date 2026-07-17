@@ -78,6 +78,11 @@ does not compute it.
   (uses the unmodified stat for those), keeping the ones that help the attacker.
 - One `IRng` draw for the crit check, taken before the random-roll draw. Draw order is fixed for
   determinism.
+- The Phase 15E side critical guard contributes a target-side `CriticalChance` clamp to zero
+  after the stage-derived chance is authored and before the per-hit critical draw. The draw is not
+  skipped. A guarded hit is noncritical for the damage multiplier, stage-ignore rule, screen
+  eligibility, events, damage memory, and traces. Formula-bypassing damage performs no critical
+  query or draw.
 
 ## 7. Stat-stage multipliers (offensive/defensive)
 Stages clamp to −6..+6. For Attack/Defense/Sp.Atk/Sp.Def used in damage:

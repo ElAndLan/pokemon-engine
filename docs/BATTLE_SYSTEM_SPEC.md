@@ -1552,6 +1552,36 @@ Acceptance vectors: `side-speed-compile-profile`, `side-speed-stage-status-order
 `side-speed-doubles-shared`, `side-speed-trick-room`, `side-speed-formula-ai-parity`,
 `side-speed-query-hook-trace`, and `side-speed-no-condition-rng`.
 
+### Side critical guard (Phase 15E-4)
+
+`sideCondition { condition: criticalGuard, duration? }` registers `side:critical_guard` with
+`CriticalQuery`, tag `critical_guard`, five `TurnEnd` checkpoints including application, one distinct
+side stacking key, duplicate rejection without refresh, and `stayScope`/`persist` cleanup. Both
+ruleset profiles share the row. The source may switch or faint; one shared instance protects both
+active doubles slots and expires only through its duration or battle end.
+
+For each ordinary damaging hit from the opposing side against an owning-side target, the condition
+clamps the exact-rational `CriticalChance` query to zero at the Hooks stage after authored/source
+replacements, additions, and multipliers. The resolver still
+performs the normal per-hit critical RNG draw at the established crit-then-damage-roll position; the
+zero chance makes the result noncritical. This preserves draw count/order while suppressing the
+critical damage multiplier and critical-only offensive/defensive stage bypass. Because the resolved
+hit is noncritical, matching screens apply normally. Formula-bypassing damage never enters the
+critical query, and same-side damage is not an opposing critical attempt.
+
+The row has no bypass and is not a `barrier`; no current reference interaction removes it early.
+Generic ID/tag/source removal or side transfer remains 15E-7. Resolution emits ordinary condition
+lifecycle events/traces plus per-hit critical hook/query and existing critical-roll traces; it adds
+no presentation event. Smart AI's current deterministic damage estimate already assumes a
+noncritical midpoint roll, so the visible guard query adds no score component or RNG until the AI
+owns a shared critical expected-value model.
+
+Acceptance vectors: `critical-guard-compile`, `critical-guard-owner-duplicate`,
+`critical-guard-present-absent-opponent`, `critical-guard-draw-preserved`,
+`critical-guard-stage-and-screen`, `critical-guard-doubles-multihit`,
+`critical-guard-source-switch-expiry`, `critical-guard-query-hook-trace`,
+`critical-guard-ai-neutral`, and `critical-guard-replay`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

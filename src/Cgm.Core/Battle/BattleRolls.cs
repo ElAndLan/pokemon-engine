@@ -23,17 +23,25 @@ public static class BattleRolls
     }
 
     /// <summary>Gen III/IV crit chance by stage: 1/16, 1/8, 1/4, 1/3, then 1/2.</summary>
-    public static double CritChance(int stage) => stage switch
+    public static BattleQueryValue CritChanceValue(int stage) => stage switch
     {
-        <= 0 => 1.0 / 16,
-        1 => 1.0 / 8,
-        2 => 1.0 / 4,
-        3 => 1.0 / 3,
-        _ => 1.0 / 2,
+        <= 0 => new BattleQueryValue(1, 16),
+        1 => new BattleQueryValue(1, 8),
+        2 => new BattleQueryValue(1, 4),
+        3 => new BattleQueryValue(1, 3),
+        _ => new BattleQueryValue(1, 2),
     };
+
+    public static double CritChance(int stage)
+    {
+        BattleQueryValue chance = CritChanceValue(stage);
+        return (double)chance.Numerator / chance.Denominator;
+    }
 
     public static bool IsCrit(int stage, IRng rng) => rng.NextDouble() < CritChance(stage);
     public static bool IsCrit(int stage, IRng rng, out double draw) => (draw = rng.NextDouble()) < CritChance(stage);
+    internal static bool IsCrit(BattleQueryValue chance, IRng rng, out double draw) =>
+        (draw = rng.NextDouble()) < (double)chance.Numerator / chance.Denominator;
 
     /// <summary>The 85–100 damage roll (inclusive).</summary>
     public static int DamageRoll(IRng rng) => 85 + rng.Next(16);

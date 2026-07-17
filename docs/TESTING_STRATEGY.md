@@ -257,6 +257,12 @@ both doubles slots from one side instance, Trick Room after effective Speed, spe
 parity, query/hook trace ownership, and zero condition RNG. The existing open effect payload remains
 the serialized boundary, so no schema vector changes.
 
+The 15E-4 side critical-guard checkpoint covers strict compilation, owner/coexist/duplicate policy,
+five-checkpoint lifecycle and source switching, opposing versus same-side scope, exact zero
+`CriticalChance`, preserved per-hit crit/damage RNG order, crit-stage and stat-stage boundaries,
+screen interaction, doubles/multi-hit shared ownership, query/hook/event/trace output, AI-neutral
+visibility, and deterministic replay. It adds no schema vector or presentation event.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle
