@@ -21,6 +21,8 @@ public enum EffectTraceKind
     Damage,
     HpFormula,
     LockDuration,
+    Charge,
+    SemiInvulnerability,
     TrapDuration,
     ConfusionDuration,
     Protect,

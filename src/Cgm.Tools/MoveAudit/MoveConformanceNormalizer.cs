@@ -182,6 +182,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"PartyResourceFormulaConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => IsActionGate(effect.Op)))
             testIds.Add($"ActionGateConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => IsCharge(effect.Op)))
+            testIds.Add($"ChargeConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
@@ -301,6 +303,9 @@ public static class MoveConformanceNormalizer
         or "ppPower" or "positiveStagePower" or "itemDataPower" or "randomTablePower";
 
     private static bool IsActionGate(string op) => op is "moveGate" or "queueActionGate" or "recharge";
+
+    private static bool IsCharge(string op) => op is "chargeTurn" or "chargeStartStat"
+        or "semiInvulnerableHit";
 
     private static MoveTarget ParseTarget(string value, string path) => value switch
     {

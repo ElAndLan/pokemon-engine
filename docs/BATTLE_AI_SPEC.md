@@ -232,6 +232,11 @@ Capabilities beyond Beginner:
   checks. It never inspects the player's submitted action this turn for target-action or moved-
   before/after gates. Due recharge/generic action blocks are applied by controller intent preview
   before validation, so AI scoring adds no hidden workaround or new RNG.
+- Phase 15D-3 exposes an owned charge as one forced `chargeRelease` candidate using the stored move
+  index; it is not rescored and consumes no AI RNG. When the visible opponent is in a typed
+  semi-invulnerable state, candidates without a matching `semiInvulnerableHit` row receive the named
+  `semiInvulnerableMiss` rejection. Matching rows continue through ordinary accuracy/power preview.
+  The AI never reads the opponent's selected action to predict entry or release this turn.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

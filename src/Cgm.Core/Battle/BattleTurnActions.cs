@@ -11,6 +11,7 @@ public sealed record BattleReplacementSelection(BattleSlot Slot, int PartyIndex)
 public sealed record BattleActionSubmission(BattleSlot Source, BattleAction Action, BattleActionSelection? Selection = null)
 {
     public BattleSlot? Target => (Selection as ActiveSlotSelection)?.Slot;
+    internal int? TargetPartySnapshot { get; init; }
 
     public BattleActionSubmission(BattleSlot source, BattleAction action, BattleSlot target)
         : this(source, action, new ActiveSlotSelection(target)) { }

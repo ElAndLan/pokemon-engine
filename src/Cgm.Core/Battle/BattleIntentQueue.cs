@@ -5,7 +5,7 @@ namespace Cgm.Core.Battle;
 public enum BattleIntentCheckpoint { TurnStart, PreAction, BeforeMove, AfterMove, TurnEnd }
 public enum BattleIntentOwnerScope { Creature, Slot, Side, Field }
 public enum BattleIntentTargetPolicy { SnapshotSlot, LiveSlot, Source, Side, Field }
-public enum BattleIntentPayloadKind { SkipAction }
+public enum BattleIntentPayloadKind { SkipAction, ReleaseMove }
 public enum BattleIntentSwitchPolicy { Cancel, FollowOwner, StaySlot }
 public enum BattleIntentFaintPolicy { Cancel, Persist }
 
@@ -32,6 +32,11 @@ public abstract record BattleIntentPayload
 public sealed record SkipActionIntent : BattleIntentPayload
 {
     public override BattleIntentPayloadKind Kind => BattleIntentPayloadKind.SkipAction;
+}
+
+public sealed record ReleaseMoveIntent(int MoveIndex, SemiInvulnerableState? State) : BattleIntentPayload
+{
+    public override BattleIntentPayloadKind Kind => BattleIntentPayloadKind.ReleaseMove;
 }
 
 public sealed record BattleIntentRequest(
@@ -78,6 +83,8 @@ public sealed record BattleIntentDebugEntry(
     int? SnapshotPartyIndex,
     BattleSide? TargetSide,
     BattleIntentPayloadKind Payload,
+    int? PayloadMoveIndex,
+    SemiInvulnerableState? PayloadSemiInvulnerableState,
     EntityId SourceMove,
     int SourceActionSequence,
     string Ruleset);
@@ -253,7 +260,9 @@ public sealed class BattleIntentQueue
         .Select(intent => new BattleIntentDebugEntry(intent.Sequence, intent.DueTurn, intent.Checkpoint,
             intent.Owner.Scope, intent.Owner.Side, intent.Owner.LastKnownSlot, intent.Owner.PartyIndex,
             intent.Target.Policy, intent.Target.Slot, intent.Target.SnapshotPartyIndex, intent.Target.Side,
-            intent.Payload.Kind, intent.SourceMove, intent.SourceActionSequence, intent.Ruleset))
+            intent.Payload.Kind, (intent.Payload as ReleaseMoveIntent)?.MoveIndex,
+            (intent.Payload as ReleaseMoveIntent)?.State,
+            intent.SourceMove, intent.SourceActionSequence, intent.Ruleset))
         .ToArray();
 
     private IReadOnlyList<BattleIntent> RemoveWhere(Func<BattleIntent, bool> predicate)
@@ -284,6 +293,11 @@ public sealed class BattleIntentQueue
         ArgumentNullException.ThrowIfNull(request.Owner);
         ArgumentNullException.ThrowIfNull(request.Target);
         ArgumentNullException.ThrowIfNull(request.Payload);
+        if (request.Payload is ReleaseMoveIntent release)
+        {
+            if (release.MoveIndex < 0 || release.State is { } state && !Enum.IsDefined(state))
+                throw new ArgumentException("Release-move payload requires a valid move index and state.", nameof(request));
+        }
         ValidateOwner(request.Owner);
         ValidateTarget(request.Target);
     }

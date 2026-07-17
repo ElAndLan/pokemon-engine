@@ -60,6 +60,7 @@ public enum MoveGateTiming { Selection, BeforeMove, AfterMoveUsed }
 public enum MoveGateTargetClass { AnyMove, DamagingMove, StatusMove }
 public enum MoveGateDamageMode { Require, Forbid }
 public enum QueueActionGateOwner { Slot, Creature }
+public enum SemiInvulnerableState { Air, Underground, Underwater, Vanished }
 public enum HpFractionRecipient { Self, Target }
 public enum HpFractionOperation { Heal, Damage }
 public enum HpFractionBasis { MaxHp, CurrentHp }
@@ -269,3 +270,40 @@ public sealed record MoveGateEffect(
 public sealed record QueueActionGateEffect(
     int Turns,
     QueueActionGateOwner Owner = QueueActionGateOwner.Slot) : MoveEffect;
+
+public sealed record ChargeMoveEffect(
+    SemiInvulnerableState? State = null,
+    BattleIntentTargetPolicy TargetPolicy = BattleIntentTargetPolicy.LiveSlot) : MoveEffect;
+
+public sealed record SemiInvulnerableHitEffect(
+    IReadOnlySet<SemiInvulnerableState> States,
+    Fraction? PowerMultiplier = null) : MoveEffect;
+
+public sealed record ChargeStartStatEffect(StatKind Stat, int Delta) : MoveEffect;
+
+public static class BattleChargeMechanics
+{
+    public static void Validate(ChargeMoveEffect? charge, IReadOnlyList<MoveEffect> effects)
+    {
+        ArgumentNullException.ThrowIfNull(effects);
+        if (effects.OfType<ChargeMoveEffect>().Any())
+            throw new ArgumentException("Charge metadata belongs on the move, not its resolved effect list.");
+        if (charge is { } metadata
+            && (metadata.State is { } state && !Enum.IsDefined(state)
+                || metadata.TargetPolicy is not (BattleIntentTargetPolicy.LiveSlot
+                    or BattleIntentTargetPolicy.SnapshotSlot)))
+            throw new ArgumentException("Charge metadata requires a defined state and live/snapshot target policy.");
+
+        ChargeStartStatEffect[] startStats = effects.OfType<ChargeStartStatEffect>().ToArray();
+        if ((charge is null && startStats.Length > 0)
+            || startStats.Any(effect => !Enum.IsDefined(effect.Stat) || effect.Delta is < -6 or > 6 or 0)
+            || startStats.Select(effect => effect.Stat).Distinct().Count() != startStats.Length)
+            throw new ArgumentException("Charge-start stats require one valid nonzero row per stat on a charge move.");
+
+        SemiInvulnerableHitEffect[] hits = effects.OfType<SemiInvulnerableHitEffect>().ToArray();
+        if (hits.Length > 1 || hits.Any(effect => effect.States.Count == 0
+            || effect.States.Any(state => !Enum.IsDefined(state))
+            || effect.PowerMultiplier is { Num: <= 0 } or { Den: <= 0 }))
+            throw new ArgumentException("Semi-invulnerable hit rows require unique defined states and positive power.");
+    }
+}

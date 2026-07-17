@@ -1,0 +1,9 @@
+event:Charging
+event:ChargeReleased
+event:MoveUsed
+event:DamageDealt
+trace:IntentEnqueued:ReleaseMove:1
+trace:Charge:-:1
+trace:IntentConsumed:ReleaseMove:1
+trace:Charge:-:1
+pp:9

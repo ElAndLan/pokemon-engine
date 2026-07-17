@@ -25,7 +25,8 @@ public static class MoveCompiler
         int? fixedDamage = null;
         bool fixedDamageLevel = false, ohko = false, selfDestruct = false, leechSeed = false;
         bool binds = false, forcesSwitch = false, bypassAccuracy = false;
-        bool chargeTurn = false, multiTurnLock = false;
+        ChargeMoveEffect? charge = null;
+        bool multiTurnLock = false;
         int critBoost = 0;
         Weather setsWeather = Weather.None;
         DamageClass? counterCategory = null;
@@ -510,8 +511,52 @@ public static class MoveCompiler
                     effects.Add(new WeatherMoveEffect(weatherTypes, weatherPower, skipChargeWeather));
                     break;
 
-                case "chargeTurn": // two-turn move (catalog §7.2 charge)
-                    chargeTurn = true;
+                case "chargeTurn":
+                    if (chance != 100 || charge is not null)
+                        throw new ArgumentException("chargeTurn is unique and does not support chance.");
+                    CheckAllowedParams(e, "state", "targetPolicy");
+                    SemiInvulnerableState? chargeState = e.Params?.ContainsKey("state") == true
+                        ? ParseNamed<SemiInvulnerableState>(Str(e, "state"), "semi-invulnerable state") : null;
+                    BattleIntentTargetPolicy chargeTargetPolicy = e.Params?.ContainsKey("targetPolicy") == true
+                        ? ParseNamed<BattleIntentTargetPolicy>(Str(e, "targetPolicy"), "charge target policy")
+                        : BattleIntentTargetPolicy.LiveSlot;
+                    if (chargeTargetPolicy is not (BattleIntentTargetPolicy.LiveSlot
+                        or BattleIntentTargetPolicy.SnapshotSlot))
+                        throw new ArgumentException("chargeTurn targetPolicy must be liveSlot or snapshotSlot.");
+                    charge = new ChargeMoveEffect(chargeState, chargeTargetPolicy);
+                    break;
+
+                case "semiInvulnerableHit":
+                    if (chance != 100 || effects.OfType<SemiInvulnerableHitEffect>().Any())
+                        throw new ArgumentException("semiInvulnerableHit is unique and does not support chance.");
+                    CheckAllowedParams(e, "states", "powerNum", "powerDen");
+                    SemiInvulnerableState[] hitStates = Str(e, "states")
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Select(value => ParseNamed<SemiInvulnerableState>(value, "semi-invulnerable state"))
+                        .ToArray();
+                    if (hitStates.Length == 0 || hitStates.Distinct().Count() != hitStates.Length)
+                        throw new ArgumentException("semiInvulnerableHit states must be nonempty and unique.");
+                    bool hasPowerNum = e.Params?.ContainsKey("powerNum") == true;
+                    bool hasPowerDen = e.Params?.ContainsKey("powerDen") == true;
+                    if (hasPowerNum != hasPowerDen)
+                        throw new ArgumentException("semiInvulnerableHit power requires powerNum and powerDen.");
+                    Fraction? hitPower = hasPowerNum ? new Fraction(Int(e, "powerNum"), Int(e, "powerDen")) : null;
+                    if (hitPower is { Num: <= 0 } or { Den: <= 0 })
+                        throw new ArgumentException("semiInvulnerableHit power fraction must be positive.");
+                    effects.Add(new SemiInvulnerableHitEffect(hitStates.ToHashSet(), hitPower));
+                    break;
+
+                case "chargeStartStat":
+                    if (chance != 100)
+                        throw new ArgumentException("chargeStartStat does not support chance.");
+                    CheckAllowedParams(e, "stat", "delta");
+                    StatKind chargeStat = ParseNamed<StatKind>(Str(e, "stat"), "charge-start stat");
+                    int chargeDelta = Int(e, "delta");
+                    if (chargeDelta is < -6 or > 6 or 0)
+                        throw new ArgumentException("chargeStartStat delta must be -6..-1 or 1..6.");
+                    if (effects.OfType<ChargeStartStatEffect>().Any(effect => effect.Stat == chargeStat))
+                        throw new ArgumentException("chargeStartStat may declare each stat once.");
+                    effects.Add(new ChargeStartStatEffect(chargeStat, chargeDelta));
                     break;
 
                 case "multiTurnLock": // Thrash/Outrage rampage lock (catalog §9.3)
@@ -1044,8 +1089,12 @@ public static class MoveCompiler
         if (effects.OfType<QueueActionGateEffect>().Any(gate => gate.Owner == QueueActionGateOwner.Creature)
             && move.DamageClass == DamageClass.Status)
             throw new ArgumentException("recharge requires a damaging move.");
-        if (!chargeTurn && effects.OfType<WeatherMoveEffect>().Any(effect => effect.SkipChargeWeather.Count > 0))
+        if (charge is null && effects.OfType<WeatherMoveEffect>().Any(effect => effect.SkipChargeWeather.Count > 0))
             throw new ArgumentException("weatherMove skipCharge requires chargeTurn.");
+        if (charge is null && effects.OfType<ChargeStartStatEffect>().Any())
+            throw new ArgumentException("chargeStartStat requires chargeTurn.");
+        if (charge is not null && move.Target is (MoveTarget.FaintingPokemon or MoveTarget.SpecificMove))
+            throw new ArgumentException("chargeTurn does not support party-member or move-reference targets.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
             && fixedDamage is null && !fixedDamageLevel && !ohko && counterCategory is null
             && !effects.OfType<HpFractionEffect>().Any(effect => effect.Operation == HpFractionOperation.Damage)
@@ -1056,11 +1105,12 @@ public static class MoveCompiler
             move.Priority, move.CritStage, ailment, ailmentChance, stageEffects.FirstOrDefault(), confuseChance, flinchChance,
             drain, recoil, recoilOnMiss, heal, multiHitMin, multiHitMax,
             fixedDamage, fixedDamageLevel, ohko, critBoost, selfDestruct, leechSeed, setsWeather,
-            binds, forcesSwitch, counterCategory, bypassAccuracy, chargeTurn,
+            binds, forcesSwitch, counterCategory, bypassAccuracy, charge is not null,
             multiTurnLock, move.MakesContact, stageEffects: stageEffects, target: move.Target,
             stageAllEffect: stageAllEffect, secondaryEffects: effects,
             offensiveStatOverride: offensiveStatOverride, defensiveStatOverride: defensiveStatOverride,
-            targetHpThresholdPower: targetHpThresholdPower, hpRatioPower: hpRatioPower, hpBandPower: hpBandPower);
+            targetHpThresholdPower: targetHpThresholdPower, hpRatioPower: hpRatioPower,
+            hpBandPower: hpBandPower, charge: charge);
     }
 
     /// <summary>Reads a <c>{ num, den }</c> fraction, defaulting either component when absent.</summary>

@@ -234,6 +234,10 @@ public sealed record Charging(BattleSlot Slot, EntityId Move) : BattleEvent
     public BattleSide Side => Slot.Side;
     public Charging(BattleSide side, EntityId move) : this(new BattleSlot(side, 0), move) { }
 }
+public sealed record ChargeReleased(BattleSlot Slot, EntityId Move) : BattleEvent;
+public sealed record ChargeCancelled(BattleSlot Slot, EntityId Move) : BattleEvent;
+public sealed record SemiInvulnerableAvoided(BattleSlot Source, BattleSlot Target,
+    SemiInvulnerableState State) : BattleEvent;
 public sealed record FullyParalyzed(BattleSlot Slot) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

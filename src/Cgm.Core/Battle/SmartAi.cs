@@ -85,6 +85,12 @@ public static class SmartAi
         SmartAiWeights weights = context.Weights ?? new SmartAiWeights();
         BattleCreature active = context.EnemyParty[context.EnemyActive];
         BattleCreature target = context.PlayerParty[context.PlayerActive];
+        if (active.ChargingMoveIndex is { } releaseIndex)
+        {
+            var release = new AiCandidateScore(new UseMove(releaseIndex), 0,
+                [new("chargeRelease", 0)]);
+            return new SmartAiDecision(release.Action, [release]);
+        }
         var scores = new List<AiCandidateScore>();
         bool previousActionFailed = context.ActionHistory?.PreviousActionFailed(
             new BattleHistoryOwner(BattleSide.Enemy, context.EnemyActive,
@@ -116,6 +122,13 @@ public static class SmartAi
     {
         BattleMove move = attacker.Moves[action.MoveIndex];
         var c = new List<AiScoreComponent>();
+        if (defender.SemiInvulnerableState is { } state
+            && !move.SecondaryEffects.OfType<SemiInvulnerableHitEffect>()
+                .Any(effect => effect.States.Contains(state)))
+        {
+            c.Add(new("semiInvulnerableMiss", -1_000_000));
+            return new AiCandidateScore(action, c[0].Value, c);
+        }
         if (move.SecondaryEffects.OfType<TerrainGateEffect>().Any() && ActiveTerrain(context) == Terrain.None)
         {
             c.Add(new("terrainGate", -1_000_000));
@@ -410,6 +423,14 @@ public static class SmartAi
         var powerModifiers = (weather is null
             ? powerQuery.Modifiers
             : [.. powerQuery.Modifiers, .. weather.PowerModifiers]).ToList();
+        if (defender.SemiInvulnerableState is { } semiState
+            && move.SecondaryEffects.OfType<SemiInvulnerableHitEffect>()
+                .SingleOrDefault(effect => effect.States.Contains(semiState))?.PowerMultiplier is { } semiPower)
+        {
+            powerModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
+                BattleQueryOperation.Multiply, new BattleQueryValue(semiPower.Num, semiPower.Den),
+                InsertionOrder: powerModifiers.Count));
+        }
         if (conditions is not null)
             powerModifiers.AddRange(FieldConditions.CollectBasePowerHooks(conditions, moveType.Slug, ruleset, 0)
                 .QueryModifiers(BattleQueryId.BasePower)

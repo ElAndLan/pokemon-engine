@@ -1164,6 +1164,47 @@ Acceptance vectors: `action-gate-compile-validation`, `action-gate-selection-ato
 `action-gate-doubles-isolation`, `action-gate-ai-legality`, `action-gate-no-rng`, and
 `action-gate-golden`.
 
+#### Charge and semi-invulnerability registry (Phase 15D-3)
+
+`chargeTurn` is the single reusable two-turn action op. Its closed params are
+`{ state?: air|underground|underwater|vanished, targetPolicy?: liveSlot|snapshotSlot }`; target
+policy defaults to `liveSlot`. It is unique, chance-free, and compiles to typed `ChargeMoveEffect`
+metadata rather than a named-move branch. The first action pays one PP, applies every authored
+`chargeStartStat { stat, delta }` once, records the move use, and enqueues a creature-owned
+`releaseMove` intent for `PreAction` on the next turn. It emits `Charging` and a `Charge` trace but
+does not emit `MoveUsed`, select accuracy, or draw RNG. A visible `ChargeStart` hook may deny the
+wait; the same start effects still apply, then the move pays one PP and resolves immediately.
+
+`releaseMove` stores move index, optional semi-invulnerable state, source move/action/ruleset, and
+the target record in the shared intent queue. Selected targets store the authored live/snapshot slot
+policy; random/spread/side/self targets store their natural side/field/source policy and materialize
+at release. A due release replaces any submitted action before validation, consumes atomically with
+the turn preview, emits `ChargeReleased`, pays no second PP, and runs the ordinary gate, target,
+accuracy, damage, effect, event, and RNG paths. `snapshotSlot` fails visibly with `TargetUnavailable`
+if the captured occupant changed; `liveSlot` addresses the replacement occupant. A gate/status/
+flinch/confusion interruption before release cancels instead of leaving a hidden lock. Actual switch,
+forced switch, faint, and battle end emit `ChargeCancelled`, clear the creature state, and cancel its
+queued release. Charge state and target records are bounded battle state, never serialized project
+or save data.
+
+While charging with a `state`, the creature exposes that typed state to the accuracy query. An
+attacking move without `semiInvulnerableHit { states, powerNum?, powerDen? }` cannot hit, emits
+`SemiInvulnerableAvoided` plus a zero-result `SemiInvulnerability` trace, and draws no accuracy RNG.
+The op is unique and chance-free; `states` is nonempty/unique and the optional positive power
+fraction requires both operands. A matching row admits the normal accuracy query first. Only after
+that query succeeds does its optional fraction enter `BasePower` at source/target-state stage; all
+ordinary weather/field/type/critical/damage rules then continue unchanged. Accuracy bypass alone
+does not invent a state exception. `chargeStartStat` is likewise chance-free, unique per stat, and
+requires a charge move; it mutates the ordinary capped user stage and emits `StatStageChanged`.
+
+Smart AI returns the visible forced release without rescoring or RNG. Against a visible typed state,
+it rejects candidates lacking a matching hit row with named `semiInvulnerableMiss`; it does not read
+the opponent's current submitted action or hidden future RNG. Acceptance vectors are
+`charge-compile-validation`, `charge-start-release-pp`, `charge-skip-hook`,
+`charge-live-snapshot-target`, `charge-switch-faint-end-cleanup`, `charge-interruption`,
+`semi-state-miss-no-rng`, `semi-hit-accuracy-power-order`, `charge-doubles-isolation`,
+`charge-ai-parity`, `charge-conformance`, and `charge-golden`.
+
 #### Typed intent queue lifecycle (Phase 15D-1)
 
 All future battle work uses one `BattleIntentQueue`; no condition or move owns a private delayed-work
@@ -1182,8 +1223,8 @@ Every intent record contains:
   creature's party index when creature identity applies;
 - target policy (`snapshotSlot`, `liveSlot`, `source`, `side`, `field`) plus the exact slot/side and
   snapshotted party index required by that policy;
-- one typed payload; 15D-1 implements `skipAction`, while later 15D packages extend the union with
-  delayed damage/heal/condition, forced action, and called-move payloads before using them;
+- one typed payload; `skipAction` and 15D-3 `releaseMove` are implemented, while later 15D packages
+  extend the union with delayed damage/heal/condition and called-move payloads before using them;
 - source move ID, source action sequence, nonblank ruleset profile, switch policy
   (`cancel`, `followOwner`, `staySlot`), and faint policy (`cancel`, `persist`).
 

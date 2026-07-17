@@ -341,6 +341,16 @@ intent/effect trace order; replay identity; zero added RNG; sanitized conformanc
 checked-in `action-gate.golden`. The open effect payload adds closed params only, so no schema
 migration vector changes.
 
+The 15D-3 exit covers missing/unknown/duplicate charge, state, target-policy, start-stat, and hit-
+exception params; first-turn PP/event/trace and zero-draw behavior; skip-charge immediate execution;
+one start-effect application; release action replacement with no second PP; live versus snapshot
+replacement; random/spread/self target preservation; status/flinch/confusion/gate interruption;
+switch/forced-switch/faint/end cleanup; all four semi-invulnerable states; ordinary no-draw miss;
+matching accuracy followed by optional base-power multiplication; protection/weather/field
+composition; singles/doubles isolation; Smart-AI forced release and visible-state rejection;
+replay identity; sanitized conformance vectors; and the checked-in `charge.golden`. The open effect
+payload and diagnostic queue state add no serialized schema migration vector.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle
@@ -362,7 +372,7 @@ names, prose, assets, URLs, or raw reference JSON.
 
 - Tool unit tests pass without the local corpus.
 - The Phase 15A baseline command (without a decision catalog) reports exactly 937 entries and 0
-  certified; the current Phase 15 command with its decision catalog reports 84 certified.
+  certified; the current Phase 15 command with its decision catalog reports 112 certified.
 - Regenerating the manifest from unchanged files is byte-identical.
 - Generated output contains no payload names or source filenames.
 - Full solution build/tests remain green.

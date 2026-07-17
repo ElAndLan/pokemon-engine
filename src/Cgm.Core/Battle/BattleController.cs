@@ -211,15 +211,19 @@ public sealed class BattleController
         int start = _log.Count;
         _traceActionSequence = 0;
         BattleIntentPreview intentPreview = _intentQueue.Preview(Turn, BattleIntentCheckpoint.PreAction);
-        BattleAction resolvedPlayerAction = PreviewQueuedActionGate(new BattleSlot(BattleSide.Player, 0), playerAction, intentPreview);
-        BattleAction resolvedEnemyAction = PreviewQueuedActionGate(new BattleSlot(BattleSide.Enemy, 0), enemyAction, intentPreview);
+        BattleActionSubmission resolvedPlayer = PreviewQueuedSubmission(
+            new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), playerAction), intentPreview);
+        BattleActionSubmission resolvedEnemy = PreviewQueuedSubmission(
+            new BattleActionSubmission(new BattleSlot(BattleSide.Enemy, 0), enemyAction), intentPreview);
+        BattleAction resolvedPlayerAction = resolvedPlayer.Action;
+        BattleAction resolvedEnemyAction = resolvedEnemy.Action;
         Validate(BattleSide.Player, resolvedPlayerAction);
         Validate(BattleSide.Enemy, resolvedEnemyAction);
         ConsumePreviewedIntents(intentPreview);
         var actions = new BattleTurnActions(Topology,
         [
-            new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), resolvedPlayerAction),
-            new BattleActionSubmission(new BattleSlot(BattleSide.Enemy, 0), resolvedEnemyAction),
+            resolvedPlayer,
+            resolvedEnemy,
         ]);
         BeginActionHistory(actions.Actions.Select(submission => ActionPlan(submission)));
         PrepareProtectionChains(actions.Actions);
@@ -344,13 +348,13 @@ public sealed class BattleController
         var admitted = new List<AdmittedAction>(submitted.Actions.Count);
         foreach (BattleActionSubmission submission in submitted.Actions)
         {
-            BattleAction effective = PreviewQueuedActionGate(submission.Source, submission.Action, intentPreview);
-            Validate(submission.Source, effective, submission.Selection);
+            BattleActionSubmission effective = PreviewQueuedSubmission(submission, intentPreview);
+            Validate(effective.Source, effective.Action, effective.Selection);
             BattleCreature actor = Active(submission.Source);
-            EntityId? moveId = MoveIndex(effective) is { } moveIndex
+            EntityId? moveId = MoveIndex(effective.Action) is { } moveIndex
                 ? actor.Moves[EffectiveMoveIndex(submission.Source, moveIndex)].Move
                 : null;
-            admitted.Add(new AdmittedAction(submission with { Action = effective }, ActiveIndex(submission.Source), moveId));
+            admitted.Add(new AdmittedAction(effective, ActiveIndex(submission.Source), moveId));
         }
 
         foreach (IGrouping<BattleSide, AdmittedAction> side in admitted.GroupBy(action => action.Submission.Source.Side))
@@ -402,10 +406,26 @@ public sealed class BattleController
             AddIntentTrace(intent, EffectTraceKind.IntentDeferred, false, _log.Count, _log.Count);
     }
 
-    private static BattleAction PreviewQueuedActionGate(BattleSlot slot, BattleAction action, BattleIntentPreview preview) =>
-        preview.Entries.Any(intent => intent.Payload is SkipActionIntent && intent.Owner.LastKnownSlot == slot)
-            ? new Pass()
-            : action;
+    private static BattleActionSubmission PreviewQueuedSubmission(BattleActionSubmission submitted,
+        BattleIntentPreview preview)
+    {
+        BattleIntent[] due = preview.Entries
+            .Where(intent => intent.Owner.LastKnownSlot == submitted.Source)
+            .ToArray();
+        if (due.Any(intent => intent.Payload is SkipActionIntent))
+            return submitted with { Action = new Pass(), Selection = null, TargetPartySnapshot = null };
+        BattleIntent? releaseIntent = due.SingleOrDefault(intent => intent.Payload is ReleaseMoveIntent);
+        if (releaseIntent?.Payload is not ReleaseMoveIntent release)
+            return submitted;
+        BattleActionSelection? selection = releaseIntent.Target.Slot is { } target
+            ? new ActiveSlotSelection(target) : null;
+        return submitted with
+        {
+            Action = new UseMove(release.MoveIndex),
+            Selection = selection,
+            TargetPartySnapshot = releaseIntent.Target.SnapshotPartyIndex,
+        };
+    }
 
     private void ResolveSwitchPhase(IReadOnlyList<AdmittedAction> actions)
     {
@@ -522,6 +542,7 @@ public sealed class BattleController
             BattleActionAttemptId attempt = _actionHistory.BeginMove(traceAction, sourceOwner, move.Move);
             if (!CanAct(attacker, action.Submission.Source, traceAction))
             {
+                CancelCharge(action.Submission.Source, attacker);
                 ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Prevented);
                 TickRampageLock(action.Submission.Source, traceAction);
@@ -529,6 +550,7 @@ public sealed class BattleController
             }
             if (attacker.Flinched)
             {
+                CancelCharge(action.Submission.Source, attacker);
                 ResetFailedProtection(attacker, move);
                 int start = _log.Count;
                 _log.Add(new Flinched(action.Submission.Source));
@@ -542,6 +564,7 @@ public sealed class BattleController
                 _log.Count, _log.Count);
             if (!PushesThroughConfusion(attacker, action.Submission.Source, traceAction))
             {
+                CancelCharge(action.Submission.Source, attacker);
                 ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Prevented);
                 TickRampageLock(action.Submission.Source, traceAction);
@@ -552,6 +575,7 @@ public sealed class BattleController
             if (!PassesMoveGates(attacker, action.Submission.Source, move, traceAction,
                     MoveGateTiming.BeforeMove, gateTarget))
             {
+                CancelCharge(action.Submission.Source, attacker);
                 ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Failed);
                 TickRampageLock(action.Submission.Source, traceAction);
@@ -560,7 +584,8 @@ public sealed class BattleController
 
             _actionHistory.MarkStarted(attempt);
             int ppBeforeSpend = move.Pp;
-            if (!PrepareTimedMove(attacker, action.Submission.Source, move, moveIndex, traceAction))
+            if (!PrepareTimedMove(attacker, action.Submission.Source, move, moveIndex, traceAction,
+                    action.Submission))
             {
                 _actionHistory.Complete(attempt, BattleActionResult.Succeeded);
                 continue;
@@ -618,7 +643,10 @@ public sealed class BattleController
         }
 
         List<BattleSlot> slots = scope.Slots.Where(IsLive).ToList();
-        if ((effectiveTarget is MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst) && slots.Count == 0
+        if (submission.TargetPartySnapshot is { } snapshot && selected is { } snapshottedSlot
+            && ActiveIndex(snapshottedSlot) != snapshot)
+            slots.Clear();
+        else if ((effectiveTarget is MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst) && slots.Count == 0
             && selected is { Side: var side } && side != submission.Source.Side)
         {
             slots = Topology.SlotsFor(Opponent(submission.Source.Side)).Where(IsLive).ToList();
@@ -1142,6 +1170,7 @@ public sealed class BattleController
             new BattleHistoryOwner(slot.Side, outgoingPartyIndex, slot),
             new BattleHistoryOwner(slot.Side, index, slot));
         BattleCreature outgoing = Active(slot);
+        CancelCharge(slot, outgoing);
         outgoing.ResetStages();
         outgoing.ClearVolatiles();
         TraceCleanup(_intentQueue.OwnerSwitched(slot.Side, outgoingPartyIndex, null));
@@ -1184,7 +1213,7 @@ public sealed class BattleController
             int submittedIndex = MoveIndex(scheduledAction.Submission.Action)!.Value;
             BattleSlot source = scheduledAction.Submission.Source;
             int traceBefore = _traceActionSequence;
-            ResolveMove(source, EffectiveMoveIndex(source, submittedIndex));
+            ResolveMove(source, EffectiveMoveIndex(source, submittedIndex), scheduledAction.Submission);
             TickRampageLock(source, _traceActionSequence > traceBefore ? _traceActionSequence : null);
             if (CheckEnd())
                 break;
@@ -1467,6 +1496,21 @@ public sealed class BattleController
     private bool ResolveAccuracy(BattleSlot sourceSlot, BattleSlot targetSlot, BattleCreature source,
         BattleCreature target, BattleMove move, int traceAction, out int? draw)
     {
+        if (target.SemiInvulnerableState is { } state)
+        {
+            bool canHit = move.SecondaryEffects.OfType<SemiInvulnerableHitEffect>()
+                .Any(effect => effect.States.Contains(state));
+            int start = _log.Count;
+            if (!canHit)
+                _log.Add(new SemiInvulnerableAvoided(sourceSlot, targetSlot, state));
+            AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.SemiInvulnerability,
+                false, null, canHit ? 1 : 0, start, _log.Count);
+            if (!canHit)
+            {
+                draw = null;
+                return false;
+            }
+        }
         int authored = move.Ohko ? EffectMath.OhkoAccuracy(source.Level, target.Level) : move.Accuracy ?? 100;
         WeatherAccuracyEffect? weatherEffect = move.SecondaryEffects.OfType<WeatherAccuracyEffect>().SingleOrDefault();
         BattleHookDispatchSnapshot? weather = weatherEffect is null ? null
@@ -1518,10 +1562,10 @@ public sealed class BattleController
     }
 
     private bool PrepareTimedMove(BattleCreature attacker, BattleSlot sourceSlot, BattleMove move,
-        int moveIndex, int traceAction)
+        int moveIndex, int traceAction, BattleActionSubmission? submission = null)
     {
         bool firing = attacker.IsCharging;
-        bool requiresCharge = move.ChargeTurn;
+        bool requiresCharge = move.Charge is not null;
         if (requiresCharge && !firing
             && move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is { } weatherEffect)
         {
@@ -1531,17 +1575,39 @@ public sealed class BattleController
             requiresCharge = !weather.Filters().Any(filter => filter is
                 { Filter.Value: "charge_required", Decision: BattleHookFilterDecision.Deny });
         }
+        if (move.Charge is not null && !firing)
+            ApplyChargeStartEffects(attacker, sourceSlot, move);
         if (requiresCharge && !firing)
         {
+            int eventStart = _log.Count;
             move.UsePp();
             ApplyChoiceLock(attacker, moveIndex);
             attacker.RecordMoveUse(move.Move);
-            attacker.StartCharging(moveIndex);
+            ChargeMoveEffect charge = move.Charge!;
+            BattleIntent intent = _intentQueue.Enqueue(new BattleIntentRequest(
+                Turn + 1,
+                BattleIntentCheckpoint.PreAction,
+                new BattleIntentOwner(BattleIntentOwnerScope.Creature, sourceSlot.Side, sourceSlot,
+                    ActiveIndex(sourceSlot), BattleIntentSwitchPolicy.Cancel, BattleIntentFaintPolicy.Cancel),
+                ChargeTarget(sourceSlot, move, submission?.Selection, charge.TargetPolicy),
+                new ReleaseMoveIntent(moveIndex, charge.State),
+                move.Move,
+                traceAction,
+                Ruleset));
+            AddIntentTrace(intent, EffectTraceKind.IntentEnqueued, true, _log.Count, _log.Count);
+            attacker.StartCharging(moveIndex, charge.State);
             _log.Add(new Charging(sourceSlot, move.Move));
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.Charge, true, null,
+                charge.State is { } state ? (int)state + 1 : 0, eventStart, _log.Count);
             return false;
         }
         if (firing)
+        {
             attacker.StopCharging();
+            _log.Add(new ChargeReleased(sourceSlot, move.Move));
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.Charge, false, null, 1,
+                _log.Count - 1, _log.Count);
+        }
 
         bool continuingLock = attacker.IsLocked;
         if (move.MultiTurnLock && !continuingLock)
@@ -1559,7 +1625,55 @@ public sealed class BattleController
         return true;
     }
 
-    private void ResolveMove(BattleSlot sourceSlot, int moveIndex)
+    private void ApplyChargeStartEffects(BattleCreature creature, BattleSlot slot, BattleMove move)
+    {
+        foreach (ChargeStartStatEffect stat in move.SecondaryEffects.OfType<ChargeStartStatEffect>())
+        {
+            int before = creature.Stage(stat.Stat);
+            creature.ChangeStage(stat.Stat, stat.Delta);
+            int applied = creature.Stage(stat.Stat) - before;
+            if (applied != 0)
+                _log.Add(new StatStageChanged(slot, stat.Stat, applied));
+        }
+    }
+
+    private BattleIntentTarget ChargeTarget(BattleSlot sourceSlot, BattleMove move,
+        BattleActionSelection? selection, BattleIntentTargetPolicy policy)
+    {
+        if (move.Target == MoveTarget.User)
+            return new BattleIntentTarget(BattleIntentTargetPolicy.Source);
+        if (move.Target is MoveTarget.UserAndAllies or MoveTarget.AllAllies or MoveTarget.UsersField)
+            return new BattleIntentTarget(BattleIntentTargetPolicy.Side, Side: sourceSlot.Side);
+        if (move.Target is MoveTarget.AllOpponents or MoveTarget.OpponentsField)
+            return new BattleIntentTarget(BattleIntentTargetPolicy.Side, Side: Opponent(sourceSlot.Side));
+        if (move.Target is MoveTarget.RandomOpponent)
+            return new BattleIntentTarget(BattleIntentTargetPolicy.Side, Side: Opponent(sourceSlot.Side));
+        if (move.Target is MoveTarget.AllOtherPokemon or MoveTarget.AllPokemon or MoveTarget.EntireField)
+            return new BattleIntentTarget(BattleIntentTargetPolicy.Field);
+
+        BattleSlot target = selection is ActiveSlotSelection active
+            ? active.Slot
+            : new BattleSlot(Opponent(sourceSlot.Side), 0);
+        return policy switch
+        {
+            BattleIntentTargetPolicy.LiveSlot => new(policy, target, Side: target.Side),
+            BattleIntentTargetPolicy.SnapshotSlot => new(policy, target, ActiveIndex(target), target.Side),
+            _ => throw new ArgumentOutOfRangeException(nameof(policy), policy,
+                "Charge target policy must be live-slot or snapshot-slot."),
+        };
+    }
+
+    private void CancelCharge(BattleSlot slot, BattleCreature creature)
+    {
+        if (creature.ChargingMoveIndex is not { } moveIndex)
+            return;
+        EntityId move = creature.Moves[moveIndex].Move;
+        creature.StopCharging();
+        _log.Add(new ChargeCancelled(slot, move));
+    }
+
+    private void ResolveMove(BattleSlot sourceSlot, int moveIndex,
+        BattleActionSubmission? submission = null)
     {
         BattleSide side = sourceSlot.Side;
         BattleCreature attacker = Active(sourceSlot);
@@ -1572,6 +1686,7 @@ public sealed class BattleController
         BattleActionAttemptId attempt = _actionHistory.BeginMove(traceAction, sourceOwner, move.Move);
         if (!CanAct(attacker, sourceSlot, traceAction))
         {
+            CancelCharge(sourceSlot, attacker);
             ResetFailedProtection(attacker, move);
             _actionHistory.Complete(attempt, BattleActionResult.Prevented);
             return; // frozen/asleep/fully-paralyzed — no PP spent, no move
@@ -1579,6 +1694,7 @@ public sealed class BattleController
 
         if (attacker.Flinched)
         {
+            CancelCharge(sourceSlot, attacker);
             ResetFailedProtection(attacker, move);
             int start = _log.Count;
             _log.Add(new Flinched(sourceSlot));
@@ -1590,6 +1706,7 @@ public sealed class BattleController
 
         if (!PushesThroughConfusion(attacker, sourceSlot, traceAction))
         {
+            CancelCharge(sourceSlot, attacker);
             ResetFailedProtection(attacker, move);
             _actionHistory.Complete(attempt, BattleActionResult.Prevented);
             return; // hurt itself in confusion — no PP, no move
@@ -1599,6 +1716,7 @@ public sealed class BattleController
         if (!PassesMoveGates(attacker, sourceSlot, move, traceAction,
                 MoveGateTiming.BeforeMove, gateTarget))
         {
+            CancelCharge(sourceSlot, attacker);
             ResetFailedProtection(attacker, move);
             _actionHistory.Complete(attempt, BattleActionResult.Failed);
             return;
@@ -1608,8 +1726,14 @@ public sealed class BattleController
             : Opponent(side);
         BattleSlot targetSlot = new(targetSide, 0);
         BattleCreature target = Active(targetSlot);
-        if (target.IsFainted)
+        bool snapshotUnavailable = submission?.TargetPartySnapshot is { } snapshot
+            && ActiveIndex(targetSlot) != snapshot;
+        if (target.IsFainted || snapshotUnavailable)
         {
+            if (attacker.IsCharging)
+                PrepareTimedMove(attacker, sourceSlot, move, moveIndex, traceAction, submission);
+            if (snapshotUnavailable)
+                _log.Add(new MoveFailed(sourceSlot, move.Move, MoveFailureReason.TargetUnavailable));
             _actionHistory.Complete(attempt, BattleActionResult.Failed);
             return;
         }
@@ -1618,7 +1742,7 @@ public sealed class BattleController
         // Two-turn move: turn 1 charges (PP spent now, no damage); turn 2 fires as a normal hit.
         _actionHistory.MarkStarted(attempt);
         int ppBeforeSpend = move.Pp;
-        if (!PrepareTimedMove(attacker, sourceSlot, move, moveIndex, traceAction))
+        if (!PrepareTimedMove(attacker, sourceSlot, move, moveIndex, traceAction, submission))
         {
             _actionHistory.Complete(attempt, BattleActionResult.Succeeded, [targetOwner]);
             return;
@@ -1957,7 +2081,8 @@ public sealed class BattleController
                 break;
             case TerrainMoveEffect or TerrainGateEffect:
                 break;
-            case MoveGateEffect or FieldMoveGateEffect:
+            case MoveGateEffect or FieldMoveGateEffect or SemiInvulnerableHitEffect
+                or ChargeStartStatEffect:
                 break; // evaluated before PP/RNG in PassesMoveGates.
             case QueueActionGateEffect gate when gate.Owner == QueueActionGateOwner.Creature
                 && ctx.ActionDamageDealt <= 0:
@@ -3084,6 +3209,8 @@ public sealed class BattleController
 
     private void RecordFaint(BattleSlot slot)
     {
+        CancelCharge(slot, Active(slot));
+        TraceCancelled(_intentQueue.OwnerFainted(slot.Side, ActiveIndex(slot)));
         _log.Add(new Fainted(slot));
         _actionHistory.RecordFaint(HistoryOwner(slot));
     }
@@ -3194,6 +3321,14 @@ public sealed class BattleController
             _hookTrace.AddRange(weather.Trace);
             powerModifiers.AddRange(weather.QueryModifiers(BattleQueryId.BasePower)
                 .Select(modifier => modifier with { InsertionOrder = powerModifiers.Count }));
+        }
+        if (target.SemiInvulnerableState is { } semiState
+            && move.SecondaryEffects.OfType<SemiInvulnerableHitEffect>()
+                .SingleOrDefault(effect => effect.States.Contains(semiState))?.PowerMultiplier is { } semiPower)
+        {
+            powerModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
+                BattleQueryOperation.Multiply, new BattleQueryValue(semiPower.Num, semiPower.Den),
+                InsertionOrder: powerModifiers.Count));
         }
         BattleHookDispatchSnapshot fieldPower = FieldConditions.CollectBasePowerHooks(
             ConditionSnapshot, moveType.Slug, Ruleset, traceAction);
@@ -4129,6 +4264,8 @@ public sealed class BattleController
     {
         Outcome = new BattleOutcome(winner);
         _pendingReplacementSlots.Clear();
+        foreach (BattleSlot slot in Topology.Slots)
+            CancelCharge(slot, Active(slot));
         TraceCancelled(_intentQueue.EndBattle());
         _overlays.EndBattle(Turn, _traceActionSequence);
         RecordConditionChanges(_conditions.EndBattle(Turn, _traceActionSequence));

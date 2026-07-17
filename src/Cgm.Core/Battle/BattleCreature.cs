@@ -38,7 +38,7 @@ public sealed class BattleMove
         IReadOnlyList<MoveEffect>? secondaryEffects = null,
         StatKind? offensiveStatOverride = null, StatKind? defensiveStatOverride = null,
         TargetHpThresholdPower? targetHpThresholdPower = null, HpRatioPower? hpRatioPower = null,
-        HpBandPower? hpBandPower = null)
+        HpBandPower? hpBandPower = null, ChargeMoveEffect? charge = null)
     {
         Move = move;
         Type = type;
@@ -72,7 +72,7 @@ public sealed class BattleMove
         ForcesSwitch = forcesSwitch;
         CounterCategory = counterCategory;
         BypassAccuracy = bypassAccuracy;
-        ChargeTurn = chargeTurn;
+        Charge = charge ?? (chargeTurn ? new ChargeMoveEffect() : null);
         MultiTurnLock = multiTurnLock;
         MakesContact = makesContact;
         Target = target;
@@ -82,6 +82,7 @@ public sealed class BattleMove
         HpRatioPower = hpRatioPower;
         HpBandPower = hpBandPower;
         SecondaryEffects = secondaryEffects ?? BuildSecondaryEffects();
+        BattleChargeMechanics.Validate(Charge, SecondaryEffects);
     }
 
     private BattleMove(BattleMove source, int pp, int maxPp)
@@ -119,7 +120,7 @@ public sealed class BattleMove
         ForcesSwitch = source.ForcesSwitch;
         CounterCategory = source.CounterCategory;
         BypassAccuracy = source.BypassAccuracy;
-        ChargeTurn = source.ChargeTurn;
+        Charge = source.Charge;
         MultiTurnLock = source.MultiTurnLock;
         MakesContact = source.MakesContact;
         Target = source.Target;
@@ -233,8 +234,9 @@ public sealed class BattleMove
     /// <summary>Sure-hit: skip the accuracy roll (Swift/Aerial Ace-style accuracyBypass).</summary>
     public bool BypassAccuracy { get; }
 
-    /// <summary>Two-turn move (Solar Beam-style): charges turn 1, strikes turn 2 (catalog §7.2 charge).</summary>
-    public bool ChargeTurn { get; }
+    /// <summary>Two-turn move: charges turn 1, strikes turn 2 (catalog §7.2 charge).</summary>
+    public ChargeMoveEffect? Charge { get; }
+    public bool ChargeTurn => Charge is not null;
 
     /// <summary>Thrash/Outrage — locks the user into this move for 2–3 turns, then self-confuses (catalog §9.3).</summary>
     public bool MultiTurnLock { get; }
@@ -344,6 +346,7 @@ public sealed class BattleCreature
     /// <summary>Two-turn move mid-charge (catalog §7.2 charge): the move index locked in until it fires.</summary>
     public int? ChargingMoveIndex { get; private set; }
     public bool IsCharging => ChargingMoveIndex is not null;
+    public SemiInvulnerableState? SemiInvulnerableState { get; private set; }
 
     /// <summary>Thrash/Outrage rampage lock (catalog §9.3 outrage_family): forced move + turns left.</summary>
     public int LockedMoveIndex { get; private set; }
@@ -607,8 +610,21 @@ public sealed class BattleCreature
     public bool HasConsumedHeldEffect(string op) => _consumedHeldEffects.Contains(op);
     public bool ConsumeHeldEffect(string op) => _consumedHeldEffects.Add(op);
 
-    public void StartCharging(int moveIndex) => ChargingMoveIndex = moveIndex;
-    public void StopCharging() => ChargingMoveIndex = null;
+    public void StartCharging(int moveIndex, SemiInvulnerableState? state = null)
+    {
+        if (moveIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(moveIndex));
+        if (state is { } value && !Enum.IsDefined(value))
+            throw new ArgumentOutOfRangeException(nameof(state));
+        ChargingMoveIndex = moveIndex;
+        SemiInvulnerableState = state;
+    }
+
+    public void StopCharging()
+    {
+        ChargingMoveIndex = null;
+        SemiInvulnerableState = null;
+    }
 
     public void StartLock(int moveIndex, int turns) { LockedMoveIndex = moveIndex; LockTurns = Math.Max(0, turns); }
     /// <summary>Counts down the rampage lock (0 = the rampage ends this turn → self-confusion).</summary>
@@ -625,7 +641,7 @@ public sealed class BattleCreature
         Seeded = false;
         TrapTurns = 0;
         ProtectChain = 0;
-        ChargingMoveIndex = null;
+        StopCharging();
         LockTurns = 0;
         ChoiceLockedMoveIndex = null;
         ActionsSinceSwitch = 0;

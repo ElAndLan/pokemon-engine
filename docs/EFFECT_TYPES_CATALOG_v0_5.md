@@ -193,6 +193,14 @@ typed legality rows and never become move-ID branches. `recharge { turns? }` com
 `skipAction` payload as `queueActionGate`, but uses a creature owner with switch/faint cancellation;
 the generic queue op remains slot-owned and stays with the slot. Both are chance-free and add no RNG.
 
+Phase 15D-3 replaces the legacy private charge boolean with typed `chargeTurn` metadata and the
+shared queue's creature-owned `releaseMove` payload. Optional state is one of
+`air|underground|underwater|vanished`; selected targets use authored `liveSlot|snapshotSlot`
+release policy. `chargeStartStat` is the closed start-effect primitive currently required by the
+reference cohort. `semiInvulnerableHit` is the only move-authored state exception and may contribute
+one positive base-power fraction after the ordinary accuracy gate. Missing exceptions skip accuracy
+RNG and fail visibly. These ops contain no move IDs, new dependency, or serialized model field.
+
 ### 3.3 Damage, Accuracy, Hit Count, And Criticals
 
 | Primitive | What It Does | Covers |

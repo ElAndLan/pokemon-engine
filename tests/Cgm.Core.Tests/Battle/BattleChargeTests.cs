@@ -3,7 +3,7 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Tests.Battle;
 
-/// <summary>Two-turn charge moves (Solar Beam-style, catalog §7.2 charge): charge turn 1, strike turn 2.</summary>
+/// <summary>Two-turn charge moves: charge turn 1, strike turn 2.</summary>
 public sealed class BattleChargeTests
 {
     private static readonly EntityId Normal = EntityId.Parse("type:normal");
@@ -13,8 +13,9 @@ public sealed class BattleChargeTests
     private static BattleMove Inert() =>
         new(EntityId.Parse("move:inert"), Normal, DamageClass.Status, null, null, 25, 0, 0);
 
-    private static BattleMove SolarBeam() =>
-        new(EntityId.Parse("move:solarbeam"), Normal, DamageClass.Special, 120, 100, 10, 0, 0, chargeTurn: true);
+    private static BattleMove ChargedMove() =>
+        new(EntityId.Parse("move:charged_strike"), Normal, DamageClass.Special, 120, 100, 10, 0, 0,
+            chargeTurn: true);
 
     private static BattleCreature Fast(int hp, params BattleMove[] moves) =>
         new(EntityId.Parse("species:f"), "F", 50, [Normal], new Stats(hp, 100, 100, 100, 100, 100), moves);
@@ -25,7 +26,7 @@ public sealed class BattleChargeTests
     [Fact]
     public void ChargeTurn_DealsNoDamageAndLocksIn()
     {
-        var player = Fast(300, SolarBeam());
+        var player = Fast(300, ChargedMove());
         var enemy = Slow(2000, Inert());
         var battle = new BattleController(player, enemy, Chart(), new Rng(1));
 
@@ -40,7 +41,7 @@ public sealed class BattleChargeTests
     [Fact]
     public void SecondTurn_FiresTheChargedMove()
     {
-        var player = Fast(300, SolarBeam());
+        var player = Fast(300, ChargedMove());
         var enemy = Slow(2000, Inert());
         var battle = new BattleController(player, enemy, Chart(), new Rng(1));
 
@@ -57,27 +58,31 @@ public sealed class BattleChargeTests
     public void ChargingCreature_FiresEvenIfADifferentMoveIsSubmitted()
     {
         // The lock overrides the submitted action on the second turn.
-        var player = Fast(300, SolarBeam(), Inert());
+        var player = Fast(300, ChargedMove(), Inert());
         var enemy = Slow(2000, Inert());
         var battle = new BattleController(player, enemy, Chart(), new Rng(1));
 
-        battle.ResolveTurn(new UseMove(0), new UseMove(0)); // charge solar beam
-        battle.ResolveTurn(new UseMove(1), new UseMove(0)); // submit inert — but solar beam fires
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+        battle.ResolveTurn(new UseMove(1), new UseMove(0));
 
         Assert.True(enemy.CurrentHp < 2000);
         Assert.False(player.IsCharging);
     }
 
     [Fact]
-    public void ChargingCreature_CannotSwitch()
+    public void ChargingCreature_SubmittedSwitchIsReplacedByRelease()
     {
-        var player = Fast(300, SolarBeam());
+        var player = Fast(300, ChargedMove());
         var playerB = Fast(300, Inert());
         var enemy = Slow(2000, Inert());
         var battle = new BattleController([player, playerB], [enemy], Chart(), new Rng(1));
 
         battle.ResolveTurn(new UseMove(0), new UseMove(0)); // charging
-        Assert.Throws<ArgumentException>(() => battle.ResolveTurn(new Switch(1), new UseMove(0)));
+        battle.ResolveTurn(new Switch(1), new UseMove(0));
+
+        Assert.Same(player, battle.Active(BattleSide.Player));
+        Assert.False(player.IsCharging);
+        Assert.True(enemy.CurrentHp < 2000);
     }
 
     [Fact]
