@@ -216,6 +216,9 @@ Capabilities beyond Beginner:
   is explicit visible field input and its effective value is derived from the immutable terrain
   condition snapshot; environment consumers may not infer state from presentation events or keep a
   parallel terrain flag. The input itself adds no score component or RNG.
+- Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
+  consumes the resulting terrain through its existing grounded/query paths; it does not score a
+  hidden hook component, predict nested hook execution, or consume additional AI RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

@@ -691,13 +691,20 @@ environment inputs are implemented with resolver/Smart-AI parity. Authored terra
 tables compile through `terrainMove` (grounded user/target type, power, priority, and spread rows),
 `terrainGate`, `removeTerrain`, and the `heal.terrain` replacement table. They use the same typed
 query/store paths and resolver/Smart-AI inputs as the intrinsic rows. Environment consumers,
-grounded overrides, seeds/change hooks, and individual move certification remain required before
+grounded overrides, seeds, and individual move certification remain required before
 the terrain-family exit.
 
 The environment input is an immutable `{ natural, effective }` state. Only non-terrain environment
 values are valid natural inputs; active terrain derives the effective value and removal/expiry
 restores natural. Called-move, conditional-secondary, and type-mutation consumers remain in their
 owning packages and must consume this shared state rather than adding field-name branches.
+
+Terrain lifecycle ability/item rows reuse the existing v6 data hooks: `terrainSummon` applies a
+modern terrain on switch-in, `onTerrainChange` observes the completed presentation change and may
+replace it once without recursive redispatch, and `terrainDurationExtend` adds positive turns only
+when its holder's ability summoned that terrain. Move-authored and initial terrain do not receive
+the held extension. These rows draw no RNG and expose their result through the ordinary condition
+snapshot rather than parallel terrain state.
 
 ### 7.8 Transformation And Gimmick Conditions
 

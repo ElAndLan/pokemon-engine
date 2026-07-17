@@ -487,9 +487,11 @@ When multiple Phase 15 systems can react to the same event, dispatch in this ord
 5. Opposing active creature held-item hooks, when the hook targets incoming damage/status/contact.
 6. Existing v5 field/side/volatile hooks (weather residual, hazards, bind, leech seed, protect).
 
-Switch-in uses the same ordering, then applies existing entry hazards. If a hook changes weather,
-`onWeatherChange` hooks run immediately after the `WeatherChanged` event in the same 1-6 order.
-Later switch-in weather wins by replacing the current weather and resetting its duration.
+Switch-in uses the same ordering, then applies existing entry hazards. If a hook changes weather or
+terrain, `onWeatherChange` or `onTerrainChange` hooks run immediately after the corresponding
+`WeatherChanged` or `TerrainChanged` event in the same 1-6 order. A change hook may replace the
+field once; nested change-hook redispatch is suppressed. Later switch-in weather or terrain wins by
+replacing the current condition and resetting its duration.
 The Core event stream locks this visible switch-in order: `SwitchedIn`, any condition-form
 `FormChanged` from the pre-hook check, `WeatherChanged` from switch-in hooks, any weather-triggered
 condition-form `FormChanged`, then end-turn held-item events.
@@ -509,7 +511,7 @@ slots plus an optional hidden slot; generated creature instances store the chose
 
 Phase 15 supports only these hook points: `onSwitchIn`, `onModifyOutgoingDamage`,
 `onModifyIncomingDamage`, `onStatusAttempt`, `onEndOfTurn`, `onContactReceived`, and
-`onWeatherChange`. `statModify` effects run through the outgoing/incoming damage hooks because
+`onWeatherChange`, and `onTerrainChange`. `statModify` effects run through the outgoing/incoming damage hooks because
 they modify damage-stat queries during damage calculation. `onModifyStat` and `onFaint` are reserved
 until a closed op needs those timings; Phase 15 validation rejects them.
 
@@ -523,6 +525,11 @@ Closed ability-op palette for the first v6 slice:
 - `statusImmunity` - block a specific persistent status. Params: `{ status: string }`.
 - `weatherSummon` - set weather and duration. Params:
   `{ weather: rain|sun|sandstorm|hail, duration?: int }`.
+- `terrainSummon` - set modern terrain and duration. Params:
+  `{ terrain: electric|grassy|misty|psychic, duration?: positive int }`. It is valid on switch-in
+  and terrain-change hooks, uses the shared terrain condition store, and draws no RNG. Until later
+  terrain reaction ops are specified, `onTerrainChange` admits only `terrainSummon`; other pairings
+  fail validation rather than compiling to a silent no-op.
 - `contactChanceEffect` - when the holder receives contact from a move with `makesContact`,
   chance-gate and apply one effect to the contacting attacker. Params:
   `{ status: burn|poison|toxic|paralysis|sleep|freeze }`, `{ stat: atk|def|spa|spd|spe, delta: int }`,
@@ -552,6 +559,9 @@ Closed held-op palette for the first v6 slice:
   Takes no params.
 - `weatherDurationExtend` - extend holder-summoned weather by a fixed turn count. Params:
   `{ turns: int }`.
+- `terrainDurationExtend` - extend terrain summoned by the holder's ability by a fixed positive
+  turn count. It does not extend terrain from another creature, a move, or battle-start input.
+  Params: `{ turns: int }`.
 
 ### Forms
 
@@ -1332,6 +1342,13 @@ active terrain environment when terrain exists and otherwise `Natural`. Applying
 removing, or expiring terrain changes only the derived effective value through the condition
 snapshot; it adds no state mutation, event, trace, or RNG beyond the terrain lifecycle itself.
 
+Ability `terrainSummon` uses the same application/replacement path on switch-in. After the
+`TerrainChanged` presentation event, `onTerrainChange` hooks dispatch in the ordinary field-change
+order; one nested replacement may occur, but it does not recursively redispatch the hook. A
+source-held `terrainDurationExtend` adds its positive turns only to terrain summoned by that
+holder's ability. These hooks add no RNG and do not change Smart AI scoring; their resulting
+immutable condition snapshot is the same state observed by resolver and AI.
+
 This checkpoint supplies the common environment input required by environment-selected called
 moves, secondary effects, and creature types. It does not execute those consumers: called-move
 selection/execution remains 15D-7, environment-selected type mutation remains 15F, and conditional
@@ -1360,7 +1377,8 @@ Intrinsic terrain acceptance vectors are `terrain-registry`, `terrain-start-sour
 `terrain-grounded-query`, `terrain-damage-present-absent`, `terrain-status-present-absent`,
 `terrain-confusion-no-rng`, `terrain-priority-per-target`, `terrain-grassy-topology`,
 `terrain-ai-query-parity`, `terrain-natural-effective-environment`, `terrain-no-rng`, and
-`terrain-replay`.
+`terrain-replay`, plus `terrain-ability-summon`, `terrain-change-hook-order`,
+`terrain-change-hook-loop-guard`, and `terrain-duration-source-owner`.
 
 ### Effective-value overlays (Phase 15F-1)
 

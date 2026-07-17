@@ -42,6 +42,28 @@ public sealed class BattleTerrainConditionTests
         int hp = 320, params BattleMove[] moves) => new(EntityId.Parse($"species:{slug}"), slug, 50,
             types ?? [Normal], new Stats(hp, 100, 100, 100, 100, speed), moves);
 
+    private static BattleCreature TerrainSummoner(string slug, Terrain terrain, Terrain? changeTo = null,
+        IReadOnlyList<Effect>? heldEffects = null)
+    {
+        var hooks = new List<AbilityHook>
+        {
+            new()
+            {
+                Hook = AbilityHookPoint.OnSwitchIn,
+                Effects = [new Effect { Op = "terrainSummon", Params = Params(("terrain", terrain.ToString())) }],
+            },
+        };
+        if (changeTo is not null)
+            hooks.Add(new AbilityHook
+            {
+                Hook = AbilityHookPoint.OnTerrainChange,
+                Effects = [new Effect { Op = "terrainSummon", Params = Params(("terrain", changeTo.Value.ToString())) }],
+            });
+        return new BattleCreature(EntityId.Parse($"species:{slug}"), slug, 50, [Normal],
+            new Stats(320, 100, 100, 100, 100, 100), [Inert($"{slug}_inert")],
+            abilityHooks: hooks, heldItemBattleEffects: heldEffects);
+    }
+
     private static BattleFieldInputs Field(Terrain terrain, int? duration = null,
         BattleEnvironment environment = BattleEnvironment.Building) =>
         new(BattleRulesets.ModernReference, NaturalEnvironment: environment,
@@ -104,6 +126,62 @@ public sealed class BattleTerrainConditionTests
         Assert.Contains(events, entry => entry is TerrainEnded { Terrain: Terrain.Grassy });
         Assert.Contains(battle.ConditionTrace, entry => entry.Kind == BattleConditionTraceKind.Expired);
         Assert.Equal(0, rng.Calls);
+    }
+
+    [Fact]
+    public void TerrainSummonAbility_SetsTerrainOnSwitchIn()
+    {
+        BattleCreature reserve = TerrainSummoner("summoner", Terrain.Electric);
+        var rng = new CountingRng();
+        var battle = new BattleController([Creature("lead", 101, moves: [Inert("lead_inert")]), reserve],
+            [Creature("enemy", 1, moves: [Inert("enemy_inert")])], Chart(), rng,
+            fieldInputs: Field(Terrain.None));
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Switch(1), new UseMove(0));
+
+        Assert.Contains(events, entry => entry is SwitchedIn { Side: BattleSide.Player, PartyIndex: 1 });
+        Assert.Contains(events, entry => entry is TerrainChanged { Terrain: Terrain.Electric });
+        Assert.Equal(new BattleConditionSource(new BattleSlot(BattleSide.Player, 0), 1),
+            Assert.Single(battle.ConditionSnapshot).Source);
+        Assert.Equal(0, rng.Calls);
+    }
+
+    [Fact]
+    public void TerrainChangeHook_RunsAfterChangedEventAndStopsNestedRedispatch()
+    {
+        BattleCreature reserve = TerrainSummoner("changer", Terrain.Electric, Terrain.Grassy);
+        var battle = new BattleController([Creature("lead", 101, moves: [Inert("lead_inert")]), reserve],
+            [Creature("enemy", 1, moves: [Inert("enemy_inert")])], Chart(), new CountingRng(),
+            fieldInputs: Field(Terrain.None));
+
+        Terrain[] terrains = battle.ResolveTurn(new Switch(1), new UseMove(0))
+            .OfType<TerrainChanged>()
+            .Select(entry => entry.Terrain)
+            .ToArray();
+
+        Assert.Equal([Terrain.Electric, Terrain.Grassy], terrains);
+        Assert.Equal(Terrain.Grassy, battle.CurrentTerrain);
+    }
+
+    [Theory]
+    [InlineData(false, 4)]
+    [InlineData(true, 6)]
+    public void TerrainDurationExtension_AppliesOnlyToHolderSummonedTerrain(bool sourceHoldsExtension,
+        int expectedAfterSwitchTurn)
+    {
+        IReadOnlyList<Effect> extension =
+        [new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2)) }];
+        BattleCreature reserve = TerrainSummoner("summoner", Terrain.Psychic,
+            heldEffects: sourceHoldsExtension ? extension : null);
+        BattleCreature enemy = new(EntityId.Parse("species:enemy"), "enemy", 50, [Normal],
+            new Stats(320, 100, 100, 100, 100, 1), [Inert("enemy_inert")],
+            heldItemBattleEffects: sourceHoldsExtension ? null : extension);
+        var battle = new BattleController([Creature("lead", 101, moves: [Inert("lead_inert")]), reserve],
+            [enemy], Chart(), new CountingRng(), fieldInputs: Field(Terrain.None));
+
+        battle.ResolveTurn(new Switch(1), new UseMove(0));
+
+        Assert.Equal(expectedAfterSwitchTurn, Assert.Single(battle.ConditionSnapshot).RemainingDuration);
     }
 
     [Fact]
@@ -539,6 +617,9 @@ public sealed class BattleTerrainConditionTests
             TerrainConditions.FieldOwner, new BattleConditionSource(), 0, 0));
         return stores;
     }
+
+    private static Dictionary<string, JsonElement> Params(params (string Key, object Value)[] values) =>
+        values.ToDictionary(value => value.Key, value => JsonSerializer.SerializeToElement(value.Value));
 
     private sealed class CountingRng : IRng
     {

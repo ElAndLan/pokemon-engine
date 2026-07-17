@@ -44,6 +44,7 @@ public sealed class BattleController
     private readonly List<BattleHookTraceEntry> _hookTrace = [];
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
     private bool _dispatchingWeatherChange;
+    private bool _dispatchingTerrainChange;
     private int _traceActionSequence;
     private readonly string _ruleset;
     private BattleEnvironment _naturalEnvironment;
@@ -2548,12 +2549,23 @@ public sealed class BattleController
                 SetWeather(Parse<Weather>(Str(invocation.Effect, "weather")),
                     turns + WeatherDurationExtension(invocation.Slot), invocation.Slot);
             }
+            else if (invocation.Effect.Op == "terrainSummon")
+            {
+                int turns = Int(invocation.Effect, "duration") ?? TerrainConditions.DefaultTurns;
+                SetTerrain(Parse<Terrain>(Str(invocation.Effect, "terrain")),
+                    turns + TerrainDurationExtension(invocation.Slot), invocation.Slot);
+            }
         }
     }
 
     private int WeatherDurationExtension(BattleSlot slot) =>
         Active(slot).HeldItemBattleEffects
             .Where(e => e.Op == "weatherDurationExtend")
+            .Sum(e => Int(e, "turns") ?? 0);
+
+    private int TerrainDurationExtension(BattleSlot slot) =>
+        Active(slot).HeldItemBattleEffects
+            .Where(e => e.Op == "terrainDurationExtend")
             .Sum(e => Int(e, "turns") ?? 0);
 
     private static void ApplyChoiceLock(BattleCreature creature, int moveIndex)
@@ -2785,6 +2797,18 @@ public sealed class BattleController
             _traceActionSequence,
             Math.Max(1, turns))));
         _log.Add(new TerrainChanged(terrain));
+        if (_dispatchingTerrainChange)
+            return;
+
+        _dispatchingTerrainChange = true;
+        try
+        {
+            ApplyHookInvocations(BattleHookDispatcher.TerrainChange(sourceSlot.Side, HookSources()));
+        }
+        finally
+        {
+            _dispatchingTerrainChange = false;
+        }
     }
 
     private void ClearTerrain()

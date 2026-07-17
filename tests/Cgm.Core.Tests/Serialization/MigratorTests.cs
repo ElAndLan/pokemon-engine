@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Cgm.Core.Model;
 using Cgm.Core.Serialization;
 
 namespace Cgm.Core.Tests.Serialization;
@@ -40,12 +41,19 @@ public sealed class MigratorTests
         public void Apply(JsonObject json) { }
     }
 
+    private sealed class NoOpV5ToV6 : IJsonMigration
+    {
+        public int FromVersion => 5;
+        public void Apply(JsonObject json) { }
+    }
+
     [Fact]
     public void Migrate_AppliesStepAndBumpsVersion()
     {
         var json = new JsonObject { ["schemaVersion"] = 0, ["foo"] = 42 };
         JsonObject result = Migrator.Migrate(json,
-            [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4(), new NoOpV4ToV5()]);
+            [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4(), new NoOpV4ToV5(),
+                new NoOpV5ToV6()]);
 
         Assert.Equal(Migrator.CurrentVersion, result["schemaVersion"]!.GetValue<int>());
         Assert.Null(result["foo"]);
@@ -102,8 +110,21 @@ public sealed class MigratorTests
 
         Migrator.Migrate(json);
 
-        Assert.Equal(5, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(SchemaVersions.Current, json["schemaVersion"]!.GetValue<int>());
         Assert.Equal(1, json["weightHectograms"]!.GetValue<int>());
         Assert.Equal(9, json["heightDecimeters"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void Migrate_V5Ability_PreservesExistingHookAndLoadsAtV6()
+    {
+        string text = File.ReadAllText(TestPaths.Fixture("schema-v5/ability.json"));
+        var json = JsonNode.Parse(text)!.AsObject();
+
+        Migrator.Migrate(json);
+        Ability ability = CgmJson.Deserialize<Ability>(json.ToJsonString());
+
+        Assert.Equal(SchemaVersions.Current, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(AbilityHookPoint.OnWeatherChange, ability.Hooks.Single().Hook);
     }
 }

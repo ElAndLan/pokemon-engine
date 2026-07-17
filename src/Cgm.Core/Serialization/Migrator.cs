@@ -13,16 +13,15 @@ public interface IJsonMigration
 
 /// <summary>
 /// Runs registered migrations to bring a parsed JSON object up to <see cref="CurrentVersion"/>
-/// before it is deserialized. Everything is v1 today, so no migrations are registered yet — but
-/// the mechanism is wired into the load path so a future version bump upgrades old files
-/// automatically, and loading a file newer than we support fails loudly instead of silently.
+/// before it is deserialized. Registered ordered steps upgrade old files automatically, and loading
+/// a file newer than we support fails loudly instead of silently.
 /// </summary>
 public static class Migrator
 {
     public const int CurrentVersion = SchemaVersions.Current;
 
     private static readonly IReadOnlyList<IJsonMigration> Registered =
-        [new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5()];
+        [new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6()];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
 
@@ -76,5 +75,11 @@ public static class Migrator
             json["weightHectograms"] ??= 1;
             json["heightDecimeters"] ??= 1;
         }
+    }
+
+    private sealed class V5ToV6 : IJsonMigration
+    {
+        public int FromVersion => 5;
+        public void Apply(JsonObject json) { }
     }
 }

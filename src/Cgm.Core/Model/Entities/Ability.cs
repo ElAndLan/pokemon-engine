@@ -10,6 +10,7 @@ public enum AbilityHookPoint
     OnEndOfTurn,
     OnContactReceived,
     OnWeatherChange,
+    OnTerrainChange,
     OnFaint,
 }
 

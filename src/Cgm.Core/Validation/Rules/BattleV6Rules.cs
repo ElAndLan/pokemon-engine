@@ -17,6 +17,7 @@ public sealed class AbilityHookRule : IValidationRule
         AbilityHookPoint.OnEndOfTurn,
         AbilityHookPoint.OnContactReceived,
         AbilityHookPoint.OnWeatherChange,
+        AbilityHookPoint.OnTerrainChange,
     };
 
     public IEnumerable<ValidationIssue> Check(Project project)
@@ -27,6 +28,17 @@ public sealed class AbilityHookRule : IValidationRule
                 if (!SupportedHooks.Contains(hook.Hook))
                     yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
                         $"Ability hook '{hook.Hook}' is not a Phase 15 supported hook point.");
+
+                foreach (Effect effect in hook.Effects)
+                {
+                    if (effect.Op == "terrainSummon"
+                        && hook.Hook is not AbilityHookPoint.OnSwitchIn and not AbilityHookPoint.OnTerrainChange)
+                        yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                            "Effect op 'terrainSummon' requires onSwitchIn or onTerrainChange.");
+                    else if (hook.Hook == AbilityHookPoint.OnTerrainChange && effect.Op != "terrainSummon")
+                        yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                            $"Ability hook 'onTerrainChange' does not support effect op '{effect.Op}'.");
+                }
 
                 foreach (ValidationIssue issue in Phase15EffectRules.Check(
                     Id, ability.Id, hook.Effects, Phase15EffectRules.AbilityOps, "ability"))
@@ -154,14 +166,14 @@ internal static class Phase15EffectRules
 {
     public static readonly IReadOnlySet<string> AbilityOps = new HashSet<string>
     {
-        "statModify", "typeDamageModify", "statusImmunity", "weatherSummon",
+        "statModify", "typeDamageModify", "statusImmunity", "weatherSummon", "terrainSummon",
         "contactChanceEffect", "residualHeal", "residualDamage",
     };
 
     public static readonly IReadOnlySet<string> HeldItemOps = new HashSet<string>
     {
         "thresholdHeal", "statusCure", "typeDamageBoost", "choiceLock",
-        "residualHeal", "surviveFromFull", "weatherDurationExtend",
+        "residualHeal", "surviveFromFull", "weatherDurationExtend", "terrainDurationExtend",
     };
 
     public static IEnumerable<ValidationIssue> Check(
@@ -193,6 +205,24 @@ internal static class Phase15EffectRules
         if (effect.Op == "weatherSummon" && !HasString(effect, "weather"))
             yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                 "Effect op 'weatherSummon' requires string param 'weather'.");
+
+        if (effect.Op == "terrainSummon")
+        {
+            if (!HasString(effect, "terrain"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'terrainSummon' requires string param 'terrain'.");
+            else if (!Enum.GetNames<Terrain>().Any(name =>
+                    string.Equals(name, Str(effect, "terrain"), StringComparison.OrdinalIgnoreCase))
+                || string.Equals(Str(effect, "terrain"), nameof(Terrain.None), StringComparison.OrdinalIgnoreCase))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'terrainSummon' has unknown terrain '{Str(effect, "terrain")}'.");
+            if (effect.Params?.ContainsKey("duration") == true && !HasNumber(effect, "duration"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'terrainSummon' param 'duration' must be an integer.");
+            foreach (string key in effect.Params?.Keys.Where(key => key is not "terrain" and not "duration") ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'terrainSummon' has unknown param '{key}'.");
+        }
 
         if (effect.Op is "statusImmunity" or "statusCure")
         {
@@ -300,6 +330,14 @@ internal static class Phase15EffectRules
         if (effect.Op == "weatherDurationExtend" && !HasNumber(effect, "turns"))
             yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                 "Effect op 'weatherDurationExtend' requires numeric param 'turns'.");
+
+        if (effect.Op == "terrainDurationExtend" && !HasNumber(effect, "turns"))
+            yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                "Effect op 'terrainDurationExtend' requires numeric param 'turns'.");
+        if (effect.Op == "terrainDurationExtend")
+            foreach (string key in effect.Params?.Keys.Where(key => key != "turns") ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'terrainDurationExtend' has unknown param '{key}'.");
     }
 
     private static IEnumerable<ValidationIssue> CheckNumericParams(string ruleId, EntityId owner, Effect effect)

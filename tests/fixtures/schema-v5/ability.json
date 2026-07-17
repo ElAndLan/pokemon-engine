@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 5,
+  "id": "ability:weather_listener",
+  "name": "Weather Listener",
+  "hooks": [
+    {
+      "hook": "onWeatherChange",
+      "effects": []
+    }
+  ]
+}

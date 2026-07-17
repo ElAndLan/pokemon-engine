@@ -204,7 +204,10 @@ resolver/Smart-AI parity, and deterministic replay. The authored-interaction che
 type/power/priority/spread/gate/removal/heal compilation, user/target grounded matrices, effective
 type and power traces, action-order proof, doubles materialization, pre-PP/RNG failure, exact-store
 removal traces, healing replacement, and Smart-AI parity. Environment consumers, grounded
-overrides, change hooks, and per-move certification remain open.
+overrides, seeds, and per-move certification remain open. The lifecycle-hook checkpoint additionally
+covers ability switch-in summon, post-event `onTerrainChange` replacement with bounded redispatch,
+source-owned held duration extension versus an opposing holder, strict op/hook validation, schema-v6
+round-trip and v5 no-op migration, exact condition source/duration, and zero added RNG.
 
 The environment-input checkpoint covers all twelve valid natural values, rejects the four
 terrain-only values and unknown enums as natural input, proves clear/apply/replace/remove/expire

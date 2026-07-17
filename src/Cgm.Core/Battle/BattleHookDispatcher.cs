@@ -158,6 +158,11 @@ public static partial class BattleHookDispatcher
         IEnumerable<BattleHookSource> sources) =>
         Ordered(changer, Opponent(changer), AbilityHookPoint.OnWeatherChange, sources);
 
+    public static IReadOnlyList<BattleHookInvocation> TerrainChange(
+        BattleSide changer,
+        IEnumerable<BattleHookSource> sources) =>
+        Ordered(changer, Opponent(changer), AbilityHookPoint.OnTerrainChange, sources);
+
     private static IReadOnlyList<BattleHookInvocation> Ordered(
         BattleSide active,
         BattleSide opposing,

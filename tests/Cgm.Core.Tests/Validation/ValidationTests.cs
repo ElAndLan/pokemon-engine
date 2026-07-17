@@ -228,6 +228,10 @@ public sealed class ValidationTests
                         new Effect { Op = "residualHeal", Chance = 0 },
                         new Effect { Op = "residualDamage", Params = Params(("den", 0)) },
                         new Effect { Op = "weatherSummon" },
+                        new Effect { Op = "terrainSummon" },
+                        new Effect { Op = "terrainSummon", Params = Params(("terrain", "none")) },
+                        new Effect { Op = "terrainSummon", Params = Params(("terrain", "1")) },
+                        new Effect { Op = "terrainSummon", Params = Params(("terrain", "electric"), ("duration", "five"), ("extra", 1)) },
                         new Effect { Op = "statusImmunity" },
                         new Effect { Op = "statusCure" },
                         new Effect { Op = "statusCure", Params = Params(("status", "dizzy")) },
@@ -240,6 +244,11 @@ public sealed class ValidationTests
                         new Effect { Op = "contactChanceEffect", Params = Params(("stat", "atk"), ("delta", 0)) },
                     ],
                 },
+                new AbilityHook
+                {
+                    Hook = AbilityHookPoint.OnTerrainChange,
+                    Effects = [new Effect { Op = "residualHeal", Params = Params(("num", 1), ("den", 16)) }],
+                },
             ],
         };
 
@@ -250,6 +259,12 @@ public sealed class ValidationTests
         Assert.Contains(issues, i => i.Message.Contains("den"));
         Assert.Contains(issues, i => i.Message.Contains("num"));
         Assert.Contains(issues, i => i.Message.Contains("weather"));
+        Assert.Contains(issues, i => i.Message.Contains("requires string param 'terrain'"));
+        Assert.Contains(issues, i => i.Message.Contains("unknown terrain"));
+        Assert.Contains(issues, i => i.Message.Contains("duration") && i.Message.Contains("integer"));
+        Assert.Contains(issues, i => i.Message.Contains("unknown param 'extra'"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainSummon") && i.Message.Contains("requires onSwitchIn"));
+        Assert.Contains(issues, i => i.Message.Contains("onTerrainChange") && i.Message.Contains("residualHeal"));
         Assert.Contains(issues, i => i.Message.Contains("status"));
         Assert.Contains(issues, i => i.Message.Contains("unknown status"));
         Assert.Contains(issues, i => i.Message.Contains("type"));
@@ -270,6 +285,7 @@ public sealed class ValidationTests
                     Effects =
                     [
                         new Effect { Op = "weatherSummon", Chance = 100, Params = Params(("weather", "rain"), ("duration", 5)) },
+                        new Effect { Op = "terrainSummon", Params = Params(("terrain", "grassy"), ("duration", 5)) },
                         new Effect { Op = "residualHeal", Params = Params(("num", 1), ("den", 16)) },
                         new Effect { Op = "statusImmunity", Params = Params(("status", "burn")) },
                         new Effect { Op = "statModify", Params = Params(("stat", "atk"), ("multiplierPercent", 150)) },
@@ -277,6 +293,11 @@ public sealed class ValidationTests
                         new Effect { Op = "contactChanceEffect", Chance = 30, Params = Params(("status", "poison")) },
                         new Effect { Op = "contactChanceEffect", Params = Params(("stat", "atk"), ("delta", -1)) },
                     ],
+                },
+                new AbilityHook
+                {
+                    Hook = AbilityHookPoint.OnTerrainChange,
+                    Effects = [new Effect { Op = "terrainSummon", Params = Params(("terrain", "misty")) }],
                 },
             ],
         })));
@@ -323,6 +344,9 @@ public sealed class ValidationTests
                 new Effect { Op = "surviveFromFull", Params = Params(("amount", 1)) },
                 new Effect { Op = "weatherDurationExtend" },
                 new Effect { Op = "weatherDurationExtend", Params = Params(("turns", 0)) },
+                new Effect { Op = "terrainDurationExtend" },
+                new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 0)) },
+                new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2), ("extra", 1)) },
             ],
         };
 
@@ -340,6 +364,8 @@ public sealed class ValidationTests
         Assert.Contains(issues, i => i.Message.Contains("residualHeal") && i.Message.Contains("den"));
         Assert.Contains(issues, i => i.Message.Contains("does not take params"));
         Assert.Contains(issues, i => i.Message.Contains("weatherDurationExtend") && i.Message.Contains("turns"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainDurationExtend") && i.Message.Contains("turns"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainDurationExtend") && i.Message.Contains("unknown param"));
         Assert.Empty(Run(new HeldItemBattleEffectRule(), Project(item with
         {
             Holdable = true,
@@ -352,6 +378,7 @@ public sealed class ValidationTests
                 new Effect { Op = "residualHeal", Params = Params(("num", 1), ("den", 16)) },
                 new Effect { Op = "surviveFromFull" },
                 new Effect { Op = "weatherDurationExtend", Params = Params(("turns", 2)) },
+                new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2)) },
             ],
         })));
     }
