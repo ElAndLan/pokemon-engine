@@ -275,6 +275,10 @@ Capabilities beyond Beginner:
   fraction; guaranteed no-chain and modern side profiles retain full value, while a duplicate active
   row contributes none. Preview executes no contact payload, mutates no chain/condition, consumes no
   RNG, and reads no opposing submitted action.
+- Generic condition remove/transfer/swap candidates receive no speculative score component. The AI
+  does not predict which opposing conditions will be authored or value opaque tags. Once an
+  operation resolves, every existing condition-aware legality and score path reads the resulting
+  immutable snapshot; preview never mutates instances, performs a swap, or consumes RNG.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:
   - paralysis against faster attackers;

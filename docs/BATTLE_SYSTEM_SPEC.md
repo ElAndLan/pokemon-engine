@@ -1781,6 +1781,54 @@ Acceptance vectors: `protection-compile-validation`, `protection-first-repeat-re
 `protection-contact-order-guards`, `protection-contact-source-faint`,
 `protection-event-trace-memory`, `protection-ai-parity`, and `protection-golden`.
 
+### Generic condition cleanup, transfer, and swap (Phase 15E-7)
+
+Three chance-free typed ops mutate existing shared condition instances without naming content:
+`conditionRemove`, `conditionTransfer`, and `conditionSwap`. Every op requires a `scope` and one
+explicit selector mode: `condition:<family:slug>`, `tag:<lowercase-token>`, or `all:true`.
+`source` optionally refines the selector and is exactly `any` (default), `user`, `target`, or
+`environment`; the last matches only source-less instances. Condition ID and tag selectors are
+generic validated tokens rather than an enumerated content list. Unknown/mistyped params, authored
+chance, multiple selector modes, `all:false`, and an empty selector are rejected.
+User and target source filters compare stable side/party identity, not the creature's transient slot
+position, so switching or position changes do not rewrite condition provenance.
+
+`conditionRemove` also requires `owner:user|target`. Field/weather/terrain/room owners are canonical
+and therefore require `owner:user`; side, slot, and creature owners resolve from the effect source or
+materialized target. `conditionTransfer` requires distinct `from` and `to` owners plus optional
+`resetDuration` and `resetCounters` booleans, both false by default. Transfer supports side, slot,
+and creature scopes and requires one externally materialized active-creature target. A transfer
+preserves definition, source, applied turn/action, remaining duration, counters, stack count, and
+sequence. `resetDuration:true` restores the definition's authored default and is rejected for a
+variable-duration definition without a default. `resetCounters:true` restores immutable initial
+counters and stack count one. `conditionSwap` exchanges matching instances between the effect source
+and target owners, supports only side or slot scope, and accepts the same two reset flags. It
+requires a single active-creature target; side self-swap and identical slot owners are rejected.
+
+Selection snapshots the condition store's ordinary deterministic order. Zero matches are a
+successful visible no-op: state is unchanged and `ConditionOperationNoOp` plus a zero-valued effect
+trace are emitted. Remove affects every match. Transfer and swap preflight the complete prospective
+owner state before mutation. A destination stacking-key collision, illegal owner/scope transition,
+ambiguous self-transfer, or invalid reset rejects the whole operation; no instance, duration,
+counter, event sequence, or hook order changes. Runtime conflicts emit `ConditionOperationRejected`
+and a failed zero-valued trace. Swap permits one selected side to be empty; selected instances from
+the occupied owner move to the empty owner atomically. Unselected instances remain in place.
+
+Applied removal reuses `ConditionRemoved` and `Removed` condition trace rows. Applied transfer and
+swap emit one existing `ConditionTransferred` event and `Transferred` trace per moved instance in
+original condition order. Effect traces use `ConditionRemoval`, `ConditionTransfer`, or
+`ConditionSwap`, with performed state and moved/removed count. Operations consume no RNG, publish no
+hook payload, and preserve later hook enumeration by scope/owner/sequence. Smart AI adds no
+speculative cleanup score; later decisions simply observe the resulting immutable snapshot through
+existing condition consumers.
+
+Acceptance vectors: `condition-mutation-compile-validation`, `condition-selector-zero-one-many`,
+`condition-selector-id-tag-all-source`, `condition-remove-all-scopes`,
+`condition-transfer-preserve-reset`, `condition-transfer-cross-side-intra-side`,
+`condition-swap-side-slot-empty-occupied`, `condition-mutation-conflict-rollback`,
+`condition-mutation-event-trace-order`, `condition-mutation-hook-order`,
+`condition-mutation-no-rng`, and `condition-mutation-golden`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

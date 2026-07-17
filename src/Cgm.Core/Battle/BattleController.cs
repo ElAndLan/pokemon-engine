@@ -833,6 +833,9 @@ public sealed class BattleController
             or HpEqualizeEffect => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
         RemoveSideConditionEffect { Side: SideConditionTarget.Target, Timing: SideConditionTiming.AfterHit } => true,
+        RemoveConditionEffect { Owner: SideConditionTarget.Target }
+            or RemoveConditionEffect { Selector.Source: BattleConditionSourceTarget.Target }
+            or TransferConditionEffect or SwapConditionEffect => true,
         _ => false,
     };
 
@@ -1855,6 +1858,12 @@ public sealed class BattleController
             case RemoveSideConditionEffect { Timing: SideConditionTiming.AfterHit } remove:
                 RemoveSideConditions(ctx, remove);
                 break;
+            case RemoveConditionEffect remove:
+                return ApplyConditionRemove(ctx, remove);
+            case TransferConditionEffect transfer:
+                return ApplyConditionTransfer(ctx, transfer);
+            case SwapConditionEffect swap:
+                return ApplyConditionSwap(ctx, swap);
             case SideConditionBypassEffect or ProtectionBypassEffect or RemoveSideConditionEffect:
                 break;
             case RemoveTerrainEffect:
@@ -1869,6 +1878,89 @@ public sealed class BattleController
                 break;
         }
         return true;
+    }
+
+    private bool ApplyConditionRemove(EffectContext ctx, RemoveConditionEffect effect)
+    {
+        BattleConditionSource userSource = ConditionSource(ctx.SourceSlot, ctx.Source);
+        BattleConditionSource targetSource = ctx.TargetContext is null
+            ? userSource : ConditionSource(ctx.TargetSlot, ctx.Target);
+        BattleConditionMutationResult result = _conditions.RemoveSelected(effect.Selector,
+            ConditionOwner(ctx, effect.Selector.Scope, effect.Owner), userSource, targetSource,
+            Turn, ctx.TraceAction);
+        return RecordConditionMutation(ctx, BattleConditionOperation.Remove,
+            EffectTraceKind.ConditionRemoval, effect.Selector.Scope, result);
+    }
+
+    private bool ApplyConditionTransfer(EffectContext ctx, TransferConditionEffect effect)
+    {
+        BattleConditionSource userSource = ConditionSource(ctx.SourceSlot, ctx.Source);
+        BattleConditionSource targetSource = ConditionSource(ctx.TargetSlot, ctx.Target);
+        BattleConditionMutationResult result = _conditions.TransferSelected(effect.Selector,
+            ConditionOwner(ctx, effect.Selector.Scope, effect.From),
+            ConditionOwner(ctx, effect.Selector.Scope, effect.To),
+            userSource, targetSource, effect.ResetDuration, effect.ResetCounters,
+            Turn, ctx.TraceAction);
+        return RecordConditionMutation(ctx, BattleConditionOperation.Transfer,
+            EffectTraceKind.ConditionTransfer, effect.Selector.Scope, result);
+    }
+
+    private bool ApplyConditionSwap(EffectContext ctx, SwapConditionEffect effect)
+    {
+        BattleConditionSource userSource = ConditionSource(ctx.SourceSlot, ctx.Source);
+        BattleConditionSource targetSource = ConditionSource(ctx.TargetSlot, ctx.Target);
+        BattleConditionMutationResult result = _conditions.SwapSelected(effect.Selector,
+            ConditionOwner(ctx, effect.Selector.Scope, SideConditionTarget.Source),
+            ConditionOwner(ctx, effect.Selector.Scope, SideConditionTarget.Target),
+            userSource, targetSource, effect.ResetDuration, effect.ResetCounters,
+            Turn, ctx.TraceAction);
+        return RecordConditionMutation(ctx, BattleConditionOperation.Swap,
+            EffectTraceKind.ConditionSwap, effect.Selector.Scope, result);
+    }
+
+    private bool RecordConditionMutation(EffectContext ctx, BattleConditionOperation operation,
+        EffectTraceKind traceKind, BattleConditionScope scope, BattleConditionMutationResult result)
+    {
+        int start = _log.Count;
+        RecordConditionChanges(result.Changes);
+        if (result.Outcome == BattleConditionMutationOutcome.NoMatch)
+            _log.Add(new ConditionOperationNoOp(operation, scope));
+        else if (result.Outcome == BattleConditionMutationOutcome.Conflict)
+        {
+            _log.Add(new ConditionOperationRejected(operation, scope));
+            ctx.Action.MarkFailed();
+        }
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot,
+            ctx.TargetContext?.TargetSlot, traceKind,
+            result.Outcome == BattleConditionMutationOutcome.Applied, null,
+            result.Changes.Affected.Count, start, _log.Count));
+        return result.Outcome != BattleConditionMutationOutcome.Conflict;
+    }
+
+    private BattleConditionOwner ConditionOwner(EffectContext ctx, BattleConditionScope scope,
+        SideConditionTarget target)
+    {
+        if (scope is BattleConditionScope.Field or BattleConditionScope.Weather
+            or BattleConditionScope.Terrain or BattleConditionScope.Room)
+            return new BattleConditionOwner(scope);
+        BattleSlot slot = target == SideConditionTarget.Source ? ctx.SourceSlot : ctx.TargetSlot;
+        BattleCreature creature = target == SideConditionTarget.Source ? ctx.Source : ctx.Target;
+        return scope switch
+        {
+            BattleConditionScope.Side => new(scope, slot.Side),
+            BattleConditionScope.Slot => new(scope, slot.Side, slot),
+            BattleConditionScope.Creature => new(scope, slot.Side, slot, PartyIndex(slot.Side, creature)),
+            _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unsupported condition owner scope."),
+        };
+    }
+
+    private BattleConditionSource ConditionSource(BattleSlot slot, BattleCreature creature) =>
+        new(slot, PartyIndex(slot.Side, creature));
+
+    private int PartyIndex(BattleSide side, BattleCreature creature)
+    {
+        int index = _parties[(int)side].IndexOf(creature);
+        return index >= 0 ? index : throw new InvalidOperationException("Battle creature is not in its side party.");
     }
 
     private void ApplyGroundedState(EffectContext ctx, GroundedStateEffect effect)

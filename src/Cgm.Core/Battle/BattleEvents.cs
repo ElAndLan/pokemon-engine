@@ -35,6 +35,11 @@ public sealed record ConditionRemoved(BattleConditionId Condition, BattleConditi
     BattleConditionOwner Owner, long Sequence, BattleConditionCleanupReason Reason) : BattleEvent;
 public sealed record ConditionTransferred(BattleConditionId Condition, BattleConditionScope Scope,
     BattleConditionOwner PreviousOwner, BattleConditionOwner Owner, long Sequence) : BattleEvent;
+public enum BattleConditionOperation { Remove, Transfer, Swap }
+public sealed record ConditionOperationNoOp(
+    BattleConditionOperation Operation, BattleConditionScope Scope) : BattleEvent;
+public sealed record ConditionOperationRejected(
+    BattleConditionOperation Operation, BattleConditionScope Scope) : BattleEvent;
 public sealed record MoveUsed(BattleSlot Slot, EntityId Move) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

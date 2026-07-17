@@ -829,6 +829,19 @@ firstAction }` composes with `damageProtection`; the condition never adds privat
 Classic consecutive-use checks and personal/contact protect variants remain 15E-6. Blocked targets
 draw no accuracy or hit RNG and emit the shared blocked/protected memory and trace result.
 
+### 7.7h Generic Condition Mutation
+
+`conditionRemove`, `conditionTransfer`, and `conditionSwap` select shared typed condition instances
+by one of condition ID, tag, or explicit `all:true`, optionally refined by source identity
+`any|user|target|environment`. Remove resolves a user/target owner at the authored scope. Transfer
+moves side, slot, or creature instances between distinct user/target owners. Swap atomically
+exchanges selected side or slot instances and permits either selected set to be empty. Transfer/swap
+preserve definition, source, applied metadata, duration, counters, stacks, and sequence unless the
+closed `resetDuration`/`resetCounters` booleans request their definition defaults. The store
+preflights all stacking keys and owner shapes before mutation; conflicts roll back completely.
+Selectors accept generic validated IDs/tags and never enumerate content names. These ops add no RNG
+or hook payload and use generic lifecycle events plus typed operation traces.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

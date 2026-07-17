@@ -301,6 +301,16 @@ events, condition/effect traces, Smart-AI fraction parity, deterministic replay,
 `protection.golden`. The open effect payload adds only new closed op params, so no schema migration
 vector changes.
 
+The 15E-7 exit covers strict remove/transfer/swap compilation and every missing, unknown, mistyped,
+duplicate-selector, incompatible-scope/owner/target/reset sibling; generic condition-ID, tag, all,
+and user/target/environment source selectors; zero/one/many matches; field/weather/terrain/room/
+side/slot/creature removal; cross-side and intra-side transfer; duration/counter/source/sequence
+preservation and explicit reset; side/slot empty/occupied swap; destination stacking conflicts and
+complete rollback; deterministic lifecycle event/condition/effect trace order; unchanged hook
+enumeration; zero RNG; Smart-AI snapshot visibility without speculative scoring; replay identity;
+and the checked-in `condition-mutation.golden`. The existing open effect payload adds only closed op
+params, so no schema migration vector changes.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

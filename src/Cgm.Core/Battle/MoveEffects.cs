@@ -181,6 +181,19 @@ public sealed record SetSideConditionEffect(
 public sealed record SideConditionBypassEffect(string Tag) : MoveEffect;
 public sealed record RemoveSideConditionEffect(
     string Tag, SideConditionTarget Side, SideConditionTiming Timing) : MoveEffect;
+public sealed record RemoveConditionEffect(
+    BattleConditionSelector Selector,
+    SideConditionTarget Owner) : MoveEffect;
+public sealed record TransferConditionEffect(
+    BattleConditionSelector Selector,
+    SideConditionTarget From,
+    SideConditionTarget To,
+    bool ResetDuration,
+    bool ResetCounters) : MoveEffect;
+public sealed record SwapConditionEffect(
+    BattleConditionSelector Selector,
+    bool ResetDuration,
+    bool ResetCounters) : MoveEffect;
 public sealed record FieldMoveGateEffect(BattleFieldCondition Condition) : MoveEffect;
 public sealed record TerrainMoveEffect(
     TerrainMoveSubject Subject,

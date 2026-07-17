@@ -30,6 +30,8 @@ public enum EffectTraceKind
     PositionSwap,
     Redirection,
     ConditionRemoval,
+    ConditionTransfer,
+    ConditionSwap,
     EntryHazard,
     IntentEnqueued,
     IntentConsumed,

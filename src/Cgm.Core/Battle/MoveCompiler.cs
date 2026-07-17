@@ -280,6 +280,64 @@ public static class MoveCompiler
                     effects.Add(new RemoveSideConditionEffect(removeTag, removeSide, removeTiming));
                     break;
 
+                case "conditionRemove":
+                    if (chance != 100)
+                        throw new ArgumentException("conditionRemove does not support chance.");
+                    CheckAllowedParams(e, "scope", "owner", "condition", "tag", "all", "source");
+                    BattleConditionSelector removeSelector = ParseConditionSelector(e);
+                    SideConditionTarget removeOwner = ParseConditionOwner(Str(e, "owner"));
+                    if (removeSelector.Scope is BattleConditionScope.Field or BattleConditionScope.Weather
+                        or BattleConditionScope.Terrain or BattleConditionScope.Room
+                        && removeOwner != SideConditionTarget.Source)
+                        throw new ArgumentException("Field-owned condition removal requires owner source.");
+                    if (removeOwner == SideConditionTarget.Target && !IsActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("Target condition removal requires an active-creature target.");
+                    if (removeSelector.Source == BattleConditionSourceTarget.Target
+                        && !IsActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("Target-source condition removal requires an active-creature target.");
+                    if (effects.OfType<RemoveConditionEffect>().Any())
+                        throw new ArgumentException("A move can declare only one conditionRemove effect.");
+                    effects.Add(new RemoveConditionEffect(removeSelector, removeOwner));
+                    break;
+
+                case "conditionTransfer":
+                    if (chance != 100)
+                        throw new ArgumentException("conditionTransfer does not support chance.");
+                    CheckAllowedParams(e, "scope", "from", "to", "condition", "tag", "all", "source",
+                        "resetDuration", "resetCounters");
+                    BattleConditionSelector transferSelector = ParseConditionSelector(e);
+                    if (transferSelector.Scope is not (BattleConditionScope.Side or BattleConditionScope.Slot
+                        or BattleConditionScope.Creature) || !IsSingleActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("Condition transfer requires side, slot, or creature scope and one active-creature target.");
+                    if (transferSelector.Scope == BattleConditionScope.Side && move.Target == MoveTarget.Ally)
+                        throw new ArgumentException("Side condition transfer requires a target on another side.");
+                    SideConditionTarget transferFrom = ParseConditionOwner(Str(e, "from"));
+                    SideConditionTarget transferTo = ParseConditionOwner(Str(e, "to"));
+                    if (transferFrom == transferTo)
+                        throw new ArgumentException("Condition transfer requires distinct owners.");
+                    if (effects.OfType<TransferConditionEffect>().Any())
+                        throw new ArgumentException("A move can declare only one conditionTransfer effect.");
+                    effects.Add(new TransferConditionEffect(transferSelector, transferFrom, transferTo,
+                        OptionalBool(e, "resetDuration"), OptionalBool(e, "resetCounters")));
+                    break;
+
+                case "conditionSwap":
+                    if (chance != 100)
+                        throw new ArgumentException("conditionSwap does not support chance.");
+                    CheckAllowedParams(e, "scope", "condition", "tag", "all", "source",
+                        "resetDuration", "resetCounters");
+                    BattleConditionSelector swapSelector = ParseConditionSelector(e);
+                    if (swapSelector.Scope is not (BattleConditionScope.Side or BattleConditionScope.Slot)
+                        || !IsSingleActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("Condition swap requires side or slot scope and one active-creature target.");
+                    if (swapSelector.Scope == BattleConditionScope.Side && move.Target == MoveTarget.Ally)
+                        throw new ArgumentException("Side condition swap requires a target on another side.");
+                    if (effects.OfType<SwapConditionEffect>().Any())
+                        throw new ArgumentException("A move can declare only one conditionSwap effect.");
+                    effects.Add(new SwapConditionEffect(swapSelector,
+                        OptionalBool(e, "resetDuration"), OptionalBool(e, "resetCounters")));
+                    break;
+
                 case "fieldMoveGate":
                     if (chance != 100)
                         throw new ArgumentException("fieldMoveGate does not support chance.");
@@ -1093,6 +1151,29 @@ public static class MoveCompiler
         return effects;
     }
 
+    private static BattleConditionSelector ParseConditionSelector(Effect effect)
+    {
+        BattleConditionScope scope = ParseNamed<BattleConditionScope>(Str(effect, "scope"), "condition scope");
+        BattleConditionId? condition = effect.Params?.ContainsKey("condition") == true
+            ? new BattleConditionId(Str(effect, "condition")) : null;
+        string? tag = effect.Params?.ContainsKey("tag") == true ? Str(effect, "tag") : null;
+        bool all = effect.Params?.ContainsKey("all") == true && RequiredBool(effect, "all");
+        int modes = (condition is null ? 0 : 1) + (tag is null ? 0 : 1) + (all ? 1 : 0);
+        if (modes != 1 || tag is not null && !BattleConditionId.ValidToken(tag))
+            throw new ArgumentException("Condition mutation requires exactly one valid condition, tag, or all:true selector.");
+        BattleConditionSourceTarget source = effect.Params?.ContainsKey("source") == true
+            ? ParseNamed<BattleConditionSourceTarget>(Str(effect, "source"), "condition source")
+            : BattleConditionSourceTarget.Any;
+        return new BattleConditionSelector(scope, condition, tag, all, source);
+    }
+
+    private static SideConditionTarget ParseConditionOwner(string value) => value switch
+    {
+        "user" => SideConditionTarget.Source,
+        "target" => SideConditionTarget.Target,
+        _ => throw new ArgumentException($"Unknown condition owner '{value}'."),
+    };
+
     private static IReadOnlyList<Fraction> ParseFractions(string value, string label)
     {
         Fraction[] fractions = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -1111,6 +1192,16 @@ public static class MoveCompiler
         : throw new ArgumentException($"{label} must be a lowercase type slug.");
 
     private static bool RequiredBool(Effect effect, string key) => Field(effect, key).GetBoolean();
+
+    private static bool OptionalBool(Effect effect, string key) =>
+        effect.Params?.ContainsKey(key) == true && RequiredBool(effect, key);
+
+    private static bool IsSingleActiveCreatureTarget(MoveTarget target) => target is
+        MoveTarget.Selected or MoveTarget.Ally or MoveTarget.RandomOpponent;
+
+    private static bool IsActiveCreatureTarget(MoveTarget target) => target is not
+        (MoveTarget.UsersField or MoveTarget.OpponentsField or MoveTarget.EntireField
+            or MoveTarget.FaintingPokemon or MoveTarget.SpecificMove);
 
     private static List<MoveEffect> BindStatusChance(List<MoveEffect> effects)
     {

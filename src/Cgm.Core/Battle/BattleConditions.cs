@@ -100,6 +100,21 @@ public sealed record BattleConditionApplication(
     int ActionSequence,
     int? Duration = null);
 
+public enum BattleConditionSourceTarget { Any, User, Target, Environment }
+
+public sealed record BattleConditionSelector(
+    BattleConditionScope Scope,
+    BattleConditionId? Condition,
+    string? Tag,
+    bool All,
+    BattleConditionSourceTarget Source = BattleConditionSourceTarget.Any);
+
+public enum BattleConditionMutationOutcome { Applied, NoMatch, Conflict }
+
+public sealed record BattleConditionMutationResult(
+    BattleConditionMutationOutcome Outcome,
+    BattleConditionChangeSet Changes);
+
 public sealed record BattleConditionInstance(
     long Sequence,
     BattleConditionDefinition Definition,
@@ -332,6 +347,75 @@ public sealed class BattleConditionStores
         return changes.Build();
     }
 
+    public BattleConditionMutationResult RemoveSelected(BattleConditionSelector selector,
+        BattleConditionOwner owner, BattleConditionSource userSource, BattleConditionSource targetSource,
+        int turn, int actionSequence)
+    {
+        ValidateMutation(selector, owner, userSource, targetSource, turn, actionSequence);
+        BattleConditionInstance[] selected = Select(selector, owner, userSource, targetSource);
+        if (selected.Length == 0)
+            return NoMatch();
+        var changes = new ChangeBuilder();
+        foreach (BattleConditionInstance instance in selected)
+            Remove(instance, BattleConditionCleanupReason.Effect, turn, actionSequence, changes);
+        return Applied(changes);
+    }
+
+    public BattleConditionMutationResult TransferSelected(BattleConditionSelector selector,
+        BattleConditionOwner from, BattleConditionOwner to,
+        BattleConditionSource userSource, BattleConditionSource targetSource,
+        bool resetDuration, bool resetCounters, int turn, int actionSequence)
+    {
+        ValidateMutation(selector, from, userSource, targetSource, turn, actionSequence);
+        ValidateOwner(to, selector.Scope);
+        if (selector.Scope is not (BattleConditionScope.Side or BattleConditionScope.Slot
+            or BattleConditionScope.Creature))
+            throw new ArgumentException("Condition transfer supports side, slot, or creature scope.", nameof(selector));
+        if (from == to)
+            throw new ArgumentException("Condition transfer requires distinct owners.", nameof(to));
+        BattleConditionInstance[] selected = Select(selector, from, userSource, targetSource);
+        if (selected.Length == 0)
+            return NoMatch();
+        if (!CanReset(selected, resetDuration) || HasStackingConflict(selector.Scope,
+                selected.ToDictionary(instance => instance.Sequence, _ => to)))
+            return Conflict();
+        var changes = new ChangeBuilder();
+        foreach (BattleConditionInstance before in selected)
+            Move(before, to, resetDuration, resetCounters, turn, actionSequence, changes);
+        return Applied(changes);
+    }
+
+    public BattleConditionMutationResult SwapSelected(BattleConditionSelector selector,
+        BattleConditionOwner first, BattleConditionOwner second,
+        BattleConditionSource userSource, BattleConditionSource targetSource,
+        bool resetDuration, bool resetCounters, int turn, int actionSequence)
+    {
+        ValidateMutation(selector, first, userSource, targetSource, turn, actionSequence);
+        ValidateOwner(second, selector.Scope);
+        if (selector.Scope is not (BattleConditionScope.Side or BattleConditionScope.Slot))
+            throw new ArgumentException("Condition swap supports side or slot scope.", nameof(selector));
+        if (first == second)
+            throw new ArgumentException("Condition swap requires distinct owners.", nameof(second));
+        BattleConditionInstance[] firstSelected = Select(selector, first, userSource, targetSource);
+        BattleConditionInstance[] secondSelected = Select(selector, second, userSource, targetSource);
+        HashSet<long> selectedSequences = [.. firstSelected.Select(instance => instance.Sequence),
+            .. secondSelected.Select(instance => instance.Sequence)];
+        BattleConditionInstance[] selected = Snapshot(selector.Scope)
+            .Where(instance => selectedSequences.Contains(instance.Sequence)).ToArray();
+        if (selected.Length == 0)
+            return NoMatch();
+        var destinations = firstSelected.ToDictionary(instance => instance.Sequence, _ => second);
+        foreach (BattleConditionInstance instance in secondSelected)
+            destinations.Add(instance.Sequence, first);
+        if (!CanReset(selected, resetDuration) || HasStackingConflict(selector.Scope, destinations))
+            return Conflict();
+        var changes = new ChangeBuilder();
+        foreach (BattleConditionInstance before in selected)
+            Move(before, destinations[before.Sequence], resetDuration, resetCounters,
+                turn, actionSequence, changes);
+        return Applied(changes);
+    }
+
     public IReadOnlyList<BattleConditionInstance> Snapshot() => InOrder(_stores.Values.SelectMany(store => store)).ToArray();
 
     public IReadOnlyList<BattleConditionInstance> Snapshot(BattleConditionScope scope)
@@ -412,6 +496,78 @@ public sealed class BattleConditionStores
         List<BattleConditionInstance> store = _stores[before.Definition.Scope];
         store[store.FindIndex(instance => instance.Sequence == before.Sequence)] = after;
     }
+
+    private void Move(BattleConditionInstance before, BattleConditionOwner owner,
+        bool resetDuration, bool resetCounters, int turn, int actionSequence, ChangeBuilder changes)
+    {
+        BattleConditionInstance after = before with
+        {
+            Owner = owner,
+            RemainingDuration = resetDuration ? before.Definition.DefaultDuration : before.RemainingDuration,
+            Counters = resetCounters ? before.Definition.InitialCounters : before.Counters,
+            StackCount = resetCounters ? 1 : before.StackCount,
+        };
+        ReplaceStored(before, after);
+        changes.Affected.Add(after);
+        changes.Events.Add(new ConditionTransferred(after.Definition.Id, after.Definition.Scope,
+            before.Owner, owner, after.Sequence));
+        changes.Trace.Add(Trace(turn, actionSequence, BattleConditionTraceKind.Transferred,
+            after, before: before));
+    }
+
+    private BattleConditionInstance[] Select(BattleConditionSelector selector, BattleConditionOwner owner,
+        BattleConditionSource userSource, BattleConditionSource targetSource) => Snapshot(selector.Scope)
+        .Where(instance => instance.Owner == owner
+            && (selector.All
+                || selector.Condition is { } condition && instance.Definition.Id == condition
+                || selector.Tag is { } tag && instance.Tags.Contains(tag, StringComparer.Ordinal))
+            && selector.Source switch
+            {
+                BattleConditionSourceTarget.Any => true,
+                BattleConditionSourceTarget.User => SameSourceCreature(instance.Source, userSource),
+                BattleConditionSourceTarget.Target => SameSourceCreature(instance.Source, targetSource),
+                BattleConditionSourceTarget.Environment => instance.Source == new BattleConditionSource(),
+                _ => false,
+            })
+        .ToArray();
+
+    private static bool SameSourceCreature(BattleConditionSource actual, BattleConditionSource expected) =>
+        actual.PartyIndex == expected.PartyIndex && actual.Slot?.Side == expected.Slot?.Side;
+
+    private bool HasStackingConflict(BattleConditionScope scope,
+        IReadOnlyDictionary<long, BattleConditionOwner> destinations) => Snapshot(scope)
+        .Select(instance => (Owner: destinations.TryGetValue(instance.Sequence, out BattleConditionOwner? owner)
+                ? owner : instance.Owner,
+            instance.Definition.StackingKey))
+        .GroupBy(value => value)
+        .Any(group => group.Count() > 1);
+
+    private static bool CanReset(IEnumerable<BattleConditionInstance> selected, bool resetDuration) =>
+        !resetDuration || selected.All(instance => instance.Definition.DefaultDuration is not null);
+
+    private static void ValidateMutation(BattleConditionSelector selector, BattleConditionOwner owner,
+        BattleConditionSource userSource, BattleConditionSource targetSource, int turn, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+        if (!Enum.IsDefined(selector.Scope) || !Enum.IsDefined(selector.Source))
+            throw new ArgumentException("Condition selector enums must be defined.", nameof(selector));
+        int modes = (selector.Condition is null ? 0 : 1) + (selector.Tag is null ? 0 : 1) + (selector.All ? 1 : 0);
+        if (modes != 1 || selector.Tag is { } tag && !BattleConditionId.ValidToken(tag))
+            throw new ArgumentException("Condition selector requires exactly one valid condition, tag, or all mode.", nameof(selector));
+        ValidateOwner(owner, selector.Scope);
+        ValidateSource(userSource);
+        ValidateSource(targetSource);
+        ValidateTime(turn, actionSequence);
+    }
+
+    private static BattleConditionMutationResult Applied(ChangeBuilder changes) =>
+        new(BattleConditionMutationOutcome.Applied, changes.Build());
+
+    private static BattleConditionMutationResult NoMatch() =>
+        new(BattleConditionMutationOutcome.NoMatch, new BattleConditionChangeSet([], [], []));
+
+    private static BattleConditionMutationResult Conflict() =>
+        new(BattleConditionMutationOutcome.Conflict, new BattleConditionChangeSet([], [], []));
 
     private static BattleConditionTraceEntry Trace(int turn, int actionSequence, BattleConditionTraceKind kind,
         BattleConditionInstance instance, BattleConditionInstance? before = null,
