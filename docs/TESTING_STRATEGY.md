@@ -321,6 +321,15 @@ skipped RNG on final immunity; exact identity/effectiveness traces; structurally
 and resolver query results; replay identity; and the checked-in `damage-query.golden`. The existing
 open effect payload adds only closed params, so no schema migration vector changes.
 
+The 15C-7 exit additionally covers every Accuracy/Evasion stage combination and cap; ordinary/null/
+bypass/ignore-evasion plus weather/Gravity ordering; next-accuracy and next-critical apply/reapply/
+expiry/source-owner-switch/faint/wrong-target/protected/missed/immune/guarded/success consumption;
+critical stages below zero through above cap; exact ordinary versus guaranteed draw bounds/order;
+priority clamp/snapshot/equal-speed tie behavior; final-damage replace/multiply/floor/cap on ordinary
+and fixed families; move healing multiply/replace-zero/missing-HP clamp with no event on zero;
+singles/doubles per-target isolation; resolver/Smart-AI parity; replay; and a deterministic family
+golden. Query metadata has strict enum/operand/composition validation and no named-move branch.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

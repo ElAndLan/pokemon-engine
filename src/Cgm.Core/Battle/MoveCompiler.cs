@@ -601,6 +601,47 @@ public static class MoveCompiler
                         defendingMultiplier, stabSource));
                     break;
 
+                case "queryModifier":
+                    if (chance != 100)
+                        throw new ArgumentException("queryModifier does not support chance.");
+                    CheckAllowedParams(e, "query", "operation", "num", "den");
+                    BattleQueryId query = ParseNamed<BattleQueryId>(Str(e, "query"), "battle query");
+                    BattleQueryOperation operation = ParseNamed<BattleQueryOperation>(
+                        Str(e, "operation"), "battle query operation");
+                    int queryNum = Int(e, "num");
+                    int queryDen = e.Params?.ContainsKey("den") == true ? Int(e, "den") : 1;
+                    var queryModifier = new MoveQueryModifierEffect(query, operation,
+                        new BattleQueryValue(queryNum, queryDen));
+                    BattleActionQueries.Validate(queryModifier);
+                    if (effects.OfType<MoveQueryModifierEffect>().Any(effect =>
+                        effect.Query == query && effect.Operation == operation))
+                        throw new ArgumentException("A move can declare one queryModifier per query/operation pair.");
+                    effects.Add(queryModifier);
+                    break;
+
+                case "accuracyRule":
+                    if (chance != 100)
+                        throw new ArgumentException("accuracyRule does not support chance.");
+                    CheckAllowedParams(e, "mode");
+                    if (effects.OfType<AccuracyQueryEffect>().Any())
+                        throw new ArgumentException("A move can declare only one accuracyRule effect.");
+                    effects.Add(new AccuracyQueryEffect(
+                        ParseNamed<AccuracyQueryMode>(Str(e, "mode"), "accuracy-query mode")));
+                    break;
+
+                case "nextQuery":
+                    if (chance != 100)
+                        throw new ArgumentException("nextQuery does not support chance.");
+                    CheckAllowedParams(e, "query", "duration");
+                    int queryDuration = e.Params?.ContainsKey("duration") == true ? Int(e, "duration") : 2;
+                    if (queryDuration is < 1 or > 8)
+                        throw new ArgumentException("nextQuery duration must be in 1..8.");
+                    if (effects.OfType<OneShotQueryEffect>().Any())
+                        throw new ArgumentException("A move can declare only one nextQuery effect.");
+                    effects.Add(new OneShotQueryEffect(
+                        ParseNamed<OneShotQuery>(Str(e, "query"), "one-shot query"), queryDuration));
+                    break;
+
                 case "targetHpThresholdPower": // base-power query modifier
                     if (targetHpThresholdPower is not null)
                         throw new ArgumentException("A move can declare only one targetHpThresholdPower effect.");
@@ -950,6 +991,23 @@ public static class MoveCompiler
             throw new ArgumentException("higherOffense class selection cannot combine with explicit damage-stat selectors.");
         if (effects.OfType<EffectivenessQueryEffect>().Any() && move.DamageClass == DamageClass.Status)
             throw new ArgumentException("effectivenessQuery requires a damaging authored class.");
+        if (effects.OfType<MoveQueryModifierEffect>().Any(effect =>
+                effect.Query is BattleQueryId.CriticalChance or BattleQueryId.FinalDamage)
+            && move.DamageClass == DamageClass.Status)
+            throw new ArgumentException("Critical-chance and final-damage query modifiers require a damaging move.");
+        if (effects.OfType<MoveQueryModifierEffect>().Any(effect => effect.Query == BattleQueryId.Healing)
+            && !effects.Any(effect => effect is DrainEffect or HealEffect
+                or HpFractionEffect { Operation: HpFractionOperation.Heal }))
+            throw new ArgumentException("Healing query modifiers require move-originated healing.");
+        if (effects.OfType<OneShotQueryEffect>().SingleOrDefault() is { } oneShot)
+        {
+            if (move.DamageClass != DamageClass.Status)
+                throw new ArgumentException("nextQuery requires a status move.");
+            if (oneShot.Query == OneShotQuery.CriticalChance && move.Target != MoveTarget.User)
+                throw new ArgumentException("A criticalChance nextQuery requires the user target.");
+            if (oneShot.Query == OneShotQuery.Accuracy && move.Target != MoveTarget.Selected)
+                throw new ArgumentException("An accuracy nextQuery requires the selected target.");
+        }
         if (!chargeTurn && effects.OfType<WeatherMoveEffect>().Any(effect => effect.SkipChargeWeather.Count > 0))
             throw new ArgumentException("weatherMove skipCharge requires chargeTurn.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0

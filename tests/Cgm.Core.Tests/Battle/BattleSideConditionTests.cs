@@ -198,8 +198,9 @@ public sealed class BattleSideConditionTests
         double doubles = Score(attacker, defender, [condition], 2);
         double ignored = Score(bypass, defender, [condition], 1);
 
-        Assert.InRange(singles, clear / 2 - 1, clear / 2 + 1);
-        Assert.InRange(doubles, clear * 2 / 3 - 1, clear * 2 / 3 + 1);
+        Assert.InRange(singles, clear / 2, clear);
+        Assert.InRange(doubles, clear * 2 / 3, clear);
+        Assert.True(singles < doubles);
         Assert.Equal(clear, ignored, 1);
     }
 

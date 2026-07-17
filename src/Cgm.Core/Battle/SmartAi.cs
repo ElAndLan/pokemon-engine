@@ -148,22 +148,21 @@ public static class SmartAi
         BattleHookDispatchSnapshot? weatherAccuracy = WeatherAccuracyHooks(context, move);
         bool weatherBypass = weatherAccuracy?.Filters().Any(filter => filter is
             { Filter.Value: "accuracy_bypass", Decision: BattleHookFilterDecision.Allow }) == true;
-        bool alwaysHits = move.BypassAccuracy || (!move.Ohko && move.Accuracy is null) || weatherBypass;
+        bool baseBypass = move.BypassAccuracy || (!move.Ohko && move.Accuracy is null) || weatherBypass;
         var accuracyModifiers = weatherAccuracy?.QueryModifiers(BattleQueryId.Accuracy).ToList() ?? [];
-        if (!alwaysHits)
-        {
-            accuracyModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
-                BattleQueryOperation.Multiply,
-                BattleQuery.AccuracyStageMultiplier(attacker.Stage(StatKind.Accuracy), defender.Stage(StatKind.Evasion)),
-                InsertionOrder: accuracyModifiers.Count));
-            if (context.Conditions is not null)
-                accuracyModifiers.AddRange(FieldConditions.CollectAccuracyHooks(context.Conditions, 0)
-                    .QueryModifiers(BattleQueryId.Accuracy)
-                    .Select(modifier => modifier with { InsertionOrder = accuracyModifiers.Count }));
-        }
-        int resolvedAccuracy = BattleQuery.ResolveInteger(BattleQueryId.Accuracy, authoredAccuracy,
-            accuracyModifiers);
-        double accuracy = alwaysHits ? 1 : resolvedAccuracy / 100.0;
+        if (context.Conditions is not null)
+            accuracyModifiers.AddRange(FieldConditions.CollectAccuracyHooks(context.Conditions, 0)
+                .QueryModifiers(BattleQueryId.Accuracy));
+        bool guaranteedAccuracy = context.Conditions is not null
+            && OneShotQueryConditions.FindAccuracy(context.Conditions,
+                CreatureOwner(BattleSide.Player, context.PlayerActive),
+                CreatureSource(BattleSide.Enemy, context.EnemyActive)) is not null;
+        BattleAccuracyQueryResult accuracyQuery = BattleActionQueries.Accuracy(move, authoredAccuracy,
+            attacker, defender, baseBypass, guaranteedAccuracy, accuracyModifiers,
+            new BattleQueryContext(new BattleSlot(BattleSide.Enemy, 0), attacker,
+                new BattleSlot(BattleSide.Player, 0), defender, ActiveWeather(context), context.Ruleset,
+                ActiveTerrain(context)));
+        double accuracy = accuracyQuery.Bypass ? 1 : accuracyQuery.Query.FinalValue.ToInt32() / 100.0;
         c.Add(new("damage", damage * accuracy));
         if (damage >= defender.CurrentHp && damage > 0)
             c.Add(new("ko", weights.KoBonus * accuracy));
@@ -204,10 +203,14 @@ public static class SmartAi
         if (move.Heal is { } heal && attacker.CurrentHp < attacker.MaxHp / 2)
         {
             int recovery = EffectMath.HealAmount(attacker.MaxHp, heal.Num, heal.Den);
+            IReadOnlyList<BattleQueryModifier> healingModifiers = [];
             if (move.SecondaryEffects.OfType<HealEffect>().LastOrDefault(effect =>
                     effect.Recipient == HpFractionRecipient.Self) is { } healEffect)
-                recovery = BattleQuery.ResolveInteger(BattleQueryId.Healing, recovery,
-                    WeatherHealingModifiers(context, healEffect, attacker.MaxHp));
+                healingModifiers = WeatherHealingModifiers(context, healEffect, attacker.MaxHp);
+            recovery = BattleActionQueries.Healing(move, recovery, healingModifiers,
+                new BattleQueryContext(new BattleSlot(BattleSide.Enemy, 0), attacker,
+                    new BattleSlot(BattleSide.Enemy, 0), attacker, ActiveWeather(context),
+                    context.Ruleset, ActiveTerrain(context))).FinalValue.ToInt32();
             c.Add(new("recovery", Math.Min(recovery, attacker.MaxHp - attacker.CurrentHp)));
         }
 
@@ -369,12 +372,15 @@ public static class SmartAi
             return Math.Max(0, defender.CurrentHp - attacker.CurrentHp);
 
         if (move.Ohko)
-            return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
-                attacker.Level >= defender.Level ? defender.CurrentHp : 0);
+            return BattleActionQueries.FinalDamage(move,
+                attacker.Level >= defender.Level ? defender.CurrentHp : 0, null, damageContext)
+                .FinalValue.ToInt32();
         if (move.FixedDamageLevel)
-            return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage, attacker.Level);
+            return BattleActionQueries.FinalDamage(move, attacker.Level, null, damageContext)
+                .FinalValue.ToInt32();
         if (move.FixedDamage is int fixedDamage)
-            return BattleQuery.ResolveInteger(BattleQueryId.FinalDamage, fixedDamage);
+            return BattleActionQueries.FinalDamage(move, fixedDamage, null, damageContext)
+                .FinalValue.ToInt32();
         if (!HpStatusFormulas.HasBasePower(move))
             return 0;
 
@@ -417,38 +423,78 @@ public static class SmartAi
         BattleEffectiveValues defenseValues = BattleDamageQueries.Owner(defenseSelector, sourceValues, targetValues);
         StatKind attackStat = attackSelector.Stat;
         StatKind defenseStat = defenseSelector.Stat;
-        int a = BattleQuery.ResolveInteger(BattleQueryId.OffensiveStat,
-            StatValue(attackValues.Stats, attackStat),
-            [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
-                BattleQuery.StatStageMultiplier(attackOwner.Stage(attackStat)), InsertionOrder: 0),
-             .. WeatherStatModifiers(conditions, attackValues.CreatureTypes, attackStat, BattleQueryId.OffensiveStat, ruleset)]);
-        int d = BattleQuery.ResolveInteger(BattleQueryId.DefensiveStat,
-            StatValue(defenseValues.Stats, defenseStat),
-            [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
-                BattleQuery.StatStageMultiplier(defenseOwner.Stage(defenseStat)), InsertionOrder: 0),
-             .. WeatherStatModifiers(conditions, defenseValues.CreatureTypes, defenseStat, BattleQueryId.DefensiveStat, ruleset)]);
         double stab = TypeChart.ToDouble(damageQuery.Stab);
         bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
-        var finalModifiers = modifiers?.ToList() ?? [];
-        if (conditions is not null)
+        BattleSide sourceSide = BattleSide.Enemy, targetSide = BattleSide.Player;
+        int sourcePartyIndex = context?.EnemyActive ?? 0;
+        if (context is not null)
         {
-            BattleHookDispatchSnapshot terrain = TerrainConditions.CollectDamageHooks(conditions, moveType.Slug,
-                IsGrounded(attacker, context), IsGrounded(defender, context), actionSequence: 0);
-            finalModifiers.AddRange(terrain.QueryModifiers(BattleQueryId.FinalDamage)
-                .Select(modifier => modifier with { InsertionOrder = finalModifiers.Count }));
-            BattleSide targetSide = context?.EnemyParty.Any(creature => ReferenceEquals(creature, defender)) == true
-                ? BattleSide.Enemy : BattleSide.Player;
-            BattleHookDispatchSnapshot side = SideConditions.CollectDamageHooks(conditions, targetSide,
-                identity.EffectiveClass, context?.ActiveSlotsPerSide ?? 1, critical: false,
-                BypassesSideConditions(attacker, move, "screen"), actionSequence: 0);
-            finalModifiers.AddRange(side.QueryModifiers(BattleQueryId.FinalDamage)
-                .Select(modifier => modifier with { InsertionOrder = finalModifiers.Count }));
+            if (TryOwner(attacker, context, out BattleSide resolvedSourceSide, out int resolvedSourceIndex))
+            {
+                sourceSide = resolvedSourceSide;
+                sourcePartyIndex = resolvedSourceIndex;
+            }
+            if (TryOwner(defender, context, out BattleSide resolvedTargetSide, out _))
+                targetSide = resolvedTargetSide;
         }
-        int oneHit = BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
-            DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn,
-                damageQuery.Spread ? 2 : 1), finalModifiers);
+
+        IReadOnlyList<BattleQueryModifier> criticalModifiers = conditions is null
+            ? [] : SideConditions.CollectCriticalHooks(conditions, sourceSide, targetSide, 0)
+                .QueryModifiers(BattleQueryId.CriticalChance);
+        bool guaranteedCritical = conditions is not null && OneShotQueryConditions.FindCritical(
+            conditions, CreatureOwner(sourceSide, sourcePartyIndex)) is not null;
+        double ordinaryCriticalChance = TypeChart.ToDouble(BattleActionQueries.CriticalChance(move,
+            move.CritStage + attacker.CritStageBonus, false, criticalModifiers, damageContext).FinalValue);
+        double firstCriticalChance = guaranteedCritical
+            ? TypeChart.ToDouble(BattleActionQueries.CriticalChance(move,
+                move.CritStage + attacker.CritStageBonus, true, criticalModifiers, damageContext).FinalValue)
+            : ordinaryCriticalChance;
+
+        int HitDamage(bool critical)
+        {
+            int attackStage = attackOwner.Stage(attackStat);
+            int defenseStage = defenseOwner.Stage(defenseStat);
+            if (critical)
+            {
+                attackStage = Math.Max(0, attackStage);
+                defenseStage = Math.Min(0, defenseStage);
+            }
+            int attack = BattleQuery.ResolveInteger(BattleQueryId.OffensiveStat,
+                StatValue(attackValues.Stats, attackStat),
+                [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                    BattleQuery.StatStageMultiplier(attackStage), InsertionOrder: 0),
+                 .. WeatherStatModifiers(conditions, attackValues.CreatureTypes, attackStat,
+                    BattleQueryId.OffensiveStat, ruleset)]);
+            int defense = BattleQuery.ResolveInteger(BattleQueryId.DefensiveStat,
+                StatValue(defenseValues.Stats, defenseStat),
+                [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                    BattleQuery.StatStageMultiplier(defenseStage), InsertionOrder: 0),
+                 .. WeatherStatModifiers(conditions, defenseValues.CreatureTypes, defenseStat,
+                    BattleQueryId.DefensiveStat, ruleset)]);
+            var finalModifiers = modifiers?.ToList() ?? [];
+            if (conditions is not null)
+            {
+                finalModifiers.AddRange(TerrainConditions.CollectDamageHooks(conditions, moveType.Slug,
+                    IsGrounded(attacker, context), IsGrounded(defender, context), actionSequence: 0)
+                    .QueryModifiers(BattleQueryId.FinalDamage));
+                finalModifiers.AddRange(SideConditions.CollectDamageHooks(conditions, targetSide,
+                    identity.EffectiveClass, context?.ActiveSlotsPerSide ?? 1, critical,
+                    BypassesSideConditions(attacker, move, "screen"), actionSequence: 0)
+                    .QueryModifiers(BattleQueryId.FinalDamage));
+            }
+            return BattleActionQueries.FinalDamage(move,
+                DamageCalc.Compute(attacker.Level, power, attack, defense, eff, stab, critical,
+                    MidpointRoll, burn, damageQuery.Spread ? 2 : 1), finalModifiers, damageContext)
+                .FinalValue.ToInt32();
+        }
+
+        int normalHit = HitDamage(critical: false);
+        int criticalHit = firstCriticalChance > 0 || ordinaryCriticalChance > 0
+            ? HitDamage(critical: true) : normalHit;
+        double firstHit = normalHit * (1 - firstCriticalChance) + criticalHit * firstCriticalChance;
+        double ordinaryHit = normalHit * (1 - ordinaryCriticalChance) + criticalHit * ordinaryCriticalChance;
         double hits = move.MultiHitMax >= 2 ? (move.MultiHitMin + move.MultiHitMax) / 2.0 : 1;
-        double total = oneHit * hits;
+        double total = firstHit + Math.Max(0, hits - 1) * ordinaryHit;
         int floor = HpStatusFormulas.CannotKoFloor(move);
         return floor > 0 ? Math.Min(total, Math.Max(0, defender.CurrentHp - floor)) : total;
     }
@@ -558,11 +604,16 @@ public static class SmartAi
     private static int EffectivePriority(IReadOnlyList<BattleConditionInstance> conditions,
         BattleMove move, BattleCreature source, SmartAiContext? context = null)
     {
-        if (move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is not { } effect)
-            return move.Priority;
-        return BattleQuery.ResolveInteger(BattleQueryId.Priority, move.Priority,
-            TerrainConditions.CollectMovePriorityHooks(conditions, effect,
-                IsGrounded(source, context), 0).QueryModifiers(BattleQueryId.Priority));
+        IReadOnlyList<BattleQueryModifier> modifiers =
+            move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is { } effect
+                ? TerrainConditions.CollectMovePriorityHooks(conditions, effect,
+                    IsGrounded(source, context), 0).QueryModifiers(BattleQueryId.Priority)
+                : [];
+        return BattleActionQueries.Priority(move, modifiers,
+            new BattleQueryContext(Source: source,
+                Weather: context is null ? Weather.None : ActiveWeather(context),
+                Ruleset: context?.Ruleset ?? BattleRulesets.Gen4Like,
+                Terrain: context is null ? Terrain.None : ActiveTerrain(context))).FinalValue.ToInt32();
     }
 
     private static Terrain ActiveTerrain(SmartAiContext context) => context.Conditions?
@@ -612,6 +663,12 @@ public static class SmartAi
         partyIndex = -1;
         return false;
     }
+
+    private static BattleConditionOwner CreatureOwner(BattleSide side, int partyIndex) =>
+        new(BattleConditionScope.Creature, side, new BattleSlot(side, 0), partyIndex);
+
+    private static BattleConditionSource CreatureSource(BattleSide side, int partyIndex) =>
+        new(new BattleSlot(side, 0), partyIndex);
 
     private static IReadOnlyList<BattleQueryModifier> WeatherHealingModifiers(
         SmartAiContext context, HealEffect effect, int maxHp) => context.Conditions is null

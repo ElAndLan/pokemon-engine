@@ -140,14 +140,14 @@ public sealed class BattleSideCriticalGuardTests
     }
 
     [Fact]
-    public void CriticalGuard_IsAiNeutralUntilSharedCritExpectedValueExists()
+    public void CriticalGuard_ReducesSharedAiCriticalExpectation()
     {
         BattleCreature attacker = Creature("attacker", 100, Hit("hit"));
         BattleCreature defender = Creature("defender", 90, Inert("wait"));
         double clear = DamageScore(attacker, defender, []);
         double guarded = DamageScore(attacker, defender, [Condition(BattleSide.Player, 5)]);
 
-        Assert.Equal(clear, guarded);
+        Assert.True(guarded < clear);
     }
 
     [Fact]

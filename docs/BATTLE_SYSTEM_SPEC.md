@@ -165,6 +165,76 @@ Acceptance vectors: `damage-query-compile-validation`, `damage-query-overlay-ide
 `damage-query-spread-snapshot`, `damage-query-ai-resolver-parity`, `damage-query-no-rng`, and
 `damage-query-golden`.
 
+### Accuracy, critical, priority, final-damage, and healing registry (Phase 15C-7)
+
+The chance-free `queryModifier` op is the closed move-authored modifier surface for exactly
+`accuracy`, `criticalChance`, `priority`, `finalDamage`, and `healing`. Params are
+`{ query, operation, num, den? }`, where operation is `replace|add|multiply|min|max`, `den` defaults
+to one, and denominators are positive. Integer queries require an integer operand except for
+`multiply`; final-damage/healing operands and every multiplier are nonnegative. A move may declare
+one row per `(query, operation)` pair. Rows enter the existing Hooks stage in authored order and
+retain the registry's operation/priority/insertion ordering and final clamps. Query rows are
+metadata: they do not execute as secondary effects and draw no RNG.
+
+`accuracyRule { mode:"bypass"|"ignoreTargetEvasion" }` is chance-free and unique per move.
+`bypass` ignores Accuracy/Evasion stages and performs no accuracy draw. `ignoreTargetEvasion` keeps
+the user's Accuracy stage but treats the target's Evasion stage as zero; it still draws unless an
+existing always-hit rule applies. Null authored accuracy, the existing bypass flag, eligible weather
+bypass, and a consumed next-accuracy condition share this same always-hit result. Ordinary resolved
+accuracy, including 100, retains the existing one `Next(100)` draw; only an explicit bypass skips it.
+Weather replacement, source/target stages, Gravity, move query modifiers, and the final `0..100`
+clamp remain visible in one `Accuracy` query trace. A miss consumes no critical or damage-roll RNG.
+Semi-invulnerable target state and exception filters attach at this query/TryHit boundary when 15D-3
+adds that state; 15C-7 does not create an unused parallel state flag.
+
+`nextQuery { query:"accuracy"|"criticalChance", duration? }` applies a typed one-shot creature
+condition; duration defaults to two `TurnEnd` checkpoints including application and is `1..8`.
+Accuracy owns the selected target and is source-bound: only the applying creature's later accuracy
+query against that same creature is eligible. Critical chance owns the user. Owner or bound-source
+switch/faint cleanup removes the row. Accuracy eligibility contributes a SourceTargetState replace
+to 100, ignores both stages, skips its draw, and consumes after the successful query. Critical
+eligibility contributes a SourceTargetState replace to 1 after type immunity and consumes only when
+the final chance remains 1; a later critical guard/minimum may suppress the guarantee without
+consuming it. It then skips the critical draw and resolves critical. Wrong source/target, actions
+that never reach the query, protection, miss, immunity, or an ineligible/suppressed query do not
+consume. In doubles the condition is slot/party identity-safe; one successful target/hit consumes
+one row before later targets or hits.
+
+Critical authored input is the exact stage table from `BATTLE_DAMAGE_CALC.md`: stages below zero use
+stage zero and stages four or above use stage four. Move `criticalChance` rows, the one-shot row, and
+target-side guards feed one exact query. Ordinary non-guaranteed hits retain one `NextDouble()` even
+at a final zero chance, preserving the established critical-guard draw contract; a consumed
+guarantee is the sole no-draw critical path. Critical stage-ignore, screen eligibility, events, and
+damage memory use the resolved result.
+
+Priority rows resolve before scheduling and clamp to `-7..7`; the scheduled action snapshots the
+resolved bracket once alongside effective Speed. Target-side priority filters and Smart AI consume
+the same result. Equal priority/effective-Speed groups retain the seeded stable-group shuffle; a
+modifier adds no draw by itself. Turn-order replacement/forcing remains with 15D-7.
+
+Final-damage rows apply to standard, fixed, level-based, one-hit-KO, and counter damage after their
+formula/base amount and before survival, cannot-KO, substitute, or HP-pool mitigation. `max` supplies
+a floor, `min` supplies a cap, multiply floors at the registry multiplication point, and replace zero
+blocks damage. Target-HP formula damage retains its 15C-2 rule: it observes only type immunity and
+does not accept non-immunity final-damage scaling. Healing rows apply to move-originated drain,
+direct fraction, and HP-fraction healing before missing-HP clamping; weather/terrain replacements
+compose through the same query and replace zero blocks healing without a healing event. Items,
+residuals, delayed/replacement healing, revival, and general heal-block conditions remain with their
+owning packages, but must later enter this same `Healing` query rather than add another HP path.
+
+Smart AI calls the same pure accuracy, critical, priority, final-damage, and healing query helpers.
+Its existing `damage`, `ko`, and `recovery` components use resolved hit probability, exact
+noncritical/critical expected damage (including critical stage-ignore and screen eligibility), final
+damage, and healing. It previews one-shot conditions without consuming them, reads only visible
+condition state, and adds no query RNG or hidden score component.
+
+Acceptance vectors: `action-query-compile-validation`, `accuracy-stage-table`,
+`accuracy-bypass-ignore-evasion`, `accuracy-weather-gravity-order`, `next-accuracy-consumption`,
+`critical-stage-table`, `next-critical-consumption`, `critical-guard-preservation`,
+`priority-snapshot-tie`, `final-damage-floor-cap`, `fixed-final-damage`, `healing-modifier-block`,
+`action-query-doubles-isolation`, `action-query-ai-resolver-parity`, `action-query-rng-order`, and
+`action-query-golden`.
+
 ## Effect-op numeric formulas (Battle v5, Phase 14)
 
 The closed op palette lives on `Move.Effects` (`{ op, chance?, params }`). Ops split into pure numeric

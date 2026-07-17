@@ -78,6 +78,9 @@ does not compute it.
   (uses the unmodified stat for those), keeping the ones that help the attacker.
 - One `IRng` draw for the crit check, taken before the random-roll draw. Draw order is fixed for
   determinism.
+- A live Phase 15C-7 next-critical condition replaces the chance with one after immunity and, when
+  no later guard suppresses it, consumes at that query and resolves critical without a crit draw;
+  the damage-roll draw remains next. This is the only no-draw critical path.
 - The Phase 15E side critical guard contributes a target-side `CriticalChance` clamp to zero
   after the stage-derived chance is authored and before the per-hit critical draw. The draw is not
   skipped. A guarded hit is noncritical for the damage multiplier, stage-ignore rule, screen

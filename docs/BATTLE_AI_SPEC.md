@@ -221,6 +221,12 @@ Capabilities beyond Beginner:
   snapshot, environment, chart profile, selected stat owners, class rule, exact STAB/effectiveness,
   and spread count. AI may consume that result but may not recompute type charts, class choice, STAB,
   or stat ownership. Query construction is snapshot-pure and consumes no RNG.
+- Phase 15C-7 routes move accuracy rules, critical expectation, priority, final damage, and healing
+  through the same pure query helpers as resolution. The existing `damage`/`ko` components blend
+  exact noncritical and critical midpoint damage using the resolved chance, including critical
+  stage-ignore and screen eligibility, then apply resolved hit probability. The `recovery` component
+  consumes the same move and field healing rows. Visible next-query conditions are previewed but
+  never consumed; no query performs AI RNG or adds an opaque score component.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

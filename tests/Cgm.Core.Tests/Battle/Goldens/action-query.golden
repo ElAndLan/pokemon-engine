@@ -1,0 +1,8 @@
+priority:1
+accuracy:1
+critical:1:draw=False
+finalDamage:50
+healing:50
+damage:50:critical=True
+healed:50
+condition:query:next_critical:Removed:Effect

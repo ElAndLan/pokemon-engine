@@ -35,9 +35,9 @@ Starting baseline:
   condition family are green, including screens, status/stage guards, side speed/order, critical
   guard, paired-action side effects, side-wide protection, and the complete 15E-5 generic entry-
   hazard family, 15E-6 protect/contact-block family, and 15E-7 generic condition
-  cleanup/transfer/swap family. The 15E workstream and 15C-6 field/type/class/stat/effectiveness
-  query package are complete; the next eligible work is 15C-7 accuracy, critical, priority,
-  final-damage, and healing modifiers. Pair
+  cleanup/transfer/swap family. The 15E workstream and the complete 15C query workstream are green,
+  including accuracy, critical, priority, final-damage, healing, one-shot query conditions, and
+  resolver/Smart-AI parity. The next eligible work is 15D-2 action gates and recharge. Pair
   recognition/combined execution stays with 15D-7. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.

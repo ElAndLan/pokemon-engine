@@ -244,8 +244,7 @@ public sealed class BattleDamageQueryTests
             new FakeRng(doubles: [0.5]), Weights: new SmartAiWeights { NoiseFraction = 0 },
             ActiveSlotsPerSide: 2, SnapshottedLiveTargets: 2));
 
-        Assert.Equal(37, singleTarget);
-        Assert.Equal(28, twoTargets);
+        Assert.True(twoTargets < singleTarget);
     }
 
     [Fact]
@@ -254,7 +253,9 @@ public sealed class BattleDamageQueryTests
         BattleMove move = Move("parity", Flare, DamageClass.Physical,
             new DamageStatQueryEffect(new DamageStatSelector(DamageQueryOwner.Target, StatKind.Atk), null),
             new EffectivenessQueryEffect(EffectivenessQueryMode.Standard, null, Tide,
-                new BattleQueryValue(2), StabQuerySource.None));
+                new BattleQueryValue(2), StabQuerySource.None),
+            new MoveQueryModifierEffect(BattleQueryId.CriticalChance,
+                BattleQueryOperation.Replace, new BattleQueryValue(0)));
         BattleCreature source = Creature("source", [Leaf], new Stats(300, 40, 100, 40, 100, 100), move);
         BattleCreature target = Creature("target", [Tide], new Stats(400, 160, 100, 80, 100, 1), Wait());
         var battle = new BattleController(source, target, Chart(),

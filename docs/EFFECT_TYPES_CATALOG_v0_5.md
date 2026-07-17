@@ -405,6 +405,15 @@ source's higher staged offense; `effectivenessQuery` owns inverse/additional-typ
 override/STAB-source data. Numeric effectiveness still passes through `BattleQuery.Effectiveness`;
 these typed identity selectors do not create a parallel damage resolver.
 
+Phase 15C-7 adds three chance-free closed ops. `queryModifier` admits only
+`accuracy|criticalChance|priority|finalDamage|healing` plus a typed query operation and exact
+operand; it is query metadata, not an executed secondary. `accuracyRule` selects current-move
+`bypass` or `ignoreTargetEvasion`. `nextQuery` applies either a source-bound target AccuracyQuery
+one-shot or a user-owned CriticalQuery one-shot through the shared creature condition store. The
+resolver, Smart AI, field/side hooks, fixed/ordinary damage, and move healing all compose these rows
+through `BattleQuery`; general healing/cure/delay and semi-invulnerable state remain with their
+owning packages.
+
 ### 4.6 Accuracy, Damage, And HP Helpers
 
 | Helper | Purpose |

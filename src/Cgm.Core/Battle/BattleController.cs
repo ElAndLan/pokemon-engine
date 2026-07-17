@@ -39,7 +39,8 @@ public sealed class BattleController
     private readonly BattleActionHistory _actionHistory = new();
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
-            .. GroundedConditions.Definitions, .. FieldConditions.Definitions, .. SideConditions.Definitions]));
+            .. GroundedConditions.Definitions, .. FieldConditions.Definitions, .. SideConditions.Definitions,
+            .. OneShotQueryConditions.Definitions]));
     private readonly List<BattleConditionTraceEntry> _conditionTrace = [];
     private readonly List<BattleHookTraceEntry> _hookTrace = [];
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
@@ -752,7 +753,7 @@ public sealed class BattleController
                     : move.Ohko ? targetContext.Target.CurrentHp
                     : move.FixedDamageLevel ? attacker.Level : move.FixedDamage!.Value;
                 damage = TraceUnmodifiedFinalDamage(sourceSlot, targetContext.TargetSlot, attacker,
-                    targetContext.Target, damage, traceAction);
+                    targetContext.Target, move, damage, traceAction, effectiveness > 0);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Immunity,
                     false, null, effectiveness <= 0 ? 0 : 1, _log.Count, _log.Count);
                 DamageApplication applied = DealMoveDamage(targetContext.Target, targetContext.TargetSlot,
@@ -794,8 +795,9 @@ public sealed class BattleController
                     false, null, effectiveness <= 0 ? 0 : 1, _log.Count, _log.Count);
                 if (effectiveness > 0)
                 {
-                    AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Critical, true,
-                        critDraw, crit ? 1 : 0, _log.Count, _log.Count, 1);
+                    AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Critical,
+                        critDraw is not null, critDraw, crit ? 1 : 0, _log.Count, _log.Count,
+                        critDraw is not null ? 1 : null);
                     AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.DamageRoll, true,
                         damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
                 }
@@ -856,7 +858,7 @@ public sealed class BattleController
         StatResetEffect { Scope: not StageEffectScope.Self } => true,
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
-            or HpEqualizeEffect => true,
+            or HpEqualizeEffect or OneShotQueryEffect { Query: OneShotQuery.Accuracy } => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
         RemoveSideConditionEffect { Side: SideConditionTarget.Target, Timing: SideConditionTiming.AfterHit } => true,
         RemoveConditionEffect { Owner: SideConditionTarget.Target }
@@ -1232,8 +1234,7 @@ public sealed class BattleController
             _hookTrace.AddRange(terrain.Trace);
             modifiers.AddRange(terrain.QueryModifiers(BattleQueryId.Priority));
         }
-        BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.Priority,
-            new BattleQueryValue(move.Priority), modifiers, context:
+        BattleQueryResult result = BattleActionQueries.Priority(move, modifiers,
             new BattleQueryContext(slot, creature, Weather: CurrentWeather, Ruleset: Ruleset,
                 Terrain: CurrentTerrain));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, slot, null, result));
@@ -1443,23 +1444,24 @@ public sealed class BattleController
             _hookTrace.AddRange(weather.Trace);
         bool weatherBypass = weather?.Filters().Any(filter => filter is
             { Filter.Value: "accuracy_bypass", Decision: BattleHookFilterDecision.Allow }) == true;
-        bool alwaysHits = move.BypassAccuracy || (!move.Ohko && move.Accuracy is null) || weatherBypass;
+        bool baseBypass = move.BypassAccuracy || (!move.Ohko && move.Accuracy is null) || weatherBypass;
         var modifiers = weather?.QueryModifiers(BattleQueryId.Accuracy).ToList() ?? [];
-        if (!alwaysHits)
-        {
-            modifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
-                BattleQuery.AccuracyStageMultiplier(source.Stage(StatKind.Accuracy), target.Stage(StatKind.Evasion)),
-                InsertionOrder: modifiers.Count));
-            BattleHookDispatchSnapshot field = FieldConditions.CollectAccuracyHooks(ConditionSnapshot, traceAction);
-            _hookTrace.AddRange(field.Trace);
-            modifiers.AddRange(field.QueryModifiers(BattleQueryId.Accuracy)
-                .Select(modifier => modifier with { InsertionOrder = modifiers.Count }));
-        }
-        BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.Accuracy, new BattleQueryValue(authored), modifiers,
+        BattleHookDispatchSnapshot field = FieldConditions.CollectAccuracyHooks(ConditionSnapshot, traceAction);
+        _hookTrace.AddRange(field.Trace);
+        modifiers.AddRange(field.QueryModifiers(BattleQueryId.Accuracy));
+        BattleConditionOwner targetOwner = new(BattleConditionScope.Creature, targetSlot.Side,
+            targetSlot, ActiveIndex(targetSlot));
+        BattleConditionInstance? guarantee = OneShotQueryConditions.FindAccuracy(ConditionSnapshot,
+            targetOwner, new BattleConditionSource(sourceSlot, ActiveIndex(sourceSlot)));
+        BattleAccuracyQueryResult accuracy = BattleActionQueries.Accuracy(move, authored, source, target,
+            baseBypass, guarantee is not null, modifiers,
             new BattleQueryContext(sourceSlot, source, targetSlot, target, CurrentWeather, Ruleset, CurrentTerrain));
+        BattleQueryResult result = accuracy.Query;
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, result));
 
-        if (alwaysHits)
+        if (guarantee is not null && result.FinalValue == new BattleQueryValue(100))
+            RecordConditionChanges(_conditions.Remove(guarantee.Definition.Id, guarantee.Owner, Turn, traceAction));
+        if (accuracy.Bypass)
         {
             draw = null;
             return true;
@@ -1654,7 +1656,7 @@ public sealed class BattleController
             if (received > 0)
             {
                 int dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target,
-                    checked(received * 2), traceAction);
+                    move, checked(received * 2), traceAction);
                 DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, 1.0, crit: false,
                     HpStatusFormulas.CannotKoFloor(move));
                 targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
@@ -1681,7 +1683,8 @@ public sealed class BattleController
                 : move.Ohko ? target.CurrentHp
                 : move.FixedDamageLevel ? attacker.Level
                 : move.FixedDamage!.Value;
-            dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target, dmg, traceAction);
+            dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target, move, dmg,
+                traceAction, eff > 0);
             DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, eff, crit: false,
                 HpStatusFormulas.CannotKoFloor(move));
             targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
@@ -1711,8 +1714,9 @@ public sealed class BattleController
                     eff <= 0 ? 0 : 1, _log.Count, _log.Count);
                 if (eff > 0)
                 {
-                    AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Critical, true,
-                        critDraw, crit ? 1 : 0, _log.Count, _log.Count, 1);
+                    AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Critical,
+                        critDraw is not null, critDraw, crit ? 1 : 0, _log.Count, _log.Count,
+                        critDraw is not null ? 1 : null);
                     AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.DamageRoll, true,
                         damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
                 }
@@ -1753,10 +1757,14 @@ public sealed class BattleController
     }
 
     private int TraceUnmodifiedFinalDamage(BattleSlot sourceSlot, BattleSlot targetSlot,
-        BattleCreature source, BattleCreature target, int damage, int traceAction)
+        BattleCreature source, BattleCreature target, BattleMove move, int damage, int traceAction,
+        bool applyMoveModifiers = true)
     {
-        BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.FinalDamage, new BattleQueryValue(damage),
-            context: new BattleQueryContext(sourceSlot, source, targetSlot, target, CurrentWeather, Ruleset, CurrentTerrain));
+        var context = new BattleQueryContext(sourceSlot, source, targetSlot, target,
+            CurrentWeather, Ruleset, CurrentTerrain);
+        BattleQueryResult result = applyMoveModifiers
+            ? BattleActionQueries.FinalDamage(move, damage, null, context)
+            : BattleQuery.Evaluate(BattleQueryId.FinalDamage, new BattleQueryValue(damage), [], context);
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, result));
         return result.FinalValue.ToInt32();
     }
@@ -1830,7 +1838,8 @@ public sealed class BattleController
             case RedirectEffect redirect: _redirects.Add(new RedirectCondition(ctx.SourceSlot, redirect.Priority,
                 redirect.AcceptedClasses, redirect.BypassClasses, redirect.AcceptedTags, redirect.BypassTags)); break;
             case DrainEffect d when ctx.ActionDamageDealt > 0:
-                Heal(ctx.Source, ctx.SourceSlot, EffectMath.DrainHeal(ctx.ActionDamageDealt, d.Fraction.Num, d.Fraction.Den));
+                Heal(ctx.Source, ctx.SourceSlot,
+                    EffectMath.DrainHeal(ctx.ActionDamageDealt, d.Fraction.Num, d.Fraction.Den), ctx.Move);
                 break;
             case HealEffect h:
                 (BattleCreature healRecipient, BattleSlot healSlot) = FractionRecipient(ctx, h.Recipient);
@@ -1844,6 +1853,7 @@ public sealed class BattleController
                     _hookTrace.AddRange(terrain.Trace);
                     Heal(healRecipient, healSlot,
                         EffectMath.HealAmount(healRecipient.MaxHp, h.Fraction.Num, h.Fraction.Den),
+                        ctx.Move,
                         [.. weather.QueryModifiers(BattleQueryId.Healing),
                          .. terrain.QueryModifiers(BattleQueryId.Healing)]);
                 }
@@ -1856,8 +1866,11 @@ public sealed class BattleController
                 break;
             case StatusPowerEffect or StatusCountPowerEffect or CannotKoEffect or SpeedRatioPowerEffect
                 or MetricBandPowerEffect or MetricRatioPowerEffect or ConsecutivePowerEffect or HistoryPowerEffect
-                or WeatherAccuracyEffect:
+                or WeatherAccuracyEffect or MoveQueryModifierEffect or AccuracyQueryEffect:
                 break; // evaluated in ComputeHit before DamageCalc.
+            case OneShotQueryEffect query:
+                ApplyOneShotQuery(ctx, query);
+                break;
             case RecoilEffect r when ctx.ActionDamageDealt > 0:
                 Sap(ctx.Source, ctx.SourceSlot, EffectMath.RecoilDamage(ctx.ActionDamageDealt, r.Fraction.Num, r.Fraction.Den),
                     amt => new Recoiled(ctx.SourceSlot, amt));
@@ -2011,6 +2024,20 @@ public sealed class BattleController
             effect.Duration)));
     }
 
+    private void ApplyOneShotQuery(EffectContext ctx, OneShotQueryEffect effect)
+    {
+        if (effect.Duration is < 1 or > 8)
+            throw new ArgumentOutOfRangeException(nameof(effect), "One-shot query duration must be in 1..8.");
+        BattleConditionDefinition definition = OneShotQueryConditions.For(effect.Query);
+        BattleSlot ownerSlot = effect.Query == OneShotQuery.Accuracy ? ctx.TargetSlot : ctx.SourceSlot;
+        BattleConditionOwner owner = new(BattleConditionScope.Creature, ownerSlot.Side, ownerSlot,
+            ActiveIndex(ownerSlot));
+        RecordConditionChanges(_conditions.Apply(new BattleConditionApplication(
+            definition.Id, owner,
+            new BattleConditionSource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)),
+            Turn, ctx.TraceAction, effect.Duration), definition));
+    }
+
     private void ApplyFieldCondition(EffectContext ctx, SetFieldConditionEffect effect)
     {
         BattleConditionDefinition definition = FieldConditions.For(effect.Condition, Ruleset);
@@ -2121,7 +2148,7 @@ public sealed class BattleController
         int amount = EffectMath.HpFractionAmount(recipient.CurrentHp, recipient.MaxHp, effect.Basis, effect.Fraction);
         if (effect.Operation == HpFractionOperation.Heal)
         {
-            Heal(recipient, slot, amount);
+            Heal(recipient, slot, amount, ctx.Move);
             return;
         }
 
@@ -2872,12 +2899,13 @@ public sealed class BattleController
         _log.Add(new Healed(side, c.CurrentHp - before));
     }
 
-    private void Heal(BattleCreature c, BattleSlot slot, int amount,
+    private void Heal(BattleCreature c, BattleSlot slot, int amount, BattleMove? move = null,
         IReadOnlyList<BattleQueryModifier>? modifiers = null)
     {
-        BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.Healing, new BattleQueryValue(amount),
-            modifiers,
-            context: new BattleQueryContext(slot, c, slot, c, CurrentWeather, Ruleset, CurrentTerrain));
+        var context = new BattleQueryContext(slot, c, slot, c, CurrentWeather, Ruleset, CurrentTerrain);
+        BattleQueryResult result = move is null
+            ? BattleQuery.Evaluate(BattleQueryId.Healing, new BattleQueryValue(amount), modifiers, context)
+            : BattleActionQueries.Healing(move, amount, modifiers, context);
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, _traceActionSequence, slot, slot, result));
         amount = result.FinalValue.ToInt32();
         if (amount <= 0 || c.CurrentHp >= c.MaxHp)
@@ -3114,13 +3142,29 @@ public sealed class BattleController
         BattleHookDispatchSnapshot critical = SideConditions.CollectCriticalHooks(
             ConditionSnapshot, sourceSlot.Side, targetSlot.Side, traceAction);
         _hookTrace.AddRange(critical.Trace);
-        BattleQueryResult criticalResult = BattleQuery.Evaluate(BattleQueryId.CriticalChance,
-            BattleRolls.CritChanceValue(move.CritStage + attacker.CritStageBonus),
+        BattleConditionOwner sourceOwner = new(BattleConditionScope.Creature, sourceSlot.Side,
+            sourceSlot, ActiveIndex(sourceSlot));
+        BattleConditionInstance? criticalGuarantee = OneShotQueryConditions.FindCritical(
+            ConditionSnapshot, sourceOwner);
+        BattleQueryResult criticalResult = BattleActionQueries.CriticalChance(move,
+            move.CritStage + attacker.CritStageBonus, criticalGuarantee is not null,
             critical.QueryModifiers(BattleQueryId.CriticalChance),
             new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather, Ruleset, CurrentTerrain));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, criticalResult));
-        bool crit = BattleRolls.IsCrit(criticalResult.FinalValue, _rng, out double critRoll);
-        critDraw = critRoll;
+        bool guaranteedCritical = criticalGuarantee is not null
+            && criticalResult.FinalValue == new BattleQueryValue(1);
+        bool crit;
+        if (guaranteedCritical)
+        {
+            crit = true;
+            RecordConditionChanges(_conditions.Remove(criticalGuarantee!.Definition.Id,
+                criticalGuarantee.Owner, Turn, traceAction));
+        }
+        else
+        {
+            crit = BattleRolls.IsCrit(criticalResult.FinalValue, _rng, out double critRoll);
+            critDraw = critRoll;
+        }
         int roll = BattleRolls.DamageRoll(_rng, out int randomRoll);
         damageRollDraw = randomRoll;
 
@@ -3168,8 +3212,9 @@ public sealed class BattleController
         bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
 
         int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn, snapshottedLiveTargets);
-        BattleQueryResult damageResult = BattleQuery.Evaluate(BattleQueryId.FinalDamage, new BattleQueryValue(dmg),
-            DamageHookModifiers(move, moveIdentity.EffectiveClass, moveType, sourceSlot, targetSlot, crit), queryContext);
+        BattleQueryResult damageResult = BattleActionQueries.FinalDamage(move, dmg,
+            DamageHookModifiers(move, moveIdentity.EffectiveClass, moveType, sourceSlot, targetSlot, crit),
+            queryContext);
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, damageResult));
         return (damageResult.FinalValue.ToInt32(), crit, eff);
     }

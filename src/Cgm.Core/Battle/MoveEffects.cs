@@ -33,6 +33,17 @@ public sealed record EffectivenessQueryEffect(
     BattleQueryValue? DefendingTypeMultiplier,
     StabQuerySource StabSource = StabQuerySource.User) : MoveEffect;
 
+public sealed record MoveQueryModifierEffect(
+    BattleQueryId Query,
+    BattleQueryOperation Operation,
+    BattleQueryValue Operand) : MoveEffect;
+
+public enum AccuracyQueryMode { Bypass, IgnoreTargetEvasion }
+public sealed record AccuracyQueryEffect(AccuracyQueryMode Mode) : MoveEffect;
+
+public enum OneShotQuery { Accuracy, CriticalChance }
+public sealed record OneShotQueryEffect(OneShotQuery Query, int Duration) : MoveEffect;
+
 public enum StageEffectScope { Self, Target, Both }
 public enum StageSwapGroup { All, Offense, Defense }
 public enum MoveGateKind { FirstAction, NotPreviousMove }

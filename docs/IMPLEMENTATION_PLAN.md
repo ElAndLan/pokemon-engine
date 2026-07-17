@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6, 15D-1, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; next eligible package is 15C-7 accuracy/critical/priority/final-damage/healing queries** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; next eligible package is 15D-2 action gates and recharge** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -424,7 +424,7 @@ Current readiness ledger:
 | 15C-4 action-history formulas | SPEC READY | IMPLEMENTED | Bounded typed attempts/streaks, resolver/AI parity, replacement-faint aging, and 4 generated certifications |
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
 | 15C-6 field/type/class/stat/effectiveness queries | SPEC READY | IMPLEMENTED | Shared exact identity/damage query result, overlays/conditions, selectors, STAB/effectiveness profiles, spread snapshots, resolver/AI parity, trace, and golden evidence |
-| 15C-7 accuracy/critical/priority/final-damage/healing queries | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish the complete formula registry before implementation |
+| 15C-7 accuracy/critical/priority/final-damage/healing queries | SPEC READY | IMPLEMENTED | Shared action-query helpers, strict ops, one-shot conditions, resolver/Smart-AI parity, traces, RNG matrix, doubles isolation, and golden evidence |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
@@ -1169,7 +1169,7 @@ Ordered feature packages:
    overlays and conditions provide ordered modifiers. **Acceptance:** single/dual type tables,
    immunity and override precedence, STAB/no-STAB, alternate stat/class selection, field absent/
    present, spread one/two target, and identical AI/resolver query results.
-7. **15C-7 — Accuracy, critical, priority, final damage, and healing modifiers (`PLANNED`;
+7. **15C-7 — Accuracy, critical, priority, final damage, and healing modifiers (`IMPLEMENTED`;
    prerequisite 15C-1; later condition integrations extend its tables).** Lock always-hit versus
    accuracy-stage behavior, weather/gravity/semi-invulnerable exceptions, next-hit/next-crit
    consumption, critical-stage caps, priority and turn-order modifiers, final damage floor/cap,
@@ -1339,6 +1339,38 @@ and byte-identical manifest/definitions hashes; and `git diff --check` passed. F
 fixed self-HP effectiveness leakage, field-type preview ambiguity, public typed-input validation,
 formula-damage effectiveness observability, and effective-class failure bookkeeping; verdict GO.
 Next eligible package: **15C-7 accuracy, critical, priority, final-damage, and healing modifiers**.
+
+Progress (2026-07-17): **15C-7 COMPLETE.** `BattleActionQueries` is the shared chance-free move
+modifier service for Accuracy, CriticalChance, Priority, FinalDamage, and Healing. The closed
+`queryModifier`, `accuracyRule`, and `nextQuery` ops compile through strict query/operation/operand/
+duration/target validation. Accuracy composes weather, source/target stages, Gravity, explicit
+bypass or ignored evasion, and source/target-bound next-accuracy state in one trace. Critical chance
+uses the exact stage table and target-side guard hooks; an eligible next-critical condition resolves
+without a critical draw and remains present when immunity or a later guard suppresses eligibility.
+Priority is snapshotted through the same helper before scheduling. Standard, fixed, level, OHKO, and
+counter damage enter the final-damage query without allowing a modifier to resurrect type immunity.
+Move-originated direct, drain, and HP-fraction healing enter the healing query before missing-HP
+clamping. Smart AI reuses the same helpers and exact normal/critical expectation without adding RNG.
+
+Changed production files: `BattleActionQueries.cs`, `BattleController.cs`, `MoveCompiler.cs`,
+`MoveEffects.cs`, and `SmartAi.cs`. Owning contracts were reconciled in `BATTLE_SYSTEM_SPEC.md`,
+`EFFECT_TYPES_CATALOG_v0_5.md`, `BATTLE_DAMAGE_CALC.md`, `BATTLE_AI_SPEC.md`, and
+`TESTING_STRATEGY.md`. Focused evidence in `BattleActionQueryTests.cs`, the checked-in
+`action-query.golden`, and adjusted critical-expectation regression tests covers strict compilation,
+all Accuracy/Evasion stage pairs, bypass/ignore-evasion, one-shot lifecycle and source/target
+isolation in singles/doubles, exact critical stages and guarded preservation, priority clamping/order,
+ordinary/fixed final-damage floor/cap and immunity, healing multiplication/block/clamp, resolver/AI
+parity, replay, traces, and skipped-draw order. Schema/migration and dependency impact: none. No
+named-move branch or new move certification was required.
+
+Verification: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0
+warnings/errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --no-restore` passed
+1,667 tests (1,444 Core, 104 Creator, 21 Runtime, 98 Tools); the move audit reported 937 inventoried /
+84 certified with corpus digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`
+and byte-identical manifest/definitions/decisions hashes; and `git diff --check` passed. Focused review
+found and fixed fixed-damage immunity resurrection, overbroad next-accuracy targeting, fractional
+critical-operand rejection, and missing doubles source/target proof; verdict GO. Next eligible
+package: **15D-2 action gates and recharge**.
 
 Exit: formula families have table tests, exact rounding, compiler/validation coverage, and all
 affected moves receive conformance cases.
@@ -3045,9 +3077,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6, 15D-1, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15C-7.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15D-2.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15C-7**; **15D-2** through **15D-7**; **15F-2** through
+   **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
 7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked
