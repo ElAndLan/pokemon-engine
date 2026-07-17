@@ -1655,7 +1655,7 @@ inventoried / 84 certified with digest
 `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check`
 passed. Focused review found and fixed missing `ChargeStart` declarations for authored non-sun skip
 rows and missing project-level type-reference validation; final verdict GO for this checkpoint, not
-for 15E-3 package exit.
+for 15E-3 package exit. Implementation checkpoint: `8f4eeba`.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
