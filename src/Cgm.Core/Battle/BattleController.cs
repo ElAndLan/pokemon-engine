@@ -122,10 +122,9 @@ public sealed class BattleController
     public Terrain CurrentTerrain => _conditions.Snapshot(BattleConditionScope.Terrain)
         .Select(instance => TerrainConditions.For(instance.Definition.Id).Terrain)
         .SingleOrDefault();
-    public BattleEnvironment NaturalEnvironment => _naturalEnvironment;
-    public BattleEnvironment EffectiveEnvironment => CurrentTerrain == Terrain.None
-        ? NaturalEnvironment
-        : TerrainConditions.Environment(CurrentTerrain);
+    public BattleEnvironmentState Environment => BattleEnvironmentState.Resolve(_naturalEnvironment, CurrentTerrain);
+    public BattleEnvironment NaturalEnvironment => Environment.Natural;
+    public BattleEnvironment EffectiveEnvironment => Environment.Effective;
     public string Ruleset => _ruleset;
 
     public BattleTopology Topology => _activeSlots.Topology;
@@ -2689,8 +2688,8 @@ public sealed class BattleController
         BattleFieldInputs inputs = supplied ?? new BattleFieldInputs();
         if (!BattleRulesets.IsSupported(inputs.Ruleset))
             throw new ArgumentException("Unknown battle ruleset profile.", nameof(supplied));
-        if (!Enum.IsDefined(inputs.NaturalEnvironment))
-            throw new ArgumentOutOfRangeException(nameof(supplied), "Unknown natural battle environment.");
+        if (!TerrainConditions.IsNaturalEnvironment(inputs.NaturalEnvironment))
+            throw new ArgumentOutOfRangeException(nameof(supplied), "Unknown or terrain-only natural battle environment.");
         if (!Enum.IsDefined(inputs.InitialWeather))
             throw new ArgumentOutOfRangeException(nameof(supplied), "Unknown initial weather.");
         if (!Enum.IsDefined(inputs.InitialTerrain))

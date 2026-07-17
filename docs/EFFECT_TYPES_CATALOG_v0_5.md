@@ -694,6 +694,11 @@ query/store paths and resolver/Smart-AI inputs as the intrinsic rows. Environmen
 grounded overrides, seeds/change hooks, and individual move certification remain required before
 the terrain-family exit.
 
+The environment input is an immutable `{ natural, effective }` state. Only non-terrain environment
+values are valid natural inputs; active terrain derives the effective value and removal/expiry
+restores natural. Called-move, conditional-secondary, and type-mutation consumers remain in their
+owning packages and must consume this shared state rather than adding field-name branches.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

@@ -90,6 +90,8 @@ public sealed class BattleTerrainConditionTests
         Assert.Equal(new BattleConditionId("terrain:grassy"), condition.Definition.Id);
         Assert.Equal(new BattleConditionSource(), condition.Source);
         Assert.Equal(BattleEnvironment.GrassyTerrain, battle.EffectiveEnvironment);
+        Assert.Equal(new { Natural = BattleEnvironment.Cave, Effective = BattleEnvironment.GrassyTerrain },
+            new { battle.Environment.Natural, battle.Environment.Effective });
 
         IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
 
@@ -98,6 +100,7 @@ public sealed class BattleTerrainConditionTests
         Assert.All(events.OfType<TerrainHealed>(), entry => Assert.Equal(10, entry.Amount));
         Assert.Equal(Terrain.None, battle.CurrentTerrain);
         Assert.Equal(BattleEnvironment.Cave, battle.EffectiveEnvironment);
+        Assert.Equal(battle.NaturalEnvironment, battle.Environment.Effective);
         Assert.Contains(events, entry => entry is TerrainEnded { Terrain: Terrain.Grassy });
         Assert.Contains(battle.ConditionTrace, entry => entry.Kind == BattleConditionTraceKind.Expired);
         Assert.Equal(0, rng.Calls);
@@ -124,6 +127,8 @@ public sealed class BattleTerrainConditionTests
         Assert.Equal(new BattleConditionSource(new BattleSlot(BattleSide.Player, 0), 0), condition.Source);
         Assert.Equal(4, condition.RemainingDuration);
         Assert.Contains(battle.ConditionTrace, entry => entry.Kind == BattleConditionTraceKind.Replaced);
+        Assert.Equal(BattleEnvironment.GrassyTerrain, battle.Environment.Effective);
+        Assert.Equal(BattleEnvironment.Building, battle.Environment.Natural);
     }
 
     [Fact]
@@ -141,6 +146,66 @@ public sealed class BattleTerrainConditionTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new BattleController(source, target, Chart(), new Rng(1),
             fieldInputs: new BattleFieldInputs(BattleRulesets.ModernReference,
                 NaturalEnvironment: (BattleEnvironment)999)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BattleController(source, target, Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs(BattleRulesets.ModernReference,
+                NaturalEnvironment: BattleEnvironment.ElectricTerrain)));
+    }
+
+    [Theory]
+    [InlineData(BattleEnvironment.Building)]
+    [InlineData(BattleEnvironment.Cave)]
+    [InlineData(BattleEnvironment.DeepWater)]
+    [InlineData(BattleEnvironment.Desert)]
+    [InlineData(BattleEnvironment.Grass)]
+    [InlineData(BattleEnvironment.Mountain)]
+    [InlineData(BattleEnvironment.Ocean)]
+    [InlineData(BattleEnvironment.Pond)]
+    [InlineData(BattleEnvironment.Road)]
+    [InlineData(BattleEnvironment.ShallowWater)]
+    [InlineData(BattleEnvironment.Snow)]
+    [InlineData(BattleEnvironment.TallGrass)]
+    public void EnvironmentState_AcceptsEveryNaturalValue(BattleEnvironment natural)
+    {
+        BattleEnvironmentState clear = BattleEnvironmentState.Resolve(natural);
+        BattleEnvironmentState electric = BattleEnvironmentState.Resolve(natural, Terrain.Electric);
+
+        Assert.Equal(natural, clear.Natural);
+        Assert.Equal(natural, clear.Effective);
+        Assert.Equal(natural, electric.Natural);
+        Assert.Equal(BattleEnvironment.ElectricTerrain, electric.Effective);
+    }
+
+    [Theory]
+    [InlineData(BattleEnvironment.ElectricTerrain)]
+    [InlineData(BattleEnvironment.GrassyTerrain)]
+    [InlineData(BattleEnvironment.MistyTerrain)]
+    [InlineData(BattleEnvironment.PsychicTerrain)]
+    public void EnvironmentState_RejectsTerrainOnlyNaturalValues(BattleEnvironment terrainEnvironment)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            BattleEnvironmentState.Resolve(terrainEnvironment));
+    }
+
+    [Fact]
+    public void ResolverAndSmartAi_ShareTheSameEnvironmentStateAcrossExpiry()
+    {
+        var battle = new BattleController(
+            Creature("source", 100, moves: [Inert()]),
+            Creature("target", 1, moves: [Inert("target_inert")]), Chart(), new CountingRng(),
+            fieldInputs: Field(Terrain.Misty, 1, BattleEnvironment.DeepWater));
+        var context = new SmartAiContext([battle.Active(BattleSide.Player)], 0,
+            [battle.Active(BattleSide.Enemy)], 0, Chart(), new Rng(1),
+            Conditions: battle.ConditionSnapshot, Ruleset: BattleRulesets.ModernReference,
+            NaturalEnvironment: battle.NaturalEnvironment);
+
+        Assert.Equal(battle.Environment, context.Environment);
+        Assert.Equal(BattleEnvironment.MistyTerrain, context.Environment.Effective);
+
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+        context = context with { Conditions = battle.ConditionSnapshot };
+
+        Assert.Equal(battle.Environment, context.Environment);
+        Assert.Equal(BattleEnvironment.DeepWater, context.Environment.Effective);
     }
 
     [Fact]
@@ -402,6 +467,7 @@ public sealed class BattleTerrainConditionTests
             fieldInputs: Field(Terrain.Grassy));
         IReadOnlyList<BattleEvent> removed = active.ResolveTurn(new UseMove(0), new UseMove(0));
         Assert.Equal(Terrain.None, active.CurrentTerrain);
+        Assert.Equal(active.Environment.Natural, active.Environment.Effective);
         Assert.Contains(removed, entry => entry is TerrainEnded { Terrain: Terrain.Grassy });
         Assert.Contains(removed, entry => entry is ConditionRemoved
             { Reason: BattleConditionCleanupReason.Effect });

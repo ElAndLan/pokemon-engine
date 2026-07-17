@@ -58,7 +58,11 @@ public sealed record SmartAiContext(
     BattleActionHistory? ActionHistory = null,
     IReadOnlyDictionary<EntityId, Item>? ItemData = null,
     IReadOnlyList<BattleConditionInstance>? Conditions = null,
-    string Ruleset = BattleRulesets.Gen4Like);
+    string Ruleset = BattleRulesets.Gen4Like,
+    BattleEnvironment NaturalEnvironment = BattleEnvironment.Building)
+{
+    public BattleEnvironmentState Environment => BattleEnvironmentState.Resolve(NaturalEnvironment, Conditions);
+}
 
 public sealed record AiScoreComponent(string Name, double Value);
 public sealed record AiCandidateScore(BattleAction Action, double Score, IReadOnlyList<AiScoreComponent> Components);

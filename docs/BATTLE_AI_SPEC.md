@@ -212,6 +212,10 @@ Capabilities beyond Beginner:
   same typed hooks and grounded subjects as resolution. A failed `terrainGate` contributes the
   explicit `terrainGate` rejection component so Smart AI avoids a known-failing move; removal and
   spread add no hidden score term or RNG.
+- AI context exposes the same immutable `BattleEnvironmentState` as resolution. Its natural value
+  is explicit visible field input and its effective value is derived from the immutable terrain
+  condition snapshot; environment consumers may not infer state from presentation events or keep a
+  parallel terrain flag. The input itself adds no score component or RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

@@ -206,6 +206,12 @@ type and power traces, action-order proof, doubles materialization, pre-PP/RNG f
 removal traces, healing replacement, and Smart-AI parity. Environment consumers, grounded
 overrides, change hooks, and per-move certification remain open.
 
+The environment-input checkpoint covers all twelve valid natural values, rejects the four
+terrain-only values and unknown enums as natural input, proves clear/apply/replace/remove/expire
+effective-state transitions without changing the natural value, and requires value-identical
+resolver/Smart-AI environment snapshots with no additional RNG. Called-move, conditional-secondary,
+and type-mutation behavior is not claimed by this checkpoint.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

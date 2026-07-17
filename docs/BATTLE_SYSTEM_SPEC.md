@@ -1322,11 +1322,22 @@ spread action continue normally. Grassy terrain declares `TurnEnd` and heals eac
 active in topology order by `max(1, floor(maxHp / 16))` before terrain duration completion. All
 intrinsic terrain hooks draw no RNG, and duration one executes its end-turn hook once before expiry.
 
-Battle construction may supply a natural environment, an initial terrain, and an optional positive
-terrain duration. Initial terrain uses the same store with an environment source and ordinary
-events/traces. The effective environment is the active terrain environment while terrain exists,
-otherwise the natural environment. Natural/effective environment consumption by Nature Power,
-Secret Power, and Camouflage remains required before the terrain-family exit.
+Battle construction may supply one natural environment (`building`, `cave`, `deepWater`, `desert`,
+`grass`, `mountain`, `ocean`, `pond`, `road`, `shallowWater`, `snow`, or `tallGrass`), an initial
+terrain, and an optional positive terrain duration. Terrain environment values are effective-only
+and are rejected as natural inputs. Initial terrain uses the same store with an environment source
+and ordinary events/traces. `BattleEnvironmentState` is the immutable selector input shared by the
+resolver and Smart AI: `Natural` remains the validated battle-start value, while `Effective` is the
+active terrain environment when terrain exists and otherwise `Natural`. Applying, replacing,
+removing, or expiring terrain changes only the derived effective value through the condition
+snapshot; it adds no state mutation, event, trace, or RNG beyond the terrain lifecycle itself.
+
+This checkpoint supplies the common environment input required by environment-selected called
+moves, secondary effects, and creature types. It does not execute those consumers: called-move
+selection/execution remains 15D-7, environment-selected type mutation remains 15F, and conditional
+secondary-effect compilation/resolution remains with its owning move-effect package. Those later
+consumers must accept this state rather than reconstructing environment from events or terrain
+names.
 
 Terrain-sensitive moves use three closed, generic effect rows. `terrainMove` requires a damaging
 move with authored power and accepts `subject=field|user|target` plus optional comma-separated tables:

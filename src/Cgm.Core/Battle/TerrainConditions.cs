@@ -24,6 +24,38 @@ public enum BattleEnvironment
     PsychicTerrain,
 }
 
+public readonly record struct BattleEnvironmentState
+{
+    private BattleEnvironmentState(BattleEnvironment natural, BattleEnvironment effective)
+    {
+        Natural = natural;
+        Effective = effective;
+    }
+
+    public BattleEnvironment Natural { get; }
+    public BattleEnvironment Effective { get; }
+
+    public static BattleEnvironmentState Resolve(BattleEnvironment natural, Terrain terrain = Terrain.None)
+    {
+        if (!TerrainConditions.IsNaturalEnvironment(natural))
+            throw new ArgumentOutOfRangeException(nameof(natural), natural,
+                "Natural environment must be a known non-terrain value.");
+        if (!Enum.IsDefined(terrain))
+            throw new ArgumentOutOfRangeException(nameof(terrain), terrain, "Unknown terrain.");
+        return new BattleEnvironmentState(natural,
+            terrain == Terrain.None ? natural : TerrainConditions.Environment(terrain));
+    }
+
+    public static BattleEnvironmentState Resolve(BattleEnvironment natural,
+        IEnumerable<BattleConditionInstance>? conditions)
+    {
+        BattleConditionInstance? condition = conditions?.SingleOrDefault(instance =>
+            instance.Definition.Scope == BattleConditionScope.Terrain);
+        Terrain terrain = condition is null ? Terrain.None : TerrainConditions.For(condition.Definition.Id).Terrain;
+        return Resolve(natural, terrain);
+    }
+}
+
 public sealed record TerrainDef
 {
     public required Terrain Terrain { get; init; }
@@ -89,6 +121,11 @@ public static class TerrainConditions
     public static TerrainDef For(Terrain terrain) => Registry[terrain];
     public static TerrainDef For(BattleConditionId condition) => ByCondition[condition];
     public static BattleConditionOwner FieldOwner => Owner;
+    public static bool IsNaturalEnvironment(BattleEnvironment environment) => environment is
+        BattleEnvironment.Building or BattleEnvironment.Cave or BattleEnvironment.DeepWater
+        or BattleEnvironment.Desert or BattleEnvironment.Grass or BattleEnvironment.Mountain
+        or BattleEnvironment.Ocean or BattleEnvironment.Pond or BattleEnvironment.Road
+        or BattleEnvironment.ShallowWater or BattleEnvironment.Snow or BattleEnvironment.TallGrass;
     public static bool Supports(Terrain terrain, string ruleset) =>
         Enum.IsDefined(terrain) && BattleRulesets.IsSupported(ruleset)
         && (terrain == Terrain.None || ruleset == BattleRulesets.ModernReference);
