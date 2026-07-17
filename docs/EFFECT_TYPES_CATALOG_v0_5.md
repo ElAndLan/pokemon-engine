@@ -730,6 +730,20 @@ Trick Room supplies `TurnOrderQuery`, Wonder Room supplies `StatQuery`, Magic Ro
 with `1/2` source-bound classic rows and `1/3` five-turn modern rows. All use the shared field/room
 stores and lifecycle traces.
 
+### 7.7b Side Damage Screens
+
+`sideCondition { condition, duration? }` admits `physicalScreen`, `specialScreen`, and
+`allDamageScreen` on `users-field` status moves. Each creates a reject-on-duplicate, five-turn side
+condition tagged `screen`; physical/special rows filter their matching class, while the modern-only
+all-damage row requires snow and filters both. `DamageQuery` multiplies eligible noncritical ordinary
+damage by `1/2` in singles and `2/3` with two active slots per side.
+
+`sideConditionBypass { tag: screen }` suppresses matching side-query modifiers without removing the
+condition. `removeSideCondition { tag: screen, side, timing }` removes matching side instances either
+after hit admission and before damage or in ordinary post-hit effect order.
+`sideConditionDurationExtend { tag: screen, turns }` is the held-effect duration adapter. These
+payloads are behavior/tag driven and never identify a move, item, or ability by content ID.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

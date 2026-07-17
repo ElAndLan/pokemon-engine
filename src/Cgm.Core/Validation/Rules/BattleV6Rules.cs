@@ -45,6 +45,10 @@ public sealed class AbilityHookRule : IValidationRule
                     else if (hook.Hook == AbilityHookPoint.OnGroundedQuery && effect.Op != "groundedModify")
                         yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
                             $"Ability hook 'onGroundedQuery' does not support effect op '{effect.Op}'.");
+                    else if (effect.Op == "sideConditionBypass"
+                        && hook.Hook != AbilityHookPoint.OnModifyOutgoingDamage)
+                        yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                            "Effect op 'sideConditionBypass' requires onModifyOutgoingDamage.");
                 }
 
                 foreach (ValidationIssue issue in Phase15EffectRules.Check(
@@ -179,6 +183,7 @@ internal static class Phase15EffectRules
     {
         "statModify", "typeDamageModify", "statusImmunity", "weatherSummon", "terrainSummon",
         "contactChanceEffect", "residualHeal", "residualDamage", "groundedModify",
+        "sideConditionBypass",
     };
 
     public static readonly IReadOnlySet<string> HeldItemOps = new HashSet<string>
@@ -186,6 +191,7 @@ internal static class Phase15EffectRules
         "thresholdHeal", "statusCure", "typeDamageBoost", "choiceLock",
         "residualHeal", "surviveFromFull", "weatherDurationExtend", "terrainDurationExtend", "groundedModify",
         "terrainSeed",
+        "sideConditionDurationExtend",
     };
 
     public static IEnumerable<ValidationIssue> Check(
@@ -350,6 +356,35 @@ internal static class Phase15EffectRules
             foreach (string key in effect.Params?.Keys.Where(key => key != "turns") ?? [])
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     $"Effect op 'terrainDurationExtend' has unknown param '{key}'.");
+
+        if (effect.Op == "sideConditionDurationExtend")
+        {
+            if (!HasString(effect, "tag") || !string.Equals(Str(effect, "tag"), "screen", StringComparison.Ordinal))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'sideConditionDurationExtend' requires tag 'screen'.");
+            if (!HasNumber(effect, "turns"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'sideConditionDurationExtend' requires numeric param 'turns'.");
+            foreach (string key in effect.Params?.Keys.Where(key => key is not "tag" and not "turns") ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'sideConditionDurationExtend' has unknown param '{key}'.");
+            if (effect.Chance is not null)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'sideConditionDurationExtend' does not support chance.");
+        }
+
+        if (effect.Op == "sideConditionBypass")
+        {
+            if (!HasString(effect, "tag") || !string.Equals(Str(effect, "tag"), "screen", StringComparison.Ordinal))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'sideConditionBypass' requires tag 'screen'.");
+            foreach (string key in effect.Params?.Keys.Where(key => key != "tag") ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'sideConditionBypass' has unknown param '{key}'.");
+            if (effect.Chance is not null)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'sideConditionBypass' does not support chance.");
+        }
 
         if (effect.Op == "terrainSeed")
         {

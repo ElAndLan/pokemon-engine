@@ -1446,6 +1446,48 @@ preview. No consumer reconstructs state from presentation events. Acceptance vec
 `sport-present-absent-profile`, `sport-source-cleanup`, `field-condition-ai-parity`,
 `field-condition-no-rng`, and `field-condition-replay`.
 
+### Side damage screens (Phase 15E-4)
+
+The first 15E-4 family uses `sideCondition { condition, duration? }` with the closed rows
+`physicalScreen`, `specialScreen`, and `allDamageScreen`. The op is chance-free, requires a status
+move targeting `users-field`, and defaults to five `TurnEnd` checkpoints. Definitions are
+`side:physical_screen`, `side:special_screen`, and `side:all_damage_screen`; each owns one distinct
+side stacking key, tag `screen`, `DamageQuery`, reject-on-duplicate policy, and
+`stayScope`/`persist` cleanup. Different screen rows coexist on one side and each side owns its own
+instances. Reapplication preserves the existing source, sequence, and remaining duration, emits the
+ordinary duplicate rejection, marks the action failed, and never refreshes.
+
+Physical and special screens filter matching damage classes. The all-damage row filters either
+ordinary damage class, is admitted only in `modern_reference`, and requires active snow when
+applied; a failed requirement spends the move's ordinary PP but creates no condition or condition
+trace. Against one active slot per side an eligible screen multiplies final damage by `1/2`; against
+two active slots it multiplies by `2/3`, including a selected single target. The side hook evaluates
+for each affected target while the duration remains one shared side instance. Screens do not modify
+status moves, formula-bypassing damage, type immunity, or critical hits. Multiple eligible screen
+rows compose in stable condition sequence through the shared final-damage query.
+
+`sideConditionBypass { tag: screen }` is a chance-free damaging-move marker and an admitted ability
+hook payload. It leaves conditions intact while excluding their modifiers for that action.
+`removeSideCondition { tag: screen, side: source|target, timing: beforeDamage|afterHit }` is a
+chance-free typed selector. `beforeDamage` requires a damaging active-creature target; after the hit
+passes accuracy it removes every matching condition from the selected target side before the first
+damage calculation, so the same hit is unmitigated. `afterHit` is available to status or damaging
+effects and runs in ordinary effect order. A no-match removal is a visible deterministic no-op in
+effect trace; matched removals emit ordinary `ConditionRemoved` events/traces with cleanup reason
+`effect`. General selectors, transfer, and side swap remain 15E-7.
+
+A source-held `sideConditionDurationExtend { tag: screen, turns: positive int }` extends only a
+successfully applied matching side condition. It is ignored when held effects are suppressed and
+never changes a duplicate or an opposing source's application. Resolver and Smart AI collect the
+same side-owned exact-rational modifier and bypass rules from the immutable snapshot. The family
+draws no RNG beyond the move's pre-existing accuracy/critical/damage rolls.
+
+Acceptance vectors: `screen-compile-valid-invalid`, `screen-owner-coexist`, `screen-duplicate`,
+`screen-duration-one-many-extension`, `screen-class-present-absent`, `screen-single-double`,
+`screen-critical-bypass`, `screen-explicit-bypass`, `screen-remove-before-after-no-match`,
+`screen-snow-gate`, `screen-query-trace`, `screen-ai-parity`, `screen-no-added-rng`, and
+`screen-replay`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

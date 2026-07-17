@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-4 side conditions and guards** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-4 after the green screen-family checkpoint** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -425,7 +425,7 @@ Current readiness ledger:
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
 | 15C-6 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
-| 15E scoped conditions/hooks | 15E-1/2/3 SPEC READY; 15E-4 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2/3 IMPLEMENTED | Continue 15E-4 side conditions and guards; deferred consumers stay with owning packages |
+| 15E scoped conditions/hooks | 15E-1/2/3 SPEC READY; 15E-4 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2/3 IMPLEMENTED; 15E-4 IN PROGRESS (SCREEN FAMILY GREEN) | Continue status/stage guards; Tailwind/order and side-wide protection remain later criteria |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
@@ -1445,7 +1445,7 @@ Ordered feature packages:
    room/gravity/sport coexist when tags differ. Reapplying the same instance refreshes only when the
    row permits. **Acceptance:** start/replace/refresh/expire, every query hook present/absent, residual
    ordering, field coexistence, ruleset difference vectors, and family goldens.
-4. **15E-4 — Side conditions and guards (`PLANNED`; prerequisites 15E-1/2).** Lock screens, status/
+4. **15E-4 — Side conditions and guards (`IN PROGRESS`; screen contract locked; prerequisites 15E-1/2).** Lock screens, status/
    stage guards, speed/order modifiers, critical guard, pledges, and side-wide protection as side
    conditions with exact duration, doubles multiplier, bypass tags, stacking, source, and removal.
    A side hook evaluates once per affected target but owns one shared duration/counter. **Acceptance:**
@@ -1899,6 +1899,26 @@ determinism, AI-fairness, IP, event-order, or named-move issue. No conformance c
 this closes the reusable interaction family rather than certifying individual move rows.
 Next slice: begin 15E-4 with the complete reusable side-condition duration/damage interaction
 criterion, not a named screen move.
+
+**15E-4 screen-family checkpoint (`IN PROGRESS`; 2026-07-17).** The reusable screen criterion is
+green: typed side-owned physical, special, and all-damage conditions share the condition registry,
+five-turn lifecycle, duplicate rejection without refresh, independent stacking keys, exact singles
+`1/2` and doubles `2/3` final-damage queries, critical and explicit/ability bypass, before-damage and
+after-hit tagged removal, held duration extension, snow/ruleset gating, deterministic events/traces,
+and Smart AI query parity. Removal is a generic tag-and-owner store operation; no move ID or content
+name enters production behavior. Production changes: `SideConditions.cs`, `BattleConditions.cs`,
+`BattleController.cs`, `BattleEvents.cs`, `EffectTrace.cs`, `MoveCompiler.cs`, `MoveEffects.cs`,
+`SmartAi.cs`, and `BattleV6Rules.cs`. Tests: `BattleSideConditionTests.cs` plus focused ability/held
+validation vectors in `ValidationTests.cs`.
+Owning contracts updated: `BATTLE_SYSTEM_SPEC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`,
+`BATTLE_AI_SPEC.md`, and `TESTING_STRATEGY.md`. Schema/migration and dependency impact: none; the
+existing open effect payload remains unchanged. Verification: focused screen/validation tests passed
+17/17; Core passed 1,341 tests; full solution build passed with 0 warnings/errors; full solution passed
+1,564 tests (1,341 Core, 104 Creator, 21 Runtime, 98 Tools). Decision-catalog regeneration remained
+byte-identical at 937 inventoried / 84 certified with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check` passed. The package
+remains `IN PROGRESS`: status/stage guards are next; Tailwind/order and side-wide protection remain
+separate later criteria. No per-move certification count advances at this checkpoint.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup

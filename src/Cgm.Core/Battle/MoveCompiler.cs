@@ -180,6 +180,58 @@ public static class MoveCompiler
                     effects.Add(new SetFieldConditionEffect(fieldCondition, fieldDuration));
                     break;
 
+                case "sideCondition":
+                    if (chance != 100)
+                        throw new ArgumentException("sideCondition does not support chance.");
+                    CheckAllowedParams(e, "condition", "duration");
+                    if (move.Target != MoveTarget.UsersField || move.DamageClass != DamageClass.Status)
+                        throw new ArgumentException("sideCondition requires a status move targeting users-field.");
+                    BattleSideCondition sideCondition = ParseNamed<BattleSideCondition>(
+                        Str(e, "condition"), "side condition");
+                    int sideDuration = e.Params?.ContainsKey("duration") == true
+                        ? Int(e, "duration") : SideConditions.DefaultTurns;
+                    if (sideDuration <= 0)
+                        throw new ArgumentException("sideCondition duration must be positive.");
+                    if (effects.OfType<SetSideConditionEffect>().Any())
+                        throw new ArgumentException("A move can declare only one sideCondition effect.");
+                    effects.Add(new SetSideConditionEffect(sideCondition, sideDuration));
+                    break;
+
+                case "sideConditionBypass":
+                    if (chance != 100)
+                        throw new ArgumentException("sideConditionBypass does not support chance.");
+                    CheckAllowedParams(e, "tag");
+                    if (move.DamageClass == DamageClass.Status || move.Power is null)
+                        throw new ArgumentException("sideConditionBypass requires a damaging move with authored power.");
+                    string bypassTag = Str(e, "tag");
+                    if (!string.Equals(bypassTag, "screen", StringComparison.Ordinal))
+                        throw new ArgumentException("sideConditionBypass currently admits only the screen tag.");
+                    if (effects.OfType<SideConditionBypassEffect>().Any())
+                        throw new ArgumentException("A move can declare only one sideConditionBypass effect.");
+                    effects.Add(new SideConditionBypassEffect(bypassTag));
+                    break;
+
+                case "removeSideCondition":
+                    if (chance != 100)
+                        throw new ArgumentException("removeSideCondition does not support chance.");
+                    CheckAllowedParams(e, "tag", "side", "timing");
+                    string removeTag = Str(e, "tag");
+                    if (!string.Equals(removeTag, "screen", StringComparison.Ordinal))
+                        throw new ArgumentException("removeSideCondition currently admits only the screen tag.");
+                    SideConditionTarget removeSide = ParseNamed<SideConditionTarget>(Str(e, "side"), "side condition target");
+                    SideConditionTiming removeTiming = ParseNamed<SideConditionTiming>(Str(e, "timing"), "side condition timing");
+                    if (removeTiming == SideConditionTiming.BeforeDamage
+                        && (move.DamageClass == DamageClass.Status || move.Power is null))
+                        throw new ArgumentException("beforeDamage removeSideCondition requires a damaging move with authored power.");
+                    if (removeSide == SideConditionTarget.Target && move.Target is
+                        MoveTarget.UsersField or MoveTarget.OpponentsField or MoveTarget.EntireField
+                        or MoveTarget.FaintingPokemon or MoveTarget.SpecificMove)
+                        throw new ArgumentException("Target removeSideCondition requires an active-creature move target.");
+                    if (effects.OfType<RemoveSideConditionEffect>().Any())
+                        throw new ArgumentException("A move can declare only one removeSideCondition effect.");
+                    effects.Add(new RemoveSideConditionEffect(removeTag, removeSide, removeTiming));
+                    break;
+
                 case "fieldMoveGate":
                     if (chance != 100)
                         throw new ArgumentException("fieldMoveGate does not support chance.");

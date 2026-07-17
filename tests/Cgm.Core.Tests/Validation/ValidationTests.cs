@@ -324,6 +324,37 @@ public sealed class ValidationTests
     }
 
     [Fact]
+    public void SideConditionBypass_RequiresOutgoingDamageHookAndScreenTag()
+    {
+        var invalid = new Ability
+        {
+            Id = EntityId.Parse("ability:invalid_screen_bypass"),
+            Name = "Invalid Screen Bypass",
+            Hooks = [new AbilityHook
+            {
+                Hook = AbilityHookPoint.OnSwitchIn,
+                Effects = [new Effect { Op = "sideConditionBypass", Chance = 100,
+                    Params = Params(("tag", "other"), ("extra", 1)) }],
+            }],
+        };
+        ValidationIssue[] issues = Run(new AbilityHookRule(), Project(invalid)).ToArray();
+        Assert.Contains(issues, issue => issue.Message.Contains("requires onModifyOutgoingDamage"));
+        Assert.Contains(issues, issue => issue.Message.Contains("requires tag 'screen'"));
+        Assert.Contains(issues, issue => issue.Message.Contains("unknown param"));
+        Assert.Contains(issues, issue => issue.Message.Contains("does not support chance"));
+
+        var valid = invalid with
+        {
+            Hooks = [new AbilityHook
+            {
+                Hook = AbilityHookPoint.OnModifyOutgoingDamage,
+                Effects = [new Effect { Op = "sideConditionBypass", Params = Params(("tag", "screen")) }],
+            }],
+        };
+        Assert.Empty(Run(new AbilityHookRule(), Project(valid)));
+    }
+
+    [Fact]
     public void GroundedModify_RequiresItsQueryHookAndClosedStateShape()
     {
         var invalid = new Ability
@@ -395,6 +426,9 @@ public sealed class ValidationTests
                 new Effect { Op = "terrainDurationExtend" },
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 0)) },
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2), ("extra", 1)) },
+                new Effect { Op = "sideConditionDurationExtend" },
+                new Effect { Op = "sideConditionDurationExtend", Chance = 100,
+                    Params = Params(("tag", "other"), ("turns", 0), ("extra", 1)) },
                 new Effect { Op = "groundedModify", Params = Params(("state", "floating")) },
                 new Effect { Op = "terrainSeed", Chance = 100, Params = Params(("terrain", "none"), ("stat", "atk"), ("extra", 1)) },
                 new Effect { Op = "terrainSeed", Params = Params(("terrain", 1), ("stat", 1)) },
@@ -418,6 +452,10 @@ public sealed class ValidationTests
         Assert.Contains(issues, i => i.Message.Contains("weatherDurationExtend") && i.Message.Contains("turns"));
         Assert.Contains(issues, i => i.Message.Contains("terrainDurationExtend") && i.Message.Contains("turns"));
         Assert.Contains(issues, i => i.Message.Contains("terrainDurationExtend") && i.Message.Contains("unknown param"));
+        Assert.Contains(issues, i => i.Message.Contains("sideConditionDurationExtend") && i.Message.Contains("screen"));
+        Assert.Contains(issues, i => i.Message.Contains("sideConditionDurationExtend") && i.Message.Contains("turns"));
+        Assert.Contains(issues, i => i.Message.Contains("sideConditionDurationExtend") && i.Message.Contains("unknown param"));
+        Assert.Contains(issues, i => i.Message.Contains("sideConditionDurationExtend") && i.Message.Contains("does not support chance"));
         Assert.Contains(issues, i => i.Message.Contains("grounded") && i.Message.Contains("airborne"));
         Assert.Contains(issues, i => i.Message.Contains("terrainSeed") && i.Message.Contains("unknown terrain"));
         Assert.Contains(issues, i => i.Message.Contains("terrainSeed") && i.Message.Contains("unknown stat"));
@@ -439,6 +477,7 @@ public sealed class ValidationTests
                 new Effect { Op = "surviveFromFull" },
                 new Effect { Op = "weatherDurationExtend", Params = Params(("turns", 2)) },
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2)) },
+                new Effect { Op = "sideConditionDurationExtend", Params = Params(("tag", "screen"), ("turns", 3)) },
                 new Effect { Op = "groundedModify", Params = Params(("state", "grounded")) },
                 new Effect { Op = "terrainSeed", Params = Params(("terrain", "grassy"), ("stat", "def")) },
             ],

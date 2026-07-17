@@ -27,6 +27,7 @@ public enum EffectTraceKind
     ForceSwitchReserve,
     PositionSwap,
     Redirection,
+    ConditionRemoval,
     IntentEnqueued,
     IntentConsumed,
     IntentDeferred,

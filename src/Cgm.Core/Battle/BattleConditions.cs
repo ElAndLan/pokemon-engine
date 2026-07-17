@@ -294,6 +294,20 @@ public sealed class BattleConditionStores
         return changes.Build();
     }
 
+    public BattleConditionChangeSet RemoveTagged(BattleConditionScope scope, BattleConditionOwner owner,
+        string tag, int turn, int actionSequence)
+    {
+        if (!Enum.IsDefined(scope))
+            throw new ArgumentOutOfRangeException(nameof(scope));
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        ValidateTime(turn, actionSequence);
+        var changes = new ChangeBuilder();
+        foreach (BattleConditionInstance instance in Snapshot(scope).Where(instance =>
+            instance.Owner == owner && instance.Tags.Contains(tag, StringComparer.Ordinal)))
+            Remove(instance, BattleConditionCleanupReason.Effect, turn, actionSequence, changes);
+        return changes.Build();
+    }
+
     public IReadOnlyList<BattleConditionInstance> Snapshot() => InOrder(_stores.Values.SelectMany(store => store)).ToArray();
 
     public IReadOnlyList<BattleConditionInstance> Snapshot(BattleConditionScope scope)

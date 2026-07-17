@@ -24,6 +24,8 @@ public enum HpFractionBasis { MaxHp, CurrentHp }
 public enum StatusPowerSubject { User, Target }
 public enum StatusCountSubject { User, Target, Both }
 public enum TerrainMoveSubject { Field, User, Target }
+public enum SideConditionTarget { Source, Target }
+public enum SideConditionTiming { BeforeDamage, AfterHit }
 public enum BattleVolatileStatus { Confusion, Flinch, Bound, Seeded, Protected }
 public sealed record FormulaPowerBand(int MinInclusive, int Power);
 public sealed record StatusChanceFormula(
@@ -170,6 +172,10 @@ public sealed record GroundedStateEffect(
     GroundedStateScope Scope,
     int Duration) : MoveEffect;
 public sealed record SetFieldConditionEffect(BattleFieldCondition Condition, int Duration) : MoveEffect;
+public sealed record SetSideConditionEffect(BattleSideCondition Condition, int Duration) : MoveEffect;
+public sealed record SideConditionBypassEffect(string Tag) : MoveEffect;
+public sealed record RemoveSideConditionEffect(
+    string Tag, SideConditionTarget Side, SideConditionTiming Timing) : MoveEffect;
 public sealed record FieldMoveGateEffect(BattleFieldCondition Condition) : MoveEffect;
 public sealed record TerrainMoveEffect(
     TerrainMoveSubject Subject,

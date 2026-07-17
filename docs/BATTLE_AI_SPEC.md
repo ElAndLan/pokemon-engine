@@ -234,6 +234,12 @@ Capabilities beyond Beginner:
   damage component with the active ruleset fraction. Magic Room excludes held battle effects and
   held-item formula inputs without hiding or deleting the item definition. These rows add no
   speculative score component and no AI RNG.
+- Side-screen scoring collects the resolver's exact target-side `DamageQuery` modifier with the
+  visible topology count. Matching physical/special/all-damage rows reduce the existing `damage`
+  and `ko` components; critical expectation remains the existing noncritical midpoint model.
+  Explicit `screen` bypass and a before-damage matching removal exclude the modifier without
+  mutating the preview snapshot. AI does not infer screen state from events or inspect hidden held
+  items, and screen preview adds no RNG or unnamed score component.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

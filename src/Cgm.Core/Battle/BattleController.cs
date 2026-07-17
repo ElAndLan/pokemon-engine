@@ -40,7 +40,7 @@ public sealed class BattleController
     private readonly BattleActionHistory _actionHistory = new();
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
-            .. GroundedConditions.Definitions, .. FieldConditions.Definitions]));
+            .. GroundedConditions.Definitions, .. FieldConditions.Definitions, .. SideConditions.Definitions]));
     private readonly List<BattleConditionTraceEntry> _conditionTrace = [];
     private readonly List<BattleHookTraceEntry> _hookTrace = [];
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
@@ -736,6 +736,7 @@ public sealed class BattleController
             return actionContext.Failed ? BattleActionResult.Failed : BattleActionResult.Succeeded;
         }
 
+        ApplyBeforeDamageSideRemovals(actionContext, accurateTargets);
         int? randomPower = SelectRandomPower(sourceSlot, move, traceAction);
         int? hitCountDraw = null;
         int hits = move.MultiHitMax >= 2 ? EffectMath.HitCount(_rng, move.MultiHitMin, move.MultiHitMax, out hitCountDraw) : 1;
@@ -794,10 +795,20 @@ public sealed class BattleController
         foreach (BattleTargetContext targetContext in targetContexts)
         {
             var context = new EffectContext(actionContext, targetContext);
-            foreach (MoveEffect effect in actionContext.Move.SecondaryEffects.Where(IsTargetScoped))
+            foreach (MoveEffect effect in actionContext.Move.SecondaryEffects.Where(effect =>
+                IsTargetScoped(effect) && effect is not RemoveSideConditionEffect))
                 ApplyEffect(context, effect);
             ApplyContactEffects(actionContext.Move, actionContext.SourceSlot, actionContext.Source, targetContext.TargetSlot,
                 actionContext.TraceAction);
+        }
+
+        foreach (RemoveSideConditionEffect effect in actionContext.Move.SecondaryEffects
+            .OfType<RemoveSideConditionEffect>().Where(effect =>
+                effect.Side == SideConditionTarget.Target && effect.Timing == SideConditionTiming.AfterHit))
+        {
+            foreach (BattleTargetContext targetContext in targetContexts
+                .DistinctBy(target => target.TargetSide))
+                ApplyEffect(new EffectContext(actionContext, targetContext), effect);
         }
 
         var actionEffectContext = new EffectContext(actionContext, targetContexts[0]);
@@ -815,6 +826,7 @@ public sealed class BattleController
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
             or HpEqualizeEffect => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
+        RemoveSideConditionEffect { Side: SideConditionTarget.Target, Timing: SideConditionTiming.AfterHit } => true,
         _ => false,
     };
 
@@ -1418,6 +1430,7 @@ public sealed class BattleController
             return;
         }
 
+        ApplyBeforeDamageSideRemovals(actionContext, [targetContext]);
         int? randomPower = SelectRandomPower(sourceSlot, move, traceAction);
 
         if (move.CounterCategory is { } counterCat)
@@ -1675,6 +1688,13 @@ public sealed class BattleController
             case SetFieldConditionEffect field:
                 ApplyFieldCondition(ctx, field);
                 break;
+            case SetSideConditionEffect side:
+                return ApplySideCondition(ctx, side);
+            case RemoveSideConditionEffect { Timing: SideConditionTiming.AfterHit } remove:
+                RemoveSideConditions(ctx, remove);
+                break;
+            case SideConditionBypassEffect or RemoveSideConditionEffect:
+                break;
             case RemoveTerrainEffect:
                 ClearTerrain();
                 break;
@@ -1720,6 +1740,60 @@ public sealed class BattleController
         RecordConditionChanges(_conditions.Apply(new BattleConditionApplication(definition.Id, owner,
             new BattleConditionSource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)), Turn, ctx.TraceAction,
             definition.DurationCheckpoint is null ? null : effect.Duration)));
+    }
+
+    private bool ApplySideCondition(EffectContext ctx, SetSideConditionEffect effect)
+    {
+        if (effect.Condition == BattleSideCondition.AllDamageScreen
+            && (_ruleset != BattleRulesets.ModernReference || CurrentWeather != Weather.Snow))
+        {
+            _log.Add(new MoveFailed(ctx.SourceSlot, ctx.Move.Move, MoveFailureReason.ConditionRequirementNotMet));
+            ctx.Action.MarkFailed();
+            return false;
+        }
+
+        BattleConditionChangeSet changes = _conditions.Apply(new BattleConditionApplication(
+            SideConditions.For(effect.Condition).Id, SideConditions.Owner(ctx.SourceSide),
+            new BattleConditionSource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)), Turn, ctx.TraceAction,
+            effect.Duration + SideConditionDurationExtension(ctx.SourceSlot)));
+        RecordConditionChanges(changes);
+        if (!changes.Events.OfType<ConditionApplicationRejected>().Any())
+            return true;
+
+        _log.Add(new MoveFailed(ctx.SourceSlot, ctx.Move.Move, MoveFailureReason.ConditionAlreadyActive));
+        ctx.Action.MarkFailed();
+        return false;
+    }
+
+    private void ApplyBeforeDamageSideRemovals(BattleActionContext action,
+        IReadOnlyList<BattleTargetContext> targets)
+    {
+        foreach (RemoveSideConditionEffect effect in action.Move.SecondaryEffects
+            .OfType<RemoveSideConditionEffect>().Where(effect => effect.Timing == SideConditionTiming.BeforeDamage))
+        {
+            IEnumerable<BattleSide> sides = effect.Side == SideConditionTarget.Source
+                ? [action.SourceSide]
+                : targets.Select(target => target.TargetSide).Distinct();
+            foreach (BattleSide side in sides)
+                RemoveSideConditions(action, side, effect.Tag,
+                    targets.FirstOrDefault(target => target.TargetSide == side));
+        }
+    }
+
+    private void RemoveSideConditions(EffectContext ctx, RemoveSideConditionEffect effect) =>
+        RemoveSideConditions(ctx.Action,
+            effect.Side == SideConditionTarget.Source ? ctx.SourceSide : ctx.TargetSide,
+            effect.Tag, ctx.TargetContext);
+
+    private void RemoveSideConditions(BattleActionContext action, BattleSide side, string tag,
+        BattleTargetContext? target)
+    {
+        int start = _log.Count;
+        BattleConditionChangeSet changes = _conditions.RemoveTagged(BattleConditionScope.Side,
+            SideConditions.Owner(side), tag, Turn, action.TraceAction);
+        RecordConditionChanges(changes);
+        AddTrace(action.TraceAction, action.SourceSlot, target?.TargetSlot, EffectTraceKind.ConditionRemoval,
+            false, null, changes.Affected.Count, start, _log.Count);
     }
 
     private void SwapPositions(EffectContext ctx)
@@ -2588,7 +2662,7 @@ public sealed class BattleController
 
         int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn, snapshottedLiveTargets);
         BattleQueryResult damageResult = BattleQuery.Evaluate(BattleQueryId.FinalDamage, new BattleQueryValue(dmg),
-            DamageHookModifiers(move, moveType, sourceSlot, targetSlot),
+            DamageHookModifiers(move, moveType, sourceSlot, targetSlot, crit),
             new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather, Ruleset, CurrentTerrain));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, damageResult));
         return (damageResult.FinalValue.ToInt32(), crit, eff);
@@ -2679,6 +2753,12 @@ public sealed class BattleController
             .Where(e => e.Op == "terrainDurationExtend")
             .Sum(e => Int(e, "turns") ?? 0);
 
+    private int SideConditionDurationExtension(BattleSlot slot) =>
+        HeldEffects(Active(slot))
+            .Where(e => e.Op == "sideConditionDurationExtend"
+                && string.Equals(Str(e, "tag"), "screen", StringComparison.Ordinal))
+            .Sum(e => Int(e, "turns") ?? 0);
+
     private void ApplyChoiceLock(BattleCreature creature, int moveIndex)
     {
         if (HeldEffects(creature).Any(e => e.Op == "choiceLock"))
@@ -2690,10 +2770,29 @@ public sealed class BattleController
         ItemsSuppressed ? [] : creature.HeldItemBattleEffects;
 
     private IReadOnlyList<BattleQueryModifier> DamageHookModifiers(
-        BattleMove move, EntityId moveType, BattleSlot sourceSlot, BattleSlot targetSlot)
+        BattleMove move, EntityId moveType, BattleSlot sourceSlot, BattleSlot targetSlot, bool critical)
     {
         var modifiers = new List<BattleQueryModifier>();
         int insertion = 0;
+
+        BattleHookDispatchSnapshot weather = WeatherConditions.CollectDamageHooks(
+            ConditionSnapshot, moveType.Slug, _traceActionSequence);
+        _hookTrace.AddRange(weather.Trace);
+        modifiers.AddRange(weather.QueryModifiers(BattleQueryId.FinalDamage)
+            .Select(modifier => modifier with { InsertionOrder = insertion++ }));
+        BattleHookDispatchSnapshot terrain = TerrainConditions.CollectDamageHooks(
+            ConditionSnapshot, moveType.Slug, IsGrounded(sourceSlot), IsGrounded(targetSlot),
+            _traceActionSequence);
+        _hookTrace.AddRange(terrain.Trace);
+        modifiers.AddRange(terrain.QueryModifiers(BattleQueryId.FinalDamage)
+            .Select(modifier => modifier with { InsertionOrder = insertion++ }));
+        BattleHookDispatchSnapshot side = SideConditions.CollectDamageHooks(ConditionSnapshot,
+            targetSlot.Side, move.DamageClass, Topology.ActiveSlotsPerSide, critical,
+            BypassesSideConditions(sourceSlot, move), _traceActionSequence);
+        _hookTrace.AddRange(side.Trace);
+        modifiers.AddRange(side.QueryModifiers(BattleQueryId.FinalDamage)
+            .Select(modifier => modifier with { InsertionOrder = insertion++ }));
+
         foreach (BattleHookInvocation invocation in BattleHookDispatcher.Damage(sourceSlot, targetSlot, HookSources()))
         {
             Effect effect = invocation.Effect;
@@ -2717,19 +2816,17 @@ public sealed class BattleController
                 Int(effect, "priority") ?? 0, QueryOwner(invocation, sourceSlot, targetSlot), insertion++));
         }
 
-        BattleHookDispatchSnapshot weather = WeatherConditions.CollectDamageHooks(
-            ConditionSnapshot, moveType.Slug, _traceActionSequence);
-        _hookTrace.AddRange(weather.Trace);
-        modifiers.AddRange(weather.QueryModifiers(BattleQueryId.FinalDamage)
-            .Select(modifier => modifier with { InsertionOrder = insertion++ }));
-        BattleHookDispatchSnapshot terrain = TerrainConditions.CollectDamageHooks(
-            ConditionSnapshot, moveType.Slug, IsGrounded(sourceSlot), IsGrounded(targetSlot),
-            _traceActionSequence);
-        _hookTrace.AddRange(terrain.Trace);
-        modifiers.AddRange(terrain.QueryModifiers(BattleQueryId.FinalDamage)
-            .Select(modifier => modifier with { InsertionOrder = insertion++ }));
         return modifiers;
     }
+
+    private bool BypassesSideConditions(BattleSlot sourceSlot, BattleMove move) =>
+        move.SecondaryEffects.OfType<SideConditionBypassEffect>().Any(effect => effect.Tag == "screen")
+        || move.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
+            effect.Tag == "screen" && effect.Side == SideConditionTarget.Target
+                && effect.Timing == SideConditionTiming.BeforeDamage)
+        || Active(sourceSlot).AbilityHooks.SelectMany(hook => hook.Effects).Any(effect =>
+            effect.Op == "sideConditionBypass"
+            && string.Equals(Str(effect, "tag"), "screen", StringComparison.Ordinal));
 
     private EntityId EffectiveMoveType(BattleSlot sourceSlot, BattleMove move, int traceAction)
     {

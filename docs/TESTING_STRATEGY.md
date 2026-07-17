@@ -237,6 +237,14 @@ source/duration cleanup, shared lifecycle events/traces, resolver/Smart-AI parit
 and deterministic replay. No project/save schema vector changes because both ops use the existing
 open effect payload shape.
 
+The 15E-4 screen checkpoint covers strict side-condition/bypass/removal compilation, independent
+side ownership and row coexistence, duplicate rejection without refresh, duration one/many and
+source-held extension, physical/special/all-damage present/absent tables, exact singles/doubles
+fractions, critical and explicit bypass, before-damage/after-hit/no-match removal order, modern snow
+admission, per-target query/hook traces with one shared duration, Smart-AI parity, unchanged RNG
+ownership, and deterministic replay. General tag/source selectors and side transfer/swap remain
+15E-7.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

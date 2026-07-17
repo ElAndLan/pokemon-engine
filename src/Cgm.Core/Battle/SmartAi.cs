@@ -59,7 +59,8 @@ public sealed record SmartAiContext(
     IReadOnlyDictionary<EntityId, Item>? ItemData = null,
     IReadOnlyList<BattleConditionInstance>? Conditions = null,
     string Ruleset = BattleRulesets.Gen4Like,
-    BattleEnvironment NaturalEnvironment = BattleEnvironment.Building)
+    BattleEnvironment NaturalEnvironment = BattleEnvironment.Building,
+    int ActiveSlotsPerSide = 1)
 {
     public BattleEnvironmentState Environment => BattleEnvironmentState.Resolve(NaturalEnvironment, Conditions);
 }
@@ -400,6 +401,13 @@ public static class SmartAi
                 IsGrounded(attacker, context), IsGrounded(defender, context), actionSequence: 0);
             finalModifiers.AddRange(terrain.QueryModifiers(BattleQueryId.FinalDamage)
                 .Select(modifier => modifier with { InsertionOrder = finalModifiers.Count }));
+            BattleSide targetSide = context?.EnemyParty.Any(creature => ReferenceEquals(creature, defender)) == true
+                ? BattleSide.Enemy : BattleSide.Player;
+            BattleHookDispatchSnapshot side = SideConditions.CollectDamageHooks(conditions, targetSide,
+                move.DamageClass, context?.ActiveSlotsPerSide ?? 1, critical: false,
+                BypassesSideConditions(attacker, move), actionSequence: 0);
+            finalModifiers.AddRange(side.QueryModifiers(BattleQueryId.FinalDamage)
+                .Select(modifier => modifier with { InsertionOrder = finalModifiers.Count }));
         }
         int oneHit = BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
             DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn), finalModifiers);
@@ -408,6 +416,16 @@ public static class SmartAi
         int floor = HpStatusFormulas.CannotKoFloor(move);
         return floor > 0 ? Math.Min(total, Math.Max(0, defender.CurrentHp - floor)) : total;
     }
+
+    private static bool BypassesSideConditions(BattleCreature attacker, BattleMove move) =>
+        move.SecondaryEffects.OfType<SideConditionBypassEffect>().Any(effect => effect.Tag == "screen")
+        || move.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
+            effect.Tag == "screen" && effect.Side == SideConditionTarget.Target
+                && effect.Timing == SideConditionTiming.BeforeDamage)
+        || attacker.AbilityHooks.SelectMany(hook => hook.Effects).Any(effect =>
+            effect.Op == "sideConditionBypass"
+            && effect.Params?.TryGetValue("tag", out var tag) == true
+            && tag.GetString() == "screen");
 
     private sealed record FieldMovePreview(EntityId Type, IReadOnlyList<BattleQueryModifier> PowerModifiers);
 
