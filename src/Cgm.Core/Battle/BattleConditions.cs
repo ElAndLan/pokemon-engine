@@ -41,6 +41,7 @@ public enum BattleConditionHook
     TryHit,
     MoveTypeQuery,
     BasePowerQuery,
+    StatQuery,
     CriticalQuery,
     DamageQuery,
     HealingQuery,

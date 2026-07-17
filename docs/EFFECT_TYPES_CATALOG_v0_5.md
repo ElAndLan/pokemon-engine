@@ -667,9 +667,13 @@ create a private timer or pending list.
 | `strong_winds` | suppresses Flying-type weaknesses. |
 | `shadowy_aura` | optional spin-off profile; residual against non-shadow creatures. |
 
-Phase 15E-3 places rain/sun damage modifiers, sandstorm/hail residuals, and data-authored rain/sun/
-hail accuracy bypass/override rows on the shared typed condition/hook path. The other hooks named above remain required work; the table
-describes the complete family contract, not the checkpoint's current certification surface.
+Phase 15E-3 places rain/sun damage modifiers, sandstorm/hail residuals, data-authored rain/sun/
+hail/snow accuracy rows, Sandstorm Rock Special Defense and Snow Ice Defense modifiers, and natural
+battle-start weather on the shared typed condition/hook path. Hail is `gen4_like`; snow is
+`modern_reference`; rain, sun, and sandstorm are shared. Weather residual immunity is type-based and
+does not depend on grounded state. Terrain-owned natural environment selection remains in the
+terrain family. The other hooks named above remain required work; the table describes the complete
+family contract, not an individual checkpoint's certification surface.
 
 ### 7.7 Terrain Conditions
 

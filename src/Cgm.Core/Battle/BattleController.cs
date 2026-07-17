@@ -2,6 +2,11 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Battle;
 
+public sealed record BattleFieldInputs(
+    string Ruleset = BattleRulesets.Gen4Like,
+    Weather InitialWeather = Weather.None,
+    int? InitialWeatherDuration = null);
+
 /// <summary>
 /// Battle turn engine (v0–v4): parties per side with one active each, action validation, ordering
 /// by priority/effective-speed, move resolution through the formula layer with a fixed RNG draw
@@ -37,13 +42,15 @@ public sealed class BattleController
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
     private bool _dispatchingWeatherChange;
     private int _traceActionSequence;
+    private readonly string _ruleset;
 
     public BattleController(BattleCreature player, BattleCreature enemy, TypeChart chart, IRng rng,
-        bool isWild = false, IEnumerable<Item>? itemData = null)
-        : this([player], [enemy], chart, rng, isWild, itemData) { }
+        bool isWild = false, IEnumerable<Item>? itemData = null, BattleFieldInputs? fieldInputs = null)
+        : this([player], [enemy], chart, rng, isWild, itemData, fieldInputs) { }
 
     public BattleController(IReadOnlyList<BattleCreature> playerParty, IReadOnlyList<BattleCreature> enemyParty,
-        TypeChart chart, IRng rng, bool isWild = false, IEnumerable<Item>? itemData = null)
+        TypeChart chart, IRng rng, bool isWild = false, IEnumerable<Item>? itemData = null,
+        BattleFieldInputs? fieldInputs = null)
     {
         _parties = [[.. playerParty], [.. enemyParty]];
         _activeSlots = new BattleActiveSlots(BattleTopology.Singles);
@@ -52,6 +59,7 @@ public sealed class BattleController
         _chart = chart;
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
+        _ruleset = InitializeField(fieldInputs);
         IsWild = isWild;
     }
 
@@ -65,7 +73,8 @@ public sealed class BattleController
         TypeChart chart,
         IRng rng,
         bool isWild = false,
-        IEnumerable<Item>? itemData = null)
+        IEnumerable<Item>? itemData = null,
+        BattleFieldInputs? fieldInputs = null)
     {
         ArgumentNullException.ThrowIfNull(topology);
         ArgumentNullException.ThrowIfNull(playerParty);
@@ -85,6 +94,7 @@ public sealed class BattleController
         _chart = chart;
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
+        _ruleset = InitializeField(fieldInputs);
         IsWild = isWild;
     }
 
@@ -105,6 +115,7 @@ public sealed class BattleController
     public Weather CurrentWeather => _conditions.Snapshot(BattleConditionScope.Weather)
         .Select(instance => WeatherConditions.For(instance.Definition.Id).Weather)
         .SingleOrDefault();
+    public string Ruleset => _ruleset;
 
     public BattleTopology Topology => _activeSlots.Topology;
     public BattleCreature Active(BattleSide side)
@@ -1109,7 +1120,7 @@ public sealed class BattleController
         BattleCreature c = Active(slot);
         BattleQueryResult result = PhysicalMetricFormulas.SpeedQuery(c, _overlays,
             new BattleOverlayOwner(slot.Side, ActiveIndex(slot), slot),
-            new BattleQueryContext(slot, c, Weather: CurrentWeather));
+            new BattleQueryContext(slot, c, Weather: CurrentWeather, Ruleset: Ruleset));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, 0, slot, null, result));
         return result.FinalValue.ToInt32();
     }
@@ -1134,7 +1145,7 @@ public sealed class BattleController
                 InsertionOrder: modifiers.Count));
         }
         BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.Accuracy, new BattleQueryValue(authored), modifiers,
-            new BattleQueryContext(sourceSlot, source, targetSlot, target, CurrentWeather));
+            new BattleQueryContext(sourceSlot, source, targetSlot, target, CurrentWeather, Ruleset));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, result));
 
         if (alwaysHits)
@@ -1419,7 +1430,7 @@ public sealed class BattleController
         BattleCreature source, BattleCreature target, int damage, int traceAction)
     {
         BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.FinalDamage, new BattleQueryValue(damage),
-            context: new BattleQueryContext(sourceSlot, source, targetSlot, target, CurrentWeather));
+            context: new BattleQueryContext(sourceSlot, source, targetSlot, target, CurrentWeather, Ruleset));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, result));
         return result.FinalValue.ToInt32();
     }
@@ -1717,7 +1728,8 @@ public sealed class BattleController
             new BattleIntentTarget(BattleIntentTargetPolicy.Source),
             new SkipActionIntent(),
             ctx.Move.Move,
-            ctx.TraceAction));
+            ctx.TraceAction,
+            Ruleset));
         AddIntentTrace(intent, EffectTraceKind.IntentEnqueued, true, _log.Count, _log.Count);
     }
 
@@ -2145,7 +2157,7 @@ public sealed class BattleController
     {
         BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.Healing, new BattleQueryValue(amount),
             modifiers,
-            context: new BattleQueryContext(slot, c, slot, c, CurrentWeather));
+            context: new BattleQueryContext(slot, c, slot, c, CurrentWeather, Ruleset));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, _traceActionSequence, slot, slot, result));
         amount = result.FinalValue.ToInt32();
         if (amount <= 0 || c.CurrentHp >= c.MaxHp)
@@ -2325,7 +2337,7 @@ public sealed class BattleController
         }
         BattleQueryResult powerResult = BattleQuery.Evaluate(BattleQueryId.BasePower,
             new BattleQueryValue(powerQuery.AuthoredBase), powerModifiers,
-            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather));
+            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather, Ruleset));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, powerResult));
         power = powerResult.FinalValue.ToInt32();
 
@@ -2352,19 +2364,19 @@ public sealed class BattleController
         List<BattleQueryModifier> attackModifiers =
         [
             new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply, BattleQuery.StatStageMultiplier(aStage), InsertionOrder: 0),
-            .. StatHookModifiers(sourceSlot, targetSlot, sourceSlot, offStat),
+            .. StatHookModifiers(sourceSlot, targetSlot, sourceSlot, offStat, BattleQueryId.OffensiveStat),
         ];
         List<BattleQueryModifier> defenseModifiers =
         [
             new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply, BattleQuery.StatStageMultiplier(dStage), InsertionOrder: 0),
-            .. StatHookModifiers(sourceSlot, targetSlot, targetSlot, defStat),
+            .. StatHookModifiers(sourceSlot, targetSlot, targetSlot, defStat, BattleQueryId.DefensiveStat),
         ];
         BattleQueryResult attackResult = BattleQuery.Evaluate(BattleQueryId.OffensiveStat,
             new BattleQueryValue(StatValue(attacker.Stats, offStat)), attackModifiers,
-            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather));
+            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather, Ruleset));
         BattleQueryResult defenseResult = BattleQuery.Evaluate(BattleQueryId.DefensiveStat,
             new BattleQueryValue(StatValue(target.Stats, defStat)), defenseModifiers,
-            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather));
+            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather, Ruleset));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, attackResult));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, defenseResult));
         int a = attackResult.FinalValue.ToInt32();
@@ -2375,7 +2387,7 @@ public sealed class BattleController
         int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn, snapshottedLiveTargets);
         BattleQueryResult damageResult = BattleQuery.Evaluate(BattleQueryId.FinalDamage, new BattleQueryValue(dmg),
             DamageHookModifiers(move, moveType, sourceSlot, targetSlot),
-            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather));
+            new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather, Ruleset));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, damageResult));
         return (damageResult.FinalValue.ToInt32(), crit, eff);
     }
@@ -2472,10 +2484,14 @@ public sealed class BattleController
     }
 
     private IReadOnlyList<BattleQueryModifier> StatHookModifiers(
-        BattleSlot sourceSlot, BattleSlot targetSlot, BattleSlot statOwner, StatKind stat)
+        BattleSlot sourceSlot, BattleSlot targetSlot, BattleSlot statOwner, StatKind stat, BattleQueryId query)
     {
         var modifiers = new List<BattleQueryModifier>();
-        int insertion = 0;
+        BattleHookDispatchSnapshot weather = WeatherConditions.CollectStatHooks(
+            ConditionSnapshot, Active(statOwner).Types, stat, query, Ruleset, _traceActionSequence);
+        _hookTrace.AddRange(weather.Trace);
+        modifiers.AddRange(weather.QueryModifiers(query));
+        int insertion = modifiers.Count;
         foreach (BattleHookInvocation invocation in BattleHookDispatcher.Damage(sourceSlot, targetSlot, HookSources()))
         {
             Effect effect = invocation.Effect;
@@ -2520,10 +2536,43 @@ public sealed class BattleController
             .Any(i => i.Effect.Op == "statusImmunity"
                 && string.Equals(Str(i.Effect, "status"), status.ToString(), StringComparison.OrdinalIgnoreCase));
 
+    private string InitializeField(BattleFieldInputs? supplied)
+    {
+        BattleFieldInputs inputs = supplied ?? new BattleFieldInputs();
+        if (!BattleRulesets.IsSupported(inputs.Ruleset))
+            throw new ArgumentException("Unknown battle ruleset profile.", nameof(supplied));
+        if (!Enum.IsDefined(inputs.InitialWeather))
+            throw new ArgumentOutOfRangeException(nameof(supplied), "Unknown initial weather.");
+        if (inputs.InitialWeatherDuration is <= 0)
+            throw new ArgumentOutOfRangeException(nameof(supplied), "Initial weather duration must be positive.");
+        if (inputs.InitialWeather == Weather.None)
+        {
+            if (inputs.InitialWeatherDuration is not null)
+                throw new ArgumentException("Clear initial weather cannot have a duration.", nameof(supplied));
+            return inputs.Ruleset;
+        }
+        if (!WeatherConditions.Supports(inputs.InitialWeather, inputs.Ruleset))
+            throw new ArgumentException("Initial weather is incompatible with the battle ruleset.", nameof(supplied));
+
+        WeatherDef definition = WeatherConditions.For(inputs.InitialWeather);
+        RecordConditionChanges(_conditions.Apply(new BattleConditionApplication(
+            definition.Definition!.Id,
+            WeatherConditions.FieldOwner,
+            new BattleConditionSource(),
+            Turn,
+            ActionSequence: 0,
+            inputs.InitialWeatherDuration)));
+        _log.Add(new WeatherChanged(inputs.InitialWeather));
+        ReevaluateConditionForms();
+        return inputs.Ruleset;
+    }
+
     private void SetWeather(Weather weather, int turns, BattleSlot sourceSlot)
     {
         if (weather == Weather.None || weather == CurrentWeather)
             return;
+        if (!WeatherConditions.Supports(weather, Ruleset))
+            throw new InvalidOperationException($"Weather '{weather}' is incompatible with ruleset '{Ruleset}'.");
         WeatherDef definition = WeatherConditions.For(weather);
         RecordConditionChanges(_conditions.Apply(new BattleConditionApplication(
             definition.Definition!.Id,

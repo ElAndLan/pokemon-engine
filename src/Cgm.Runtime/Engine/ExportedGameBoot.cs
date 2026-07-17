@@ -81,7 +81,8 @@ public static class ExportedGameBoot
                 OwnSpikeLayers: b.SpikeLayers(BattleSide.Enemy),
                 OwnStealthRock: b.HasStealthRock(BattleSide.Enemy),
                 ItemData: itemData,
-                Conditions: b.ConditionSnapshot));
+                Conditions: b.ConditionSnapshot,
+                Ruleset: b.Ruleset));
         }
 
         return new BattleScene(battle, EnemyAction, FormChoices(db, players.Select(p => p.Species)), id => NameOf(db, id));

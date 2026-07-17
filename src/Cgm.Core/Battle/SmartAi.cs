@@ -57,7 +57,8 @@ public sealed record SmartAiContext(
     BattleOverlayStore? Overlays = null,
     BattleActionHistory? ActionHistory = null,
     IReadOnlyDictionary<EntityId, Item>? ItemData = null,
-    IReadOnlyList<BattleConditionInstance>? Conditions = null);
+    IReadOnlyList<BattleConditionInstance>? Conditions = null,
+    string Ruleset = BattleRulesets.Gen4Like);
 
 public sealed record AiScoreComponent(string Name, double Value);
 public sealed record AiCandidateScore(BattleAction Action, double Score, IReadOnlyList<AiScoreComponent> Components);
@@ -124,7 +125,7 @@ public static class SmartAi
         WeatherMovePreview weatherMove = PreviewWeatherMove(context, move);
         double damage = hasResourceInputs
             ? ExpectedDamage(attacker, defender, move, context.Chart, inputs, actionInputs, resourceInputs,
-                weatherMove, WeatherDamageModifiers(context, weatherMove.Type))
+                weatherMove, WeatherDamageModifiers(context, weatherMove.Type), context.Conditions, context.Ruleset)
             : 0;
         int authoredAccuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, defender.Level) : move.Accuracy ?? 100;
         BattleHookDispatchSnapshot? weatherAccuracy = WeatherAccuracyHooks(context, move);
@@ -257,14 +258,16 @@ public static class SmartAi
             {
                 WeatherMovePreview weather = PreviewWeatherMove(context, move);
                 return ExpectedDamage(attacker, defender, move, chart, weather: weather,
-                    modifiers: WeatherDamageModifiers(context, weather.Type));
+                    modifiers: WeatherDamageModifiers(context, weather.Type), conditions: context.Conditions,
+                    ruleset: context.Ruleset);
             }
             if (!TryResourceInputs(attacker, defender, move, sourceParty, sourceIndex, BattleSide.Enemy,
                 context, out PartyResourceFormulaInputs? inputs))
                 return 0;
             WeatherMovePreview resourceWeather = PreviewWeatherMove(context, move);
             return ExpectedDamage(attacker, defender, move, chart, resourceInputs: inputs,
-                weather: resourceWeather, modifiers: WeatherDamageModifiers(context, resourceWeather.Type));
+                weather: resourceWeather, modifiers: WeatherDamageModifiers(context, resourceWeather.Type),
+                conditions: context.Conditions, ruleset: context.Ruleset);
         }).DefaultIfEmpty(0).Max();
 
     private static double PredictedDamage(BattleCreature attacker, BattleCreature defender, SmartAiContext context)
@@ -275,7 +278,8 @@ public static class SmartAi
         {
             WeatherMovePreview weather = PreviewWeatherMove(context, repeated);
             return ExpectedDamage(attacker, defender, repeated, context.Chart, weather: weather,
-                modifiers: WeatherDamageModifiers(context, weather.Type));
+                modifiers: WeatherDamageModifiers(context, weather.Type), conditions: context.Conditions,
+                ruleset: context.Ruleset);
         }
 
         return BestDamage(attacker, defender, context.Chart, context);
@@ -289,7 +293,9 @@ public static class SmartAi
         PhysicalFormulaInputs? physicalInputs = null, BattleActionFormulaInputs? actionInputs = null,
         PartyResourceFormulaInputs? resourceInputs = null,
         WeatherMovePreview? weather = null,
-        IReadOnlyList<BattleQueryModifier>? modifiers = null)
+        IReadOnlyList<BattleQueryModifier>? modifiers = null,
+        IReadOnlyList<BattleConditionInstance>? conditions = null,
+        string ruleset = BattleRulesets.Gen4Like)
     {
         EntityId moveType = weather?.Type ?? move.Type;
         double eff = chart.Effectiveness(moveType, defender.Types);
@@ -341,11 +347,13 @@ public static class SmartAi
         int a = BattleQuery.ResolveInteger(BattleQueryId.OffensiveStat,
             physical ? attacker.Stats.Atk : attacker.Stats.Spa,
             [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
-                BattleQuery.StatStageMultiplier(attacker.Stage(attackStat)), InsertionOrder: 0)]);
+                BattleQuery.StatStageMultiplier(attacker.Stage(attackStat)), InsertionOrder: 0),
+             .. WeatherStatModifiers(conditions, attacker.Types, attackStat, BattleQueryId.OffensiveStat, ruleset)]);
         int d = BattleQuery.ResolveInteger(BattleQueryId.DefensiveStat,
             physical ? defender.Stats.Def : defender.Stats.Spd,
             [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
-                BattleQuery.StatStageMultiplier(defender.Stage(defenseStat)), InsertionOrder: 0)]);
+                BattleQuery.StatStageMultiplier(defender.Stage(defenseStat)), InsertionOrder: 0),
+             .. WeatherStatModifiers(conditions, defender.Types, defenseStat, BattleQueryId.DefensiveStat, ruleset)]);
         double stab = TypeChart.Stab(moveType, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
         int oneHit = BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
@@ -376,6 +384,15 @@ public static class SmartAi
         ? []
         : WeatherConditions.CollectDamageHooks(context.Conditions, moveType.Slug, actionSequence: 0)
             .QueryModifiers(BattleQueryId.FinalDamage);
+
+    private static IReadOnlyList<BattleQueryModifier> WeatherStatModifiers(
+        IReadOnlyList<BattleConditionInstance>? conditions, IReadOnlyList<EntityId> types,
+        StatKind stat, BattleQueryId query, string ruleset) => conditions is null
+        ? []
+        : WeatherConditions.CollectStatHooks(conditions, types, stat, query, ruleset, actionSequence: 0)
+            .QueryModifiers(query)
+            .Select(modifier => modifier with { InsertionOrder = 1 })
+            .ToArray();
 
     private static BattleHookDispatchSnapshot? WeatherAccuracyHooks(SmartAiContext context, BattleMove move) =>
         context.Conditions is not null

@@ -118,9 +118,18 @@ public sealed class MoveCompilerTests
         Assert.Throws<ArgumentException>(() =>
             MoveCompiler.ToBattleMove(Move(DamageClass.Status, null, Op("weather"))));
         Assert.Throws<ArgumentException>(() =>
-            MoveCompiler.ToBattleMove(Move(DamageClass.Status, null, Op("weather", null, ("weather", "snow")))));
+            MoveCompiler.ToBattleMove(Move(DamageClass.Status, null, Op("weather", null, ("weather", "fog")))));
         Assert.Throws<ArgumentException>(() =>
             MoveCompiler.ToBattleMove(Move(DamageClass.Status, null, Op("weather", null, ("weather", "rain"), ("turns", 8)))));
+    }
+
+    [Fact]
+    public void WeatherOp_CompilesModernSnowRow()
+    {
+        BattleMove move = MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("weather", null, ("weather", "snow"))));
+
+        Assert.Equal(Weather.Snow, move.SetsWeather);
     }
 
     [Fact]

@@ -1252,10 +1252,28 @@ registrations, exact rational damage modifiers, accuracy/healing replacements, a
 that do not supply a battle-condition snapshot score clear weather. Battle end removes the instance through ordinary condition cleanup. Terrain,
 rooms, gravity, and sports remain in the rest of 15E-3 and are not implied by this slice.
 
-This checkpoint migrates the already-supported weather behavior; it is not the 15E-3 weather-family
-exit. Weather-gated grounded/stat
-queries, natural field inputs, and ruleset difference rows remain in 15E-3. No weather-setting corpus
-row is certified until that complete interaction matrix and its conformance vectors are green.
+Weather stat hooks use the shared `DefensiveStat` query after ordinary stat stages: sandstorm
+multiplies a Rock recipient's Special Defense by `3/2` in both supported profiles, while snow
+multiplies an Ice recipient's Defense by `3/2` only in `modern_reference`. Hail is the legacy
+`gen4_like` row and retains end-turn chip; snow is the `modern_reference` replacement and has no
+weather chip. These modifiers are field-owned, floor once through `BattleQuery`, apply equally in
+singles and doubles, and are collected identically by resolver and Smart AI. Weather residuals are
+type-gated rather than grounded-gated: airborne creatures still take sandstorm or hail chip unless
+their type is immune.
+
+Battle construction may supply an initial natural weather, optional positive duration, and ruleset
+profile. Initial weather is admitted through the same weather condition store before turn zero,
+with an environment source (no creature slot), the row's normal duration when none is supplied, and
+the ordinary condition/weather events and trace. `gen4_like` admits hail and rejects snow;
+`modern_reference` admits snow and rejects hail. Rain, sun, and sandstorm are shared. Move-authored
+weather must also be valid for the active profile; incompatible compiled content is an engine
+contract error, not a silent alternate mechanic. The supported profile IDs are exactly
+`gen4_like` and `modern_reference` for this package.
+
+This checkpoint completes the weather-family interaction matrix; terrain-owned natural environment
+selection for Nature Power/Secret Power/Camouflage remains part of the terrain family in 15E-3.
+Weather-setting corpus rows become eligible for individual conformance only after these family
+vectors are green; the family exit does not by itself certify their complete move definitions.
 
 Weather acceptance vectors: `weather-start-source`, `weather-same-noop`, `weather-replace`,
 `weather-duration-one-many`, `weather-damage-query-present-absent`, `weather-residual-topology`,
@@ -1269,6 +1287,9 @@ Weather acceptance vectors: `weather-start-source`, `weather-same-noop`, `weathe
 `weather-healing-ai-parity`, plus `weather-move-compile`, `weather-move-type-power-present-absent`,
 `weather-move-effective-type-history`, `weather-charge-skip-retain-release`, `weather-move-no-rng`,
 and `weather-move-ai-parity`.
+Additional exit vectors are `weather-stat-present-absent`, `weather-stat-stage-order`,
+`weather-stat-floor`, `weather-stat-ruleset`, `weather-stat-ai-parity`,
+`weather-residual-grounded-invariant`, `weather-natural-input`, and `weather-profile-admission`.
 
 ### Effective-value overlays (Phase 15F-1)
 

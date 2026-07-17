@@ -2,7 +2,7 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Battle;
 
-public enum Weather { None, Rain, Sun, Sandstorm, Hail }
+public enum Weather { None, Rain, Sun, Sandstorm, Hail, Snow }
 
 /// <summary>
 /// A weather as a data-defined field condition (EFFECT_TYPES_CATALOG §7.6): its hook parameters —
@@ -18,6 +18,10 @@ public sealed record WeatherDef
     public string? BoostedMoveType { get; init; }                 // on_damage_query ×1.5
     public string? WeakenedMoveType { get; init; }                // on_damage_query ×0.5
     public IReadOnlyList<PersistentStatus> BlockedStatuses { get; init; } = [];
+    public IReadOnlyList<string> Rulesets { get; init; } =
+        [BattleRulesets.Gen4Like, BattleRulesets.ModernReference];
+    public EntityId? BoostedStatType { get; init; }
+    public StatKind? BoostedStat { get; init; }
 }
 
 /// <summary>The weather condition definitions and typed hook payloads.</summary>
@@ -43,13 +47,22 @@ public static class WeatherConditions
                     BlockedStatuses = Array.AsReadOnly([PersistentStatus.Freeze]) },
             new() { Weather = Weather.Sandstorm, Definition = Condition("sandstorm", BattleConditionHook.HealingQuery,
                         BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
-                        BattleConditionHook.BasePowerQuery, BattleConditionHook.TurnEnd),
+                        BattleConditionHook.BasePowerQuery, BattleConditionHook.StatQuery,
+                        BattleConditionHook.TurnEnd),
                     ResidualDenominator = 16,
-                    ResidualImmuneTypes = ["rock", "ground", "steel"] },
+                    ResidualImmuneTypes = ["rock", "ground", "steel"],
+                    BoostedStatType = EntityId.Parse("type:rock"), BoostedStat = StatKind.Spd },
             new() { Weather = Weather.Hail, Definition = Condition("hail", BattleConditionHook.AccuracyQuery,
                         BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery, BattleConditionHook.BasePowerQuery,
                         BattleConditionHook.HealingQuery, BattleConditionHook.TurnEnd),
-                    ResidualDenominator = 16, ResidualImmuneTypes = ["ice"] },
+                    ResidualDenominator = 16, ResidualImmuneTypes = ["ice"],
+                    Rulesets = [BattleRulesets.Gen4Like] },
+            new() { Weather = Weather.Snow, Definition = Condition("snow", BattleConditionHook.AccuracyQuery,
+                        BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
+                        BattleConditionHook.BasePowerQuery, BattleConditionHook.HealingQuery,
+                        BattleConditionHook.StatQuery),
+                    BoostedStatType = EntityId.Parse("type:ice"), BoostedStat = StatKind.Def,
+                    Rulesets = [BattleRulesets.ModernReference] },
         }.ToDictionary(d => d.Weather);
 
     private static readonly IReadOnlyDictionary<BattleConditionId, WeatherDef> ByCondition = Registry.Values
@@ -64,6 +77,9 @@ public static class WeatherConditions
     public static WeatherDef For(Weather weather) => Registry[weather];
     public static WeatherDef For(BattleConditionId condition) => ByCondition[condition];
     public static BattleConditionOwner FieldOwner => Owner;
+
+    public static bool Supports(Weather weather, string ruleset) =>
+        BattleRulesets.IsSupported(ruleset) && For(weather).Rulesets.Contains(ruleset, StringComparer.Ordinal);
 
     public static BattleHookDispatchSnapshot CollectDamageHooks(
         IEnumerable<BattleConditionInstance> conditions, string moveTypeSlug, int actionSequence)
@@ -171,6 +187,33 @@ public static class WeatherConditions
             : [];
         return BattleHookDispatcher.Collect(
             new BattleHookDispatchContext(actionSequence, BattleConditionHook.ChargeStart), registrations);
+    }
+
+    public static BattleHookDispatchSnapshot CollectStatHooks(
+        IEnumerable<BattleConditionInstance> conditions, IReadOnlyList<EntityId> ownerTypes,
+        StatKind stat, BattleQueryId query, string ruleset, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(ownerTypes);
+        if (query is not (BattleQueryId.OffensiveStat or BattleQueryId.DefensiveStat))
+            throw new ArgumentOutOfRangeException(nameof(query), query, "Weather stat hooks require a stat query.");
+        if (!BattleRulesets.IsSupported(ruleset))
+            throw new ArgumentException("Unknown battle ruleset profile.", nameof(ruleset));
+
+        BattleConditionInstance? condition = Active(conditions);
+        WeatherDef? weather = condition is null ? null : For(condition.Definition.Id);
+        BattleHookRegistration[] registrations = weather is not null
+            && weather.Rulesets.Contains(ruleset, StringComparer.Ordinal)
+            && weather.BoostedStat == stat
+            && weather.BoostedStatType is { } type
+            && ownerTypes.Contains(type)
+            ? [BattleHookRegistration.ForCondition(condition!, BattleConditionHook.StatQuery, 0, 0,
+                new BattleHookQueryModifier(query,
+                    new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Multiply,
+                        new BattleQueryValue(3, 2), OwnerScope: BattleQueryOwnerScope.Field)))]
+            : [];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.StatQuery), registrations);
     }
 
     public static BattleHookDispatchSnapshot CollectStatusHooks(

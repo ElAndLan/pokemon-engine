@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2 plus 15E-3 weather store/damage/residual/accuracy/status/healing/type-power-charge checkpoints, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-3 weather hooks** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2 plus the 15E-3 weather family, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-3 terrain** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -425,7 +425,7 @@ Current readiness ledger:
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
 | 15C-6 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
-| 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; 15E-3 IN PROGRESS (WEATHER STORE/DAMAGE/RESIDUAL/ACCURACY/STATUS/HEALING/TYPE-POWER-CHARGE CHECKPOINTS COMPLETE) | Weather now owns shared condition state, duration, damage/accuracy/status/healing/type/power/charge hooks, residuals, trace, and AI visibility; finish its remaining interaction matrix before terrain/room/gravity/sport work |
+| 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; 15E-3 IN PROGRESS (WEATHER FAMILY COMPLETE) | Weather owns the shared condition/query/profile path with resolver/AI parity; continue terrain, then room/gravity/sport work |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
@@ -1438,8 +1438,8 @@ Ordered feature packages:
    payload)` and cap nested emitted intents at 64 with a visible engine error. **Acceptance:** complete
    order golden, add/remove during dispatch, duplicate suppression, cap failure, no dictionary drift,
    and identical resolver/AI query collection.
-3. **15E-3 — Weather, terrain, room, gravity, and sport families (`IN PROGRESS`; weather shared-store,
-   damage/residual/accuracy/status/healing/type-power-charge checkpoints complete; prerequisites 15E-1/2
+3. **15E-3 — Weather, terrain, room, gravity, and sport families (`IN PROGRESS`; weather family
+   complete; prerequisites 15E-1/2
    and 15C query seam).** Build these as field-scoped condition definitions. Each registry row locks
    duration/default, replace/coexist rules, damage/accuracy/status/heal/type/grounded/order hooks,
    residual timing, source, and removal. Weather and terrain each permit one effective instance;
@@ -1656,6 +1656,38 @@ inventoried / 84 certified with digest
 passed. Focused review found and fixed missing `ChargeStart` declarations for authored non-sun skip
 rows and missing project-level type-reference validation; final verdict GO for this checkpoint, not
 for 15E-3 package exit. Implementation checkpoint: `8f4eeba`.
+
+Progress (2026-07-16): **15E-3 WEATHER FAMILY COMPLETE; PACKAGE REMAINS IN PROGRESS — focused
+review: GO.** The weather registry now includes profile-gated modern snow alongside legacy hail.
+Sandstorm contributes a field-owned `3/2` Rock Special Defense modifier and modern snow contributes
+the equivalent Ice Defense modifier through the shared `StatQuery`/`DefensiveStat` pipeline after
+ordinary stages, with exact per-multiply flooring. Resolver and Smart AI consume the same immutable
+condition snapshot and ruleset; Runtime forwards the controller's profile into AI context. Weather
+residual immunity remains type-based and explicitly affects airborne non-immune creatures. New
+`BattleFieldInputs` admits validated battle-start natural weather through the same condition store,
+including environment source, optional positive duration, events, trace, expiration, and profile
+admission. `gen4_like` admits hail and rejects snow; `modern_reference` admits snow and rejects hail;
+rain, sun, and sandstorm are shared. Strict move compilation now accepts snow and continues rejecting
+unknown weather. No move ID/name branch, new dependency, schema/migration, event type, or RNG draw was
+added; certification remains 84/937 because weather-setting rows still require their individual
+complete conformance vectors. Terrain-owned natural environment selection for Nature Power/Secret
+Power/Camouflage remains with the terrain family rather than the completed weather family.
+Changed production files: `src/Cgm.Core/Battle/BattleConditions.cs`, `BattleQuery.cs`,
+`BattleIntentQueue.cs`, `WeatherConditions.cs`, `BattleController.cs`, `SmartAi.cs`, and
+`src/Cgm.Runtime/Engine/ExportedGameBoot.cs`. Changed tests:
+`tests/Cgm.Core.Tests/Battle/BattleWeatherConditionTests.cs`, `MoveCompilerTests.cs`, and
+`tests/Cgm.Core.Tests/Validation/ValidationTests.cs`. Contract/evidence updates:
+`docs/BATTLE_SYSTEM_SPEC.md`, `docs/BATTLE_AI_SPEC.md`, `docs/EFFECT_TYPES_CATALOG_v0_5.md`,
+`docs/TESTING_STRATEGY.md`, and this plan. Verification: focused compiler/weather/validation passed
+185 tests; complete Battle passed 984 tests; Smart/Trainer/AI passed 207 tests. Final full-solution
+build passed with 0 warnings/errors and all 1,488 tests passed (1,265 Core, 104 Creator, 21 Runtime,
+98 Tools). Deterministic audit regeneration was byte-identical at 937 inventoried / 84 certified
+with corpus digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`;
+`git diff --check` passed. Focused review found no blocking scope, architecture, schema, dependency,
+determinism, AI-fairness, IP, event/RNG, or named-move branch defect: GO for weather-family exit,
+not for 15E-3 package exit. Next slice:
+continue 15E-3 with the complete terrain family, including grounded queries and natural environment
+selection, before room/gravity/sport.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup

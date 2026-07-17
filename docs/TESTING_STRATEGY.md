@@ -188,6 +188,12 @@ The weather-move checkpoint covers strict type/power/skip-charge compilation, pr
 rows, effective-type immunity/effectiveness/STAB/history proof, exact base-power floor/order,
 skip-versus-retain/release PP timing, hook/query traces, zero added RNG, doubles parity, and Smart AI
 parity.
+The weather-family exit adds the modern snow registry/profile row, Sandstorm Rock Special Defense
+and Snow Ice Defense query modifiers, exact stage-then-weather flooring, present/absent/type/stat/
+ruleset tables, singles and per-target doubles resolution, Smart AI score parity, type-based airborne
+residual proof, strict profile/input rejection, and battle-start natural weather source/duration/
+event/expiry coverage. Terrain-owned natural environment selection remains in the terrain family;
+weather-setting move certifications remain separate per-move evidence.
 
 ## Golden format
 

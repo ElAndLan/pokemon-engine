@@ -200,6 +200,10 @@ Capabilities beyond Beginner:
 - Weather-sensitive move identity and power consume the same `MoveTypeQuery` replacement and
   `BasePowerQuery` multiplier as the resolver. Effectiveness, STAB, and the later weather damage hook
   use that effective type; preview reads only the visible condition snapshot and adds no AI RNG.
+- Weather defensive-stat scoring consumes the same field-owned `StatQuery` registration and active
+  ruleset profile as the resolver. Sandstorm Rock Special Defense and modern Snow Ice Defense are
+  applied after ordinary stages with the same per-multiply flooring; the existing `damage`/`ko`
+  components change without a hidden score term or additional AI RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

@@ -10,10 +10,13 @@ public sealed class BattleWeatherConditionTests
     private static readonly EntityId Water = EntityId.Parse("type:water");
     private static readonly EntityId Fire = EntityId.Parse("type:fire");
     private static readonly EntityId Rock = EntityId.Parse("type:rock");
+    private static readonly EntityId Ice = EntityId.Parse("type:ice");
+    private static readonly EntityId Flying = EntityId.Parse("type:flying");
 
     private static TypeChart Chart() => new([
         new TypeDef { Id = Normal }, new TypeDef { Id = Water },
         new TypeDef { Id = Fire }, new TypeDef { Id = Rock },
+        new TypeDef { Id = Ice }, new TypeDef { Id = Flying },
     ]);
 
     private static BattleMove Inert(string slug = "inert") =>
@@ -33,7 +36,7 @@ public sealed class BattleWeatherConditionTests
     [Fact]
     public void Registry_LocksEveryWeatherRow()
     {
-        Assert.Equal(4, WeatherConditions.Definitions.Count);
+        Assert.Equal(5, WeatherConditions.Definitions.Count);
         Assert.All(WeatherConditions.Definitions, definition =>
         {
             Assert.Equal(BattleConditionScope.Weather, definition.Scope);
@@ -55,13 +58,17 @@ public sealed class BattleWeatherConditionTests
                 BattleConditionHook.StatusAttempt],
             WeatherConditions.For(Weather.Sun).Definition!.Hooks);
         Assert.Equal([BattleConditionHook.HealingQuery, BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
-                BattleConditionHook.BasePowerQuery, BattleConditionHook.TurnEnd],
+                BattleConditionHook.BasePowerQuery, BattleConditionHook.StatQuery, BattleConditionHook.TurnEnd],
             WeatherConditions.For(Weather.Sandstorm).Definition!.Hooks);
         Assert.Equal([BattleConditionHook.AccuracyQuery, BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
                 BattleConditionHook.BasePowerQuery, BattleConditionHook.HealingQuery, BattleConditionHook.TurnEnd],
             WeatherConditions.For(Weather.Hail).Definition!.Hooks);
+        Assert.Equal([BattleConditionHook.AccuracyQuery, BattleConditionHook.ChargeStart,
+                BattleConditionHook.MoveTypeQuery, BattleConditionHook.BasePowerQuery,
+                BattleConditionHook.HealingQuery, BattleConditionHook.StatQuery],
+            WeatherConditions.For(Weather.Snow).Definition!.Hooks);
         Assert.Equal([PersistentStatus.Freeze], WeatherConditions.For(Weather.Sun).BlockedStatuses);
-        Assert.All([Weather.Rain, Weather.Sandstorm, Weather.Hail], weather =>
+        Assert.All([Weather.Rain, Weather.Sandstorm, Weather.Hail, Weather.Snow], weather =>
             Assert.Empty(WeatherConditions.For(weather).BlockedStatuses));
     }
 
@@ -81,6 +88,170 @@ public sealed class BattleWeatherConditionTests
         Assert.Contains(events, entry => entry is ConditionApplied);
         Assert.Contains(events, entry => entry is WeatherChanged { Weather: Weather.Rain });
         Assert.Equal(BattleConditionTraceKind.Applied, battle.ConditionTrace[0].Kind);
+    }
+
+    [Fact]
+    public void NaturalInput_UsesConditionStoreSourceDurationAndEvents()
+    {
+        var battle = new BattleController(
+            Creature("source", 100, [Rock], Inert()),
+            Creature("target", 1, [Rock], Inert("target_inert")), Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs(InitialWeather: Weather.Rain, InitialWeatherDuration: 1));
+
+        BattleConditionInstance condition = Assert.Single(battle.ConditionSnapshot);
+        Assert.Equal(new BattleConditionSource(), condition.Source);
+        Assert.Equal(1, condition.RemainingDuration);
+        Assert.Contains(battle.Log, entry => entry is ConditionApplied);
+        Assert.Contains(battle.Log, entry => entry is WeatherChanged { Weather: Weather.Rain });
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Equal(Weather.None, battle.CurrentWeather);
+        Assert.Contains(events, entry => entry is WeatherEnded { Weather: Weather.Rain });
+    }
+
+    [Fact]
+    public void ProfileAdmission_DistinguishesLegacyHailAndModernSnow()
+    {
+        Assert.True(WeatherConditions.Supports(Weather.Hail, BattleRulesets.Gen4Like));
+        Assert.False(WeatherConditions.Supports(Weather.Hail, BattleRulesets.ModernReference));
+        Assert.False(WeatherConditions.Supports(Weather.Snow, BattleRulesets.Gen4Like));
+        Assert.True(WeatherConditions.Supports(Weather.Snow, BattleRulesets.ModernReference));
+
+        Assert.Throws<ArgumentException>(() => new BattleController(
+            Creature("source", 100, moves: [Inert()]), Creature("target", 1, moves: [Inert("target_inert")]),
+            Chart(), new Rng(1), fieldInputs: new BattleFieldInputs(InitialWeather: Weather.Snow)));
+        var modern = new BattleController(
+            Creature("source", 100, moves: [WeatherMove(Weather.Snow, "cold_field")]),
+            Creature("target", 1, moves: [Inert("target_inert")]), Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs(BattleRulesets.ModernReference));
+
+        modern.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Equal(Weather.Snow, modern.CurrentWeather);
+        Assert.Equal(BattleRulesets.ModernReference, modern.Ruleset);
+
+        var incompatible = new BattleController(
+            Creature("legacy_source", 100, moves: [WeatherMove(Weather.Hail, "legacy_field")]),
+            Creature("legacy_target", 1, moves: [Inert("legacy_target_inert")]), Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs(BattleRulesets.ModernReference));
+        Assert.Throws<InvalidOperationException>(() =>
+            incompatible.ResolveTurn(new UseMove(0), new UseMove(0)));
+    }
+
+    [Fact]
+    public void NaturalInput_RejectsInvalidProfileWeatherAndDuration()
+    {
+        BattleCreature source = Creature("source", 100, moves: [Inert()]);
+        BattleCreature target = Creature("target", 1, moves: [Inert("target_inert")]);
+
+        Assert.Throws<ArgumentException>(() => new BattleController(source, target, Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs("unknown")));
+        Assert.Throws<ArgumentException>(() => new BattleController(source, target, Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs(InitialWeatherDuration: 1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BattleController(source, target, Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs(InitialWeather: Weather.Rain, InitialWeatherDuration: 0)));
+    }
+
+    [Fact]
+    public void StatQuery_AppliesProfileTypeStatStageAndFloorRules()
+    {
+        BattleHookDispatchSnapshot sand = WeatherConditions.CollectStatHooks(
+            StoresWith(Weather.Sandstorm).Snapshot(), [Rock], StatKind.Spd,
+            BattleQueryId.DefensiveStat, BattleRulesets.Gen4Like, actionSequence: 7);
+        BattleQueryModifier weather = Assert.Single(sand.QueryModifiers(BattleQueryId.DefensiveStat));
+        BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.DefensiveStat, new BattleQueryValue(101),
+        [
+            new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                BattleQuery.StatStageMultiplier(1), InsertionOrder: 0),
+            weather with { InsertionOrder = 1 },
+        ]);
+
+        Assert.Equal(226, result.FinalValue.ToInt32());
+        Assert.Contains(sand.Trace, entry => entry.Checkpoint == BattleConditionHook.StatQuery && entry.Invoked);
+        Assert.Empty(WeatherConditions.CollectStatHooks(StoresWith(Weather.Sandstorm).Snapshot(), [Normal],
+            StatKind.Spd, BattleQueryId.DefensiveStat, BattleRulesets.Gen4Like, 0).Invocations);
+        Assert.Empty(WeatherConditions.CollectStatHooks(StoresWith(Weather.Sandstorm).Snapshot(), [Rock],
+            StatKind.Def, BattleQueryId.DefensiveStat, BattleRulesets.Gen4Like, 0).Invocations);
+        Assert.Empty(WeatherConditions.CollectStatHooks(StoresWith(Weather.Snow).Snapshot(), [Ice],
+            StatKind.Def, BattleQueryId.DefensiveStat, BattleRulesets.Gen4Like, 0).Invocations);
+        Assert.Single(WeatherConditions.CollectStatHooks(StoresWith(Weather.Snow).Snapshot(), [Ice],
+            StatKind.Def, BattleQueryId.DefensiveStat, BattleRulesets.ModernReference, 0).Invocations);
+    }
+
+    [Fact]
+    public void Resolver_UsesWeatherDefensiveStatHook()
+    {
+        static int Damage(BattleFieldInputs? field = null)
+        {
+            var battle = new BattleController(
+                Creature("source", 100, moves: [Hit(Normal, 90, "special_hit")]),
+                Creature("target", 1, [Rock], Inert()), Chart(), new Rng(4), fieldInputs: field);
+            return Assert.Single(battle.ResolveTurn(new UseMove(0), new UseMove(0))
+                .OfType<DamageDealt>(), entry => entry.Slot.Side == BattleSide.Enemy).Amount;
+        }
+
+        Assert.True(Damage() > Damage(new BattleFieldInputs(InitialWeather: Weather.Sandstorm)));
+    }
+
+    [Fact]
+    public void Resolver_DoublesUsesWeatherDefensiveStatHookPerTarget()
+    {
+        static int[] Damage(BattleFieldInputs? field = null)
+        {
+            var battle = new BattleController(
+                [Creature("p0", 100, moves: [Hit(Normal, 90, "p0_hit")]),
+                 Creature("p1", 90, moves: [Hit(Normal, 90, "p1_hit")])],
+                [Creature("e0", 20, [Rock], Inert("e0_inert")),
+                 Creature("e1", 10, [Rock], Inert("e1_inert"))],
+                BattleTopology.Doubles, [0, 1], [0, 1], Chart(), new Rng(4), fieldInputs: field);
+            var actions = new BattleTurnActions(battle.Topology,
+            [
+                new(new BattleSlot(BattleSide.Player, 0), new UseMove(0), new BattleSlot(BattleSide.Enemy, 0)),
+                new(new BattleSlot(BattleSide.Player, 1), new UseMove(0), new BattleSlot(BattleSide.Enemy, 1)),
+                new(new BattleSlot(BattleSide.Enemy, 0), new Pass()),
+                new(new BattleSlot(BattleSide.Enemy, 1), new Pass()),
+            ]);
+            return battle.ResolveTurn(actions).OfType<DamageDealt>()
+                .Where(entry => entry.Slot.Side == BattleSide.Enemy).Select(entry => entry.Amount).ToArray();
+        }
+
+        int[] clear = Damage();
+        int[] sand = Damage(new BattleFieldInputs(InitialWeather: Weather.Sandstorm));
+
+        Assert.Equal(2, clear.Length);
+        Assert.Equal(2, sand.Length);
+        Assert.All(clear.Zip(sand), pair => Assert.True(pair.First > pair.Second));
+    }
+
+    [Fact]
+    public void SmartAi_UsesWeatherDefensiveStatHook()
+    {
+        BattleCreature attacker = Creature("ai", 100, moves: [Hit(Normal, 90, "special_hit")]);
+        BattleCreature defender = Creature("target", 1, [Rock], Inert());
+        var weights = new SmartAiWeights { NoiseFraction = 0 };
+        SmartAiDecision clear = SmartAi.ChooseAction(new SmartAiContext(
+            [attacker], 0, [defender], 0, Chart(), new Rng(2), Weights: weights));
+        SmartAiDecision sand = SmartAi.ChooseAction(new SmartAiContext(
+            [attacker], 0, [defender], 0, Chart(), new Rng(2), Weights: weights,
+            Conditions: StoresWith(Weather.Sandstorm).Snapshot()));
+
+        double clearScore = Assert.Single(clear.Scores, score => score.Action == new UseMove(0)).Score;
+        double sandScore = Assert.Single(sand.Scores, score => score.Action == new UseMove(0)).Score;
+        Assert.True(clearScore > sandScore);
+    }
+
+    [Fact]
+    public void Residual_IsTypeGatedRatherThanGroundedGated()
+    {
+        var battle = new BattleController(
+            Creature("source", 100, [Rock], Inert()),
+            Creature("airborne", 1, [Flying], Inert("airborne_inert")), Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs(InitialWeather: Weather.Sandstorm));
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Contains(events, entry => entry is WeatherDamage { Slot.Side: BattleSide.Enemy });
     }
 
     [Fact]

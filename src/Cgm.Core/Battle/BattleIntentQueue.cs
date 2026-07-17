@@ -42,7 +42,7 @@ public sealed record BattleIntentRequest(
     BattleIntentPayload Payload,
     EntityId SourceMove,
     int SourceActionSequence,
-    string Ruleset = "gen4_like");
+    string Ruleset = BattleRulesets.Gen4Like);
 
 public sealed record BattleIntent(
     long Sequence,

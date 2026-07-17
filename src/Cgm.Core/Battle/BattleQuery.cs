@@ -2,6 +2,15 @@ using System.Globalization;
 
 namespace Cgm.Core.Battle;
 
+public static class BattleRulesets
+{
+    public const string Gen4Like = "gen4_like";
+    public const string ModernReference = "modern_reference";
+
+    public static bool IsSupported(string ruleset) =>
+        ruleset is Gen4Like or ModernReference;
+}
+
 public enum BattleQueryId
 {
     BasePower,
@@ -77,7 +86,7 @@ public sealed record BattleQueryContext(
     BattleSlot? TargetSlot = null,
     BattleCreature? Target = null,
     Weather Weather = Weather.None,
-    string Ruleset = "gen4_like");
+    string Ruleset = BattleRulesets.Gen4Like);
 
 public sealed record BattleQueryModifier(
     BattleQueryStage Stage,

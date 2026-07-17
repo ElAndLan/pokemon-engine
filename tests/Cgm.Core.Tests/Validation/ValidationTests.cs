@@ -462,7 +462,7 @@ public sealed class ValidationTests
         };
         Move badWeather = Move("badweather") with
         {
-            Effects = [new Effect { Op = "weather", Params = Params(("weather", "snow")) }],
+            Effects = [new Effect { Op = "weather", Params = Params(("weather", "fog")) }],
         };
         Move badTargetHpPower = Move("badhppower") with
         {
