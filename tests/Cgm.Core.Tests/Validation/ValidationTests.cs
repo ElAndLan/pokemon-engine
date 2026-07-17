@@ -545,6 +545,19 @@ public sealed class ValidationTests
         Assert.Empty(Run(new MoveRule(), Project(noBattle)));
     }
 
+    [Fact]
+    public void Move_WeatherMoveTypeRowsRequireExistingTypes()
+    {
+        Move move = Move("weather_move") with
+        {
+            Effects = [new Effect { Op = "weatherMove", Params = Params(("types", "rain:water")) }],
+        };
+        var water = new TypeDef { Id = EntityId.Parse("type:water") };
+
+        Assert.Contains(Run(new MoveRule(), Project(move)), issue => issue.Message.Contains("type:water"));
+        Assert.Empty(Run(new MoveRule(), Project(move, water)));
+    }
+
     // --- World rules -------------------------------------------------------------
 
     [Fact]

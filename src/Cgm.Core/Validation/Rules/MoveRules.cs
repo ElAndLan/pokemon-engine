@@ -40,16 +40,22 @@ public sealed class MoveRule : IValidationRule
                 yield return new ValidationIssue(Id, ValidationSeverity.Error, m.Id,
                     $"Target {m.Target} is not a known move target.");
 
-            if (CheckEffects(m) is { } issue)
+            if (CheckEffects(m, project) is { } issue)
                 yield return issue;
         }
     }
 
-    private ValidationIssue? CheckEffects(Move move)
+    private ValidationIssue? CheckEffects(Move move, Project project)
     {
         try
         {
-            MoveCompiler.ToBattleMove(move);
+            BattleMove compiled = MoveCompiler.ToBattleMove(move);
+            EntityId? missingType = compiled.SecondaryEffects.OfType<WeatherMoveEffect>()
+                .SelectMany(effect => effect.TypeOverrides.Values)
+                .FirstOrDefault(type => project.Find<TypeDef>(type) is null);
+            if (missingType is { } type && type != default)
+                return new ValidationIssue(Id, ValidationSeverity.Error, move.Id,
+                    $"weatherMove references '{type}', which does not exist.");
             return null;
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException)

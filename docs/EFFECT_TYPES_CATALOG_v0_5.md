@@ -193,6 +193,7 @@ before use.
 |---|---|---|
 | `accuracy_check` | Resolves hit/miss using move accuracy, stages, bypasses, weather, gravity, lock-on, and ruleset policy. | normal accuracy, sure-hit, No Guard-like effects, Lock-On, Gravity, weather accuracy changes. |
 | `weatherAccuracy` | Move-authored weather rows feed the shared weather `on_accuracy_query`; bypass rows skip stages/draws and override rows replace authored accuracy before stages. | rain-bypass/sun-50 storm families, hail-bypass blizzard family. |
+| `weatherMove` | Move-authored weather rows feed shared move-type, base-power, and charge-start hooks without mutating the authored move. | weather type/power changes and sun-skipped/other-weather-weakened charge families. |
 | `deal_damage` | Deals damage using a selected damage model. | standard, fixed, level, percent max HP, percent current HP, counter, stored, variable formula, OHKO. |
 | `modify_base_power` | Changes base power before damage calculation. | Weather Ball, Gyro Ball, Low Kick, Facade, Acrobatics, terrain/weather boosts, item boosts. |
 | `modify_damage` | Multiplies, reduces, blocks, redirects, or floors final damage. | STAB, type effectiveness, burn, screens, spread reduction, weather, resist berries, Life Orb, raid shields. |
@@ -655,8 +656,8 @@ create a private timer or pending list.
 
 | Weather | Key Hooks |
 |---|---|
-| `rain` | water/fire damage modifier, move accuracy/charge interactions, ability/item hooks. |
-| `sun` | fire/water damage modifier, `on_status_attempt` freeze denial, healing/charge interactions. |
+| `rain` | water/fire damage modifier, move accuracy/type/base-power/charge interactions, ability/item hooks. |
+| `sun` | fire/water damage modifier, `on_status_attempt` freeze denial, healing/type/base-power/charge interactions. |
 | `sandstorm` | residual damage, Rock Sp. Def modifier, weather ability/item hooks. |
 | `hail` | residual damage, Blizzard accuracy policy, legacy profile. |
 | `snow` | Ice Defense modifier, Blizzard accuracy policy, modern profile. |

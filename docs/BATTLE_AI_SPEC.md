@@ -197,6 +197,9 @@ Capabilities beyond Beginner:
   The named `recovery` component uses the direct recipient-max-HP amount capped at missing HP; an
   absent condition snapshot or unlisted weather retains the authored healing fraction and consumes
   no additional AI RNG.
+- Weather-sensitive move identity and power consume the same `MoveTypeQuery` replacement and
+  `BasePowerQuery` multiplier as the resolver. Effectiveness, STAB, and the later weather damage hook
+  use that effective type; preview reads only the visible condition snapshot and adds no AI RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

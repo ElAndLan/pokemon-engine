@@ -45,16 +45,20 @@ public sealed class BattleWeatherConditionTests
             Assert.Equal(BattleConditionFaintPolicy.Persist, definition.FaintPolicy);
             Assert.Single(definition.Tags);
         });
-        Assert.Equal([BattleConditionHook.AccuracyQuery, BattleConditionHook.DamageQuery,
-                BattleConditionHook.HealingQuery],
+        Assert.Equal([BattleConditionHook.AccuracyQuery, BattleConditionHook.ChargeStart,
+                BattleConditionHook.MoveTypeQuery, BattleConditionHook.BasePowerQuery,
+                BattleConditionHook.DamageQuery, BattleConditionHook.HealingQuery],
             WeatherConditions.For(Weather.Rain).Definition!.Hooks);
-        Assert.Equal([BattleConditionHook.AccuracyQuery, BattleConditionHook.DamageQuery,
-                BattleConditionHook.HealingQuery, BattleConditionHook.StatusAttempt],
+        Assert.Equal([BattleConditionHook.AccuracyQuery, BattleConditionHook.ChargeStart,
+                BattleConditionHook.MoveTypeQuery, BattleConditionHook.BasePowerQuery,
+                BattleConditionHook.DamageQuery, BattleConditionHook.HealingQuery,
+                BattleConditionHook.StatusAttempt],
             WeatherConditions.For(Weather.Sun).Definition!.Hooks);
-        Assert.Equal([BattleConditionHook.HealingQuery, BattleConditionHook.TurnEnd],
+        Assert.Equal([BattleConditionHook.HealingQuery, BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
+                BattleConditionHook.BasePowerQuery, BattleConditionHook.TurnEnd],
             WeatherConditions.For(Weather.Sandstorm).Definition!.Hooks);
-        Assert.Equal([BattleConditionHook.AccuracyQuery, BattleConditionHook.HealingQuery,
-                BattleConditionHook.TurnEnd],
+        Assert.Equal([BattleConditionHook.AccuracyQuery, BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
+                BattleConditionHook.BasePowerQuery, BattleConditionHook.HealingQuery, BattleConditionHook.TurnEnd],
             WeatherConditions.For(Weather.Hail).Definition!.Hooks);
         Assert.Equal([PersistentStatus.Freeze], WeatherConditions.For(Weather.Sun).BlockedStatuses);
         Assert.All([Weather.Rain, Weather.Sandstorm, Weather.Hail], weather =>
@@ -77,6 +81,145 @@ public sealed class BattleWeatherConditionTests
         Assert.Contains(events, entry => entry is ConditionApplied);
         Assert.Contains(events, entry => entry is WeatherChanged { Weather: Weather.Rain });
         Assert.Equal(BattleConditionTraceKind.Applied, battle.ConditionTrace[0].Kind);
+    }
+
+    [Fact]
+    public void Resolver_WeatherMoveChangesEffectiveTypeAndBasePower()
+    {
+        WeatherMoveEffect interaction = WeatherInteraction(
+            types: [(Weather.Rain, Water)], power: [(Weather.Rain, new Fraction(2, 1))]);
+        BattleMove hit = new(EntityId.Parse("move:weather_strike"), Normal, DamageClass.Special,
+            50, 100, 30, 0, 0, secondaryEffects: [interaction]);
+        var battle = new BattleController(
+            Creature("source", 100, moves: [WeatherMove(Weather.Rain, "wet_field"), hit]),
+            Creature("target", 1, [Fire], Inert()), Chart(), new Rng(1));
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        battle.ResolveTurn(new UseMove(1), new UseMove(0));
+
+        Assert.Equal(Water, Assert.Single(battle.ActionHistory.DamageSnapshot()).DamageType);
+        Assert.Equal(100, battle.QueryTrace.Last(entry => entry.Result.Query == BattleQueryId.BasePower
+            && entry.SourceSlot.Side == BattleSide.Player).Result.FinalValue.ToInt32());
+        Assert.Contains(battle.HookTrace, entry => entry.Checkpoint == BattleConditionHook.MoveTypeQuery);
+        Assert.Contains(battle.HookTrace, entry => entry.Checkpoint == BattleConditionHook.BasePowerQuery);
+    }
+
+    [Fact]
+    public void WeatherMove_AbsentAndUnlistedWeatherAreNeutral()
+    {
+        WeatherMoveEffect interaction = WeatherInteraction(
+            types: [(Weather.Rain, Water)], power: [(Weather.Rain, new Fraction(2, 1))],
+            skipCharge: [Weather.Rain]);
+
+        Assert.Empty(WeatherConditions.CollectMoveTypeHooks([], interaction, 0).MoveTypes());
+        Assert.Empty(WeatherConditions.CollectBasePowerHooks([], interaction, 0)
+            .QueryModifiers(BattleQueryId.BasePower));
+        Assert.Empty(WeatherConditions.CollectChargeHooks([], interaction, 0).Filters());
+        Assert.Empty(WeatherConditions.CollectMoveTypeHooks(StoresWith(Weather.Sun).Snapshot(), interaction, 0)
+            .MoveTypes());
+        WeatherMoveEffect hailSkip = WeatherInteraction(skipCharge: [Weather.Hail]);
+        Assert.Contains(WeatherConditions.CollectChargeHooks(StoresWith(Weather.Hail).Snapshot(), hailSkip, 0)
+            .Filters(), filter => filter.Decision == BattleHookFilterDecision.Deny);
+    }
+
+    [Fact]
+    public void WeatherMove_AddsNoRngDraws()
+    {
+        static int HitDraws(bool weatherSensitive)
+        {
+            var rng = new CountingRng();
+            WeatherMoveEffect interaction = WeatherInteraction(power: [(Weather.Rain, new Fraction(2, 1))]);
+            BattleMove hit = new(EntityId.Parse("move:weather_strike"), Normal, DamageClass.Special,
+                50, 100, 30, 0, 0, secondaryEffects: weatherSensitive ? [interaction] : []);
+            var battle = new BattleController(
+                Creature("source", 100, moves: [WeatherMove(Weather.Rain, "wet_field"), hit]),
+                Creature("target", 1, moves: [Inert()]), Chart(), rng);
+            battle.ResolveTurn(new UseMove(0), new UseMove(0));
+            int before = rng.Calls;
+            battle.ResolveTurn(new UseMove(1), new UseMove(0));
+            return rng.Calls - before;
+        }
+
+        Assert.Equal(HitDraws(false), HitDraws(true));
+    }
+
+    [Fact]
+    public void Resolver_DoublesUsesTheSameWeatherMoveRowsPerTarget()
+    {
+        WeatherMoveEffect interaction = WeatherInteraction(
+            types: [(Weather.Rain, Water)], power: [(Weather.Rain, new Fraction(2, 1))]);
+        BattleMove spread = new(EntityId.Parse("move:weather_spread"), Normal, DamageClass.Special,
+            50, 100, 30, 0, 0, target: MoveTarget.AllOpponents, secondaryEffects: [interaction]);
+        var battle = new BattleController(
+            [Creature("source", 100, moves: [WeatherMove(Weather.Rain, "wet_field"), spread]),
+                Creature("ally", 90, moves: [Inert("ally_move")])],
+            [Creature("target_zero", 10, [Fire], Inert("target_zero_move")),
+                Creature("target_one", 1, [Fire], Inert("target_one_move"))],
+            BattleTopology.Doubles, [0, 1], [0, 1], Chart(), new Rng(1));
+        battle.ResolveTurn(DoublesActions(new UseMove(0),
+            new ActiveSlotSelection(new BattleSlot(BattleSide.Enemy, 0))));
+
+        battle.ResolveTurn(DoublesActions(new UseMove(1)));
+
+        Assert.Equal(2, battle.ActionHistory.DamageSnapshot().Count(record => record.DamageType == Water));
+        Assert.Equal(2, battle.QueryTrace.Count(entry => entry.Result.Query == BattleQueryId.BasePower
+            && entry.SourceSlot.Side == BattleSide.Player && entry.Result.FinalValue.ToInt32() == 100));
+    }
+
+    [Fact]
+    public void Resolver_SunSkipsChargeWhileRainRetainsChargeAndHalvesReleasePower()
+    {
+        WeatherMoveEffect interaction = WeatherInteraction(
+            power: [(Weather.Rain, new Fraction(1, 2))], skipCharge: [Weather.Sun]);
+        BattleMove charged = new(EntityId.Parse("move:solar_strike"), Normal, DamageClass.Special,
+            120, 100, 10, 0, 0, chargeTurn: true, secondaryEffects: [interaction]);
+        BattleCreature sunnySource = Creature("sun_source", 100,
+            moves: [WeatherMove(Weather.Sun, "bright_field"), charged]);
+        BattleCreature sunnyTarget = Creature("sun_target", 1, moves: [Inert()]);
+        var sunny = new BattleController(sunnySource, sunnyTarget, Chart(), new Rng(1));
+        sunny.ResolveTurn(new UseMove(0), new UseMove(0));
+        int sunnyBefore = sunnyTarget.CurrentHp;
+
+        sunny.ResolveTurn(new UseMove(1), new UseMove(0));
+
+        Assert.False(sunnySource.IsCharging);
+        Assert.True(sunnyTarget.CurrentHp < sunnyBefore);
+        Assert.Contains(sunny.HookTrace, entry => entry.Checkpoint == BattleConditionHook.ChargeStart);
+
+        BattleMove rainyCharge = new(EntityId.Parse("move:rain_charge"), Normal, DamageClass.Special,
+            120, 100, 10, 0, 0, chargeTurn: true, secondaryEffects: [interaction]);
+        BattleCreature rainySource = Creature("rain_source", 100,
+            moves: [WeatherMove(Weather.Rain, "wet_field"), rainyCharge]);
+        BattleCreature rainyTarget = Creature("rain_target", 1, moves: [Inert()]);
+        var rainy = new BattleController(rainySource, rainyTarget, Chart(), new Rng(1));
+        rainy.ResolveTurn(new UseMove(0), new UseMove(0));
+        rainy.ResolveTurn(new UseMove(1), new UseMove(0));
+        Assert.True(rainySource.IsCharging);
+
+        rainy.ResolveTurn(new UseMove(1), new UseMove(0));
+
+        Assert.False(rainySource.IsCharging);
+        Assert.Equal(60, rainy.QueryTrace.Last(entry => entry.Result.Query == BattleQueryId.BasePower
+            && entry.SourceSlot.Side == BattleSide.Player).Result.FinalValue.ToInt32());
+    }
+
+    [Fact]
+    public void SmartAi_UsesWeatherMoveTypeAndPowerHooks()
+    {
+        WeatherMoveEffect interaction = WeatherInteraction(
+            types: [(Weather.Rain, Water)], power: [(Weather.Rain, new Fraction(2, 1))]);
+        BattleMove weatherHit = new(EntityId.Parse("move:weather_strike"), Normal, DamageClass.Special,
+            50, 100, 30, 0, 0, secondaryEffects: [interaction]);
+        BattleCreature attacker = Creature("ai", 100, moves: [weatherHit, Hit(Normal, 70, "reliable")]);
+        BattleCreature target = Creature("ai_target", 1, [Fire], Inert());
+        var context = new SmartAiContext([attacker], 0, [target], 0, Chart(), new Rng(1),
+            Weights: new SmartAiWeights { NoiseFraction = 0 }, Conditions: StoresWith(Weather.Rain).Snapshot());
+
+        SmartAiDecision decision = SmartAi.ChooseAction(context);
+
+        Assert.Equal(new UseMove(0), decision.Action);
+        Assert.True(decision.Scores.Single(score => score.Action == new UseMove(0)).Score
+            > decision.Scores.Single(score => score.Action == new UseMove(1)).Score);
     }
 
     [Fact]
@@ -740,9 +883,26 @@ public sealed class BattleWeatherConditionTests
         return stores;
     }
 
+    private static BattleTurnActions DoublesActions(BattleAction playerAction,
+        BattleActionSelection? selection = null) => new(BattleTopology.Doubles,
+    [
+        new(new BattleSlot(BattleSide.Player, 0), playerAction, selection),
+        new(new BattleSlot(BattleSide.Player, 1), new Pass()),
+        new(new BattleSlot(BattleSide.Enemy, 0), new Pass()),
+        new(new BattleSlot(BattleSide.Enemy, 1), new Pass()),
+    ]);
+
     private static WeatherAccuracyEffect AccuracyEffect(
         Weather[] bypass, params (Weather Weather, int Accuracy)[] overrides) =>
         new(new HashSet<Weather>(bypass), overrides.ToDictionary(row => row.Weather, row => row.Accuracy));
+
+    private static WeatherMoveEffect WeatherInteraction(
+        (Weather Weather, EntityId Type)[]? types = null,
+        (Weather Weather, Fraction Fraction)[]? power = null,
+        Weather[]? skipCharge = null) => new(
+            (types ?? []).ToDictionary(row => row.Weather, row => row.Type),
+            (power ?? []).ToDictionary(row => row.Weather, row => row.Fraction),
+            new HashSet<Weather>(skipCharge ?? []));
 
     private static BattleMove AccuracyHit(int power, int accuracy, string slug, WeatherAccuracyEffect effect) =>
         new(EntityId.Parse($"move:{slug}"), Normal, DamageClass.Special, power, accuracy, 30, 0, 0,

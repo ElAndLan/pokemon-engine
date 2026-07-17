@@ -31,18 +31,23 @@ public static class WeatherConditions
         {
             new() { Weather = Weather.None },
             new() { Weather = Weather.Rain, Definition = Condition("rain", BattleConditionHook.AccuracyQuery,
-                        BattleConditionHook.DamageQuery, BattleConditionHook.HealingQuery),
+                        BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
+                        BattleConditionHook.BasePowerQuery, BattleConditionHook.DamageQuery,
+                        BattleConditionHook.HealingQuery),
                     BoostedMoveType = "water", WeakenedMoveType = "fire" },
             new() { Weather = Weather.Sun, Definition = Condition("sun", BattleConditionHook.AccuracyQuery,
-                        BattleConditionHook.DamageQuery, BattleConditionHook.HealingQuery,
+                        BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
+                        BattleConditionHook.BasePowerQuery, BattleConditionHook.DamageQuery, BattleConditionHook.HealingQuery,
                         BattleConditionHook.StatusAttempt),
                     BoostedMoveType = "fire", WeakenedMoveType = "water",
                     BlockedStatuses = Array.AsReadOnly([PersistentStatus.Freeze]) },
             new() { Weather = Weather.Sandstorm, Definition = Condition("sandstorm", BattleConditionHook.HealingQuery,
-                        BattleConditionHook.TurnEnd),
+                        BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery,
+                        BattleConditionHook.BasePowerQuery, BattleConditionHook.TurnEnd),
                     ResidualDenominator = 16,
                     ResidualImmuneTypes = ["rock", "ground", "steel"] },
             new() { Weather = Weather.Hail, Definition = Condition("hail", BattleConditionHook.AccuracyQuery,
+                        BattleConditionHook.ChargeStart, BattleConditionHook.MoveTypeQuery, BattleConditionHook.BasePowerQuery,
                         BattleConditionHook.HealingQuery, BattleConditionHook.TurnEnd),
                     ResidualDenominator = 16, ResidualImmuneTypes = ["ice"] },
         }.ToDictionary(d => d.Weather);
@@ -121,6 +126,53 @@ public static class WeatherConditions
             new BattleHookDispatchContext(actionSequence, BattleConditionHook.AccuracyQuery), registrations);
     }
 
+    public static BattleHookDispatchSnapshot CollectMoveTypeHooks(
+        IEnumerable<BattleConditionInstance> conditions, WeatherMoveEffect effect, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(effect);
+        BattleConditionInstance? condition = Active(conditions);
+        BattleHookRegistration[] registrations = condition is not null
+            && effect.TypeOverrides.TryGetValue(For(condition.Definition.Id).Weather, out EntityId type)
+            ? [BattleHookRegistration.ForCondition(condition, BattleConditionHook.MoveTypeQuery, 0, 0,
+                new BattleHookMoveType(type))]
+            : [];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.MoveTypeQuery), registrations);
+    }
+
+    public static BattleHookDispatchSnapshot CollectBasePowerHooks(
+        IEnumerable<BattleConditionInstance> conditions, WeatherMoveEffect effect, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(effect);
+        BattleConditionInstance? condition = Active(conditions);
+        BattleHookRegistration[] registrations = condition is not null
+            && effect.PowerMultipliers.TryGetValue(For(condition.Definition.Id).Weather, out Fraction fraction)
+            ? [BattleHookRegistration.ForCondition(condition, BattleConditionHook.BasePowerQuery, 0, 0,
+                new BattleHookQueryModifier(BattleQueryId.BasePower,
+                    new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Multiply,
+                        new BattleQueryValue(fraction.Num, fraction.Den), OwnerScope: BattleQueryOwnerScope.Field)))]
+            : [];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.BasePowerQuery), registrations);
+    }
+
+    public static BattleHookDispatchSnapshot CollectChargeHooks(
+        IEnumerable<BattleConditionInstance> conditions, WeatherMoveEffect effect, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(effect);
+        BattleConditionInstance? condition = Active(conditions);
+        BattleHookRegistration[] registrations = condition is not null
+            && effect.SkipChargeWeather.Contains(For(condition.Definition.Id).Weather)
+            ? [BattleHookRegistration.ForCondition(condition, BattleConditionHook.ChargeStart, 0, 0,
+                new BattleHookFilter(new BattleHookFilterId("charge_required"), BattleHookFilterDecision.Deny))]
+            : [];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.ChargeStart), registrations);
+    }
+
     public static BattleHookDispatchSnapshot CollectStatusHooks(
         IEnumerable<BattleConditionInstance> conditions, PersistentStatus status, int actionSequence)
     {
@@ -174,4 +226,7 @@ public static class WeatherConditions
         SwitchPolicy = BattleConditionSwitchPolicy.StayScope,
         FaintPolicy = BattleConditionFaintPolicy.Persist,
     };
+
+    private static BattleConditionInstance? Active(IEnumerable<BattleConditionInstance> conditions) =>
+        conditions.SingleOrDefault(instance => instance.Definition.Scope == BattleConditionScope.Weather);
 }

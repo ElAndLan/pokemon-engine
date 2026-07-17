@@ -174,7 +174,7 @@ payload families remain with 15E-3 through 15E-7. The first 15E-3 weather checkp
 covers exact registry rows, source identity, same-weather no-op and replacement, duration-one and
 ordinary expiry, typed damage modifiers, topology-ordered residual/immunity behavior, battle-end
 cleanup, zero added RNG, resolver/AI parity, and replay. Weather corpus certification remains blocked
-until the remaining type/base-power/charge/stat/ruleset interaction matrix passes. The
+until the remaining stat/natural-input/ruleset interaction matrix passes. The
 weather-accuracy checkpoint adds strict compiler rejection, bypass/no-draw behavior, override-before-
 stage ordering, present/absent/unlisted weather, resolver hook/query traces, and Smart AI parity. The
 weather-status checkpoint covers the exact sun/freeze row, absent/unlisted weather and status,
@@ -184,6 +184,10 @@ status-component parity. The weather-healing checkpoint covers strict table comp
 rows, every supported weather ratio, odd-max-HP direct rounding, self/target recipients, full-HP
 event suppression, absent/unlisted weather, replacement and expiry, zero RNG, query/hook traces, and
 missing-HP-capped Smart AI parity.
+The weather-move checkpoint covers strict type/power/skip-charge compilation, present/absent/unlisted
+rows, effective-type immunity/effectiveness/STAB/history proof, exact base-power floor/order,
+skip-versus-retain/release PP timing, hook/query traces, zero added RNG, doubles parity, and Smart AI
+parity.
 
 ## Golden format
 

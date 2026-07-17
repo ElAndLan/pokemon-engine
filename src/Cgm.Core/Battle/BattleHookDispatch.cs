@@ -1,7 +1,9 @@
+using Cgm.Core.Model;
+
 namespace Cgm.Core.Battle;
 
 public enum BattleHookScope { Field, Side, Slot, Creature, Ability, Item, Move }
-public enum BattleHookPayloadKind { QueryModifier, Filter, Intent }
+public enum BattleHookPayloadKind { QueryModifier, Filter, Intent, MoveType }
 public enum BattleHookFilterDecision { Allow, Deny }
 public enum BattleHookDispatchFailureKind { IntentLimitExceeded }
 
@@ -62,6 +64,11 @@ public sealed record BattleHookFilter(
 public sealed record BattleHookIntent(BattleIntentRequest Request) : BattleHookPayload
 {
     public override BattleHookPayloadKind Kind => BattleHookPayloadKind.Intent;
+}
+
+public sealed record BattleHookMoveType(EntityId Type) : BattleHookPayload
+{
+    public override BattleHookPayloadKind Kind => BattleHookPayloadKind.MoveType;
 }
 
 public sealed record BattleHookRegistration(
@@ -160,6 +167,9 @@ public sealed class BattleHookDispatchSnapshot
 
     public IReadOnlyList<BattleHookFilter> Filters() =>
         Invocations.Select(entry => entry.Payload).OfType<BattleHookFilter>().ToArray();
+
+    public IReadOnlyList<EntityId> MoveTypes() =>
+        Invocations.Select(entry => entry.Payload).OfType<BattleHookMoveType>().Select(payload => payload.Type).ToArray();
 }
 
 public sealed record BattleHookCompletion(
@@ -325,6 +335,10 @@ public static partial class BattleHookDispatcher
             case BattleHookIntent intent:
                 ArgumentNullException.ThrowIfNull(intent.Request);
                 BattleIntentQueue.ValidateRequest(intent.Request);
+                break;
+            case BattleHookMoveType moveType when moveType.Type.Category != EntityCategory.Type:
+                throw new ArgumentException("Hook move type must be a type EntityId.", nameof(payload));
+            case BattleHookMoveType:
                 break;
             case BattleHookFilter:
                 break;

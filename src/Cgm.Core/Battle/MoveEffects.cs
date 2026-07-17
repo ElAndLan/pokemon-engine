@@ -166,6 +166,12 @@ public sealed record WeatherAccuracyEffect(
     IReadOnlySet<Weather> BypassWeather,
     IReadOnlyDictionary<Weather, int> AccuracyOverrides) : MoveEffect;
 
+/// <summary>Changes this move's effective type, base power, or charge requirement under authored weather rows.</summary>
+public sealed record WeatherMoveEffect(
+    IReadOnlyDictionary<Weather, EntityId> TypeOverrides,
+    IReadOnlyDictionary<Weather, Fraction> PowerMultipliers,
+    IReadOnlySet<Weather> SkipChargeWeather) : MoveEffect;
+
 /// <summary>apply_condition(side:entry_hazard_damage, type_scaled) — Stealth-Rock-style hazard on the
 /// target's side, dealing type-scaled damage on switch-in (catalog §7.3).</summary>
 public sealed record StealthRockEffect : MoveEffect;

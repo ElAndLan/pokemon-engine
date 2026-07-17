@@ -190,6 +190,20 @@ public static class MoveCompiler
                     effects.Add(new WeatherAccuracyEffect(bypassWeather, weatherOverrides));
                     break;
 
+                case "weatherMove":
+                    if (chance != 100)
+                        throw new ArgumentException("weatherMove does not support chance.");
+                    if (move.DamageClass == DamageClass.Status || move.Power is null)
+                        throw new ArgumentException("weatherMove requires a damaging move with authored power.");
+                    CheckAllowedParams(e, "types", "power", "skipCharge");
+                    IReadOnlyDictionary<Weather, EntityId> weatherTypes = ParseWeatherTypes(e);
+                    IReadOnlyDictionary<Weather, Fraction> weatherPower = ParseWeatherPower(e);
+                    IReadOnlySet<Weather> skipChargeWeather = ParseWeatherList(e, "skipCharge", "weatherMove");
+                    if (weatherTypes.Count == 0 && weatherPower.Count == 0 && skipChargeWeather.Count == 0)
+                        throw new ArgumentException("weatherMove requires types, power, or skipCharge rows.");
+                    effects.Add(new WeatherMoveEffect(weatherTypes, weatherPower, skipChargeWeather));
+                    break;
+
                 case "chargeTurn": // two-turn move (catalog §7.2 charge)
                     chargeTurn = true;
                     break;
@@ -557,6 +571,10 @@ public static class MoveCompiler
         if (effects.OfType<WeatherAccuracyEffect>().Count() > 1
             || (bypassAccuracy || ohko) && effects.OfType<WeatherAccuracyEffect>().Any())
             throw new ArgumentException("A move can declare one weatherAccuracy op and cannot combine it with accuracyBypass or ohko.");
+        if (effects.OfType<WeatherMoveEffect>().Count() > 1)
+            throw new ArgumentException("A move can declare only one weatherMove op.");
+        if (!chargeTurn && effects.OfType<WeatherMoveEffect>().Any(effect => effect.SkipChargeWeather.Count > 0))
+            throw new ArgumentException("weatherMove skipCharge requires chargeTurn.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
             && fixedDamage is null && !fixedDamageLevel && !ohko && counterCategory is null
             && !effects.OfType<HpFractionEffect>().Any(effect => effect.Operation == HpFractionOperation.Damage)
@@ -762,17 +780,50 @@ public static class MoveCompiler
         return classes.Count > 0 ? classes : throw new ArgumentException("redirect classes must not be empty.");
     }
 
-    private static IReadOnlySet<Weather> ParseWeatherList(Effect effect, string key)
+    private static IReadOnlySet<Weather> ParseWeatherList(Effect effect, string key, string op = "weatherAccuracy")
     {
         if (effect.Params?.ContainsKey(key) != true)
             return new HashSet<Weather>();
         Weather[] values = Str(effect, key)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Split(',', StringSplitOptions.TrimEntries)
             .Select(value => ParseWeather(value, key))
             .ToArray();
         if (values.Length == 0 || values.Contains(Weather.None) || values.Distinct().Count() != values.Length)
-            throw new ArgumentException($"weatherAccuracy {key} must contain unique active weather values.");
+            throw new ArgumentException($"{op} {key} must contain unique active weather values.");
         return new HashSet<Weather>(values);
+    }
+
+    private static IReadOnlyDictionary<Weather, EntityId> ParseWeatherTypes(Effect effect)
+    {
+        if (effect.Params?.ContainsKey("types") != true)
+            return new Dictionary<Weather, EntityId>();
+        var result = new Dictionary<Weather, EntityId>();
+        foreach (string entry in Str(effect, "types").Split(',', StringSplitOptions.TrimEntries))
+        {
+            string[] row = entry.Split(':', StringSplitOptions.TrimEntries);
+            if (row.Length != 2 || !TryParseWeather(row[0], out Weather weather)
+                || !BattleConditionId.ValidToken(row[1]) || !result.TryAdd(weather, EntityId.Parse($"type:{row[1]}")))
+                throw new ArgumentException("weatherMove types require unique weather:type-slug rows.");
+        }
+        return result.Count > 0 ? result : throw new ArgumentException("weatherMove types cannot be empty.");
+    }
+
+    private static IReadOnlyDictionary<Weather, Fraction> ParseWeatherPower(Effect effect)
+    {
+        if (effect.Params?.ContainsKey("power") != true)
+            return new Dictionary<Weather, Fraction>();
+        var result = new Dictionary<Weather, Fraction>();
+        foreach (string entry in Str(effect, "power").Split(',', StringSplitOptions.TrimEntries))
+        {
+            string[] row = entry.Split(':', StringSplitOptions.TrimEntries);
+            string[] ratio = row.Length == 2 ? row[1].Split('/', StringSplitOptions.TrimEntries) : [];
+            if (row.Length != 2 || ratio.Length != 2 || !TryParseWeather(row[0], out Weather weather)
+                || !int.TryParse(ratio[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int num)
+                || !int.TryParse(ratio[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int den)
+                || num <= 0 || den <= 0 || !result.TryAdd(weather, new Fraction(num, den)))
+                throw new ArgumentException("weatherMove power requires unique active weather:num/den rows with positive ratios.");
+        }
+        return result.Count > 0 ? result : throw new ArgumentException("weatherMove power cannot be empty.");
     }
 
     private static IReadOnlyDictionary<Weather, int> ParseWeatherAccuracyOverrides(Effect effect)

@@ -135,6 +135,60 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
+    public void CompilesWeatherMoveOp()
+    {
+        BattleMove move = MoveCompiler.ToBattleMove(Move(DamageClass.Special, 50,
+            Op("weatherMove", null,
+                ("types", "rain:water,sun:fire,sandstorm:rock,hail:ice"),
+                ("power", "rain:2/1,sun:2/1,sandstorm:2/1,hail:2/1"),
+                ("skipCharge", "sun")), Op("chargeTurn")));
+
+        WeatherMoveEffect effect = Assert.Single(move.SecondaryEffects.OfType<WeatherMoveEffect>());
+        Assert.Equal(EntityId.Parse("type:water"), effect.TypeOverrides[Weather.Rain]);
+        Assert.Equal(new Fraction(2, 1), effect.PowerMultipliers[Weather.Hail]);
+        Assert.Equal([Weather.Sun], effect.SkipChargeWeather);
+    }
+
+    [Theory]
+    [InlineData("types", "")]
+    [InlineData("types", "none:water")]
+    [InlineData("types", "rain:Water")]
+    [InlineData("types", "rain:water,rain:fire")]
+    [InlineData("types", "rain:water,")]
+    [InlineData("power", "")]
+    [InlineData("power", "rain:0/1")]
+    [InlineData("power", "rain:1/0")]
+    [InlineData("power", "rain:2")]
+    [InlineData("power", "rain:2/1,rain:1/2")]
+    [InlineData("power", "rain:2/1,")]
+    [InlineData("skipCharge", "none")]
+    [InlineData("skipCharge", "sun,sun")]
+    public void WeatherMoveOp_RejectsInvalidRows(string key, string value)
+    {
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50, Op("weatherMove", null, (key, value)))));
+    }
+
+    [Fact]
+    public void WeatherMoveOp_RequiresDamagingPowerAndRejectsEmptyChanceAndUnknownParams()
+    {
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50, Op("weatherMove"))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("weatherMove", null, ("skipCharge", "sun")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50, Op("weatherMove", 50, ("power", "rain:2/1")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50, Op("weatherMove", null, ("power", "rain:2/1"), ("extra", 1)))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50, Op("weatherMove", null, ("skipCharge", "sun")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50,
+                Op("weatherMove", null, ("power", "rain:2/1")),
+                Op("weatherMove", null, ("types", "sun:fire")))));
+    }
+
+    [Fact]
     public void CompilesWeatherHealingRowsOnTheGenericHealOp()
     {
         BattleMove move = MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,

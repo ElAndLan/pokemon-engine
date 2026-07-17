@@ -671,6 +671,11 @@ overrides through the normal damage pipeline. `targetHpThresholdPower` now cover
 threshold base-power multiplication through the same damage path. `hpRatioPower` now covers
 user-current-HP and target-current-HP ratio base power through the same damage path.
 
+Implementation note: `weatherMove` now covers weather-sensitive effective move type, base-power
+multipliers, and charge skipping through shared condition hooks. The affected reference keys are
+`move-0311`, `move-0076`, and `move-0669`; certification remains deferred until each move's complete
+multi-turn and package-level contract is closed.
+
 Representative tests: HP-ratio power, status-dependent power, speed-ratio power, item-dependent
 power, target-weight power, terrain/weather type and power changes, and final-damage modifiers.
 

@@ -121,9 +121,10 @@ public static class SmartAi
         }
         bool hasResourceInputs = TryResourceInputs(attacker, defender, move, context.EnemyParty,
             context.EnemyActive, BattleSide.Enemy, context, out PartyResourceFormulaInputs? resourceInputs);
+        WeatherMovePreview weatherMove = PreviewWeatherMove(context, move);
         double damage = hasResourceInputs
             ? ExpectedDamage(attacker, defender, move, context.Chart, inputs, actionInputs, resourceInputs,
-                WeatherDamageModifiers(context, move))
+                weatherMove, WeatherDamageModifiers(context, weatherMove.Type))
             : 0;
         int authoredAccuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, defender.Level) : move.Accuracy ?? 100;
         BattleHookDispatchSnapshot? weatherAccuracy = WeatherAccuracyHooks(context, move);
@@ -253,13 +254,17 @@ public static class SmartAi
             if (context is null)
                 return ExpectedDamage(attacker, defender, move, chart);
             if (sourceParty is null)
-                return ExpectedDamage(attacker, defender, move, chart,
-                    modifiers: WeatherDamageModifiers(context, move));
-            return TryResourceInputs(attacker, defender, move, sourceParty, sourceIndex, BattleSide.Enemy,
-                context, out PartyResourceFormulaInputs? inputs)
-                    ? ExpectedDamage(attacker, defender, move, chart, resourceInputs: inputs,
-                        modifiers: WeatherDamageModifiers(context, move))
-                    : 0;
+            {
+                WeatherMovePreview weather = PreviewWeatherMove(context, move);
+                return ExpectedDamage(attacker, defender, move, chart, weather: weather,
+                    modifiers: WeatherDamageModifiers(context, weather.Type));
+            }
+            if (!TryResourceInputs(attacker, defender, move, sourceParty, sourceIndex, BattleSide.Enemy,
+                context, out PartyResourceFormulaInputs? inputs))
+                return 0;
+            WeatherMovePreview resourceWeather = PreviewWeatherMove(context, move);
+            return ExpectedDamage(attacker, defender, move, chart, resourceInputs: inputs,
+                weather: resourceWeather, modifiers: WeatherDamageModifiers(context, resourceWeather.Type));
         }).DefaultIfEmpty(0).Max();
 
     private static double PredictedDamage(BattleCreature attacker, BattleCreature defender, SmartAiContext context)
@@ -267,8 +272,11 @@ public static class SmartAi
         if (context.Memory?.RepeatedPlayerMoveCount >= 2
             && context.Memory.LastPlayerMove is { } last
             && attacker.Moves.FirstOrDefault(m => m.Move == last && m.HasPp) is { } repeated)
-            return ExpectedDamage(attacker, defender, repeated, context.Chart,
-                modifiers: WeatherDamageModifiers(context, repeated));
+        {
+            WeatherMovePreview weather = PreviewWeatherMove(context, repeated);
+            return ExpectedDamage(attacker, defender, repeated, context.Chart, weather: weather,
+                modifiers: WeatherDamageModifiers(context, weather.Type));
+        }
 
         return BestDamage(attacker, defender, context.Chart, context);
     }
@@ -280,9 +288,11 @@ public static class SmartAi
     private static double ExpectedDamage(BattleCreature attacker, BattleCreature defender, BattleMove move, TypeChart chart,
         PhysicalFormulaInputs? physicalInputs = null, BattleActionFormulaInputs? actionInputs = null,
         PartyResourceFormulaInputs? resourceInputs = null,
+        WeatherMovePreview? weather = null,
         IReadOnlyList<BattleQueryModifier>? modifiers = null)
     {
-        double eff = chart.Effectiveness(move.Type, defender.Types);
+        EntityId moveType = weather?.Type ?? move.Type;
+        double eff = chart.Effectiveness(moveType, defender.Types);
         if (eff <= 0)
             return 0;
 
@@ -322,7 +332,10 @@ public static class SmartAi
         bool physical = move.DamageClass == DamageClass.Physical;
         HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(
             move, attacker, defender, physicalInputs, actionInputs, resourceInputs);
-        int power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, powerQuery.AuthoredBase, powerQuery.Modifiers);
+        IReadOnlyList<BattleQueryModifier> powerModifiers = weather is null
+            ? powerQuery.Modifiers
+            : [.. powerQuery.Modifiers, .. weather.PowerModifiers];
+        int power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, powerQuery.AuthoredBase, powerModifiers);
         StatKind attackStat = physical ? StatKind.Atk : StatKind.Spa;
         StatKind defenseStat = physical ? StatKind.Def : StatKind.Spd;
         int a = BattleQuery.ResolveInteger(BattleQueryId.OffensiveStat,
@@ -333,7 +346,7 @@ public static class SmartAi
             physical ? defender.Stats.Def : defender.Stats.Spd,
             [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
                 BattleQuery.StatStageMultiplier(defender.Stage(defenseStat)), InsertionOrder: 0)]);
-        double stab = TypeChart.Stab(move.Type, attacker.Types);
+        double stab = TypeChart.Stab(moveType, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
         int oneHit = BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
             DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn), modifiers);
@@ -343,10 +356,25 @@ public static class SmartAi
         return floor > 0 ? Math.Min(total, Math.Max(0, defender.CurrentHp - floor)) : total;
     }
 
+    private sealed record WeatherMovePreview(EntityId Type, IReadOnlyList<BattleQueryModifier> PowerModifiers);
+
+    private static WeatherMovePreview PreviewWeatherMove(SmartAiContext context, BattleMove move)
+    {
+        if (context.Conditions is null
+            || move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is not { } effect)
+            return new(move.Type, []);
+        BattleHookDispatchSnapshot typeHooks = WeatherConditions.CollectMoveTypeHooks(context.Conditions, effect, 0);
+        EntityId type = typeHooks.MoveTypes().SingleOrDefault() is { } replacement && replacement != default
+            ? replacement
+            : move.Type;
+        return new(type, WeatherConditions.CollectBasePowerHooks(context.Conditions, effect, 0)
+            .QueryModifiers(BattleQueryId.BasePower));
+    }
+
     private static IReadOnlyList<BattleQueryModifier> WeatherDamageModifiers(
-        SmartAiContext context, BattleMove move) => context.Conditions is null
+        SmartAiContext context, EntityId moveType) => context.Conditions is null
         ? []
-        : WeatherConditions.CollectDamageHooks(context.Conditions, move.Type.Slug, actionSequence: 0)
+        : WeatherConditions.CollectDamageHooks(context.Conditions, moveType.Slug, actionSequence: 0)
             .QueryModifiers(BattleQueryId.FinalDamage);
 
     private static BattleHookDispatchSnapshot? WeatherAccuracyHooks(SmartAiContext context, BattleMove move) =>

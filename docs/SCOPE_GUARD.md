@@ -29,6 +29,8 @@ Starting baseline:
   have also landed outside that certified cohort. The 15E-3 weather store/damage/residual/accuracy/
   status/healing checkpoints have landed; the next eligible work remains the rest of 15E-3 weather
   interactions.
+- The 15E-3 weather move-type/base-power/charge checkpoint has also landed; grounded/stat,
+  natural-field-input, and ruleset-difference weather rows remain before the family can close.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
   `IMPLEMENTATION_PLAN.md` record the growing verified suite; test count is evidence, not phase exit.
 

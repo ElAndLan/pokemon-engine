@@ -1223,6 +1223,28 @@ weather unlisted. These ratios and floor behavior are identical in `gen4_like` a
 `modern_reference` for the supported weather set. Resolver and Smart AI collect the same immutable
 hook snapshot and exact replacement; AI caps its visible `recovery` component at missing HP.
 
+Rain, sun, sandstorm, and hail declare `MoveTypeQuery`, `BasePowerQuery`, and `ChargeStart`. A
+damaging move opts into these hooks with `weatherMove`:
+`{ types?: "rain:water,...", power?: "rain:2/1,...", skipCharge?: "sun,..." }`. At least one
+table is required. Weather keys must be unique active registry rows, type values are lowercase type
+slugs, power ratios are positive, and the op rejects `chance`, status/null-power moves, duplicate
+rows, and unknown params. Absent or unlisted weather is neutral.
+
+The type replacement is the effective move type for immunity, effectiveness, STAB, weather damage
+hooks, and damage history; it does not mutate the authored move definition or its overlay. The power
+multiplier runs at the `Hooks` stage after source/target formula inputs and before the final clamp,
+with the ordinary integer-query floor. Charge admission runs before PP spend and `Charging`: a deny
+row skips setup and executes the move immediately with the ordinary one-use PP spend; an unlisted
+weather retains the ordinary charge/release lifecycle. A move already charging always releases, and
+its type/power rows read the weather effective at release. These hooks add no RNG and no new battle
+events; hook/query traces expose every invoked row. Smart AI reads the identical immutable condition
+snapshot and applies the same effective type, base-power multiplier, effectiveness, STAB, and final
+weather damage modifier.
+
+The weather-type/power family uses rain→water, sun→fire, sandstorm→rock, and hail→ice with `2/1`
+power rows. The solar-charge family skips charge in sun and applies `1/2` power in rain, sandstorm,
+and hail. These authored tables are generic effect data; neither resolver nor AI inspects a move ID.
+
 Condition apply/replace/tick/expire events and traces remain visible alongside the compatibility
 `WeatherChanged`, `WeatherDamage`, and `WeatherEnded` presentation events. Damage and accuracy hook
 traces use the shared dispatcher. Resolver and AI scoring collect the same weather condition
@@ -1231,7 +1253,7 @@ that do not supply a battle-condition snapshot score clear weather. Battle end r
 rooms, gravity, and sports remain in the rest of 15E-3 and are not implied by this slice.
 
 This checkpoint migrates the already-supported weather behavior; it is not the 15E-3 weather-family
-exit. Weather-gated move type/base power/charge, grounded/stat
+exit. Weather-gated grounded/stat
 queries, natural field inputs, and ruleset difference rows remain in 15E-3. No weather-setting corpus
 row is certified until that complete interaction matrix and its conformance vectors are green.
 
@@ -1244,7 +1266,9 @@ Weather acceptance vectors: `weather-start-source`, `weather-same-noop`, `weathe
 `weather-status-no-cure`, `weather-status-replacement`, and `weather-status-ai-parity`, plus
 `weather-healing-compile`, `weather-healing-direct-rounding`, `weather-healing-present-absent`,
 `weather-healing-recipient`, `weather-healing-clamp-event`, `weather-healing-no-rng`, and
-`weather-healing-ai-parity`.
+`weather-healing-ai-parity`, plus `weather-move-compile`, `weather-move-type-power-present-absent`,
+`weather-move-effective-type-history`, `weather-charge-skip-retain-release`, `weather-move-no-rng`,
+and `weather-move-ai-parity`.
 
 ### Effective-value overlays (Phase 15F-1)
 

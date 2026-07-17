@@ -641,13 +641,15 @@ public sealed class BattleController
         BattleActionAttemptId attempt)
     {
         BattleCreature attacker = Active(sourceSlot);
+        EntityId moveType = EffectiveMoveType(move, traceAction);
         var actionContext = new BattleActionContext(move, attacker, sourceSlot, traceAction);
         if (!TryItemPower(sourceSlot, move, out int? itemPower))
         {
             _log.Add(new MoveFailed(sourceSlot, move.Move, MoveFailureReason.FormulaInputUnavailable));
             foreach (BattleSlot targetSlot in targetSlots)
                 RecordDamage(attempt, sourceOwner, HistoryOwner(targetSlot), move, DamageCause(move), 0,
-                    false, BattleDamageFailure.NoQualifyingDamage, 0, default, critical: false);
+                    false, BattleDamageFailure.NoQualifyingDamage, 0, default, critical: false,
+                    effectiveType: moveType);
             return BattleActionResult.Failed;
         }
         var accurateTargets = new List<BattleTargetContext>(targetSlots.Count);
@@ -663,7 +665,8 @@ public sealed class BattleController
                 _log.Add(new MoveMissed(sourceSlot, move.Move, targetSlot));
                 if (RecordsMoveDamage(move))
                     RecordDamage(attempt, sourceOwner, HistoryOwner(targetSlot), move, DamageCause(move),
-                        0, false, BattleDamageFailure.Missed, 0, default, critical: false);
+                        0, false, BattleDamageFailure.Missed, 0, default, critical: false,
+                        effectiveType: moveType);
                 continue;
             }
             accurateTargets.Add(targetContext);
@@ -689,7 +692,7 @@ public sealed class BattleController
             hitCountDraw is not null ? HitCountDrawBound(move) : null);
         foreach (BattleTargetContext targetContext in accurateTargets)
         {
-            double effectiveness = _chart.Effectiveness(move.Type, targetContext.Target.Types);
+            double effectiveness = _chart.Effectiveness(moveType, targetContext.Target.Types);
             if (effectiveness <= 0)
             {
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Immunity, false, null, 0, _log.Count, _log.Count);
@@ -698,7 +701,7 @@ public sealed class BattleController
                 targetContext.AddDamage(actionContext, damage.ActualHpRemoved);
                 RecordDamage(attempt, sourceOwner, HistoryOwner(targetContext.TargetSlot), move,
                     BattleDamageCause.Standard, 1, attempted: true, BattleDamageFailure.Immune, 0, damage,
-                    critical: false);
+                    critical: false, effectiveType: moveType);
                 continue;
             }
 
@@ -706,7 +709,7 @@ public sealed class BattleController
             {
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Immunity, false, null, 1, _log.Count, _log.Count);
                 (int damage, bool crit, _) = ComputeHit(
-                    sourceSlot, targetContext.TargetSlot, attacker, targetContext.Target, move, move.Power ?? 1,
+                    sourceSlot, targetContext.TargetSlot, attacker, targetContext.Target, move, moveType, move.Power ?? 1,
                     targetSlots.Count, ppBeforeSpend, itemPower, randomPower, traceAction,
                     out double? critDraw, out int? damageRollDraw);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Critical, true,
@@ -721,7 +724,7 @@ public sealed class BattleController
                 RecordDamage(attempt, sourceOwner, HistoryOwner(targetContext.TargetSlot), move,
                     BattleDamageCause.Standard, hit + 1, attempted: true,
                     applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
-                    damage, applied, crit);
+                    damage, applied, crit, effectiveType: moveType);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Damage, false, null,
                     applied.ActualHpRemoved,
                     _log.Count - 1, _log.Count);
@@ -1163,7 +1166,17 @@ public sealed class BattleController
         int moveIndex, int traceAction)
     {
         bool firing = attacker.IsCharging;
-        if (move.ChargeTurn && !firing)
+        bool requiresCharge = move.ChargeTurn;
+        if (requiresCharge && !firing
+            && move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is { } weatherEffect)
+        {
+            BattleHookDispatchSnapshot weather = WeatherConditions.CollectChargeHooks(
+                ConditionSnapshot, weatherEffect, traceAction);
+            _hookTrace.AddRange(weather.Trace);
+            requiresCharge = !weather.Filters().Any(filter => filter is
+                { Filter.Value: "charge_required", Decision: BattleHookFilterDecision.Deny });
+        }
+        if (requiresCharge && !firing)
         {
             move.UsePp();
             ApplyChoiceLock(attacker, moveIndex);
@@ -1255,6 +1268,7 @@ public sealed class BattleController
 
         _log.Add(new MoveUsed(sourceSlot, move.Move));
         attacker.RecordMoveUse(move.Move);
+        EntityId moveType = EffectiveMoveType(move, traceAction);
 
         var actionContext = new BattleActionContext(move, attacker, sourceSlot, traceAction);
         BattleTargetContext targetContext = actionContext.AddTarget(target, targetSlot);
@@ -1263,7 +1277,8 @@ public sealed class BattleController
         {
             _log.Add(new MoveFailed(sourceSlot, move.Move, MoveFailureReason.FormulaInputUnavailable));
             RecordDamage(attempt, sourceOwner, targetOwner, move, DamageCause(move), 0,
-                false, BattleDamageFailure.NoQualifyingDamage, 0, default, critical: false);
+                false, BattleDamageFailure.NoQualifyingDamage, 0, default, critical: false,
+                effectiveType: moveType);
             _actionHistory.Complete(attempt, BattleActionResult.Failed, [targetOwner]);
             return;
         }
@@ -1274,7 +1289,8 @@ public sealed class BattleController
             _log.Add(new MoveBlocked(sourceSlot));
             if (RecordsMoveDamage(move))
                 RecordDamage(attempt, sourceOwner, targetOwner, move, DamageCause(move), 0,
-                    false, BattleDamageFailure.Protected, 0, default, critical: false);
+                    false, BattleDamageFailure.Protected, 0, default, critical: false,
+                    effectiveType: moveType);
             ApplyCrashRecoil(attacker, sourceSlot, move);
             _actionHistory.Complete(attempt, BattleActionResult.Failed, [targetOwner]);
             return;
@@ -1289,7 +1305,8 @@ public sealed class BattleController
             _log.Add(new MoveMissed(sourceSlot, move.Move, targetSlot));
             if (RecordsMoveDamage(move))
                 RecordDamage(attempt, sourceOwner, targetOwner, move, DamageCause(move), 0,
-                    false, BattleDamageFailure.Missed, 0, default, critical: false);
+                    false, BattleDamageFailure.Missed, 0, default, critical: false,
+                    effectiveType: moveType);
             ApplyCrashRecoil(attacker, sourceSlot, move);
             _actionHistory.Complete(attempt, BattleActionResult.Missed, [targetOwner]);
             return;
@@ -1322,7 +1339,7 @@ public sealed class BattleController
         else if (move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel)
         {
             // Formula-bypassing hit: no crit/STAB/roll (no RNG draws), but type immunity still voids it.
-            double eff = _chart.Effectiveness(move.Type, target.Types);
+            double eff = _chart.Effectiveness(moveType, target.Types);
             int dmg = eff <= 0 ? 0
                 : move.Ohko ? target.CurrentHp
                 : move.FixedDamageLevel ? attacker.Level
@@ -1349,10 +1366,10 @@ public sealed class BattleController
                 hitCountDraw, hits, _log.Count, _log.Count, hitCountDraw is not null ? HitCountDrawBound(move) : null);
             for (int h = 0; h < hits && !target.IsFainted; h++)
             {
-                double effectiveness = _chart.Effectiveness(move.Type, target.Types);
+                double effectiveness = _chart.Effectiveness(moveType, target.Types);
                 AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Immunity, false, null,
                     effectiveness <= 0 ? 0 : 1, _log.Count, _log.Count);
-                (int dmg, bool crit, double eff) = ComputeHit(sourceSlot, targetSlot, attacker, target, move, power, 1,
+                (int dmg, bool crit, double eff) = ComputeHit(sourceSlot, targetSlot, attacker, target, move, moveType, power, 1,
                     ppBeforeSpend, itemPower, randomPower, traceAction,
                     out double? critDraw, out int? damageRollDraw);
                 if (effectiveness > 0)
@@ -1369,7 +1386,7 @@ public sealed class BattleController
                 RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Standard, h + 1, true,
                     eff <= 0 ? BattleDamageFailure.Immune
                         : applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
-                    dmg, applied, crit);
+                    dmg, applied, crit, effectiveType: moveType);
                 AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Damage, false, null,
                     applied.ActualHpRemoved,
                     _log.Count - 1, _log.Count);
@@ -2187,11 +2204,11 @@ public sealed class BattleController
     private void RecordDamage(BattleActionAttemptId attempt, BattleHistoryOwner source,
         BattleHistoryOwner target, BattleMove move, BattleDamageCause cause, int hitNumber, bool attempted,
         BattleDamageFailure failure, int calculatedDamage, DamageApplication damage, bool critical,
-        bool substitute = false)
+        bool substitute = false, EntityId? effectiveType = null)
     {
         bool connected = damage.ActualHpRemoved > 0 && !substitute;
         _actionHistory.RecordDamage(new BattleDamageRecord(
-            attempt, source, target, move.Move, move.DamageClass, move.Type, cause, hitNumber,
+            attempt, source, target, move.Move, move.DamageClass, effectiveType ?? move.Type, cause, hitNumber,
             attempted, connected, failure, calculatedDamage, damage.AppliedDamage, damage.ActualHpRemoved,
             critical, move.MakesContact, substitute, connected && Active(target.Slot).IsFainted));
     }
@@ -2271,6 +2288,7 @@ public sealed class BattleController
         BattleCreature attacker,
         BattleCreature target,
         BattleMove move,
+        EntityId moveType,
         int power,
         int snapshottedLiveTargets,
         int ppBeforeSpend,
@@ -2296,13 +2314,22 @@ public sealed class BattleController
             : null;
         HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, target, physicalInputs,
             actionInputs, resourceInputs);
+        var powerModifiers = powerQuery.Modifiers.ToList();
+        if (move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is { } weatherEffect)
+        {
+            BattleHookDispatchSnapshot weather = WeatherConditions.CollectBasePowerHooks(
+                ConditionSnapshot, weatherEffect, traceAction);
+            _hookTrace.AddRange(weather.Trace);
+            powerModifiers.AddRange(weather.QueryModifiers(BattleQueryId.BasePower)
+                .Select(modifier => modifier with { InsertionOrder = powerModifiers.Count }));
+        }
         BattleQueryResult powerResult = BattleQuery.Evaluate(BattleQueryId.BasePower,
-            new BattleQueryValue(powerQuery.AuthoredBase), powerQuery.Modifiers,
+            new BattleQueryValue(powerQuery.AuthoredBase), powerModifiers,
             new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, powerResult));
         power = powerResult.FinalValue.ToInt32();
 
-        double eff = _chart.Effectiveness(move.Type, target.Types);
+        double eff = _chart.Effectiveness(moveType, target.Types);
         if (eff <= 0)
             return (0, false, eff);
 
@@ -2342,12 +2369,12 @@ public sealed class BattleController
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, defenseResult));
         int a = attackResult.FinalValue.ToInt32();
         int d = defenseResult.FinalValue.ToInt32();
-        double stab = TypeChart.Stab(move.Type, attacker.Types);
+        double stab = TypeChart.Stab(moveType, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
 
         int dmg = DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit, roll, burn, snapshottedLiveTargets);
         BattleQueryResult damageResult = BattleQuery.Evaluate(BattleQueryId.FinalDamage, new BattleQueryValue(dmg),
-            DamageHookModifiers(move, sourceSlot, targetSlot),
+            DamageHookModifiers(move, moveType, sourceSlot, targetSlot),
             new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, damageResult));
         return (damageResult.FinalValue.ToInt32(), crit, eff);
@@ -2399,7 +2426,7 @@ public sealed class BattleController
     }
 
     private IReadOnlyList<BattleQueryModifier> DamageHookModifiers(
-        BattleMove move, BattleSlot sourceSlot, BattleSlot targetSlot)
+        BattleMove move, EntityId moveType, BattleSlot sourceSlot, BattleSlot targetSlot)
     {
         var modifiers = new List<BattleQueryModifier>();
         int insertion = 0;
@@ -2408,7 +2435,7 @@ public sealed class BattleController
             Effect effect = invocation.Effect;
             if (effect.Op is "typeDamageModify" or "typeDamageBoost")
             {
-                if (!string.Equals(Str(effect, "type"), move.Type.Slug, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(Str(effect, "type"), moveType.Slug, StringComparison.OrdinalIgnoreCase))
                     continue;
             }
             else if (effect.Op == "choiceLock")
@@ -2427,11 +2454,21 @@ public sealed class BattleController
         }
 
         BattleHookDispatchSnapshot weather = WeatherConditions.CollectDamageHooks(
-            ConditionSnapshot, move.Type.Slug, _traceActionSequence);
+            ConditionSnapshot, moveType.Slug, _traceActionSequence);
         _hookTrace.AddRange(weather.Trace);
         modifiers.AddRange(weather.QueryModifiers(BattleQueryId.FinalDamage)
             .Select(modifier => modifier with { InsertionOrder = insertion++ }));
         return modifiers;
+    }
+
+    private EntityId EffectiveMoveType(BattleMove move, int traceAction)
+    {
+        if (move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is not { } effect)
+            return move.Type;
+        BattleHookDispatchSnapshot weather = WeatherConditions.CollectMoveTypeHooks(
+            ConditionSnapshot, effect, traceAction);
+        _hookTrace.AddRange(weather.Trace);
+        return weather.MoveTypes().SingleOrDefault() is { } type && type != default ? type : move.Type;
     }
 
     private IReadOnlyList<BattleQueryModifier> StatHookModifiers(
