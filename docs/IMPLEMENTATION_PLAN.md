@@ -1992,6 +1992,35 @@ determinism, AI-fairness, IP, lifecycle, query-order, or event finding remains. 
 `IN PROGRESS`: pledge side conditions are next; side-wide protection remains the final criterion.
 No per-move certification count advances at this checkpoint.
 
+**15E-4 paired-action side-effect checkpoint (`IN PROGRESS`; 2026-07-17).** The three reusable side
+results are green without a named-move branch. `speedReduction` and `residualDamage` are strict
+target-side rows; `secondaryChanceBoost` is a strict source-side row. Each owns four shared
+`TurnEnd` checkpoints, rejects duplicates without refresh, coexists under a distinct stacking key,
+persists across its source switching/fainting, and serves both active doubles slots. Speed reduction
+is exact `1/4` after the existing `2/1` boost in application-independent hook order. Residual damage
+uses `Sap` for `max(1, floor(maxHp / 8))` once per live eligible owning-side active before the shared
+tick, emits `ResidualDamage`, and skips effective Fire types. Secondary-chance boost doubles each
+outgoing damaging-move effect through `SecondaryChance`, clamps at 100, preserves its one ordinary
+draw, excludes status-move primary effects, and feeds the existing Smart-AI status probability.
+The side-condition op now carries a closed source/target selector, and the singles adapter admits
+the already-supported opposing-field scope. Screen duration extension was also constrained to rows
+actually tagged `screen`, preventing unrelated side rows from inheriting that held effect.
+
+Owning contracts updated: `BATTLE_SYSTEM_SPEC.md`, `BATTLE_DAMAGE_CALC.md`,
+`EFFECT_TYPES_CATALOG_v0_5.md`, `BATTLE_AI_SPEC.md`, `TESTING_STRATEGY.md`, `SCOPE_GUARD.md`, and
+this plan. Production changes: `MoveEffects.cs`, `MoveCompiler.cs`, `BattleTargetResolver.cs`,
+`SideConditions.cs`, `HpStatusFormulas.cs`, `BattleController.cs`, and `SmartAi.cs`. Tests:
+`BattleSideComboConditionTests.cs`. Schema/migration, dependency, and new-event impact: none; the
+open effect payload gains only the optional closed `side` parameter and reuses `ResidualDamage`.
+Verification: focused tests passed 10/10; the broader Battle/Smart-AI/replay filter passed 1,095 tests;
+full solution build passed with 0 warnings/errors; full solution passed 1,601 tests (1,378 Core,
+104 Creator, 21 Runtime, 98 Tools). Decision-catalog regeneration was byte-identical at 937
+inventoried / 84 certified with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check`
+passed. Pair recognition, ally prioritization, combined power/type, and side-row selection remain
+15D-7 action work; no move row is prematurely certified here. The package remains `IN PROGRESS`:
+side-wide protection is the final 15E-4 criterion.
+
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
 goldens; protect contact/bypass matrix; hook-loop termination guard.
@@ -2857,7 +2886,7 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, and 15G-2. ACTIVE — 15E-3.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5, 15D-1, 15E-1/2/3, 15F-1, and 15G-2. ACTIVE — 15E-4.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
    **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through

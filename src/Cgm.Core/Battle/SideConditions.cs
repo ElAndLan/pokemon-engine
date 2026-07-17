@@ -11,6 +11,9 @@ public enum BattleSideCondition
     StageDropGuard,
     SpeedBoost,
     CriticalGuard,
+    SpeedReduction,
+    ResidualDamage,
+    SecondaryChanceBoost,
 }
 
 public static class SideConditions
@@ -29,6 +32,12 @@ public static class SideConditions
                 BattleConditionHook.SecondaryEffect, "stage_guard"),
             [BattleSideCondition.SpeedBoost] = Speed("side:speed_boost", "side_speed_boost"),
             [BattleSideCondition.CriticalGuard] = Critical("side:critical_guard", "side_critical_guard"),
+            [BattleSideCondition.SpeedReduction] = Combo("side:speed_reduction", "side_speed_reduction",
+                BattleConditionHook.StatQuery, "speed_reduction"),
+            [BattleSideCondition.ResidualDamage] = Combo("side:residual_damage", "side_residual_damage",
+                BattleConditionHook.TurnEnd, "residual_damage"),
+            [BattleSideCondition.SecondaryChanceBoost] = Combo("side:secondary_chance_boost",
+                "side_secondary_chance_boost", BattleConditionHook.SecondaryEffect, "secondary_chance"),
         };
 
     public static IReadOnlyList<BattleConditionDefinition> Definitions { get; } = [.. Rows.Values];
@@ -96,15 +105,42 @@ public static class SideConditions
         ArgumentNullException.ThrowIfNull(conditions);
         if (!Enum.IsDefined(side))
             throw new ArgumentOutOfRangeException(nameof(side));
+        var registrations = new List<BattleHookRegistration>();
+        foreach (BattleConditionInstance instance in conditions.Where(item => item.Owner == Owner(side)))
+        {
+            (BattleQueryValue Multiplier, int Priority)? modifier =
+                instance.Definition.Id == For(BattleSideCondition.SpeedBoost).Id
+                    ? (new BattleQueryValue(2), 10)
+                    : instance.Definition.Id == For(BattleSideCondition.SpeedReduction).Id
+                        ? (new BattleQueryValue(1, 4), 0)
+                        : null;
+            if (modifier is not { } value)
+                continue;
+            registrations.Add(BattleHookRegistration.ForCondition(instance, BattleConditionHook.StatQuery,
+                value.Priority, 0, new BattleHookQueryModifier(BattleQueryId.Speed,
+                    new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Multiply,
+                        value.Multiplier, OwnerScope: BattleQueryOwnerScope.SourceSide))));
+        }
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.StatQuery), registrations);
+    }
+
+    public static BattleHookDispatchSnapshot CollectSecondaryChanceHooks(
+        IEnumerable<BattleConditionInstance> conditions, BattleSide sourceSide, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        if (!Enum.IsDefined(sourceSide))
+            throw new ArgumentOutOfRangeException(nameof(sourceSide));
         BattleConditionInstance? instance = conditions.SingleOrDefault(item =>
-            item.Owner == Owner(side) && item.Definition.Id == For(BattleSideCondition.SpeedBoost).Id);
+            item.Owner == Owner(sourceSide)
+            && item.Definition.Id == For(BattleSideCondition.SecondaryChanceBoost).Id);
         BattleHookRegistration[] registrations = instance is null ? []
-            : [BattleHookRegistration.ForCondition(instance, BattleConditionHook.StatQuery, 0, 0,
-                new BattleHookQueryModifier(BattleQueryId.Speed,
+            : [BattleHookRegistration.ForCondition(instance, BattleConditionHook.SecondaryEffect, 0, 0,
+                new BattleHookQueryModifier(BattleQueryId.SecondaryChance,
                     new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Multiply,
                         new BattleQueryValue(2), OwnerScope: BattleQueryOwnerScope.SourceSide)))];
         return BattleHookDispatcher.Collect(
-            new BattleHookDispatchContext(actionSequence, BattleConditionHook.StatQuery), registrations);
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.SecondaryEffect), registrations);
     }
 
     public static BattleHookDispatchSnapshot CollectCriticalHooks(
@@ -203,6 +239,21 @@ public static class SideConditions
         DefaultDuration = DefaultTurns,
         DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
         Tags = ["critical_guard"],
+        StackingKey = stackingKey,
+        StackingPolicy = BattleConditionStackingPolicy.Reject,
+        SwitchPolicy = BattleConditionSwitchPolicy.StayScope,
+        FaintPolicy = BattleConditionFaintPolicy.Persist,
+    };
+
+    private static BattleConditionDefinition Combo(string id, string stackingKey,
+        BattleConditionHook hook, string tag) => new()
+    {
+        Id = new BattleConditionId(id),
+        Scope = BattleConditionScope.Side,
+        Hooks = [hook],
+        DefaultDuration = 4,
+        DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
+        Tags = ["combo_effect", tag],
         StackingKey = stackingKey,
         StackingPolicy = BattleConditionStackingPolicy.Reject,
         SwitchPolicy = BattleConditionSwitchPolicy.StayScope,

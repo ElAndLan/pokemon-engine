@@ -779,6 +779,22 @@ occurs before the damage roll, preserving deterministic draw order while removin
 crit-only stage bypass; screens therefore see the hit as noncritical. One instance serves both
 doubles slots. The row has no bypass, barrier tag, private timer, or early-removal special case.
 
+### 7.7f Paired-Action Side Effects
+
+The behavior-named `speedReduction`, `residualDamage`, and `secondaryChanceBoost` rows represent the
+three persistent side results of the reference paired-action family without naming a move in code.
+All are distinct, reject-on-duplicate four-checkpoint conditions tagged `combo_effect`.
+`speedReduction` and `residualDamage` are authored with `side: target` on `opponents-field` status
+scopes; `secondaryChanceBoost` uses `side: source` on `users-field`.
+
+The first multiplies owning-side Speed by `1/4` after an existing `2/1` speed boost. The second uses
+the shared non-move HP path for `max(1, floor(maxHp / 8))` against every live owning-side active at
+end of turn except an effective Fire type. The third doubles each outgoing damaging-move secondary
+chance through `SecondaryChance`, clamped to 100, without changing the existing draw count. Status
+move effects are not secondary chances. One side instance serves both doubles slots; the three rows
+coexist and add no RNG. Pair detection, combined execution/type/power, and row selection remain the
+15D-7 action package; generic cleanup/transfer remains 15E-7.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

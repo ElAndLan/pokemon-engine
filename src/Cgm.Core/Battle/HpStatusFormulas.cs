@@ -200,12 +200,15 @@ public static class HpStatusFormulas
     public static int CannotKoFloor(BattleMove move) =>
         move.SecondaryEffects.OfType<CannotKoEffect>().SingleOrDefault()?.Floor ?? 0;
 
-    public static BattleQueryResult SecondaryChanceQuery(MoveEffect effect, BattleCreature source, BattleCreature target)
+    public static BattleQueryResult SecondaryChanceQuery(MoveEffect effect, BattleCreature source, BattleCreature target,
+        IEnumerable<BattleQueryModifier>? hookModifiers = null)
     {
-        BattleQueryModifier[] modifiers = effect.ChanceFormula is { } formula
+        var modifiers = effect.ChanceFormula is { } formula
             && Matches(formula.Subject == StatusPowerSubject.User ? source : target, formula.Status, formula.Volatile)
-            ? [Multiply(formula.Multiplier, 0)]
+            ? new List<BattleQueryModifier> { Multiply(formula.Multiplier, 0) }
             : [];
+        if (hookModifiers is not null)
+            modifiers.AddRange(hookModifiers);
         return BattleQuery.Evaluate(BattleQueryId.SecondaryChance, new BattleQueryValue(effect.Chance), modifiers);
     }
 

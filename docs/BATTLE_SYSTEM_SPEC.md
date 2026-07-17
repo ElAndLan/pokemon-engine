@@ -1582,6 +1582,39 @@ Acceptance vectors: `critical-guard-compile`, `critical-guard-owner-duplicate`,
 `critical-guard-source-switch-expiry`, `critical-guard-query-hook-trace`,
 `critical-guard-ai-neutral`, and `critical-guard-replay`.
 
+### Paired-action side effects (Phase 15E-4)
+
+Three move-independent side rows represent the persistent effects produced by a later paired-action
+consumer. `speedReduction` and `residualDamage` require `side: target` plus an `opponents-field`
+status scope; `secondaryChanceBoost` requires the default `side: source` plus `users-field`. All
+three use four `TurnEnd` checkpoints including application, distinct reject-on-duplicate stacking
+keys, `combo_effect` plus behavior-specific tags, and `stayScope`/`persist` cleanup. They coexist,
+share one duration across both active doubles slots, survive their source switching or fainting, and
+draw no condition RNG. Reapplication fails without refreshing duration or source.
+
+`speedReduction` contributes a `1/4` owning-side `Speed` multiplier at the Hooks stage. When the
+existing `speedBoost` row coexists, its `2/1` priority is resolved first and the reduction second,
+independent of application order; finished Speed then feeds scheduling and every speed formula.
+`residualDamage` runs once per live owning-side active slot in topology order after creature and
+held/ability end-turn hooks but before weather/terrain and the shared duration tick. It uses `Sap`
+and the existing `ResidualDamage` event for `max(1, floor(maxHp / 8))`; an effective Fire type skips
+the loss. `secondaryChanceBoost` contributes a `2/1` source-side `SecondaryChance` multiplier for
+each chance-gated effect of an outgoing damaging move, after source/target formulas and before the
+ordinary `[0,100]` clamp. Status-move primary effects are excluded. The resolver preserves the
+existing one draw per eligible effect and records the side hook plus exact query; Smart AI uses the
+same visible modifier for its existing status score.
+
+This package deliberately does not identify or coordinate named moves. Pair recognition, queued
+ally prioritization, combined type/power, failure policy, and selection of which side row to apply
+belong to 15D-7's combined-action contract. That later consumer must construct these same typed
+rows; it may not add move-ID branches or private side timers. Generic tag/source removal and side
+transfer remain 15E-7.
+
+Acceptance vectors: `side-combo-compile-scope`, `side-combo-owner-coexist-duplicate`,
+`side-combo-speed-order`, `side-combo-residual-type-floor`, `side-combo-doubles-shared`,
+`side-combo-secondary-clamp-draw`, `side-combo-status-exclusion`, `side-combo-source-switch-expiry`,
+`side-combo-ai-parity`, `side-combo-hook-query-trace`, and `side-combo-replay`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

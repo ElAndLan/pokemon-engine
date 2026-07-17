@@ -253,6 +253,12 @@ Capabilities beyond Beginner:
   The current deterministic estimate already uses a noncritical midpoint, so the guard adds no score
   component and does not alter present damage/KO values. AI preview neither rolls critical RNG nor
   infers hidden state; a future critical expected-value model must consume this same query.
+- Paired-action side effects are visible through the same immutable side snapshot. Speed reduction
+  feeds the existing effective-Speed/action-history/formula path; secondary-chance boost doubles the
+  existing damaging-move `status` probability through `SecondaryChance`; residual damage is visible
+  state but adds no speculative setup score before the 15D-7 paired-action candidate exists. Preview
+  does not mutate duration, roll effect chance, read the opponent's selected action, or infer a
+  paired move that has not been authored by the later action package.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

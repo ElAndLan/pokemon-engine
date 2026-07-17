@@ -263,6 +263,15 @@ five-checkpoint lifecycle and source switching, opposing versus same-side scope,
 screen interaction, doubles/multi-hit shared ownership, query/hook/event/trace output, AI-neutral
 visibility, and deterministic replay. It adds no schema vector or presentation event.
 
+The 15E-4 paired-action side-effect checkpoint covers strict source/target side compilation, four-
+checkpoint lifecycle, coexistence and duplicate rejection, stable boost-then-reduction Speed order,
+exact quarter Speed, end-turn `1/8` residual floor and effective-type exclusion, one shared doubles
+instance with per-slot application, damaging-only secondary chance doubling and 100 clamp, preserved
+chance draws, source switching, query/hook/lifecycle/event traces, Smart-AI parity, and deterministic
+replay. Pair recognition and combined execution remain 15D-7; generic removal/transfer remains
+15E-7. The open effect payload gains only an optional closed `side` parameter, so no schema version
+or migration vector changes.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

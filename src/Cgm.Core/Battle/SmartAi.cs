@@ -176,7 +176,7 @@ public static class SmartAi
         {
             AilmentEffect? effect = move.SecondaryEffects.OfType<AilmentEffect>().FirstOrDefault();
             int chance = effect is null ? move.AilmentChance
-                : HpStatusFormulas.SecondaryChanceQuery(effect, attacker, defender).FinalValue.ToInt32();
+                : SecondaryChance(context, move, effect, attacker, defender);
             c.Add(new("status", weights.StatusValue * HpFraction(defender) * chance / 100.0));
         }
 
@@ -657,6 +657,16 @@ public static class SmartAi
         SmartAiContext context, BattleSide side) => context.Conditions is null ? []
         : SideConditions.CollectSpeedHooks(context.Conditions, side, 0)
             .QueryModifiers(BattleQueryId.Speed);
+
+    private static int SecondaryChance(SmartAiContext context, BattleMove move, MoveEffect effect,
+        BattleCreature source, BattleCreature target)
+    {
+        IReadOnlyList<BattleQueryModifier> modifiers = context.Conditions is null
+            || move.DamageClass == DamageClass.Status ? []
+            : SideConditions.CollectSecondaryChanceHooks(context.Conditions, BattleSide.Enemy, 0)
+                .QueryModifiers(BattleQueryId.SecondaryChance);
+        return HpStatusFormulas.SecondaryChanceQuery(effect, source, target, modifiers).FinalValue.ToInt32();
+    }
 
     private static bool ActsBefore(int sourceSpeed, int targetSpeed, SmartAiContext context) =>
         context.Conditions is not null

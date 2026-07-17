@@ -1755,10 +1755,13 @@ public sealed class BattleController
             return false;
         }
 
+        BattleSide ownerSide = effect.Side == SideConditionTarget.Source ? ctx.SourceSide : ctx.TargetSide;
+        BattleConditionDefinition definition = SideConditions.For(effect.Condition);
+        int extension = definition.Tags.Contains("screen") ? SideConditionDurationExtension(ctx.SourceSlot) : 0;
         BattleConditionChangeSet changes = _conditions.Apply(new BattleConditionApplication(
-            SideConditions.For(effect.Condition).Id, SideConditions.Owner(ctx.SourceSide),
+            definition.Id, SideConditions.Owner(ownerSide),
             new BattleConditionSource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)), Turn, ctx.TraceAction,
-            effect.Duration + SideConditionDurationExtension(ctx.SourceSlot)));
+            effect.Duration + extension));
         RecordConditionChanges(changes);
         if (!changes.Events.OfType<ConditionApplicationRejected>().Any())
             return true;
@@ -2244,9 +2247,14 @@ public sealed class BattleController
 
     private int EffectiveEffectChance(EffectContext ctx, MoveEffect effect)
     {
-        if (effect.ChanceFormula is null)
+        BattleHookDispatchSnapshot? side = ctx.Move.DamageClass == DamageClass.Status ? null
+            : SideConditions.CollectSecondaryChanceHooks(ConditionSnapshot, ctx.SourceSide, ctx.TraceAction);
+        if (effect.ChanceFormula is null && (side is null || side.Invocations.Count == 0))
             return effect.Chance;
-        BattleQueryResult calculated = HpStatusFormulas.SecondaryChanceQuery(effect, ctx.Source, ctx.Target);
+        BattleQueryResult calculated = HpStatusFormulas.SecondaryChanceQuery(effect, ctx.Source, ctx.Target,
+            side?.QueryModifiers(BattleQueryId.SecondaryChance));
+        if (side is not null)
+            _hookTrace.AddRange(side.Trace);
         BattleQueryResult result = calculated with
         {
             Inputs = new BattleQueryInputs(ctx.SourceSlot, ctx.TargetSlot, CurrentWeather,
@@ -3241,6 +3249,7 @@ public sealed class BattleController
         }
 
         ApplyEndOfTurnHooks();
+        SideConditionsTurnEnd();
         FieldConditionsTurnEnd();
         TickTimedForms();
     }
@@ -3307,6 +3316,22 @@ public sealed class BattleController
         int num = Int(effect, "num") ?? 1;
         int den = Int(effect, "den") ?? 16;
         return Math.Max(1, c.MaxHp * num / den);
+    }
+
+    private void SideConditionsTurnEnd()
+    {
+        foreach (BattleSlot slot in Topology.Slots)
+        {
+            BattleCreature creature = Active(slot);
+            if (creature.IsFainted
+                || !SideConditions.Active(ConditionSnapshot, slot.Side, BattleSideCondition.ResidualDamage))
+                continue;
+            var owner = new BattleOverlayOwner(slot.Side, ActiveIndex(slot), slot);
+            if (PhysicalMetricFormulas.EffectiveValues(creature, _overlays, owner).CreatureTypes
+                .Any(type => type.Slug == "fire"))
+                continue;
+            Sap(creature, slot, Math.Max(1, creature.MaxHp / 8), amount => new ResidualDamage(slot, amount));
+        }
     }
 
     /// <summary>Field-condition end-turn hooks run in topology order before their shared duration

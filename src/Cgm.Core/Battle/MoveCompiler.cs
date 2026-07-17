@@ -183,11 +183,22 @@ public static class MoveCompiler
                 case "sideCondition":
                     if (chance != 100)
                         throw new ArgumentException("sideCondition does not support chance.");
-                    CheckAllowedParams(e, "condition", "duration");
-                    if (move.Target != MoveTarget.UsersField || move.DamageClass != DamageClass.Status)
-                        throw new ArgumentException("sideCondition requires a status move targeting users-field.");
+                    CheckAllowedParams(e, "condition", "duration", "side");
+                    SideConditionTarget conditionSide = e.Params?.ContainsKey("side") == true
+                        ? ParseNamed<SideConditionTarget>(Str(e, "side"), "side condition target")
+                        : SideConditionTarget.Source;
+                    MoveTarget requiredTarget = conditionSide == SideConditionTarget.Source
+                        ? MoveTarget.UsersField : MoveTarget.OpponentsField;
+                    if (move.Target != requiredTarget || move.DamageClass != DamageClass.Status)
+                        throw new ArgumentException($"sideCondition targeting {conditionSide} requires a status move targeting {requiredTarget}.");
                     BattleSideCondition sideCondition = ParseNamed<BattleSideCondition>(
                         Str(e, "condition"), "side condition");
+                    SideConditionTarget requiredSide = sideCondition is BattleSideCondition.SpeedReduction
+                        or BattleSideCondition.ResidualDamage
+                        ? SideConditionTarget.Target
+                        : SideConditionTarget.Source;
+                    if (conditionSide != requiredSide)
+                        throw new ArgumentException($"sideCondition '{sideCondition}' requires side '{requiredSide}'.");
                     int sideDuration = e.Params?.ContainsKey("duration") == true
                         ? Int(e, "duration")
                         : SideConditions.For(sideCondition).DefaultDuration!.Value;
@@ -195,7 +206,7 @@ public static class MoveCompiler
                         throw new ArgumentException("sideCondition duration must be positive.");
                     if (effects.OfType<SetSideConditionEffect>().Any())
                         throw new ArgumentException("A move can declare only one sideCondition effect.");
-                    effects.Add(new SetSideConditionEffect(sideCondition, sideDuration));
+                    effects.Add(new SetSideConditionEffect(sideCondition, sideDuration, conditionSide));
                     break;
 
                 case "sideConditionBypass":

@@ -33,7 +33,8 @@ Starting baseline:
   criterion is also complete, including Gravity accuracy and move availability, room interactions,
   sport profile vectors, source cleanup, and AI parity. Phase 15E-3 is complete; the next eligible
   work is 15E-4 side conditions and guards; screen, status/stage-guard, side speed/order, and
-  critical-guard checkpoints are green while pledges and side-wide protection remain. Deferred
+  critical-guard and paired-action side-effect checkpoints are green while side-wide protection
+  remains. Pair recognition/combined execution stays with 15D-7. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

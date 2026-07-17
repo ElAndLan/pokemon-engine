@@ -107,6 +107,10 @@ once verified they become committed goldens.
 ## 9. Determinism & test hooks
 - Fixed `IRng` draw order per hit: **crit check → damage random roll → secondary-effect rolls**
   (secondary effects handled by the move resolver, not here).
+- The Phase 15E paired-action chance row multiplies each outgoing damaging-move secondary chance by
+  `2/1` through `SecondaryChance` and clamps at 100 without adding or removing that effect's one
+  ordinary draw. Its end-turn side residual is non-move HP loss, not standard damage: it uses `Sap`
+  for `max(1, floor(maxHp / 8))`, emits `ResidualDamage`, and skips an effective Fire type.
 - Pure function: `computeDamage(attacker, defender, move, field, rng) → DamageResult{amount,
   effectiveness, crit}`. No state mutation; the resolver applies the result to HP.
 - Tests: a table of ≥40 hand-verified `(level, power, A, D, types, stages, crit, burn) → amount`

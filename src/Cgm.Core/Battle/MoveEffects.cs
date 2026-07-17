@@ -172,7 +172,10 @@ public sealed record GroundedStateEffect(
     GroundedStateScope Scope,
     int Duration) : MoveEffect;
 public sealed record SetFieldConditionEffect(BattleFieldCondition Condition, int Duration) : MoveEffect;
-public sealed record SetSideConditionEffect(BattleSideCondition Condition, int Duration) : MoveEffect;
+public sealed record SetSideConditionEffect(
+    BattleSideCondition Condition,
+    int Duration,
+    SideConditionTarget Side = SideConditionTarget.Source) : MoveEffect;
 public sealed record SideConditionBypassEffect(string Tag) : MoveEffect;
 public sealed record RemoveSideConditionEffect(
     string Tag, SideConditionTarget Side, SideConditionTiming Timing) : MoveEffect;

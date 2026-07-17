@@ -94,7 +94,7 @@ public static class BattleTargetResolver
     public static bool IsSinglesActiveCreatureTarget(MoveTarget target) => target switch
     {
         MoveTarget.User or MoveTarget.Selected or MoveTarget.AllOpponents or MoveTarget.AllOtherPokemon => true,
-        MoveTarget.UsersField or MoveTarget.EntireField => false,
+        MoveTarget.UsersField or MoveTarget.OpponentsField or MoveTarget.EntireField => false,
         _ when Enum.IsDefined(target) => throw new InvalidOperationException(
             $"Move target '{target}' requires the Phase 15B topology-aware action resolver."),
         _ => throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown move target."),
