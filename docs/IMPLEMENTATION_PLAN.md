@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; next eligible package is 15C-6 field/type/class/stat/effectiveness queries** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6, 15D-1, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; next eligible package is 15C-7 accuracy/critical/priority/final-damage/healing queries** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -423,7 +423,8 @@ Current readiness ledger:
 | 15C-3 speed and physical-metric formulas | SPEC READY | IMPLEMENTED | Exact speed/metric bands, schema v5 metrics, effective overlays, resolver/AI parity, and 2 generated certifications |
 | 15C-4 action-history formulas | SPEC READY | IMPLEMENTED | Bounded typed attempts/streaks, resolver/AI parity, replacement-faint aging, and 4 generated certifications |
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
-| 15C-6 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
+| 15C-6 field/type/class/stat/effectiveness queries | SPEC READY | IMPLEMENTED | Shared exact identity/damage query result, overlays/conditions, selectors, STAB/effectiveness profiles, spread snapshots, resolver/AI parity, trace, and golden evidence |
+| 15C-7 accuracy/critical/priority/final-damage/healing queries | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish the complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
@@ -1161,7 +1162,7 @@ Ordered feature packages:
    integer weights in authored order, one `Next(totalWeight)` draw, half-open ranges, and no draw for
    one nonzero entry. **Acceptance:** empty/full party, duplicates, PP 0/1/max, stage extremes/ties,
    missing/suppressed item, random endpoints/frequency-independent deterministic vectors, and trace.
-6. **15C-6 — Field, type, class, stat, and effectiveness queries (`PLANNED`; prerequisites 15C-1
+6. **15C-6 — Field, type, class, stat, and effectiveness queries (`IMPLEMENTED`; prerequisites 15C-1
    and 15E/15F query contracts).** Lock effective move type/class, environment type, attacking and
    defending stat selectors, STAB source, immunity/effectiveness override, inverse/special charts,
    grounded state, weather/terrain inputs, and spread flag. Base definitions remain immutable;
@@ -1309,6 +1310,35 @@ audit command reported 84 certifications and regenerated both artifacts byte-ide
 closeout review found and fixed missing MoveRule registration, zero-power friendship boundaries,
 single-entry trace bounds, and checked linear overflow/clamping; verdict GO. Next eligible package:
 **15E-3**.
+
+Progress (2026-07-17): **15C-6 COMPLETE.** `BattleDamageQueries` now produces one immutable, exact
+identity/damage-query result shared by the resolver and Smart AI. Its precedence is authored move
+identity, effective-value overlays, then eligible weather/terrain type replacement; it resolves
+natural/effective environment, fixed or higher-offense class, owner-qualified attacking/defending
+stats, effective creature types, exact STAB, standard/inverse/additional/defender-override
+effectiveness, and the snapshotted spread flag. `BattleController` consumes the result before final
+immunity and combat RNG in ordinary, fixed, level, OHKO, and target-HP formula damage, uses effective
+class/type for screens and damage memory, and records a typed per-target query trace. Self HP costs
+remain independent of opponent effectiveness. Smart AI uses the same service and effective overlay,
+field, stat, type, spread, and screen inputs. No named-move branch, schema change, dependency, or new
+certification was required.
+
+Changed production files: `BattleDamageQueries.cs`, `BattleController.cs`, `SmartAi.cs`,
+`MoveCompiler.cs`, `MoveEffects.cs`, `PhysicalMetricFormulas.cs`, and `TypeChart.cs`. Owning spec and
+test strategy changes are in `BATTLE_SYSTEM_SPEC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`,
+`BATTLE_AI_SPEC.md`, and `TESTING_STRATEGY.md`. `BattleDamageQueryTests.cs` and
+`damage-query.golden` cover compiler/direct-boundary rejection, identity precedence and environment,
+effective overlays, staged class selection, owner-qualified stats, standard/inverse/additional/type-
+override effectiveness, STAB sources, final immunity and skipped RNG, self-HP isolation, doubles
+spread snapshots, resolver/AI parity, and replay-stable output. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --no-restore` passed 1,653 tests
+(1,430 Core, 104 Creator, 21 Runtime, 98 Tools); the move audit reported 937 inventoried / 84
+certified with corpus digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`
+and byte-identical manifest/definitions hashes; and `git diff --check` passed. Focused review found and
+fixed self-HP effectiveness leakage, field-type preview ambiguity, public typed-input validation,
+formula-damage effectiveness observability, and effective-class failure bookkeeping; verdict GO.
+Next eligible package: **15C-7 accuracy, critical, priority, final-damage, and healing modifiers**.
 
 Exit: formula families have table tests, exact rounding, compiler/validation coverage, and all
 affected moves receive conformance cases.
@@ -3015,9 +3045,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5, 15D-1, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15C-6.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6, 15D-1, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15C-7.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
+   **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
 7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked

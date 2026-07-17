@@ -111,6 +111,60 @@ resolution records the resolved threshold before its ordinary RNG draw; speed or
 damage inputs/final damage, and AI preview use the same service. Query evaluation itself draws no RNG
 and emits no battle event.
 
+### Damage identity, stat, and effectiveness query registry (Phase 15C-6)
+
+Every ordinary, fixed, level-based, one-hit-KO, and target-HP-formula damage path uses one immutable
+`BattleDamageQueryResult`. The result records authored and effective move type/class, natural and
+effective environment, offensive and defensive owner/stat selectors, exact STAB, exact queried
+effectiveness, and whether the action's snapshotted live target count makes it spread. Resolver and
+Smart AI call the same pure query service; neither reads the event log or reconstructs field state.
+
+Move identity resolves in this order: immutable authored move values; the source creature's existing
+15F-1 move-type/class overlays for that move slot; then one eligible weather/terrain move-type hook.
+The condition hook wins over an overlay because it is the later query stage. Class selection then
+applies `damageClassQuery { mode: "physical"|"special"|"higherOffense" }`. Fixed modes replace the
+effective overlay class. `higherOffense` compares the source's effective overlay Attack and Special
+Attack after its current stat stages; Special wins a tie. It is incompatible with explicit offensive
+or defensive selectors. Status is never a damage-class result.
+
+`damageStatOverride` retains its existing optional `offensiveStat` and `defensiveStat` fields and
+adds optional `offensiveOwner` and `defensiveOwner`, each exactly `user|target`. An owner requires
+its matching stat and defaults to user for offense and target for defense. Offensive selectors admit
+Atk, Def, SpA, or SpD; defensive selectors admit Def or SpD. Missing selectors derive from the
+effective class. Wonder-room-style field selection swaps Def/SpD after authored selection. The
+selected owner's effective overlay stat, that owner's stage, critical stage-ignore rule, and ordered
+stat hooks feed the existing `OffensiveStat` or `DefensiveStat` numeric query.
+
+`effectivenessQuery` is chance-free and accepts at least one of: `mode:"inverse"`,
+`additionalType:"type:slug"`, `defendingType:"type:slug"` with positive `num` and `den`, or
+`stabSource:"user"|"target"|"none"`. One row per move is allowed. The primary contribution uses
+the effective move type against every effective defender type. `additionalType` multiplies a second
+complete attacking-type contribution. A `defendingType` row replaces the primary contribution for
+that exact defender type before chart profile conversion, including an ordinary immunity. Inverse
+mode maps zero and resistance to 2, weakness to 1/2, and neutral to 1 per defender-type contribution.
+The exact product then enters `BattleQuery.Effectiveness`; condition/ability/item modifiers and the
+registry clamp apply afterward. Standard dual-type results remain `0, 1/4, 1/2, 1, 2, 4`.
+
+STAB is an exact `3/2` or `1` multiplier and compares the effective move type with effective user
+types by default. `target` compares effective target types and `none` always returns one. An
+additional effectiveness type never grants a second STAB. Immunity is decided only after the final
+effectiveness query: zero skips critical and damage-roll RNG; a move-level override may remove an
+ordinary chart immunity, while a later zero query modifier restores immunity. Spread is true only
+when more than one live target was snapshotted for that action, preserving the existing `3/4`
+modifier and never changing target selection.
+
+All identity/effectiveness inputs and results are traced per action and target. These queries draw no
+RNG and emit no presentation event; `DamageDealt` continues to expose the final effectiveness.
+Unknown/mistyped params, non-type IDs, incomplete override triples, nonpositive fractions, duplicate
+query rows, status-class output, incompatible higher-offense/stat-selector combinations, and
+undefined enums are rejected during compilation.
+
+Acceptance vectors: `damage-query-compile-validation`, `damage-query-overlay-identity`,
+`damage-query-environment-input`, `damage-query-stat-owner-class`, `damage-query-single-dual-type`,
+`damage-query-immunity-override`, `damage-query-inverse-additional`, `damage-query-stab-source`,
+`damage-query-spread-snapshot`, `damage-query-ai-resolver-parity`, `damage-query-no-rng`, and
+`damage-query-golden`.
+
 ## Effect-op numeric formulas (Battle v5, Phase 14)
 
 The closed op palette lives on `Move.Effects` (`{ op, chance?, params }`). Ops split into pure numeric

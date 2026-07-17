@@ -311,6 +311,16 @@ enumeration; zero RNG; Smart-AI snapshot visibility without speculative scoring;
 and the checked-in `condition-mutation.golden`. The existing open effect payload adds only closed op
 params, so no schema migration vector changes.
 
+The 15C-6 exit covers strict compilation for extended `damageStatOverride`, `damageClassQuery`, and
+`effectivenessQuery` rows plus every missing, duplicate, mistyped, unknown, non-type, nonpositive,
+and incompatible sibling; standard single/dual tables; immunity and override precedence; inverse and
+additional attacking types; all STAB sources; fixed and higher-offense class selection; alternate
+stat owners; effective move/type/class/stat/type overlays; Wonder Room; absent/present natural and
+effective environment; one/two-target spread snapshots; ordinary and formula-bypassing damage;
+skipped RNG on final immunity; exact identity/effectiveness traces; structurally identical Smart-AI
+and resolver query results; replay identity; and the checked-in `damage-query.golden`. The existing
+open effect payload adds only closed params, so no schema migration vector changes.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

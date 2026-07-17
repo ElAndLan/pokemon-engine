@@ -1,0 +1,7 @@
+identity:type:flare->type:tide:Physical->Special:Cave->GrassyTerrain
+stats:User/Spa:Target/Spd
+multipliers:stab=1:effectiveness=1:spread=False
+effectiveness:MoveIdentity::1->1
+effectiveness:AuthoredBase::1->1
+effectiveness:FinalClamp::1->1
+damage:Enemy/0:49:1:False

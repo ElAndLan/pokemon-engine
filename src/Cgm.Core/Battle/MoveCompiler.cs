@@ -538,11 +538,67 @@ public static class MoveCompiler
                 case "damageStatOverride": // damage stat query override
                     if (chance != 100)
                         throw new ArgumentException("damageStatOverride does not support chance.");
-                    CheckAllowedParams(e, "offensiveStat", "defensiveStat");
+                    CheckAllowedParams(e, "offensiveStat", "defensiveStat", "offensiveOwner", "defensiveOwner");
+                    if (effects.OfType<DamageStatQueryEffect>().Any())
+                        throw new ArgumentException("A move can declare only one damageStatOverride effect.");
                     offensiveStatOverride = OptionalStat(e, "offensiveStat", StatKind.Atk, StatKind.Def, StatKind.Spa, StatKind.Spd);
                     defensiveStatOverride = OptionalStat(e, "defensiveStat", StatKind.Def, StatKind.Spd);
                     if (offensiveStatOverride is null && defensiveStatOverride is null)
                         throw new ArgumentException("damageStatOverride requires offensiveStat or defensiveStat.");
+                    if (e.Params?.ContainsKey("offensiveOwner") == true && offensiveStatOverride is null
+                        || e.Params?.ContainsKey("defensiveOwner") == true && defensiveStatOverride is null)
+                        throw new ArgumentException("A damage-stat owner requires its matching stat selector.");
+                    effects.Add(new DamageStatQueryEffect(
+                        offensiveStatOverride is { } offensive
+                            ? new DamageStatSelector(ParseDamageOwner(e, "offensiveOwner", DamageQueryOwner.User), offensive)
+                            : null,
+                        defensiveStatOverride is { } defensive
+                            ? new DamageStatSelector(ParseDamageOwner(e, "defensiveOwner", DamageQueryOwner.Target), defensive)
+                            : null));
+                    break;
+
+                case "damageClassQuery":
+                    if (chance != 100)
+                        throw new ArgumentException("damageClassQuery does not support chance.");
+                    CheckAllowedParams(e, "mode");
+                    if (effects.OfType<DamageClassQueryEffect>().Any())
+                        throw new ArgumentException("A move can declare only one damageClassQuery effect.");
+                    effects.Add(new DamageClassQueryEffect(
+                        ParseNamed<DamageClassQueryMode>(Str(e, "mode"), "damage-class query mode")));
+                    break;
+
+                case "effectivenessQuery":
+                    if (chance != 100)
+                        throw new ArgumentException("effectivenessQuery does not support chance.");
+                    CheckAllowedParams(e, "mode", "additionalType", "defendingType", "num", "den", "stabSource");
+                    if (effects.OfType<EffectivenessQueryEffect>().Any())
+                        throw new ArgumentException("A move can declare only one effectivenessQuery effect.");
+                    bool hasDefendingType = e.Params?.ContainsKey("defendingType") == true;
+                    bool hasNum = e.Params?.ContainsKey("num") == true;
+                    bool hasDen = e.Params?.ContainsKey("den") == true;
+                    if (hasDefendingType != hasNum || hasDefendingType != hasDen)
+                        throw new ArgumentException("Effectiveness defending-type overrides require defendingType, num, and den.");
+                    int multiplierNum = hasDefendingType ? Int(e, "num") : 1;
+                    int multiplierDen = hasDefendingType ? Int(e, "den") : 1;
+                    if (multiplierNum <= 0 || multiplierDen <= 0)
+                        throw new ArgumentException("Effectiveness override fractions must be positive.");
+                    BattleQueryValue? defendingMultiplier = hasDefendingType
+                        ? new BattleQueryValue(multiplierNum, multiplierDen) : null;
+                    EffectivenessQueryMode mode = e.Params?.ContainsKey("mode") == true
+                        ? ParseNamed<EffectivenessQueryMode>(Str(e, "mode"), "effectiveness query mode")
+                        : EffectivenessQueryMode.Standard;
+                    EntityId? additionalType = e.Params?.ContainsKey("additionalType") == true
+                        ? ParseTypeEntityId(Str(e, "additionalType"), "additionalType") : null;
+                    EntityId? defendingType = hasDefendingType
+                        ? ParseTypeEntityId(Str(e, "defendingType"), "defendingType") : null;
+                    StabQuerySource stabSource = e.Params?.ContainsKey("stabSource") == true
+                        ? ParseNamed<StabQuerySource>(Str(e, "stabSource"), "STAB source")
+                        : StabQuerySource.User;
+                    if (mode == EffectivenessQueryMode.Standard && additionalType is null
+                        && defendingType is null && stabSource == StabQuerySource.User)
+                        throw new ArgumentException("effectivenessQuery requires a nondefault query rule.");
+                    effects.Add(new EffectivenessQueryEffect(mode, additionalType, defendingType,
+                        defendingMultiplier, stabSource));
                     break;
 
                 case "targetHpThresholdPower": // base-power query modifier
@@ -887,6 +943,13 @@ public static class MoveCompiler
             throw new ArgumentException("A move can declare at most one terrainGate and one removeTerrain op.");
         if (effects.OfType<WeatherMoveEffect>().Any() && effects.OfType<TerrainMoveEffect>().Any())
             throw new ArgumentException("A move cannot combine weatherMove and terrainMove query rows.");
+        if (effects.OfType<DamageClassQueryEffect>().Any() && move.DamageClass == DamageClass.Status)
+            throw new ArgumentException("damageClassQuery requires a damaging authored class.");
+        if (effects.OfType<DamageClassQueryEffect>().Any(effect => effect.Mode == DamageClassQueryMode.HigherOffense)
+            && effects.OfType<DamageStatQueryEffect>().Any())
+            throw new ArgumentException("higherOffense class selection cannot combine with explicit damage-stat selectors.");
+        if (effects.OfType<EffectivenessQueryEffect>().Any() && move.DamageClass == DamageClass.Status)
+            throw new ArgumentException("effectivenessQuery requires a damaging authored class.");
         if (!chargeTurn && effects.OfType<WeatherMoveEffect>().Any(effect => effect.SkipChargeWeather.Count > 0))
             throw new ArgumentException("weatherMove skipCharge requires chargeTurn.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
@@ -1237,6 +1300,19 @@ public static class MoveCompiler
         return allowed.Contains(stat)
             ? stat
             : throw new ArgumentException($"damageStatOverride {key} cannot be {stat}.");
+    }
+
+    private static DamageQueryOwner ParseDamageOwner(Effect effect, string key, DamageQueryOwner fallback) =>
+        effect.Params?.ContainsKey(key) == true
+            ? ParseNamed<DamageQueryOwner>(Str(effect, key), key)
+            : fallback;
+
+    private static EntityId ParseTypeEntityId(string value, string label)
+    {
+        EntityId id = value.Contains(':', StringComparison.Ordinal)
+            ? EntityId.Parse(value) : ParseTypeId(value, label);
+        return id.Category == EntityCategory.Type ? id
+            : throw new ArgumentException($"{label} must identify a type entity.");
     }
 
     private static StatKind ParseStat(string value) => value.ToLowerInvariant() switch

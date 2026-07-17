@@ -15,25 +15,32 @@ public sealed class TypeChart
 
     /// <summary>Multiplier of <paramref name="moveType"/> attacking one defender type.</summary>
     public double Single(EntityId moveType, EntityId defenderType)
+        => ToDouble(SingleValue(moveType, defenderType));
+
+    public BattleQueryValue SingleValue(EntityId moveType, EntityId defenderType)
     {
         if (!_types.TryGetValue(moveType, out TypeDef? t))
-            return 1.0;
-        if (t.NoDamageTo.Contains(defenderType)) return 0.0;
-        if (t.DoubleDamageTo.Contains(defenderType)) return 2.0;
-        if (t.HalfDamageTo.Contains(defenderType)) return 0.5;
-        return 1.0;
+            return new BattleQueryValue(1);
+        if (t.NoDamageTo.Contains(defenderType)) return new BattleQueryValue(0);
+        if (t.DoubleDamageTo.Contains(defenderType)) return new BattleQueryValue(2);
+        if (t.HalfDamageTo.Contains(defenderType)) return new BattleQueryValue(1, 2);
+        return new BattleQueryValue(1);
     }
 
     /// <summary>Combined effectiveness against a defender's 1–2 types (their product).</summary>
     public double Effectiveness(EntityId moveType, IReadOnlyList<EntityId> defenderTypes)
-    {
-        double m = 1.0;
-        foreach (EntityId d in defenderTypes)
-            m *= Single(moveType, d);
-        return m;
-    }
+        => ToDouble(EffectivenessValue(moveType, defenderTypes));
+
+    public BattleQueryValue EffectivenessValue(EntityId moveType, IReadOnlyList<EntityId> defenderTypes) =>
+        defenderTypes.Aggregate(new BattleQueryValue(1),
+            (value, type) => Multiply(value, SingleValue(moveType, type)));
 
     /// <summary>Same-Type Attack Bonus: ×1.5 when the move's type matches an attacker type.</summary>
     public static double Stab(EntityId moveType, IReadOnlyList<EntityId> attackerTypes) =>
         attackerTypes.Contains(moveType) ? 1.5 : 1.0;
+
+    internal static BattleQueryValue Multiply(BattleQueryValue left, BattleQueryValue right) =>
+        new(checked(left.Numerator * right.Numerator), checked(left.Denominator * right.Denominator));
+
+    internal static double ToDouble(BattleQueryValue value) => value.Numerator / (double)value.Denominator;
 }

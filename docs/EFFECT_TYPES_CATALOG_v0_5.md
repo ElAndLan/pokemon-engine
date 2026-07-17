@@ -396,6 +396,15 @@ action-scoped weighted selection, RNG/trace order, Smart-AI preview, validation,
 exclusions are locked in `BATTLE_SYSTEM_SPEC.md` under “Party, resource, stage, item, and
 random-table formulas.” No op owns a second damage resolver or mutates party, PP, stages, or items.
 
+Phase 15C-6 adds the immutable `BattleDamageQueryResult` consumed identically by the resolver and
+Smart AI. It combines effective move type/class overlays, environment state and move-type hooks,
+typed offensive/defensive owner+stat selectors, effective creature types/stats, exact STAB,
+single/dual/special-chart effectiveness, and the snapshotted spread flag. The existing
+`damageStatOverride` gains owner selectors; `damageClassQuery` selects physical, special, or the
+source's higher staged offense; `effectivenessQuery` owns inverse/additional-type/per-defender-type
+override/STAB-source data. Numeric effectiveness still passes through `BattleQuery.Effectiveness`;
+these typed identity selectors do not create a parallel damage resolver.
+
 ### 4.6 Accuracy, Damage, And HP Helpers
 
 | Helper | Purpose |

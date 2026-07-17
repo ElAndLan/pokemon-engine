@@ -19,7 +19,7 @@ Starting baseline:
 - Phase 15A manifest: 937/937 inventory-only, corpus digest
   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
 - Strict end-to-end conformance certification: 84/937. Phase 15A, the complete 15B target/topology
-  workstream, and 15C-2/3/4/5 HP/status/speed/action-history/party-resource formulas are complete. Their generated normalized
+  workstream, and 15C-2/3/4/5/6 HP/status/speed/action-history/party-resource/damage-query formulas are complete. Their generated normalized
   definitions and
   per-reference formula/doubles vectors are green; the 15B cumulative golden and focused exit review
   are also green. Remaining entries are owned by
@@ -35,8 +35,9 @@ Starting baseline:
   condition family are green, including screens, status/stage guards, side speed/order, critical
   guard, paired-action side effects, side-wide protection, and the complete 15E-5 generic entry-
   hazard family, 15E-6 protect/contact-block family, and 15E-7 generic condition
-  cleanup/transfer/swap family. The 15E workstream is complete; the next eligible work is 15C-6
-  field, type, class, stat, and effectiveness queries. Pair
+  cleanup/transfer/swap family. The 15E workstream and 15C-6 field/type/class/stat/effectiveness
+  query package are complete; the next eligible work is 15C-7 accuracy, critical, priority,
+  final-damage, and healing modifiers. Pair
   recognition/combined execution stays with 15D-7. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.

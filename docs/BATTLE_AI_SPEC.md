@@ -216,6 +216,11 @@ Capabilities beyond Beginner:
   is explicit visible field input and its effective value is derived from the immutable terrain
   condition snapshot; environment consumers may not infer state from presentation events or keep a
   parallel terrain flag. The input itself adds no score component or RNG.
+- Phase 15C-6 removes the remaining identity/stat/effectiveness preview duplication. Smart AI builds
+  the same immutable `BattleDamageQueryResult` as the resolver from effective overlays, condition
+  snapshot, environment, chart profile, selected stat owners, class rule, exact STAB/effectiveness,
+  and spread count. AI may consume that result but may not recompute type charts, class choice, STAB,
+  or stat ownership. Query construction is snapshot-pure and consumes no RNG.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

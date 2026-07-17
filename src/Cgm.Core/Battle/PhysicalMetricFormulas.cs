@@ -106,7 +106,9 @@ public static class PhysicalMetricFormulas
     };
 
     public static BattleEffectiveValues EffectiveValues(BattleCreature creature, BattleOverlayStore overlays,
-        BattleOverlayOwner owner) => overlays.Resolve(owner, new BattleEffectiveValues(
+        BattleOverlayOwner owner) => overlays.Resolve(owner, BaseEffectiveValues(creature)).Values;
+
+    public static BattleEffectiveValues BaseEffectiveValues(BattleCreature creature) => new(
             creature.HeldItem,
             null,
             creature.Types,
@@ -116,7 +118,7 @@ public static class PhysicalMetricFormulas
             {
                 [BattleMetric.Weight] = creature.WeightHectograms,
                 [BattleMetric.Height] = creature.HeightDecimeters,
-            })).Values;
+            });
 
     private static BattleQueryResult SpeedQuery(BattleCreature creature, int authoredSpeed) =>
         SpeedQuery(creature, authoredSpeed, null, null);

@@ -15,6 +15,24 @@ public abstract record MoveEffect
     public StatusChanceFormula? ChanceFormula { get; init; }
 }
 
+public enum DamageQueryOwner { User, Target }
+public sealed record DamageStatSelector(DamageQueryOwner Owner, StatKind Stat);
+public sealed record DamageStatQueryEffect(
+    DamageStatSelector? Offensive,
+    DamageStatSelector? Defensive) : MoveEffect;
+
+public enum DamageClassQueryMode { Physical, Special, HigherOffense }
+public sealed record DamageClassQueryEffect(DamageClassQueryMode Mode) : MoveEffect;
+
+public enum EffectivenessQueryMode { Standard, Inverse }
+public enum StabQuerySource { User, Target, None }
+public sealed record EffectivenessQueryEffect(
+    EffectivenessQueryMode Mode,
+    EntityId? AdditionalType,
+    EntityId? DefendingType,
+    BattleQueryValue? DefendingTypeMultiplier,
+    StabQuerySource StabSource = StabQuerySource.User) : MoveEffect;
+
 public enum StageEffectScope { Self, Target, Both }
 public enum StageSwapGroup { All, Offense, Defense }
 public enum MoveGateKind { FirstAction, NotPreviousMove }
