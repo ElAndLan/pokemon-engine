@@ -158,9 +158,8 @@ public sealed record CritBoostEffect(int Stages) : MoveEffect;
 /// <summary>pay_cost(faint_self) — the user faints after connecting (Explosion).</summary>
 public sealed record SelfDestructEffect : MoveEffect;
 
-/// <summary>apply_condition(side:entry_hazard_damage) — adds a Spikes layer to the target's side,
-/// damaging creatures that later switch in (catalog §7.3).</summary>
-public sealed record EntryHazardEffect : MoveEffect;
+/// <summary>Applies a generic, typed entry-hazard side condition.</summary>
+public sealed record SetEntryHazardEffect(EntryHazardProfile Hazard) : MoveEffect;
 
 /// <summary>apply_condition(field:weather) — sets battlefield weather (catalog §7.6).</summary>
 public sealed record SetWeatherEffect(Weather Weather) : MoveEffect;
@@ -199,10 +198,6 @@ public sealed record WeatherMoveEffect(
     IReadOnlyDictionary<Weather, EntityId> TypeOverrides,
     IReadOnlyDictionary<Weather, Fraction> PowerMultipliers,
     IReadOnlySet<Weather> SkipChargeWeather) : MoveEffect;
-
-/// <summary>apply_condition(side:entry_hazard_damage, type_scaled) — Stealth-Rock-style hazard on the
-/// target's side, dealing type-scaled damage on switch-in (catalog §7.3).</summary>
-public sealed record StealthRockEffect : MoveEffect;
 
 /// <summary>Pre-move legality gate evaluated before PP, RNG, damage, and later effects.</summary>
 public sealed record MoveGateEffect(MoveGateKind Kind) : MoveEffect;

@@ -37,10 +37,14 @@ public sealed class AiDifficultyTests
     private static BattleMove Recover() =>
         new(EntityId.Parse("move:recover"), Normal, DamageClass.Status, null, null, 10, 0, 0,
             heal: new Fraction(1, 2));
-    private static BattleMove Spikes() =>
-        new(EntityId.Parse("move:spikes"), Normal, DamageClass.Status, null, null, 20, 0, 0, setsSpikes: true);
-    private static BattleMove StealthRock() =>
-        new(EntityId.Parse("move:sr"), Normal, DamageClass.Status, null, null, 20, 0, 0, setsStealthRock: true);
+    private static BattleMove LayeredHazard() =>
+        new(EntityId.Parse("move:layered_hazard"), Normal, DamageClass.Status, null, null, 20, 0, 0,
+            target: MoveTarget.OpponentsField,
+            secondaryEffects: [new SetEntryHazardEffect(EntryHazardConditions.LegacyLayeredDamage)]);
+    private static BattleMove TypedHazard() =>
+        new(EntityId.Parse("move:typed_hazard"), Normal, DamageClass.Status, null, null, 20, 0, 0,
+            target: MoveTarget.OpponentsField,
+            secondaryEffects: [new SetEntryHazardEffect(EntryHazardConditions.LegacyTypeScaledDamage)]);
     private static BattleMove Protect() =>
         new(EntityId.Parse("move:protect"), Normal, DamageClass.Status, null, null, 20, 0, 0, isProtect: true);
     private static BattleMove Roar() =>
@@ -54,10 +58,10 @@ public sealed class AiDifficultyTests
     // hazards, priority, protect, force-switch, setup, status and recovery so the AI's full toolkit engages.
     private static BattleCreature[] Team() =>
     [
-        Mon("f", Fire,   Atk(Fire, 80),   Atk(Normal, 55), Spikes(),      Atk(Normal, 40, priority: 1)),
+        Mon("f", Fire,   Atk(Fire, 80),   Atk(Normal, 55), LayeredHazard(), Atk(Normal, 40, priority: 1)),
         Mon("w", Water,  Atk(Water, 80),  Atk(Normal, 55), SwordsDance(), Protect()),
         Mon("g", Grass,  Atk(Grass, 80),  Atk(Normal, 55), Para(),        Recover()),
-        Mon("n", Normal, Atk(Normal, 80), Atk(Fire, 60),   Roar(),        StealthRock()),
+        Mon("n", Normal, Atk(Normal, 80), Atk(Fire, 60),   Roar(),        TypedHazard()),
     ];
 
     private const int TurnCap = 3000;
@@ -79,10 +83,10 @@ public sealed class AiDifficultyTests
             int ea = Array.FindIndex(enemy, c => ReferenceEquals(c, battle.Active(BattleSide.Enemy)));
             BattleAction p = TrainerAi.ChooseAction(playerAi, new SmartAiContext(player, pa, enemy, ea, chart, rngP,
                 Turn: turns, Weights: playerAi == AiProfile.Smart ? playerW : null,
-                OwnSpikeLayers: battle.SpikeLayers(BattleSide.Player), OwnStealthRock: battle.HasStealthRock(BattleSide.Player)));
+                Conditions: battle.ConditionSnapshot));
             BattleAction e = TrainerAi.ChooseAction(enemyAi, new SmartAiContext(enemy, ea, player, pa, chart, rngE,
                 Turn: turns, Weights: enemyAi == AiProfile.Smart ? enemyW : null,
-                OwnSpikeLayers: battle.SpikeLayers(BattleSide.Enemy), OwnStealthRock: battle.HasStealthRock(BattleSide.Enemy)));
+                Conditions: battle.ConditionSnapshot));
             battle.ResolveTurn(p, e);
             if (battle.PendingReplacementSlots.Count > 0)
                 battle.ResolveReplacements(battle.PendingReplacementSlots.Select(slot => new BattleReplacementSelection(

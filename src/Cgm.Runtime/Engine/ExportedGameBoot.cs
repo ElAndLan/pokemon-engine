@@ -78,8 +78,6 @@ public static class ExportedGameBoot
                 aiRng,
                 Turn: b.Turn,
                 Memory: memory,
-                OwnSpikeLayers: b.SpikeLayers(BattleSide.Enemy),
-                OwnStealthRock: b.HasStealthRock(BattleSide.Enemy),
                 ItemData: itemData,
                 Conditions: b.ConditionSnapshot,
                 Ruleset: b.Ruleset));

@@ -124,7 +124,8 @@ public sealed class BattleReplacementTests
     public void EntryHazardFaintRequestsTheSameSlotAgainAfterTheHookBatch()
     {
         BattleMove spikes = new(EntityId.Parse("move:hazard"), Normal, DamageClass.Status,
-            null, null, 10, 0, 0, setsSpikes: true);
+            null, null, 10, 0, 0, target: MoveTarget.OpponentsField,
+            secondaryEffects: [new SetEntryHazardEffect(EntryHazardConditions.LegacyLayeredDamage)]);
         BattleMove hit = new(EntityId.Parse("move:hit"), Normal, DamageClass.Special,
             300, null, 10, 0, 0);
         BattleCreature player = Creature("player", 400, 200, spikes, hit);
@@ -143,7 +144,7 @@ public sealed class BattleReplacementTests
         Assert.Equal(
         [
             typeof(SwitchedIn),
-            typeof(HurtByHazard),
+            typeof(EntryHazardTriggered),
             typeof(Fainted),
             typeof(ReplacementRequested),
         ], firstEntry.Select(item => item.GetType()));
@@ -153,7 +154,7 @@ public sealed class BattleReplacementTests
         IReadOnlyList<BattleEvent> secondEntry = battle.ResolveReplacements([new(slot, 2)]);
 
         Assert.Single(secondEntry.OfType<SwitchedIn>());
-        Assert.Single(secondEntry.OfType<HurtByHazard>());
+        Assert.Single(secondEntry.OfType<EntryHazardTriggered>());
         Assert.Empty(secondEntry.OfType<ReplacementRequested>());
         Assert.Equal(350, healthyReserve.CurrentHp);
         Assert.Empty(battle.PendingReplacementSlots);

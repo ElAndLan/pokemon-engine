@@ -452,12 +452,13 @@ public sealed class BattleDoublesDamageTests
     public void StatusSideScope_ResolvesItsActionEffectOnceWithoutTargetAccuracy()
     {
         BattleMove spikes = new(EntityId.Parse("move:doubles_spikes_probe"), Normal, DamageClass.Status,
-            null, null, 10, 0, 0, setsSpikes: true, target: MoveTarget.OpponentsField);
+            null, null, 10, 0, 0, target: MoveTarget.OpponentsField,
+            secondaryEffects: [new SetEntryHazardEffect(EntryHazardConditions.LegacyLayeredDamage)]);
         BattleController battle = Battle(spikes, new FakeRng());
 
         IReadOnlyList<BattleEvent> events = battle.ResolveTurn(Actions(new UseMove(0)));
 
-        Assert.Contains(events, entry => entry is HazardSet { Side: BattleSide.Enemy, Layers: 1 });
+        Assert.Contains(events, entry => entry is EntryHazardSet { Side: BattleSide.Enemy, Layers: 1 });
         Assert.DoesNotContain(battle.Trace, entry => entry.Kind == EffectTraceKind.Accuracy);
     }
 
@@ -704,7 +705,8 @@ public sealed class BattleDoublesDamageTests
         Assert.DoesNotContain(spreadBattle.Log, entry => entry is TargetRedirected);
 
         BattleMove side = new(EntityId.Parse("move:redirect_side"), Normal, DamageClass.Status, null, null, 10, 0, 0,
-            target: MoveTarget.OpponentsField, secondaryEffects: [new EntryHazardEffect()]);
+            target: MoveTarget.OpponentsField,
+            secondaryEffects: [new SetEntryHazardEffect(EntryHazardConditions.LegacyLayeredDamage)]);
         BattleMove field = new(EntityId.Parse("move:redirect_field"), Normal, DamageClass.Status, null, null, 10, -1, 0,
             target: MoveTarget.EntireField, secondaryEffects: [new SetWeatherEffect(Weather.Rain)]);
         BattleController scopedBattle = new([Creature("p2", Normal, side), Creature("p3", Normal, field)],
@@ -718,7 +720,7 @@ public sealed class BattleDoublesDamageTests
             new BattleActionSubmission(new(BattleSide.Enemy, 1), new Pass()),
         ]));
 
-        Assert.Contains(scopedBattle.Log, entry => entry is HazardSet { Side: BattleSide.Enemy });
+        Assert.Contains(scopedBattle.Log, entry => entry is EntryHazardSet { Side: BattleSide.Enemy });
         Assert.Contains(scopedBattle.Log, entry => entry is WeatherChanged { Weather: Weather.Rain });
         Assert.DoesNotContain(scopedBattle.Log, entry => entry is TargetRedirected);
 

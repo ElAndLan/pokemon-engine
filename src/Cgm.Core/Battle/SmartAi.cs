@@ -52,8 +52,6 @@ public sealed record SmartAiContext(
     int Turn = 0,
     SmartAiMemory? Memory = null,
     SmartAiWeights? Weights = null,
-    int OwnSpikeLayers = 0,
-    bool OwnStealthRock = false,
     BattleOverlayStore? Overlays = null,
     BattleActionHistory? ActionHistory = null,
     IReadOnlyDictionary<EntityId, Item>? ItemData = null,
@@ -72,7 +70,6 @@ public sealed record SmartAiDecision(BattleAction Action, IReadOnlyList<AiCandid
 public static class SmartAi
 {
     private const int MidpointRoll = 92;
-    private static readonly EntityId RockType = EntityId.Parse("type:rock"); // mirrors BattleController stealth-rock scaling
 
     public static int ChooseMove(BattleCreature attacker, BattleCreature defender, TypeChart chart, IRng rng,
         SmartAiWeights? weights = null) =>
@@ -185,7 +182,9 @@ public static class SmartAi
             && !ThreatensKo(defender, attacker, context.Chart, context))
             c.Add(new("setup", weights.SetupValue * setup.Delta));
 
-        if ((move.SetsSpikes || move.SetsStealthRock) && context.PlayerParty.Count(p => !p.IsFainted) > 1)
+        if (move.SecondaryEffects.OfType<SetEntryHazardEffect>().Any(effect =>
+                CanAddHazard(context, BattleSide.Player, effect.Hazard))
+            && context.PlayerParty.Count(p => !p.IsFainted) > 1)
             c.Add(new("hazard", weights.HazardValue * (context.PlayerParty.Count(p => !p.IsFainted) - 1)));
 
         if (move.IsProtect && ThreatensKo(defender, attacker, context.Chart, context))
@@ -609,17 +608,42 @@ public static class SmartAi
         return true;
     }
 
-    /// <summary>Expected HP a reserve loses on switch-in to the AI's own side (stealth rock, type-scaled,
-    /// then spikes) — mirrors <see cref="BattleController.OnSwitchIn"/> so switch valuation stops walking
-    /// creatures into hazards.</summary>
+    /// <summary>Expected direct HP loss from visible damage hazards on the AI's own side.</summary>
     private static double SwitchInHazardDamage(BattleCreature incoming, SmartAiContext context)
     {
-        double dmg = 0;
-        if (context.OwnStealthRock)
-            dmg += EffectMath.TypeScaledHazardDamage(incoming.MaxHp, context.Chart.Effectiveness(RockType, incoming.Types));
-        if (context.OwnSpikeLayers > 0)
-            dmg += EffectMath.HazardDamage(incoming.MaxHp, context.OwnSpikeLayers);
-        return dmg;
+        if (context.Conditions is null)
+            return 0;
+        IReadOnlyList<EntityId> types = EffectiveTypes(incoming, context);
+        bool grounded = IsGrounded(incoming, context);
+        return EntryHazardConditions.Active(context.Conditions, BattleSide.Enemy)
+            .Where(instance => instance.Definition.EntryHazard is { Kind: EntryHazardKind.Damage })
+            .Sum(instance =>
+            {
+                EntryHazardProfile profile = instance.Definition.EntryHazard!;
+                if (profile.GroundedOnly && !grounded)
+                    return 0;
+                double effectiveness = profile.DamageType is { } type
+                    ? context.Chart.Effectiveness(type, types) : 1;
+                return EntryHazardConditions.Damage(profile, instance.StackCount, incoming.MaxHp, effectiveness);
+            });
+    }
+
+    private static bool CanAddHazard(SmartAiContext context, BattleSide side, EntryHazardProfile profile)
+    {
+        BattleConditionInstance? active = context.Conditions?
+            .SingleOrDefault(instance => instance.Owner == SideConditions.Owner(side)
+                && instance.Definition.Id == profile.Id);
+        return active is null || active.StackCount < profile.MaximumLayers;
+    }
+
+    private static IReadOnlyList<EntityId> EffectiveTypes(BattleCreature creature, SmartAiContext context)
+    {
+        if (!TryOwner(creature, context, out BattleSide side, out int partyIndex) || context.Overlays is null)
+            return creature.Types;
+        BattleSlot? slot = partyIndex == (side == BattleSide.Enemy ? context.EnemyActive : context.PlayerActive)
+            ? new BattleSlot(side, 0) : null;
+        return PhysicalMetricFormulas.EffectiveValues(creature, context.Overlays,
+            new BattleOverlayOwner(side, partyIndex, slot)).CreatureTypes;
     }
 
     private static bool HasDangerousBoost(BattleCreature c) =>

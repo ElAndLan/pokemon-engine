@@ -281,6 +281,16 @@ condition hook and effect traces, Smart-AI damage/status parity, and determinist
 guard success-chain sharing and personal/contact variants remain 15E-6. The open effect payload and
 existing tag selectors require no schema or migration vector.
 
+The 15E-5 entry-hazard exit covers strict generic damage/status/stage compilation and malformed
+siblings; immutable permanent side conditions; zero/cap and duplicate layers; source credit;
+grounded/airborne and effective-type immunity; layered and typed fraction math; status progression,
+ordinary status immunity, type absorption, and status/stage side guards; tagged removal; stable
+condition sequence within topology-ordered two-slot entry; hazard faint followed by repeated
+replacement; lifecycle/event/effect/query/hook traces; AI layer-cap and switch-cost parity; zero RNG;
+and the checked-in `entry-hazard.golden`. Legacy op aliases compile to the same generic profile and
+no named controller state remains. General transfer and atomic side swap remain 15E-7. The existing
+open effect payload requires no schema or migration vector.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

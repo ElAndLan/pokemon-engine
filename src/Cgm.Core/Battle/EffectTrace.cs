@@ -29,6 +29,7 @@ public enum EffectTraceKind
     PositionSwap,
     Redirection,
     ConditionRemoval,
+    EntryHazard,
     IntentEnqueued,
     IntentConsumed,
     IntentDeferred,
@@ -55,4 +56,5 @@ public sealed record EffectTraceEntry(
     public BattleIntentCheckpoint? IntentCheckpoint { get; init; }
     public BattleIntentPayloadKind? IntentPayload { get; init; }
     public EntityId? IntentSourceMove { get; init; }
+    public BattleConditionId? Condition { get; init; }
 }

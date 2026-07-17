@@ -627,6 +627,15 @@ create a private timer or pending list.
 | `pledge_sea_of_fire` | side residual damage from pledge combo. |
 | `pledge_rainbow` | side secondary-effect chance modifier from pledge combo. |
 
+Phase 15E-5 uses one behavior profile for all three entry-hazard rows. `hazard:<key>` is permanent,
+side-owned, source-credited, switch-in hooked, tagged `entry_hazard`/`hazard`, and ordered by ordinary
+condition sequence. `entryHazardDamage` accepts either one fraction per `1..8` layers or one typed
+fraction with effectiveness; `entryHazardStatus` accepts one persistent status per layer plus
+optional effective-type absorption; and `entryHazardStage` accepts one non-HP stat delta. Grounded
+filters use the shared effective grounded query. Status/stage payloads reuse ordinary immunity and
+side-guard paths. `spikes`/`stealthRock` are legacy compiler aliases to generic profiles, not Core
+behavior types. Tagged removal is implemented here; general transfer/side swap remains 15E-7.
+
 ### 7.4 Slot Conditions
 
 | Condition | Representation |

@@ -265,6 +265,11 @@ Capabilities beyond Beginner:
   contributes no `status` component. Preview does not mutate or expire protection, value a
   speculative guard action, inspect a selected opposing action, or consume extra RNG.
 - Values hazards based on remaining opposing party and expected future switches.
+- Entry-hazard setup and switch-cost scoring consume only the immutable shared condition snapshot.
+  Setup receives no value when its exact generic profile is at the target-side layer cap. Switch
+  cost sums visible direct-damage profiles with the resolver's grounded/effective-type/fraction/
+  effectiveness rules; status and stage hazards are not speculatively priced. There are no parallel
+  named-hazard flags, selected-opponent-action reads, state mutation, or extra RNG draws.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:
   - paralysis against faster attackers;

@@ -29,8 +29,8 @@ public sealed class BattleMove
         Fraction? drain = null, Fraction? recoil = null, bool recoilOnMiss = false, Fraction? heal = null,
         int multiHitMin = 0, int multiHitMax = 0,
         int? fixedDamage = null, bool fixedDamageLevel = false, bool ohko = false,
-        int critBoost = 0, bool selfDestruct = false, bool leechSeed = false, bool setsSpikes = false,
-        Weather setsWeather = Weather.None, bool setsStealthRock = false, bool binds = false,
+        int critBoost = 0, bool selfDestruct = false, bool leechSeed = false,
+        Weather setsWeather = Weather.None, bool binds = false,
         bool isProtect = false, bool forcesSwitch = false,
         DamageClass? counterCategory = null, bool bypassAccuracy = false, bool chargeTurn = false,
         bool multiTurnLock = false, bool makesContact = false, IReadOnlyList<StageEffect>? stageEffects = null,
@@ -67,9 +67,7 @@ public sealed class BattleMove
         CritBoost = critBoost;
         SelfDestruct = selfDestruct;
         LeechSeed = leechSeed;
-        SetsSpikes = setsSpikes;
         SetsWeather = setsWeather;
-        SetsStealthRock = setsStealthRock;
         Binds = binds;
         IsProtect = isProtect;
         ForcesSwitch = forcesSwitch;
@@ -117,9 +115,7 @@ public sealed class BattleMove
         CritBoost = source.CritBoost;
         SelfDestruct = source.SelfDestruct;
         LeechSeed = source.LeechSeed;
-        SetsSpikes = source.SetsSpikes;
         SetsWeather = source.SetsWeather;
-        SetsStealthRock = source.SetsStealthRock;
         Binds = source.Binds;
         IsProtect = source.IsProtect;
         ForcesSwitch = source.ForcesSwitch;
@@ -162,12 +158,8 @@ public sealed class BattleMove
         if (ForcesSwitch)
             effects.Add(new ForceSwitchEffect());
 
-        // Post-damage, deterministic effects (historical order: hazard, leech, drain, heal, recoil, crit, faint).
+        // Post-damage, deterministic compatibility fields (leech, drain, heal, recoil, crit, faint).
         // On-miss crash recoil stays in the miss branch, not here.
-        if (SetsSpikes)
-            effects.Add(new EntryHazardEffect());
-        if (SetsStealthRock)
-            effects.Add(new StealthRockEffect());
         if (SetsWeather != Weather.None)
             effects.Add(new SetWeatherEffect(SetsWeather));
         if (LeechSeed)
@@ -230,14 +222,8 @@ public sealed class BattleMove
     public bool SelfDestruct { get; }
     public bool LeechSeed { get; }
 
-    /// <summary>Spikes-style entry hazard set on the target's side (catalog §7.3 side condition).</summary>
-    public bool SetsSpikes { get; }
-
     /// <summary>Battlefield weather this move sets (catalog §7.6 field condition); None = not a weather move.</summary>
     public Weather SetsWeather { get; }
-
-    /// <summary>Stealth-Rock-style type-scaled entry hazard set on the target's side (catalog §7.3).</summary>
-    public bool SetsStealthRock { get; }
 
     /// <summary>Partial-trap move (Bind/Wrap/Fire Spin) — traps the target with a residual (catalog §7.2).</summary>
     public bool Binds { get; }

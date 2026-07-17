@@ -23,8 +23,8 @@ public static class MoveCompiler
         bool recoilOnMiss = false;
         int multiHitMin = 0, multiHitMax = 0;
         int? fixedDamage = null;
-        bool fixedDamageLevel = false, ohko = false, selfDestruct = false, leechSeed = false, setsSpikes = false;
-        bool setsStealthRock = false, binds = false, isProtect = false, forcesSwitch = false, bypassAccuracy = false;
+        bool fixedDamageLevel = false, ohko = false, selfDestruct = false, leechSeed = false;
+        bool binds = false, isProtect = false, forcesSwitch = false, bypassAccuracy = false;
         bool chargeTurn = false, multiTurnLock = false;
         int critBoost = 0;
         Weather setsWeather = Weather.None;
@@ -120,8 +120,23 @@ public static class MoveCompiler
                     break;
 
                 case "spikes": // preset for apply_condition(side:entry_hazard_damage) (catalog §9.4)
-                    setsSpikes = true;
-                    effects.Add(new EntryHazardEffect());
+                    ValidateHazardOp(move, e);
+                    effects.Add(new SetEntryHazardEffect(EntryHazardConditions.LegacyLayeredDamage));
+                    break;
+
+                case "entryHazardDamage":
+                    ValidateHazardOp(move, e, "key", "maxLayers", "groundedOnly", "fractions", "type", "num", "den");
+                    effects.Add(new SetEntryHazardEffect(ParseDamageHazard(e)));
+                    break;
+
+                case "entryHazardStatus":
+                    ValidateHazardOp(move, e, "key", "maxLayers", "groundedOnly", "statuses", "absorbTypes");
+                    effects.Add(new SetEntryHazardEffect(ParseStatusHazard(e)));
+                    break;
+
+                case "entryHazardStage":
+                    ValidateHazardOp(move, e, "key", "groundedOnly", "stat", "delta");
+                    effects.Add(new SetEntryHazardEffect(ParseStageHazard(e)));
                     break;
 
                 case "weather": // apply_condition(field:weather) (catalog §7.6)
@@ -248,7 +263,8 @@ public static class MoveCompiler
                         throw new ArgumentException("removeSideCondition does not support chance.");
                     CheckAllowedParams(e, "tag", "side", "timing");
                     string removeTag = Str(e, "tag");
-                    if (removeTag is not ("screen" or "status_guard" or "stage_guard" or "barrier" or "side_protection"))
+                    if (removeTag is not ("screen" or "status_guard" or "stage_guard" or "barrier"
+                        or "side_protection" or "entry_hazard" or "hazard"))
                         throw new ArgumentException("removeSideCondition has an unknown side-condition tag.");
                     SideConditionTarget removeSide = ParseNamed<SideConditionTarget>(Str(e, "side"), "side condition target");
                     SideConditionTiming removeTiming = ParseNamed<SideConditionTiming>(Str(e, "timing"), "side condition timing");
@@ -314,8 +330,8 @@ public static class MoveCompiler
                     break;
 
                 case "stealthRock": // apply_condition(side:entry_hazard_damage, type_scaled) (catalog §9.4)
-                    setsStealthRock = true;
-                    effects.Add(new StealthRockEffect());
+                    ValidateHazardOp(move, e);
+                    effects.Add(new SetEntryHazardEffect(EntryHazardConditions.LegacyTypeScaledDamage));
                     break;
 
                 case "bind": // apply_condition(volatile:partial_trap) (catalog §7.2)
@@ -779,8 +795,8 @@ public static class MoveCompiler
         return new BattleMove(move.Id, move.Type, move.DamageClass, move.Power, move.Accuracy, move.Pp,
             move.Priority, move.CritStage, ailment, ailmentChance, stageEffects.FirstOrDefault(), confuseChance, flinchChance,
             drain, recoil, recoilOnMiss, heal, multiHitMin, multiHitMax,
-            fixedDamage, fixedDamageLevel, ohko, critBoost, selfDestruct, leechSeed, setsSpikes, setsWeather,
-            setsStealthRock, binds, isProtect, forcesSwitch, counterCategory, bypassAccuracy, chargeTurn,
+            fixedDamage, fixedDamageLevel, ohko, critBoost, selfDestruct, leechSeed, setsWeather,
+            binds, isProtect, forcesSwitch, counterCategory, bypassAccuracy, chargeTurn,
             multiTurnLock, move.MakesContact, stageEffects: stageEffects, target: move.Target,
             stageAllEffect: stageAllEffect, secondaryEffects: effects,
             offensiveStatOverride: offensiveStatOverride, defensiveStatOverride: defensiveStatOverride,
@@ -927,6 +943,91 @@ public static class MoveCompiler
             throw new ArgumentException($"Effect op '{effect.Op}' {key} must not contain duplicates.");
         return values;
     }
+
+    private static void ValidateHazardOp(Move move, Effect effect, params string[] parameters)
+    {
+        if ((effect.Chance ?? 100) != 100)
+            throw new ArgumentException($"{effect.Op} does not support chance.");
+        if (move.DamageClass != DamageClass.Status)
+            throw new ArgumentException($"{effect.Op} requires a status move.");
+        if (move.Target is not (MoveTarget.OpponentsField or MoveTarget.UsersField))
+            throw new ArgumentException($"{effect.Op} requires a side-field target.");
+        CheckAllowedParams(effect, parameters);
+    }
+
+    private static EntryHazardProfile ParseDamageHazard(Effect effect)
+    {
+        string key = Str(effect, "key");
+        int maximumLayers = Int(effect, "maxLayers");
+        bool hasFractions = effect.Params?.ContainsKey("fractions") == true;
+        bool hasType = effect.Params?.ContainsKey("type") == true;
+        if (hasFractions == hasType)
+            throw new ArgumentException("entryHazardDamage requires exactly one of fractions or type.");
+        if (hasFractions)
+        {
+            IReadOnlyList<Fraction> fractions = ParseFractions(Str(effect, "fractions"), "entryHazardDamage fractions");
+            if (fractions.Count != maximumLayers)
+                throw new ArgumentException("entryHazardDamage fractions must contain one row per layer.");
+            if (effect.Params!.ContainsKey("num") || effect.Params.ContainsKey("den"))
+                throw new ArgumentException("Layer-scaled entryHazardDamage does not accept num or den.");
+            return EntryHazardConditions.LayeredDamage(key, fractions, RequiredBool(effect, "groundedOnly"));
+        }
+
+        if (maximumLayers != 1)
+            throw new ArgumentException("Type-scaled entryHazardDamage supports exactly one layer.");
+        bool hasNum = effect.Params?.ContainsKey("num") == true;
+        bool hasDen = effect.Params?.ContainsKey("den") == true;
+        if (hasNum != hasDen)
+            throw new ArgumentException("Type-scaled entryHazardDamage requires both num and den when either is supplied.");
+        EntityId type = ParseTypeId(Str(effect, "type"), "entryHazardDamage type");
+        return EntryHazardConditions.TypeScaledDamage(key, type, ReadFraction(effect, 1, 8),
+            RequiredBool(effect, "groundedOnly"));
+    }
+
+    private static EntryHazardProfile ParseStatusHazard(Effect effect)
+    {
+        int maximumLayers = Int(effect, "maxLayers");
+        PersistentStatus[] statuses = Str(effect, "statuses")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => Parse<PersistentStatus>(value, "entry-hazard status"))
+            .ToArray();
+        if (statuses.Length != maximumLayers)
+            throw new ArgumentException("entryHazardStatus statuses must contain one row per layer.");
+        EntityId[] parsedAbsorbTypes = effect.Params?.ContainsKey("absorbTypes") == true
+            ? Str(effect, "absorbTypes").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(value => ParseTypeId(value, "entryHazardStatus absorbTypes")).ToArray()
+            : [];
+        if (parsedAbsorbTypes.Distinct().Count() != parsedAbsorbTypes.Length)
+            throw new ArgumentException("entryHazardStatus absorbTypes must not contain duplicates.");
+        HashSet<EntityId> absorbTypes = [.. parsedAbsorbTypes];
+        if (effect.Params?.ContainsKey("absorbTypes") == true && absorbTypes.Count == 0)
+            throw new ArgumentException("entryHazardStatus absorbTypes cannot be empty.");
+        return EntryHazardConditions.Status(Str(effect, "key"), statuses, absorbTypes,
+            RequiredBool(effect, "groundedOnly"));
+    }
+
+    private static EntryHazardProfile ParseStageHazard(Effect effect) => EntryHazardConditions.Stage(
+        Str(effect, "key"), ParseStat(Str(effect, "stat")), Int(effect, "delta"),
+        RequiredBool(effect, "groundedOnly"));
+
+    private static IReadOnlyList<Fraction> ParseFractions(string value, string label)
+    {
+        Fraction[] fractions = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(row => row.Split('/', StringSplitOptions.TrimEntries))
+            .Select(parts => parts.Length == 2
+                && int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int num)
+                && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int den)
+                ? new Fraction(num, den)
+                : throw new ArgumentException($"{label} must use comma-separated num/den rows."))
+            .ToArray();
+        return fractions.Length > 0 ? fractions : throw new ArgumentException($"{label} cannot be empty.");
+    }
+
+    private static EntityId ParseTypeId(string value, string label) => BattleConditionId.ValidToken(value)
+        ? EntityId.Parse($"type:{value}")
+        : throw new ArgumentException($"{label} must be a lowercase type slug.");
+
+    private static bool RequiredBool(Effect effect, string key) => Field(effect, key).GetBoolean();
 
     private static List<MoveEffect> BindStatusChance(List<MoveEffect> effects)
     {

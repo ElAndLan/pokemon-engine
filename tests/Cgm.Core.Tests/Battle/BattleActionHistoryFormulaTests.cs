@@ -360,8 +360,9 @@ public sealed class BattleActionHistoryFormulaTests
     [Fact]
     public void ReplacementEntryHazardFaint_PowersSurvivingAllyOnNextTurn()
     {
-        BattleMove spikes = new(EntityId.Parse("move:spikes"), Normal, DamageClass.Status,
-            null, null, 20, 0, 0, setsSpikes: true, target: MoveTarget.OpponentsField);
+        BattleMove spikes = new(EntityId.Parse("move:layered_hazard"), Normal, DamageClass.Status,
+            null, null, 20, 0, 0, target: MoveTarget.OpponentsField,
+            secondaryEffects: [new SetEntryHazardEffect(EntryHazardConditions.LegacyLayeredDamage)]);
         BattleMove ko = new(EntityId.Parse("move:ko"), Normal, DamageClass.Special,
             300, null, 20, 0, 0, target: MoveTarget.Selected);
         BattleMove retaliate = Compile(50,

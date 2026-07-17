@@ -1660,6 +1660,65 @@ Acceptance vectors: `side-protection-compile`, `side-protection-owner-coexist-du
 `side-protection-hook-event-trace`, `side-protection-ai-parity`,
 `side-protection-no-added-rng`, and `side-protection-replay`.
 
+### Generic entry hazards (Phase 15E-5)
+
+Entry hazards are permanent `side` conditions with `SwitchIn`, `stayScope`/`persist` cleanup, a
+stable `hazard:<key>` condition ID, a distinct stacking key, source slot plus party-index credit,
+and tags `entry_hazard`, `hazard`, and `hazard_damage|hazard_status|hazard_stage`. Keys are lowercase
+tokens. Maximum layers are `1..8`; a one-layer row rejects duplicates and a multilayer row stacks to
+its declared cap. Reapplication at the cap fails without changing the original source, condition
+sequence, or stack count. Profiles sharing a key must be mechanically identical. Profiles and their
+fraction/status/type collections are captured immutably when admitted to the condition store.
+
+The closed authoring ops are chance-free status moves targeting `users-field` or `opponents-field`:
+
+- `entryHazardDamage { key, maxLayers, groundedOnly, fractions }` supplies one positive `(0,1]`
+  `num/den` row per layer. Damage is `max(1, floor(maxHp * layerFraction))`.
+- `entryHazardDamage { key, maxLayers:1, groundedOnly, type, num?, den? }` supplies a type slug and
+  optional positive `(0,1]` base fraction (default `1/8`). Damage is
+  `max(1, floor(maxHp * fraction * typeEffectiveness))`; zero effectiveness deals zero.
+- `entryHazardStatus { key, maxLayers, groundedOnly, statuses, absorbTypes? }` supplies one defined
+  persistent status per layer. It uses ordinary existing-status, type-immunity, ability, weather,
+  terrain, and side status-guard checks. A matching effective absorb type removes the complete
+  hazard before applying status.
+- `entryHazardStage { key, groundedOnly, stat, delta }` is one layer, rejects HP/unknown stats and
+  zero or out-of-range deltas, and uses the ordinary side stage-drop guard before the shared clamped
+  stage mutation.
+
+The legacy `spikes` and `stealthRock` op names remain data aliases only: they compile respectively
+to generic grounded layer fractions `1/8,1/6,1/4` and a one-layer ungrounded Rock-type `1/8` profile.
+There are no preset-specific controller fields, effect records, events, or AI flags.
+
+Switch assignment emits `SwitchedIn`, then runs the established form/ability/item/field switch-in
+order and terrain seed, then captures the entering side's hazard conditions in ascending condition
+sequence. A `groundedOnly` row queries the shared effective grounded state; type and absorption rows
+read effective overlay types. Airborne rows do not trigger. An absorbing row emits
+`EntryHazardAbsorbed` and ordinary condition-removal evidence. Every grounded non-absorbed row emits
+`EntryHazardTriggered`; `Value` is actual HP loss, applied status enum value, actual stage delta, or
+zero when an immunity/guard/cap prevents mutation. Damage that faints uses the shared non-move HP
+loss and faint path; later hazards for that creature stop. Replacement and voluntary multi-slot
+switches still complete every selected slot in topology order before the replacement loop is
+recomputed, so one slot's hazard faint cannot interrupt another slot's entry batch.
+
+`EntryHazardSet` exposes side, condition ID, resulting layer count, and source. Condition lifecycle
+trace proves apply/stack/reject/remove; `EntryHazard` effect trace records source/target slots,
+condition ID, performed flag, and value in trigger order. Hazards draw no RNG. Existing
+`removeSideCondition` accepts `entry_hazard` and `hazard` tags for source/target removal at its
+authored timing. General condition selectors, transfer, and atomic side swap remain 15E-7.
+
+Smart AI receives no parallel hazard flags. Hazard setup scoring reads the candidate's typed profile
+and immutable target-side condition stacks, contributing no hazard value at cap. Voluntary switch
+cost sums only visible direct-damage profiles from the immutable own-side condition snapshot using
+the same effective types, grounded predicate, effectiveness, fractions, and layer counts as the
+resolver. Status/stage outcomes are not speculatively priced, no opponent action is inspected, and
+no extra RNG is consumed.
+
+Acceptance vectors: `entry-hazard-compile-validation`, `entry-hazard-zero-max-layer-source`,
+`entry-hazard-grounded-airborne-immunity`, `entry-hazard-status-absorption`,
+`entry-hazard-status-stage-guards`, `entry-hazard-tag-removal`, `entry-hazard-two-slot-order`,
+`entry-hazard-repeat-faint-replacement`, `entry-hazard-event-trace`, `entry-hazard-ai-parity`,
+`entry-hazard-no-rng`, and `entry-hazard-golden`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

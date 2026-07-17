@@ -26,8 +26,6 @@ public sealed class BattleController
     private readonly BattleActiveSlots _activeSlots;
     private readonly Dictionary<EntityId, int>[] _itemStock = [[], []];
     private readonly bool[] _temporaryFormUsed = [false, false];
-    private readonly int[] _spikeLayers = [0, 0];    // entry-hazard side condition (catalog §7.3), per side
-    private readonly bool[] _stealthRock = [false, false]; // type-scaled entry hazard, per side
     private readonly TypeChart _chart;
     private readonly IRng _rng;
     private readonly IReadOnlyDictionary<EntityId, Item> _itemData;
@@ -145,11 +143,6 @@ public sealed class BattleController
     }
     public int ActiveIndex(BattleSlot slot) => _activeSlots.PartyIndex(slot);
     public IReadOnlyList<BattleCreature> Party(BattleSide side) => _parties[(int)side];
-
-    /// <summary>Entry-hazard state on a side (for AI switch valuation / UI). A creature switching in here
-    /// takes stealth-rock then spikes damage — see <see cref="OnSwitchIn"/>.</summary>
-    public int SpikeLayers(BattleSide side) => _spikeLayers[(int)side];
-    public bool HasStealthRock(BattleSide side) => _stealthRock[(int)side];
 
     public bool IsGrounded(BattleSlot slot)
     {
@@ -1715,14 +1708,8 @@ public sealed class BattleController
                 ctx.Source.TakeDamage(ctx.Source.MaxHp);
                 RecordFaint(ctx.SourceSlot);
                 break;
-            case EntryHazardEffect:
-                int layers = _spikeLayers[(int)ctx.TargetSide] = Math.Min(3, _spikeLayers[(int)ctx.TargetSide] + 1);
-                _log.Add(new HazardSet(ctx.TargetSide, layers));
-                break;
-            case StealthRockEffect when !_stealthRock[(int)ctx.TargetSide]:
-                _stealthRock[(int)ctx.TargetSide] = true;
-                _log.Add(new StealthRockSet(ctx.TargetSide));
-                break;
+            case SetEntryHazardEffect hazard:
+                return ApplyEntryHazard(ctx, hazard.Hazard);
             case SetWeatherEffect w when w.Weather != CurrentWeather:
                 SetWeather(w.Weather, WeatherConditions.DefaultTurns, ctx.SourceSlot);
                 break;
@@ -2025,11 +2012,8 @@ public sealed class BattleController
         AddIntentTrace(intent, EffectTraceKind.IntentEnqueued, true, _log.Count, _log.Count);
     }
 
-    private static readonly EntityId RockType = EntityId.Parse("type:rock");
-
-    /// <summary>on_switch_in hook (catalog §7.3): a creature entering a side with entry hazards takes
-    /// damage — Stealth Rock (type-scaled) before Spikes (layer-scaled). Draws no RNG. Battle-start
-    /// actives never trigger it (no hazards yet).</summary>
+    /// <summary>Runs permanent side-owned entry hazards in condition sequence after ordinary switch-in hooks.
+    /// The batch draws no RNG; a faint stops later hazards for that creature but does not interrupt another slot.</summary>
     private void OnSwitchIn(BattleSide side) => OnSwitchIn(new BattleSlot(side, 0));
 
     private void OnSwitchIn(BattleSlot slot)
@@ -2045,14 +2029,148 @@ public sealed class BattleController
             : BattleHookDispatcher.SwitchIn(slot, HookSources()));
         TriggerTerrainSeed(slot);
 
-        if (_stealthRock[(int)side])
+        foreach (BattleConditionInstance condition in EntryHazardConditions.Active(ConditionSnapshot, side))
         {
-            double eff = _chart.Effectiveness(RockType, c.Types);
-            Sap(c, slot, EffectMath.TypeScaledHazardDamage(c.MaxHp, eff), amt => new HurtByHazard(slot, amt));
+            if (c.IsFainted)
+                break;
+            TriggerEntryHazard(slot, condition);
         }
-        if (!c.IsFainted && _spikeLayers[(int)side] > 0)
-            Sap(c, slot, EffectMath.HazardDamage(c.MaxHp, _spikeLayers[(int)side]), amt => new HurtByHazard(slot, amt));
     }
+
+    private bool ApplyEntryHazard(EffectContext context, EntryHazardProfile profile)
+    {
+        BattleConditionDefinition definition = EntryHazardConditions.Definition(profile);
+        BattleConditionChangeSet changes = _conditions.Apply(new BattleConditionApplication(
+            definition.Id, SideConditions.Owner(context.TargetSide),
+            new BattleConditionSource(context.SourceSlot, ActiveIndex(context.SourceSlot)),
+            Turn, context.TraceAction), definition);
+        RecordConditionChanges(changes);
+        if (changes.Events.OfType<ConditionApplicationRejected>().Any())
+        {
+            _log.Add(new MoveFailed(context.SourceSlot, context.Move.Move, MoveFailureReason.ConditionAlreadyActive));
+            context.Action.MarkFailed();
+            return false;
+        }
+
+        BattleConditionInstance instance = changes.Affected.Single();
+        _log.Add(new EntryHazardSet(context.TargetSide, definition.Id, instance.StackCount, instance.Source));
+        return true;
+    }
+
+    private void TriggerEntryHazard(BattleSlot slot, BattleConditionInstance condition)
+    {
+        EntryHazardProfile profile = condition.Definition.EntryHazard
+            ?? throw new InvalidOperationException("Entry-hazard hook requires an entry-hazard profile.");
+        BattleCreature creature = Active(slot);
+        int start = _log.Count;
+        BattleSlot sourceSlot = condition.Source.Slot ?? new BattleSlot(Opponent(slot.Side), 0);
+        bool grounded = !profile.GroundedOnly || IsGrounded(slot);
+        int value = 0;
+        bool performed = false;
+
+        if (grounded && profile.AbsorbTypes.Overlaps(EffectiveTypes(slot)))
+        {
+            RecordConditionChanges(_conditions.Remove(condition.Definition.Id, condition.Owner,
+                Turn, _traceActionSequence));
+            _log.Add(new EntryHazardAbsorbed(slot, condition.Definition.Id, condition.Source));
+            performed = true;
+        }
+        else if (grounded)
+        {
+            switch (profile.Kind)
+            {
+                case EntryHazardKind.Damage:
+                    double effectiveness = profile.DamageType is { } type
+                        ? _chart.Effectiveness(type, EffectiveTypes(slot)) : 1;
+                    value = EntryHazardConditions.Damage(profile, condition.StackCount, creature.MaxHp, effectiveness);
+                    if (value > 0)
+                    {
+                        Sap(creature, slot, value, amount => new EntryHazardTriggered(slot,
+                            condition.Definition.Id, condition.Source, profile.Kind, amount));
+                        performed = true;
+                    }
+                    else
+                    {
+                        _log.Add(new EntryHazardTriggered(slot, condition.Definition.Id,
+                            condition.Source, profile.Kind, 0));
+                    }
+                    break;
+                case EntryHazardKind.Status:
+                    PersistentStatus status = EntryHazardConditions.StatusFor(profile, condition.StackCount);
+                    if (CanApplyEntryHazardStatus(sourceSlot, slot, status))
+                    {
+                        creature.SetStatus(status);
+                        _log.Add(new StatusApplied(slot, status));
+                        value = (int)status;
+                        performed = true;
+                    }
+                    _log.Add(new EntryHazardTriggered(slot, condition.Definition.Id,
+                        condition.Source, profile.Kind, performed ? value : 0));
+                    break;
+                case EntryHazardKind.Stage:
+                    StatKind stat = profile.Stat!.Value;
+                    if (profile.StageDelta >= 0 || AllowsEntryHazardStageDrop(sourceSlot.Side, slot.Side))
+                    {
+                        int before = creature.Stage(stat);
+                        creature.ChangeStage(stat, profile.StageDelta);
+                        value = creature.Stage(stat) - before;
+                        if (value != 0)
+                            _log.Add(new StatStageChanged(slot, stat, value));
+                        performed = value != 0;
+                    }
+                    _log.Add(new EntryHazardTriggered(slot, condition.Definition.Id,
+                        condition.Source, profile.Kind, value));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(profile), profile.Kind, "Unknown entry-hazard kind.");
+            }
+        }
+
+        _trace.Add(new EffectTraceEntry(Turn, _traceActionSequence, sourceSlot, slot,
+            EffectTraceKind.EntryHazard, performed, null, value, start, _log.Count)
+        {
+            Condition = condition.Definition.Id,
+        });
+    }
+
+    private bool CanApplyEntryHazardStatus(BattleSlot sourceSlot, BattleSlot targetSlot, PersistentStatus status)
+    {
+        BattleCreature target = Active(targetSlot);
+        bool eligible = StatusEffects.CanApplyStatus(target.Status)
+            && !StatusEffects.TypeImmuneToStatus(status, EffectiveTypes(targetSlot))
+            && !BlocksStatus(targetSlot, status);
+        if (!eligible)
+            return false;
+        BattleHookDispatchSnapshot weather = WeatherConditions.CollectStatusHooks(
+            ConditionSnapshot, status, _traceActionSequence);
+        _hookTrace.AddRange(weather.Trace);
+        if (weather.Filters().Any(filter => filter is
+            { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny }))
+            return false;
+        BattleHookDispatchSnapshot terrain = TerrainConditions.CollectStatusHooks(
+            ConditionSnapshot, status, IsGrounded(targetSlot), _traceActionSequence);
+        _hookTrace.AddRange(terrain.Trace);
+        if (terrain.Filters().Any(filter => filter is
+            { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny }))
+            return false;
+        BattleHookDispatchSnapshot side = SideConditions.CollectStatusHooks(ConditionSnapshot,
+            sourceSlot.Side, targetSlot.Side, bypass: false, actionSequence: _traceActionSequence);
+        _hookTrace.AddRange(side.Trace);
+        return !side.Filters().Any(item => item is
+            { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
+    }
+
+    private bool AllowsEntryHazardStageDrop(BattleSide source, BattleSide target)
+    {
+        BattleHookDispatchSnapshot side = SideConditions.CollectStageDropHooks(ConditionSnapshot,
+            source, target, bypass: false, actionSequence: _traceActionSequence);
+        _hookTrace.AddRange(side.Trace);
+        return !side.Filters().Any(item => item is
+            { Filter.Value: "stage_drop_attempt", Decision: BattleHookFilterDecision.Deny });
+    }
+
+    private IReadOnlyList<EntityId> EffectiveTypes(BattleSlot slot) => PhysicalMetricFormulas.EffectiveValues(
+        Active(slot), _overlays, new BattleOverlayOwner(slot.Side, ActiveIndex(slot), slot)).CreatureTypes;
 
     /// <summary>Whether a move acts on the opposing creature (so Protect can block it). Damage or any
     /// target-directed secondary counts; self-buffs, heals, weather, and side hazards do not.</summary>

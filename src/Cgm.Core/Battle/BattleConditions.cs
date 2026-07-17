@@ -80,6 +80,7 @@ public sealed record BattleConditionDefinition
     public int MaximumStacks { get; init; } = 1;
     public required BattleConditionSwitchPolicy SwitchPolicy { get; init; }
     public required BattleConditionFaintPolicy FaintPolicy { get; init; }
+    public EntryHazardProfile? EntryHazard { get; init; }
 }
 
 public sealed record BattleConditionOwner(
@@ -153,12 +154,28 @@ public sealed class BattleConditionStores
     {
         ArgumentNullException.ThrowIfNull(application);
         BattleConditionDefinition definition = _registry.For(application.Condition);
+        return Apply(application, definition);
+    }
+
+    public BattleConditionChangeSet Apply(BattleConditionApplication application,
+        BattleConditionDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        definition = BattleConditionRegistry.Normalize(definition);
+        if (application.Condition != definition.Id)
+            throw new ArgumentException("Condition application and definition IDs must match.", nameof(definition));
         ValidateApplication(application, definition);
         int? duration = application.Duration ?? definition.DefaultDuration;
         List<BattleConditionInstance> store = _stores[definition.Scope];
         BattleConditionInstance? existing = store.SingleOrDefault(instance =>
             instance.Owner == application.Owner
             && string.Equals(instance.Definition.StackingKey, definition.StackingKey, StringComparison.Ordinal));
+        if (existing is not null
+            && (existing.Definition.EntryHazard is not null && definition.EntryHazard is null
+                || existing.Definition.EntryHazard is null && definition.EntryHazard is not null
+                || existing.Definition.EntryHazard is { } first && definition.EntryHazard is { } second
+                    && !EntryHazardConditions.Equivalent(first, second)))
+            throw new ArgumentException("Conditions sharing a stacking key must use the same entry-hazard profile.", nameof(definition));
 
         if (existing is not null)
         {
@@ -285,9 +302,8 @@ public sealed class BattleConditionStores
         int turn, int actionSequence)
     {
         ValidateTime(turn, actionSequence);
-        BattleConditionDefinition definition = _registry.For(condition);
         var changes = new ChangeBuilder();
-        BattleConditionInstance? instance = _stores[definition.Scope]
+        BattleConditionInstance? instance = Snapshot()
             .SingleOrDefault(candidate => candidate.Definition.Id == condition && candidate.Owner == owner);
         if (instance is not null)
             Remove(instance, BattleConditionCleanupReason.Effect, turn, actionSequence, changes);

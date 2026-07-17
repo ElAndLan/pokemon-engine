@@ -37,8 +37,10 @@ public sealed class SmartAiTests
     private static BattleMove Protect() =>
         new(EntityId.Parse("move:protect"), Normal, DamageClass.Status, null, null, 10, 0, 0, isProtect: true);
 
-    private static BattleMove Spikes() =>
-        new(EntityId.Parse("move:spikes"), Normal, DamageClass.Status, null, null, 20, 0, 0, setsSpikes: true);
+    private static BattleMove LayeredHazard() =>
+        new(EntityId.Parse("move:layered_hazard"), Normal, DamageClass.Status, null, null, 20, 0, 0,
+            target: MoveTarget.OpponentsField,
+            secondaryEffects: [new SetEntryHazardEffect(EntryHazardConditions.LegacyLayeredDamage)]);
 
     private static BattleMove Explosion() =>
         new(EntityId.Parse("move:boom"), Normal, DamageClass.Physical, 200, 100, 5, 0, 0, selfDestruct: true);
@@ -264,9 +266,22 @@ public sealed class SmartAiTests
             new Stats(120, 100, 100, 100, 100, 100), [Damage(Fire, 100)]);
         var weights = new SmartAiWeights { NoiseFraction = 0, SwitchThreshold = 0 };
 
+        IReadOnlyList<BattleConditionInstance>? Conditions(bool hazards)
+        {
+            if (!hazards)
+                return null;
+            EntryHazardProfile typed = EntryHazardConditions.LegacyTypeScaledDamage;
+            EntryHazardProfile layered = EntryHazardConditions.LegacyLayeredDamage;
+            return
+            [
+                HazardInstance(typed, 1, 0),
+                HazardInstance(layered, 3, 1),
+            ];
+        }
+
         AiCandidateScore SwitchScore(bool hazards) => Assert.Single(
             SmartAi.ChooseAction(new SmartAiContext([Active(), Reserve()], 0, [Player()], 0, Chart(), new Rng(1),
-                Weights: weights, OwnStealthRock: hazards, OwnSpikeLayers: hazards ? 3 : 0)).Scores,
+                Weights: weights, Conditions: Conditions(hazards))).Scores,
             s => s.Action is Switch);
 
         AiCandidateScore clean = SwitchScore(false);
@@ -452,12 +467,28 @@ public sealed class SmartAiTests
     [Fact]
     public void ValuesHazards_OnlyWhenReservesRemain()
     {
-        var atk = Attacker(Damage(Normal, 5), Spikes());
+        var atk = Attacker(Damage(Normal, 5), LayeredHazard());
         var lone = new[] { Defender(Normal, hp: 300) };
         var withReserve = new[] { Defender(Normal, hp: 300), Defender(Normal, hp: 300) };
 
         Assert.Equal(new UseMove(0), SmartAi.ChooseAction(Ctx([atk], lone)).Action);      // no reserve → attack
         Assert.Equal(new UseMove(1), SmartAi.ChooseAction(Ctx([atk], withReserve)).Action); // reserve → lay Spikes
+    }
+
+    [Fact]
+    public void DoesNotValueAHazardAlreadyAtItsLayerCap()
+    {
+        BattleMove hazard = LayeredHazard();
+        BattleCreature attacker = Attacker(Damage(Normal, 5), hazard);
+        BattleCreature[] player = [Defender(Normal, hp: 300), Defender(Normal, hp: 300)];
+        EntryHazardProfile profile = Assert.IsType<SetEntryHazardEffect>(
+            Assert.Single(hazard.SecondaryEffects)).Hazard;
+        SmartAiContext context = Ctx([attacker], player) with
+        {
+            Conditions = [HazardInstance(profile, profile.MaximumLayers, 0, BattleSide.Player)],
+        };
+
+        Assert.Equal(new UseMove(0), SmartAi.ChooseAction(context).Action);
     }
 
     [Fact]
@@ -489,4 +520,10 @@ public sealed class SmartAiTests
         var decision = SmartAi.ChooseAction(Ctx([active, reserve], [player], switchThreshold: 0));
         Assert.IsType<UseMove>(decision.Action);
     }
+
+    private static BattleConditionInstance HazardInstance(EntryHazardProfile profile, int layers, long sequence,
+        BattleSide side = BattleSide.Enemy) =>
+        new(sequence, EntryHazardConditions.Definition(profile), SideConditions.Owner(side),
+            new BattleConditionSource(new BattleSlot(side == BattleSide.Player ? BattleSide.Enemy : BattleSide.Player, 0), 0), 0, 0, null,
+            EntryHazardConditions.Definition(profile).Tags, new Dictionary<string, int>(), layers);
 }

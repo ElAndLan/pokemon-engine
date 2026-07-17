@@ -31,7 +31,7 @@ public sealed class BattleConditionRegistry
             ? definition
             : throw new KeyNotFoundException($"Unknown battle condition '{id}'.");
 
-    private static BattleConditionDefinition Normalize(BattleConditionDefinition definition)
+    internal static BattleConditionDefinition Normalize(BattleConditionDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
         if (string.IsNullOrEmpty(definition.Id.Value))
@@ -81,12 +81,20 @@ public sealed class BattleConditionRegistry
                 && definition.FaintPolicy == BattleConditionFaintPolicy.Persist;
         if (!cleanupValid)
             throw new ArgumentException("Condition cleanup policies do not match the store scope.", nameof(definition));
+        if (definition.EntryHazard is { } hazard
+            && (definition.Scope != BattleConditionScope.Side
+                || definition.Id != EntryHazardConditions.Validate(hazard).Id
+                || !hooks.Contains(BattleConditionHook.SwitchIn)
+                || definition.DefaultDuration is not null))
+            throw new ArgumentException("Entry-hazard definitions require matching permanent side-scoped switch-in rows.", nameof(definition));
 
         return definition with
         {
             Hooks = Array.AsReadOnly(hooks),
             Tags = Array.AsReadOnly(tags),
             InitialCounters = new ReadOnlyDictionary<string, int>(orderedCounters),
+            EntryHazard = definition.EntryHazard is { } entryHazard
+                ? EntryHazardConditions.Normalize(entryHazard) : null,
         };
     }
 }

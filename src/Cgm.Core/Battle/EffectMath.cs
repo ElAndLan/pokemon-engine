@@ -76,8 +76,6 @@ public static class EffectMath
             : basePower;
     }
 
-    /// <summary>Spikes-style entry-hazard damage on switch-in, scaling with layers: 1→1/8, 2→1/6,
-    /// 3→1/4 of max HP (Gen III/IV). ≥1; 0 layers → no damage.</summary>
     public static int HpRatioPower(int basePower, int currentHp, int maxHp) =>
         maxHp <= 0 ? basePower : Math.Max(1, basePower * currentHp / maxHp);
 
@@ -85,16 +83,10 @@ public static class EffectMath
     public static int StatusPower(int basePower, bool conditionMet, Fraction multiplier) =>
         !conditionMet ? basePower : Math.Max(1, basePower * multiplier.Num / multiplier.Den);
 
-    public static int HazardDamage(int maxHp, int layers) => layers switch
-    {
-        1 => Math.Max(1, maxHp / 8),
-        2 => Math.Max(1, maxHp / 6),
-        >= 3 => Math.Max(1, maxHp / 4),
-        _ => 0,
-    };
+    public static int FractionOfMaxHp(int maxHp, Fraction fraction) =>
+        maxHp <= 0 ? 0 : Math.Max(1, maxHp * fraction.Num / fraction.Den);
 
-    /// <summary>Stealth-Rock-style entry hazard: 1/8 max HP scaled by the hazard type's effectiveness
-    /// against the switch-in (¼×–4×), so a 4×-weak creature loses ½ HP. ≥1.</summary>
-    public static int TypeScaledHazardDamage(int maxHp, double effectiveness) =>
-        Math.Max(1, (int)(maxHp / 8.0 * effectiveness));
+    public static int TypeScaledHazardDamage(int maxHp, Fraction fraction, double effectiveness) =>
+        maxHp <= 0 || effectiveness <= 0 ? 0
+            : Math.Max(1, (int)(maxHp * (double)fraction.Num / fraction.Den * effectiveness));
 }

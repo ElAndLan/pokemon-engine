@@ -33,8 +33,9 @@ Starting baseline:
   criterion is also complete, including Gravity accuracy and move availability, room interactions,
   sport profile vectors, source cleanup, and AI parity. Phase 15E-3 and the complete 15E-4 side-
   condition family are green, including screens, status/stage guards, side speed/order, critical
-  guard, paired-action side effects, and side-wide protection. The next eligible work is 15E-5
-  entry hazards. Pair recognition/combined execution stays with 15D-7. Deferred
+  guard, paired-action side effects, side-wide protection, and the complete 15E-5 generic entry-
+  hazard family. The next eligible work is 15E-6 protect and contact-block families. Pair
+  recognition/combined execution stays with 15D-7. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

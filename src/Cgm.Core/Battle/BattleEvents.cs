@@ -153,13 +153,12 @@ public sealed record LeechSapped(BattleSlot Slot, int Amount) : BattleEvent
     public BattleSide Side => Slot.Side;
     public LeechSapped(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
 }
-public sealed record HazardSet(BattleSide Side, int Layers) : BattleEvent;
-public sealed record StealthRockSet(BattleSide Side) : BattleEvent;
-public sealed record HurtByHazard(BattleSlot Slot, int Amount) : BattleEvent
-{
-    public BattleSide Side => Slot.Side;
-    public HurtByHazard(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
-}
+public sealed record EntryHazardSet(BattleSide Side, BattleConditionId Condition, int Layers,
+    BattleConditionSource Source) : BattleEvent;
+public sealed record EntryHazardTriggered(BattleSlot Slot, BattleConditionId Condition,
+    BattleConditionSource Source, EntryHazardKind Kind, int Value) : BattleEvent;
+public sealed record EntryHazardAbsorbed(BattleSlot Slot, BattleConditionId Condition,
+    BattleConditionSource Source) : BattleEvent;
 public sealed record WeatherChanged(Weather Weather) : BattleEvent;
 public sealed record WeatherEnded(Weather Weather) : BattleEvent;
 public sealed record WeatherDamage(BattleSlot Slot, int Amount) : BattleEvent
