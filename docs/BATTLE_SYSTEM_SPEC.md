@@ -1523,6 +1523,35 @@ vectors: `side-guard-compile`, `side-guard-owner-coexist-duplicate`, `status-gua
 `side-guard-barrier-removal`, `side-guard-doubles`, `side-guard-ai-parity`,
 `side-guard-no-added-rng`, and `side-guard-replay`.
 
+### Side speed and order condition (Phase 15E-4)
+
+The reusable speed/order row is `sideCondition { condition: speedBoost, duration? }`. It registers
+`side:speed_boost` with `StatQuery`, tag `speed_order`, one side-owned stacking key, duplicate
+rejection without refresh, and `stayScope`/`persist` cleanup. The reference profiles author three
+`TurnEnd` checkpoints for `gen4_like` and four for `modern_reference`; the generic op defaults to
+four and accepts any positive authored duration for custom rules. The application checkpoint counts,
+so the modern four-checkpoint row affects the next three complete turn schedules after application.
+
+For each active creature on the owning side, the hook multiplies the shared `Speed` query by `2/1`
+at the Hooks stage after stat stages, paralysis, and effective-value overlays. Both active slots in
+doubles consume the same condition instance and remaining duration. The source may switch or faint
+without removing the condition. Reapplication fails visibly and preserves source, sequence, and
+remaining duration. The row has no bypass and is not a `barrier`; generic tag/source removal and side
+transfer remain 15E-7.
+
+Turn scheduling captures priority and effective Speed for every admitted action before resolution.
+Applying the condition therefore does not reorder already scheduled allies or opponents during the
+same turn. Later schedules use the multiplier for moves, switches, items, redirection speed ordering,
+action-history before/after inputs, and speed-ratio power formulas. Trick Room reverses the completed
+effective-Speed ordering without changing Speed values or priority brackets. Smart AI uses the same
+immutable side hook for action-history and speed-ratio formula previews. The condition itself draws
+no RNG; changing a tie may skip or introduce only the ordinary seeded turn-order tie draw.
+
+Acceptance vectors: `side-speed-compile-profile`, `side-speed-stage-status-order`,
+`side-speed-no-current-reschedule`, `side-speed-duration-expiry`, `side-speed-source-switch`,
+`side-speed-doubles-shared`, `side-speed-trick-room`, `side-speed-formula-ai-parity`,
+`side-speed-query-hook-trace`, and `side-speed-no-condition-rng`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

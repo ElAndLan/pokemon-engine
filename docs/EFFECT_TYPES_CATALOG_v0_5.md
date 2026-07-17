@@ -757,6 +757,19 @@ Their specific tags are `status_guard` and `stage_guard`. Screens and guards add
 specific guard tag so a data-authored move or outgoing ability can bypass one family without
 removing it.
 
+### 7.7d Side Speed And Order
+
+`sideCondition { condition: speedBoost, duration? }` creates a source-independent, reject-on-
+duplicate side condition tagged `speed_order`. Its `StatQuery` hook multiplies each owning-side
+creature's effective Speed by `2/1` after ordinary stages/status/overlays. One shared instance serves
+both active doubles slots. Reference normalization authors three `TurnEnd` checkpoints for
+`gen4_like` and four for `modern_reference`; the generic custom-data default is four.
+
+Scheduling snapshots effective Speed before action resolution, so application never reorders the
+current turn. Later schedules and speed-based formulas use the same query. Trick Room reverses the
+finished ordering rather than altering the multiplier. No bypass, barrier cleanup, private timer,
+or additional RNG belongs to this row.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

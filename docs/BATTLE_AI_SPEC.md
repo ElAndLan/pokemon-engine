@@ -245,6 +245,10 @@ Capabilities beyond Beginner:
   outgoing ability carries the matching bypass tag. Stage-drop guard uses the same resolver
   legality path, but adds no score term until opponent debuff scoring exists. Preview never mutates
   guard duration, consumes RNG, or reads a selected opposing action.
+- Side speed/order preview collects the resolver's owning-side `Speed` query multiplier after
+  stages, status, and overlays. It feeds existing action-history before/after inputs and speed-ratio
+  power scoring; Trick Room reverses the completed effective-Speed comparison. The AI adds no
+  speed-condition score term, reads no submitted opposing action, and consumes no additional RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

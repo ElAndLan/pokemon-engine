@@ -1177,8 +1177,11 @@ public sealed class BattleController
     private int Speed(BattleSlot slot)
     {
         BattleCreature c = Active(slot);
+        BattleHookDispatchSnapshot side = SideConditions.CollectSpeedHooks(ConditionSnapshot, slot.Side, 0);
+        _hookTrace.AddRange(side.Trace);
         BattleQueryResult result = PhysicalMetricFormulas.SpeedQuery(c, _overlays,
             new BattleOverlayOwner(slot.Side, ActiveIndex(slot), slot),
+            side.QueryModifiers(BattleQueryId.Speed),
             new BattleQueryContext(slot, c, Weather: CurrentWeather, Ruleset: Ruleset, Terrain: CurrentTerrain));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, 0, slot, null, result));
         return result.FinalValue.ToInt32();
@@ -2586,11 +2589,20 @@ public sealed class BattleController
     {
         critDraw = null;
         damageRollDraw = null;
-        PhysicalFormulaInputs? physicalInputs = PhysicalMetricFormulas.HasPowerFormula(move)
-            ? PhysicalMetricFormulas.Inputs(attacker, target, _overlays,
+        PhysicalFormulaInputs? physicalInputs = null;
+        if (PhysicalMetricFormulas.HasPowerFormula(move))
+        {
+            BattleHookDispatchSnapshot sourceSpeed = SideConditions.CollectSpeedHooks(
+                ConditionSnapshot, sourceSlot.Side, traceAction);
+            BattleHookDispatchSnapshot targetSpeed = SideConditions.CollectSpeedHooks(
+                ConditionSnapshot, targetSlot.Side, traceAction);
+            _hookTrace.AddRange(sourceSpeed.Trace);
+            _hookTrace.AddRange(targetSpeed.Trace);
+            physicalInputs = PhysicalMetricFormulas.Inputs(attacker, target, _overlays,
                 new BattleOverlayOwner(sourceSlot.Side, ActiveIndex(sourceSlot), sourceSlot),
-                new BattleOverlayOwner(targetSlot.Side, ActiveIndex(targetSlot), targetSlot))
-            : null;
+                new BattleOverlayOwner(targetSlot.Side, ActiveIndex(targetSlot), targetSlot),
+                sourceSpeed.QueryModifiers(BattleQueryId.Speed), targetSpeed.QueryModifiers(BattleQueryId.Speed));
+        }
         BattleActionFormulaInputs? actionInputs = ActionHistoryFormulas.HasPowerFormula(move)
             ? _actionHistory.PowerInputs(HistoryOwner(sourceSlot), HistoryOwner(targetSlot), move.Move)
             : null;

@@ -121,11 +121,7 @@ public static class SmartAi
         }
 
         PhysicalFormulaInputs? inputs = !PhysicalMetricFormulas.HasPowerFormula(move) ? null
-            : context.Overlays is { } overlays
-                ? PhysicalMetricFormulas.Inputs(attacker, defender, overlays,
-                    new BattleOverlayOwner(BattleSide.Enemy, context.EnemyActive, new BattleSlot(BattleSide.Enemy, 0)),
-                    new BattleOverlayOwner(BattleSide.Player, context.PlayerActive, new BattleSlot(BattleSide.Player, 0)))
-                : PhysicalMetricFormulas.Inputs(attacker, defender);
+            : PhysicalInputs(attacker, defender, context);
         BattleActionFormulaInputs? actionInputs = null;
         if (ActionHistoryFormulas.HasPowerFormula(move))
         {
@@ -369,6 +365,8 @@ public static class SmartAi
         }
 
         bool physical = move.DamageClass == DamageClass.Physical;
+        if (physicalInputs is null && PhysicalMetricFormulas.HasPowerFormula(move) && context is not null)
+            physicalInputs = PhysicalInputs(attacker, defender, context);
         HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(
             move, attacker, defender, physicalInputs, actionInputs, resourceInputs);
         var powerModifiers = (weather is null
@@ -609,11 +607,56 @@ public static class SmartAi
 
     private static bool CanSwitch(BattleCreature c) => !c.IsTrapped && !c.IsCharging && !c.IsLocked;
 
-    private static int AiSpeed(BattleCreature creature, BattleSide side, int partyIndex, SmartAiContext context) =>
-        context.Overlays is { } overlays
+    private static int AiSpeed(BattleCreature creature, BattleSide side, int partyIndex, SmartAiContext context)
+    {
+        IReadOnlyList<BattleQueryModifier> modifiers = SideSpeedModifiers(context, side);
+        return context.Overlays is { } overlays
             ? PhysicalMetricFormulas.SpeedQuery(creature, overlays,
-                new BattleOverlayOwner(side, partyIndex, new BattleSlot(side, 0))).FinalValue.ToInt32()
-            : PhysicalMetricFormulas.SpeedQuery(creature).FinalValue.ToInt32();
+                new BattleOverlayOwner(side, partyIndex, new BattleSlot(side, 0)), modifiers).FinalValue.ToInt32()
+            : PhysicalMetricFormulas.SpeedQuery(creature, modifiers).FinalValue.ToInt32();
+    }
+
+    private static PhysicalFormulaInputs PhysicalInputs(
+        BattleCreature attacker, BattleCreature defender, SmartAiContext context)
+    {
+        (BattleSide sourceSide, int sourceIndex) = Owner(context, attacker);
+        (BattleSide targetSide, int targetIndex) = Owner(context, defender);
+        IReadOnlyList<BattleQueryModifier> source = SideSpeedModifiers(context, sourceSide);
+        IReadOnlyList<BattleQueryModifier> target = SideSpeedModifiers(context, targetSide);
+        if (context.Overlays is { } overlays)
+            return PhysicalMetricFormulas.Inputs(attacker, defender, overlays,
+                new BattleOverlayOwner(sourceSide, sourceIndex, new BattleSlot(sourceSide, 0)),
+                new BattleOverlayOwner(targetSide, targetIndex, new BattleSlot(targetSide, 0)),
+                source, target);
+        return new PhysicalFormulaInputs(
+            PhysicalMetricFormulas.SpeedQuery(attacker, source).FinalValue.ToInt32(),
+            PhysicalMetricFormulas.SpeedQuery(defender, target).FinalValue.ToInt32(),
+            attacker.WeightHectograms, defender.WeightHectograms,
+            attacker.HeightDecimeters, defender.HeightDecimeters);
+    }
+
+    private static (BattleSide Side, int PartyIndex) Owner(SmartAiContext context, BattleCreature creature)
+    {
+        int enemy = IndexOfReference(context.EnemyParty, creature);
+        if (enemy >= 0)
+            return (BattleSide.Enemy, enemy);
+        int player = IndexOfReference(context.PlayerParty, creature);
+        return player >= 0 ? (BattleSide.Player, player)
+            : throw new ArgumentException("AI speed subject is outside both visible parties.", nameof(creature));
+    }
+
+    private static int IndexOfReference(IReadOnlyList<BattleCreature> party, BattleCreature creature)
+    {
+        for (int index = 0; index < party.Count; index++)
+            if (ReferenceEquals(party[index], creature))
+                return index;
+        return -1;
+    }
+
+    private static IReadOnlyList<BattleQueryModifier> SideSpeedModifiers(
+        SmartAiContext context, BattleSide side) => context.Conditions is null ? []
+        : SideConditions.CollectSpeedHooks(context.Conditions, side, 0)
+            .QueryModifiers(BattleQueryId.Speed);
 
     private static bool ActsBefore(int sourceSpeed, int targetSpeed, SmartAiContext context) =>
         context.Conditions is not null

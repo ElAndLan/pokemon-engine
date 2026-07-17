@@ -251,6 +251,12 @@ skips, bypass and common-barrier removal, doubles side ownership, AI status pari
 unchanged audit regeneration. It adds no schema vector because the open effect payload and existing
 typed side-condition op remain the serialized boundary.
 
+The 15E-4 side speed/order checkpoint covers strict default/explicit duration compilation,
+stage-paralysis-hook flooring, no current-turn reschedule, exact shared expiration, source switching,
+both doubles slots from one side instance, Trick Room after effective Speed, speed-ratio resolver/AI
+parity, query/hook trace ownership, and zero condition RNG. The existing open effect payload remains
+the serialized boundary, so no schema vector changes.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

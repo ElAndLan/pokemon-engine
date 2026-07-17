@@ -16,14 +16,22 @@ public static class PhysicalMetricFormulas
         effect is SpeedRatioPowerEffect or MetricBandPowerEffect or MetricRatioPowerEffect);
 
     public static BattleQueryResult SpeedQuery(BattleCreature creature, BattleQueryContext? context = null) =>
-        SpeedQuery(creature, creature.Stats.Spe, context);
+        SpeedQuery(creature, creature.Stats.Spe, null, context);
+
+    public static BattleQueryResult SpeedQuery(BattleCreature creature,
+        IEnumerable<BattleQueryModifier> modifiers, BattleQueryContext? context = null) =>
+        SpeedQuery(creature, creature.Stats.Spe, modifiers, context);
 
     public static BattleQueryResult SpeedQuery(BattleCreature creature, BattleOverlayStore overlays,
         BattleOverlayOwner owner, BattleQueryContext? context = null) =>
-        SpeedQuery(creature, EffectiveValues(creature, overlays, owner).Stats.Spe, context);
+        SpeedQuery(creature, EffectiveValues(creature, overlays, owner).Stats.Spe, null, context);
+
+    public static BattleQueryResult SpeedQuery(BattleCreature creature, BattleOverlayStore overlays,
+        BattleOverlayOwner owner, IEnumerable<BattleQueryModifier> modifiers, BattleQueryContext? context = null) =>
+        SpeedQuery(creature, EffectiveValues(creature, overlays, owner).Stats.Spe, modifiers, context);
 
     private static BattleQueryResult SpeedQuery(BattleCreature creature, int authoredSpeed,
-        BattleQueryContext? context) =>
+        IEnumerable<BattleQueryModifier>? modifiers, BattleQueryContext? context) =>
         BattleQuery.Evaluate(BattleQueryId.Speed, new BattleQueryValue(authoredSpeed),
         [
             new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
@@ -31,6 +39,7 @@ public static class PhysicalMetricFormulas
             new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
                 creature.Status == PersistentStatus.Paralysis ? new BattleQueryValue(1, 4) : new BattleQueryValue(1),
                 InsertionOrder: 1),
+            .. modifiers ?? [],
         ], context);
 
     public static PhysicalFormulaInputs Inputs(BattleCreature source, BattleCreature target) => new(
@@ -43,12 +52,18 @@ public static class PhysicalMetricFormulas
 
     public static PhysicalFormulaInputs Inputs(BattleCreature source, BattleCreature target,
         BattleOverlayStore overlays, BattleOverlayOwner sourceOwner, BattleOverlayOwner targetOwner)
+        => Inputs(source, target, overlays, sourceOwner, targetOwner, [], []);
+
+    public static PhysicalFormulaInputs Inputs(BattleCreature source, BattleCreature target,
+        BattleOverlayStore overlays, BattleOverlayOwner sourceOwner, BattleOverlayOwner targetOwner,
+        IEnumerable<BattleQueryModifier> sourceSpeedModifiers,
+        IEnumerable<BattleQueryModifier> targetSpeedModifiers)
     {
         BattleEffectiveValues sourceValues = EffectiveValues(source, overlays, sourceOwner);
         BattleEffectiveValues targetValues = EffectiveValues(target, overlays, targetOwner);
         return new PhysicalFormulaInputs(
-            SpeedQuery(source, sourceValues.Stats.Spe).FinalValue.ToInt32(),
-            SpeedQuery(target, targetValues.Stats.Spe).FinalValue.ToInt32(),
+            SpeedQuery(source, sourceValues.Stats.Spe, sourceSpeedModifiers, null).FinalValue.ToInt32(),
+            SpeedQuery(target, targetValues.Stats.Spe, targetSpeedModifiers, null).FinalValue.ToInt32(),
             sourceValues.Metrics[BattleMetric.Weight],
             targetValues.Metrics[BattleMetric.Weight],
             sourceValues.Metrics[BattleMetric.Height],
@@ -104,5 +119,5 @@ public static class PhysicalMetricFormulas
             })).Values;
 
     private static BattleQueryResult SpeedQuery(BattleCreature creature, int authoredSpeed) =>
-        SpeedQuery(creature, authoredSpeed, null);
+        SpeedQuery(creature, authoredSpeed, null, null);
 }

@@ -189,7 +189,8 @@ public static class MoveCompiler
                     BattleSideCondition sideCondition = ParseNamed<BattleSideCondition>(
                         Str(e, "condition"), "side condition");
                     int sideDuration = e.Params?.ContainsKey("duration") == true
-                        ? Int(e, "duration") : SideConditions.DefaultTurns;
+                        ? Int(e, "duration")
+                        : SideConditions.For(sideCondition).DefaultDuration!.Value;
                     if (sideDuration <= 0)
                         throw new ArgumentException("sideCondition duration must be positive.");
                     if (effects.OfType<SetSideConditionEffect>().Any())

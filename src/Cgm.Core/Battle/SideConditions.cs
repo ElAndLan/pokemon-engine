@@ -9,6 +9,7 @@ public enum BattleSideCondition
     AllDamageScreen,
     StatusGuard,
     StageDropGuard,
+    SpeedBoost,
 }
 
 public static class SideConditions
@@ -25,6 +26,7 @@ public static class SideConditions
                 BattleConditionHook.StatusAttempt, "status_guard"),
             [BattleSideCondition.StageDropGuard] = Guard("side:stage_drop_guard", "side_stage_drop_guard",
                 BattleConditionHook.SecondaryEffect, "stage_guard"),
+            [BattleSideCondition.SpeedBoost] = Speed("side:speed_boost", "side_speed_boost"),
         };
 
     public static IReadOnlyList<BattleConditionDefinition> Definitions { get; } = [.. Rows.Values];
@@ -86,6 +88,23 @@ public static class SideConditions
             BattleSideCondition.StageDropGuard, BattleConditionHook.SecondaryEffect, "stage_drop_attempt", bypass,
             actionSequence);
 
+    public static BattleHookDispatchSnapshot CollectSpeedHooks(
+        IEnumerable<BattleConditionInstance> conditions, BattleSide side, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        if (!Enum.IsDefined(side))
+            throw new ArgumentOutOfRangeException(nameof(side));
+        BattleConditionInstance? instance = conditions.SingleOrDefault(item =>
+            item.Owner == Owner(side) && item.Definition.Id == For(BattleSideCondition.SpeedBoost).Id);
+        BattleHookRegistration[] registrations = instance is null ? []
+            : [BattleHookRegistration.ForCondition(instance, BattleConditionHook.StatQuery, 0, 0,
+                new BattleHookQueryModifier(BattleQueryId.Speed,
+                    new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Multiply,
+                        new BattleQueryValue(2), OwnerScope: BattleQueryOwnerScope.SourceSide)))];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.StatQuery), registrations);
+    }
+
     private static bool Applies(BattleConditionInstance instance, DamageClass damageClass) =>
         instance.Definition.Id == For(BattleSideCondition.AllDamageScreen).Id
         || damageClass == DamageClass.Physical
@@ -136,6 +155,20 @@ public static class SideConditions
         DefaultDuration = DefaultTurns,
         DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
         Tags = [tag, "barrier"],
+        StackingKey = stackingKey,
+        StackingPolicy = BattleConditionStackingPolicy.Reject,
+        SwitchPolicy = BattleConditionSwitchPolicy.StayScope,
+        FaintPolicy = BattleConditionFaintPolicy.Persist,
+    };
+
+    private static BattleConditionDefinition Speed(string id, string stackingKey) => new()
+    {
+        Id = new BattleConditionId(id),
+        Scope = BattleConditionScope.Side,
+        Hooks = [BattleConditionHook.StatQuery],
+        DefaultDuration = 4,
+        DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
+        Tags = ["speed_order"],
         StackingKey = stackingKey,
         StackingPolicy = BattleConditionStackingPolicy.Reject,
         SwitchPolicy = BattleConditionSwitchPolicy.StayScope,

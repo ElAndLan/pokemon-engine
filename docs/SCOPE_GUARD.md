@@ -32,8 +32,10 @@ Starting baseline:
   checkpoints have landed; the terrain family is complete. The combined room/gravity/sport
   criterion is also complete, including Gravity accuracy and move availability, room interactions,
   sport profile vectors, source cleanup, and AI parity. Phase 15E-3 is complete; the next eligible
-  work is 15E-4 side conditions and guards. Deferred environment consumers and individual
-  conformance vectors remain with their owning later packages without advancing those packages.
+  work is 15E-4 side conditions and guards; screen, status/stage-guard, and side speed/order
+  checkpoints are green while critical guards, pledges, and side-wide protection remain. Deferred
+  environment consumers and individual conformance vectors remain with their owning later packages
+  without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
   `IMPLEMENTATION_PLAN.md` record the growing verified suite; test count is evidence, not phase exit.
 
