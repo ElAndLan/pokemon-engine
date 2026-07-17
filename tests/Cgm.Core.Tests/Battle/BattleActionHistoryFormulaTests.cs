@@ -329,7 +329,8 @@ public sealed class BattleActionHistoryFormulaTests
             attempt => attempt.Id.Turn == 1 && attempt.Source.Side == BattleSide.Player).Result);
 
         BattleMove protect = new(EntityId.Parse("move:protect"), Normal, DamageClass.Status,
-            null, null, 20, 4, 0, isProtect: true);
+            null, null, 20, 4, 0, target: MoveTarget.User,
+            secondaryEffects: [new ProtectEffect(ProtectionConditions.LegacyPersonal)]);
         battle = new BattleController(Creature("protector", 2000, 100, protect),
             Creature("protectother", 2000, 50, Inert()), Chart(), new TestRng());
         battle.ResolveTurn(new UseMove(0), new Pass());

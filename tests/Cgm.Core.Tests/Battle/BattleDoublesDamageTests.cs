@@ -404,12 +404,18 @@ public sealed class BattleDoublesDamageTests
     public void StatusProtect_UsesDoublesEffectPathAndTracesItsDraw()
     {
         BattleMove protect = new(EntityId.Parse("move:doubles_protect_probe"), Normal, DamageClass.Status,
-            null, null, 10, 4, 0, isProtect: true, target: MoveTarget.User);
+            null, null, 10, 4, 0, target: MoveTarget.User,
+            secondaryEffects: [new ProtectEffect(ProtectionConditions.LegacyPersonal)]);
         BattleController battle = Battle(protect, new FakeRng(doubles: [0d]));
 
         battle.ResolveTurn(Actions(new UseMove(0)));
 
-        Assert.True(battle.Active(new BattleSlot(BattleSide.Player, 0)).Protected);
+        Assert.Contains(battle.Log, item => item is ConditionApplied
+            { Condition: var id, Scope: BattleConditionScope.Creature }
+            && id == ProtectionConditions.LegacyPersonal.Id);
+        Assert.Contains(battle.Log, item => item is ConditionExpired
+            { Condition: var id, Scope: BattleConditionScope.Creature }
+            && id == ProtectionConditions.LegacyPersonal.Id);
         EffectTraceEntry trace = Assert.Single(battle.Trace, entry => entry.Kind == EffectTraceKind.Protect);
         Assert.Equal(new BattleSlot(BattleSide.Player, 0), trace.SourceSlot);
         Assert.Null(trace.TargetSlot);

@@ -31,7 +31,7 @@ public sealed class BattleMove
         int? fixedDamage = null, bool fixedDamageLevel = false, bool ohko = false,
         int critBoost = 0, bool selfDestruct = false, bool leechSeed = false,
         Weather setsWeather = Weather.None, bool binds = false,
-        bool isProtect = false, bool forcesSwitch = false,
+        bool forcesSwitch = false,
         DamageClass? counterCategory = null, bool bypassAccuracy = false, bool chargeTurn = false,
         bool multiTurnLock = false, bool makesContact = false, IReadOnlyList<StageEffect>? stageEffects = null,
         MoveTarget target = MoveTarget.Selected, StageAllEffect? stageAllEffect = null,
@@ -69,7 +69,6 @@ public sealed class BattleMove
         LeechSeed = leechSeed;
         SetsWeather = setsWeather;
         Binds = binds;
-        IsProtect = isProtect;
         ForcesSwitch = forcesSwitch;
         CounterCategory = counterCategory;
         BypassAccuracy = bypassAccuracy;
@@ -117,7 +116,6 @@ public sealed class BattleMove
         LeechSeed = source.LeechSeed;
         SetsWeather = source.SetsWeather;
         Binds = source.Binds;
-        IsProtect = source.IsProtect;
         ForcesSwitch = source.ForcesSwitch;
         CounterCategory = source.CounterCategory;
         BypassAccuracy = source.BypassAccuracy;
@@ -153,8 +151,6 @@ public sealed class BattleMove
             effects.Add(new FlinchEffect { Chance = FlinchChance });
         if (Binds)
             effects.Add(new BindEffect());
-        if (IsProtect)
-            effects.Add(new ProtectEffect());
         if (ForcesSwitch)
             effects.Add(new ForceSwitchEffect());
 
@@ -227,9 +223,6 @@ public sealed class BattleMove
 
     /// <summary>Partial-trap move (Bind/Wrap/Fire Spin) — traps the target with a residual (catalog §7.2).</summary>
     public bool Binds { get; }
-
-    /// <summary>Protect/Detect — shields the user this turn with success-chain decay (catalog §7.2).</summary>
-    public bool IsProtect { get; }
 
     /// <summary>Roar/Whirlwind — forces the target out (random reserve, or ends a wild battle; catalog §9.6).</summary>
     public bool ForcesSwitch { get; }
@@ -341,9 +334,7 @@ public sealed class BattleCreature
     public int TrapTurns { get; private set; }
     public bool IsTrapped => TrapTurns > 0;
 
-    /// <summary>Protect volatile (v5, catalog §7.2 protect_family): shielded this turn, with a chain
-    /// counter that halves success on consecutive uses. <see cref="Protected"/> clears each turn.</summary>
-    public bool Protected { get; private set; }
+    /// <summary>Shared consecutive protection-success count. Active protection lives in the condition store.</summary>
     public int ProtectChain { get; private set; }
 
     /// <summary>Damage taken this turn by category, for Counter/Mirror Coat (catalog §9.2). Reset each turn.</summary>
@@ -601,9 +592,7 @@ public sealed class BattleCreature
     /// <summary>Counts down the partial trap (0 = released).</summary>
     public void TickTrap() { if (TrapTurns > 0) TrapTurns--; }
 
-    public void SetProtected() { Protected = true; ProtectChain++; }
-    public void ClearProtected() => Protected = false;
-    /// <summary>Breaks the protect chain (used a different move, or protect failed).</summary>
+    public void AdvanceProtectChain() => ProtectChain++;
     public void ResetProtectChain() => ProtectChain = 0;
 
     /// <summary>Records damage taken this turn for Counter/Mirror Coat (status hits contribute nothing).</summary>
@@ -635,7 +624,6 @@ public sealed class BattleCreature
         CritStageBonus = 0;
         Seeded = false;
         TrapTurns = 0;
-        Protected = false;
         ProtectChain = 0;
         ChargingMoveIndex = null;
         LockTurns = 0;

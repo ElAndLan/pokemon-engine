@@ -1,0 +1,20 @@
+events
+MoveUsed:Player:0:move:golden_guard
+ConditionApplied:protection:golden_guard:Creature
+Protected:Player:0
+MoveUsed:Enemy:0:move:golden_contact
+MoveBlocked:Enemy:0
+ProtectionBlocked:Enemy:0:Player:0:protection:golden_guard
+ProtectionContactDamaged:Enemy:0:protection:golden_guard:50
+StatusApplied:Enemy:0:Poison
+StatStageChanged:Enemy:0:Atk:-1
+ConditionExpired:protection:golden_guard:Creature
+condition-trace
+Applied:protection:golden_guard:Creature:->1
+Ticked:protection:golden_guard:Creature:1->0
+Expired:protection:golden_guard:Creature:0->
+effect-trace
+Protect:Player:0:none:protection:golden_guard:False:none:1:1
+ProtectionBlock:Enemy:0:BattleSlot { Side = Player, Position = 0 }:protection:golden_guard:True:none:none:3
+hook-trace
+TryHit:Creature:Filter:True

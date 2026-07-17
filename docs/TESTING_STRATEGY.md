@@ -291,6 +291,16 @@ and the checked-in `entry-hazard.golden`. Legacy op aliases compile to the same 
 no named controller state remains. General transfer and atomic side swap remain 15E-7. The existing
 open effect payload requires no schema or migration vector.
 
+The 15E-6 exit covers strict personal/side profile compilation, the legacy alias, every malformed
+scope/filter/chain/draw/contact/bypass sibling, immutable payload capture, first/repeated/failure and
+Pass/item/switch/ordinary/prevention reset boundaries, exact `gen4_like` factor-2 and
+`modern_reference` factor-3 fractions, guaranteed draw/no-draw policy, creature/side condition
+lifecycle, per-target mixed spread protection, all-protection bypass, noncontact exclusion, ordered
+damage/status/stage contact payloads with existing guards, source-faint stopping, damage-memory,
+events, condition/effect traces, Smart-AI fraction parity, deterministic replay, and the checked-in
+`protection.golden`. The open effect payload adds only new closed op params, so no schema migration
+vector changes.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

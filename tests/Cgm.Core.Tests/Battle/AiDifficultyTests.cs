@@ -46,7 +46,9 @@ public sealed class AiDifficultyTests
             target: MoveTarget.OpponentsField,
             secondaryEffects: [new SetEntryHazardEffect(EntryHazardConditions.LegacyTypeScaledDamage)]);
     private static BattleMove Protect() =>
-        new(EntityId.Parse("move:protect"), Normal, DamageClass.Status, null, null, 20, 0, 0, isProtect: true);
+        new(EntityId.Parse("move:protect"), Normal, DamageClass.Status, null, null, 20, 0, 0,
+            target: MoveTarget.User,
+            secondaryEffects: [new ProtectEffect(ProtectionConditions.LegacyPersonal)]);
     private static BattleMove Roar() =>
         new(EntityId.Parse("move:roar"), Normal, DamageClass.Status, null, null, 20, 0, 0, forcesSwitch: true);
 

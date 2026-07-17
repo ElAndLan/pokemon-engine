@@ -45,10 +45,10 @@ public sealed class AbilityHookRule : IValidationRule
                     else if (hook.Hook == AbilityHookPoint.OnGroundedQuery && effect.Op != "groundedModify")
                         yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
                             $"Ability hook 'onGroundedQuery' does not support effect op '{effect.Op}'.");
-                    else if (effect.Op == "sideConditionBypass"
+                    else if (effect.Op is "sideConditionBypass" or "protectionBypass"
                         && hook.Hook != AbilityHookPoint.OnModifyOutgoingDamage)
                         yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
-                            "Effect op 'sideConditionBypass' requires onModifyOutgoingDamage.");
+                            $"Effect op '{effect.Op}' requires onModifyOutgoingDamage.");
                 }
 
                 foreach (ValidationIssue issue in Phase15EffectRules.Check(
@@ -183,7 +183,7 @@ internal static class Phase15EffectRules
     {
         "statModify", "typeDamageModify", "statusImmunity", "weatherSummon", "terrainSummon",
         "contactChanceEffect", "residualHeal", "residualDamage", "groundedModify",
-        "sideConditionBypass",
+        "sideConditionBypass", "protectionBypass",
     };
 
     public static readonly IReadOnlySet<string> HeldItemOps = new HashSet<string>
@@ -384,6 +384,16 @@ internal static class Phase15EffectRules
             if (effect.Chance is not null)
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     "Effect op 'sideConditionBypass' does not support chance.");
+        }
+
+        if (effect.Op == "protectionBypass")
+        {
+            foreach (string key in effect.Params?.Keys ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'protectionBypass' has unknown param '{key}'.");
+            if (effect.Chance is not null)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'protectionBypass' does not support chance.");
         }
 
         if (effect.Op == "terrainSeed")

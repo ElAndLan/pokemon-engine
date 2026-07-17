@@ -270,6 +270,11 @@ Capabilities beyond Beginner:
   cost sums visible direct-damage profiles with the resolver's grounded/effective-type/fraction/
   effectiveness rules; status and stage hazards are not speculatively priced. There are no parallel
   named-hazard flags, selected-opponent-action reads, state mutation, or extra RNG draws.
+- Protect/contact profiles use the existing named `protect` score only when their typed application
+  is currently admissible. The value is multiplied by the resolver's exact ruleset/chain success
+  fraction; guaranteed no-chain and modern side profiles retain full value, while a duplicate active
+  row contributes none. Preview executes no contact payload, mutates no chain/condition, consumes no
+  RNG, and reads no opposing submitted action.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:
   - paralysis against faster attackers;

@@ -187,8 +187,11 @@ public static class SmartAi
             && context.PlayerParty.Count(p => !p.IsFainted) > 1)
             c.Add(new("hazard", weights.HazardValue * (context.PlayerParty.Count(p => !p.IsFainted) - 1)));
 
-        if (move.IsProtect && ThreatensKo(defender, attacker, context.Chart, context))
-            c.Add(new("protect", weights.ProtectValue / Math.Pow(2, attacker.ProtectChain)));
+        if (move.SecondaryEffects.OfType<ProtectEffect>().SingleOrDefault() is { } protection
+            && CanApplyProtection(context, attacker, protection.Profile)
+            && ThreatensKo(defender, attacker, context.Chart, context))
+            c.Add(new("protect", weights.ProtectValue * ProtectionConditions.SuccessChance(
+                protection.Profile, attacker.ProtectChain, context.Ruleset)));
 
         if (move.ForcesSwitch && HasDangerousBoost(defender))
             c.Add(new("forceSwitch", weights.ForceSwitchValue));
@@ -370,7 +373,8 @@ public static class SmartAi
         if (physicalInputs is null && PhysicalMetricFormulas.HasPowerFormula(move) && context is not null)
             physicalInputs = PhysicalInputs(attacker, defender, context);
         HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(
-            move, attacker, defender, physicalInputs, actionInputs, resourceInputs);
+            move, attacker, defender, physicalInputs, actionInputs, resourceInputs,
+            IsPersonallyProtected(attacker, context), IsPersonallyProtected(defender, context));
         var powerModifiers = (weather is null
             ? powerQuery.Modifiers
             : [.. powerQuery.Modifiers, .. weather.PowerModifiers]).ToList();
@@ -634,6 +638,26 @@ public static class SmartAi
             .SingleOrDefault(instance => instance.Owner == SideConditions.Owner(side)
                 && instance.Definition.Id == profile.Id);
         return active is null || active.StackCount < profile.MaximumLayers;
+    }
+
+    private static bool CanApplyProtection(SmartAiContext context, BattleCreature source,
+        ProtectionProfile profile)
+    {
+        if (context.Conditions is null || !TryOwner(source, context, out BattleSide side, out int partyIndex))
+            return true;
+        if (profile.Scope == ProtectionScope.Personal)
+            return ProtectionConditions.Active(context.Conditions, side, partyIndex) is null;
+        BattleSideCondition condition = profile.Filter == ProtectionFilter.Priority
+            ? BattleSideCondition.PriorityProtection : BattleSideCondition.MultiTargetProtection;
+        return !SideConditions.Active(context.Conditions, side, condition);
+    }
+
+    private static bool IsPersonallyProtected(BattleCreature creature, SmartAiContext? context)
+    {
+        if (context?.Conditions is null
+            || !TryOwner(creature, context, out BattleSide side, out int partyIndex))
+            return false;
+        return ProtectionConditions.Active(context.Conditions, side, partyIndex) is not null;
     }
 
     private static IReadOnlyList<EntityId> EffectiveTypes(BattleCreature creature, SmartAiContext context)

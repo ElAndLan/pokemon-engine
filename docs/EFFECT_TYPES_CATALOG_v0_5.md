@@ -236,6 +236,15 @@ Damage model values for `deal_damage`:
 | `modify_condition` | Changes duration, stack count, counter, source, tags, or parameters. | toxic ramp, Protect counter, Stockpile, hazard layers, weather extension. |
 | `transfer_condition` | Moves/copies/splits condition state between creature, side, slot, or field. | Baton Pass, Psycho Shift, Shed Tail, Court Change, condition copying. |
 
+Phase 15E-6 locks `protection` as a typed condition-profile application rather than a move-specific
+volatile. The profile is `{ key, scope:personal|side, filter:all|priority|multiTarget,
+chain:shared|classicOnly|none, drawGuaranteed, contact[] }`. Contact rows are the closed ordered
+union `damage(fraction)`, `status(persistent-status)`, or `stage(stat,negative-delta)`. Personal
+profiles become one-turn creature `TryHit` conditions; side profiles reuse the existing priority/
+multi-target side rows. `protectionBypass` is the only authored all-protection bypass marker. Chain
+state is creature-owned, shared across applicable profiles, capped at exponent 20, and queried once
+per application using ruleset factors 2 (`gen4_like`) or 3 (`modern_reference`).
+
 ### 3.6 Stats, Types, Abilities, Items, Forms, And Metrics
 
 | Primitive | What It Does | Covers |

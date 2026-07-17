@@ -81,6 +81,7 @@ public sealed record BattleConditionDefinition
     public required BattleConditionSwitchPolicy SwitchPolicy { get; init; }
     public required BattleConditionFaintPolicy FaintPolicy { get; init; }
     public EntryHazardProfile? EntryHazard { get; init; }
+    public ProtectionProfile? Protection { get; init; }
 }
 
 public sealed record BattleConditionOwner(
@@ -176,6 +177,13 @@ public sealed class BattleConditionStores
                 || existing.Definition.EntryHazard is { } first && definition.EntryHazard is { } second
                     && !EntryHazardConditions.Equivalent(first, second)))
             throw new ArgumentException("Conditions sharing a stacking key must use the same entry-hazard profile.", nameof(definition));
+        if (existing is not null && existing.Definition.Id == definition.Id
+            && (existing.Definition.Protection is not null && definition.Protection is null
+                || existing.Definition.Protection is null && definition.Protection is not null
+                || existing.Definition.Protection is { } firstProtection
+                    && definition.Protection is { } secondProtection
+                    && !ProtectionConditions.Equivalent(firstProtection, secondProtection)))
+            throw new ArgumentException("Conditions sharing a stacking key must use the same protection profile.", nameof(definition));
 
         if (existing is not null)
         {

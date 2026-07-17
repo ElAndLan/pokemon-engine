@@ -63,7 +63,8 @@ public sealed class BattleDamageMemoryIntegrationTests
         Assert.Equal((0, false, BattleDamageFailure.Missed), Fields(Assert.Single(battle.ActionHistory.DamageSnapshot())));
 
         BattleMove protect = new(EntityId.Parse("move:protect"), Normal, DamageClass.Status,
-            null, null, 10, 4, 0, isProtect: true);
+            null, null, 10, 4, 0, target: MoveTarget.User,
+            secondaryEffects: [new ProtectEffect(ProtectionConditions.LegacyPersonal)]);
         battle = Singles(Creature("source2", 100, 100, Damage("hit")),
             Creature("target2", 100, 1, protect), new FakeRng(doubles: [0.0]));
         battle.ResolveTurn(new UseMove(0), new UseMove(0));

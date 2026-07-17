@@ -24,6 +24,7 @@ public enum EffectTraceKind
     TrapDuration,
     ConfusionDuration,
     Protect,
+    ProtectionBlock,
     SideProtection,
     ForceSwitchReserve,
     PositionSwap,
@@ -52,6 +53,7 @@ public sealed record EffectTraceEntry(
 {
     public double? DrawMinimum { get; init; }
     public double? DrawBound { get; init; }
+    public double? ResolvedChance { get; init; }
     public long? IntentSequence { get; init; }
     public BattleIntentCheckpoint? IntentCheckpoint { get; init; }
     public BattleIntentPayloadKind? IntentPayload { get; init; }

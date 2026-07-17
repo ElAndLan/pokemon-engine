@@ -1719,6 +1719,68 @@ Acceptance vectors: `entry-hazard-compile-validation`, `entry-hazard-zero-max-la
 `entry-hazard-repeat-faint-replacement`, `entry-hazard-event-trace`, `entry-hazard-ai-parity`,
 `entry-hazard-no-rng`, and `entry-hazard-golden`.
 
+### Protect and contact-block families (Phase 15E-6)
+
+Protection is an immutable typed profile compiled by `protection`; the parameterless legacy
+`protect` op is only an alias for the default personal profile. `protection` is chance-free and
+requires `{ key, scope, filter, chain, drawGuaranteed }`, with optional ordered `contact` rows.
+`key` is a lowercase token. `scope` is `personal` or `side`; `filter` is `all`, `priority`, or
+`multiTarget`. Personal profiles require `target:user` plus `filter:all`; side profiles require
+`target:usersField` plus `priority` or `multiTarget`. `chain` is `shared`, `classicOnly`, or `none`.
+`contact` is a semicolon-ordered list whose rows are exactly `damage:num/den`,
+`status:<persistent-status>`, or `stage:<stat>/<negative-delta>`. Contact rows are personal-only;
+fractions are positive and at most one, HP is not a stage, and duplicate/unknown/mistyped params,
+undefined enums, empty rows, nonnegative stage deltas, incompatible targets, authored chance, and
+more than one protection effect are rejected. Profiles are captured immutably.
+
+A successful personal profile applies a one-checkpoint creature condition `protection:<key>` with
+`TryHit`, tags `protection` and `personal_protection`, reject-on-duplicate stacking, `remove` on
+switch/faint, and exact source/owner identity. A successful side profile applies the existing
+one-checkpoint priority- or multi-target side condition, so the 15E-4 filter remains the single
+resolver path. `all` denies every externally directed active-creature move. `priority` and
+`multiTarget` retain their 15E-4 definitions. Materialized spread targets evaluate independently in
+topology order. `protectionBypass` is a chance-free, parameterless active-creature move marker that
+bypasses both personal and side protection without removing either condition. Ability-based
+`protectionBypass` uses the same closed marker. Self, side, field, fainted-party, and move-reference
+scopes are never blocked.
+
+The chain counter belongs to the acting creature and is shared by every applicable protection
+profile. Selecting Pass, switch, item, form, capture, an ordinary move, or a protection profile
+whose chain does not apply resets it before action resolution. Prevention before protection
+application and a failed/rejected protection attempt also reset it; switching, fainting, and battle
+end clear it. `shared` applies in both rulesets. `classicOnly` applies only in `gen4_like` and is
+guaranteed in `modern_reference`. `none` is always guaranteed. For an applicable chain with current
+count `n`, success is `1 / factor^min(n,20)`, where factor is 2 for `gen4_like` and 3 for
+`modern_reference`. Success increments the chain; failure resets it. The resolver queries this
+fraction once when the effect executes. A guaranteed attempt consumes one `NextDouble` only when
+`drawGuaranteed:true`; otherwise it consumes no draw. Non-guaranteed attempts consume exactly one
+`NextDouble`. The legacy alias uses `shared` and `drawGuaranteed:true`, preserving its existing RNG
+contract. Side profiles use `classicOnly` and `drawGuaranteed:false` unless authored otherwise.
+
+After a personal condition blocks a contact move, its payload rows execute in authored order
+against the attacker. Damage is `max(1, floor(attacker.maxHp * fraction))` through shared non-move
+HP loss; status uses existing-status, effective-type, ability, weather, terrain, and side-guard
+eligibility; negative stages use the shared clamped mutation and side stage guard. Ineligible rows
+are visible no-ops and draw no RNG. Later rows stop after attacker faint, while the already-
+materialized spread action continues its remaining target evaluations. Noncontact and bypassed
+moves execute no payload. Side protection has no contact payload.
+
+Application emits `Protected` or `ProtectFailed` plus condition lifecycle evidence. A personal
+block emits `MoveBlocked` and a source/target/condition `ProtectionBlocked`; contact damage emits
+`ProtectionContactDamaged`, while status/stage reuse `StatusApplied` and `StatStageChanged`.
+`Protect` traces record exact chance, bound, draw/no-draw, profile condition, and result;
+`ProtectionBlock` traces record the blocking condition and total performed payload rows. Blocked
+damage memory remains target-level `protected`; blocked targets skip accuracy and all later move
+RNG. Smart AI recognizes any typed protection candidate, discounts its existing `protect` value by
+the exact shared success fraction, and adds no value after a guaranteed duplicate/rejected state.
+It neither mutates the chain/conditions nor reads the opposing selected action or consumes RNG.
+
+Acceptance vectors: `protection-compile-validation`, `protection-first-repeat-reset-profile`,
+`protection-guaranteed-draw-policy`, `protection-personal-condition-lifecycle`,
+`protection-side-chain-profile`, `protection-bypass-noncontact`, `protection-spread-mixed-targets`,
+`protection-contact-order-guards`, `protection-contact-source-faint`,
+`protection-event-trace-memory`, `protection-ai-parity`, and `protection-golden`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

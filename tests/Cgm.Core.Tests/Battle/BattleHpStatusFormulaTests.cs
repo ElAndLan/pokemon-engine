@@ -68,9 +68,10 @@ public sealed class BattleHpStatusFormulaTests
             case BattleVolatileStatus.Flinch: creature.SetFlinch(); break;
             case BattleVolatileStatus.Bound: creature.SetTrap(1); break;
             case BattleVolatileStatus.Seeded: creature.SetSeeded(true); break;
-            case BattleVolatileStatus.Protected: creature.SetProtected(); break;
+            case BattleVolatileStatus.Protected: break;
         }
-        Assert.True(HpStatusFormulas.Matches(creature, null, status));
+        Assert.True(HpStatusFormulas.Matches(creature, null, status,
+            protectedStatus: status == BattleVolatileStatus.Protected));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             HpStatusFormulas.Matches(creature, null, (BattleVolatileStatus)999));
     }

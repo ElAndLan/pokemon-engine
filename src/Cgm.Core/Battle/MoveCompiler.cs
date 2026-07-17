@@ -24,7 +24,7 @@ public static class MoveCompiler
         int multiHitMin = 0, multiHitMax = 0;
         int? fixedDamage = null;
         bool fixedDamageLevel = false, ohko = false, selfDestruct = false, leechSeed = false;
-        bool binds = false, isProtect = false, forcesSwitch = false, bypassAccuracy = false;
+        bool binds = false, forcesSwitch = false, bypassAccuracy = false;
         bool chargeTurn = false, multiTurnLock = false;
         int critBoost = 0;
         Weather setsWeather = Weather.None;
@@ -339,9 +339,54 @@ public static class MoveCompiler
                     effects.Add(new BindEffect());
                     break;
 
-                case "protect": // apply_condition(volatile:protect_family) (catalog §7.2)
-                    isProtect = true;
-                    effects.Add(new ProtectEffect());
+                case "protect": // legacy alias for the default typed personal profile
+                    if (chance != 100)
+                        throw new ArgumentException("protect does not support chance.");
+                    CheckAllowedParams(e);
+                    if (move.DamageClass != DamageClass.Status || move.Target != MoveTarget.User)
+                        throw new ArgumentException("protect requires a self-targeted status move.");
+                    if (effects.OfType<ProtectEffect>().Any())
+                        throw new ArgumentException("A move can declare only one protection effect.");
+                    effects.Add(new ProtectEffect(ProtectionConditions.LegacyPersonal));
+                    break;
+
+                case "protection":
+                    if (chance != 100)
+                        throw new ArgumentException("protection does not support chance.");
+                    CheckAllowedParams(e, "key", "scope", "filter", "chain", "drawGuaranteed", "contact");
+                    if (move.DamageClass != DamageClass.Status)
+                        throw new ArgumentException("protection requires a status move.");
+                    if (effects.OfType<ProtectEffect>().Any())
+                        throw new ArgumentException("A move can declare only one protection effect.");
+                    ProtectionScope protectionScope = Parse<ProtectionScope>(Str(e, "scope"), "protection scope");
+                    ProtectionFilter protectionFilter = Parse<ProtectionFilter>(Str(e, "filter"), "protection filter");
+                    ProtectionChainMode protectionChain = Parse<ProtectionChainMode>(Str(e, "chain"), "protection chain");
+                    bool drawGuaranteed = RequiredBool(e, "drawGuaranteed");
+                    IReadOnlyList<ProtectionContactEffect> contact = e.Params?.ContainsKey("contact") == true
+                        ? ParseProtectionContact(Str(e, "contact")) : [];
+                    ProtectionProfile profile = protectionScope == ProtectionScope.Personal
+                        ? ProtectionConditions.Personal(Str(e, "key"), protectionChain, drawGuaranteed, contact)
+                        : ProtectionConditions.Side(Str(e, "key"), protectionFilter, protectionChain, drawGuaranteed);
+                    if (profile.Filter != protectionFilter)
+                        throw new ArgumentException("Personal protection requires the all filter.");
+                    if (profile.Scope == ProtectionScope.Personal && move.Target != MoveTarget.User
+                        || profile.Scope == ProtectionScope.Side && move.Target != MoveTarget.UsersField)
+                        throw new ArgumentException("Protection scope does not match the authored target.");
+                    if (profile.Scope == ProtectionScope.Side && contact.Count > 0)
+                        throw new ArgumentException("Side protection does not support contact payloads.");
+                    effects.Add(new ProtectEffect(profile));
+                    break;
+
+                case "protectionBypass":
+                    if (chance != 100)
+                        throw new ArgumentException("protectionBypass does not support chance.");
+                    CheckAllowedParams(e);
+                    if (move.Target is MoveTarget.User or MoveTarget.UsersField or MoveTarget.OpponentsField
+                        or MoveTarget.EntireField or MoveTarget.FaintingPokemon or MoveTarget.SpecificMove)
+                        throw new ArgumentException("protectionBypass requires an externally directed active-creature target.");
+                    if (effects.OfType<ProtectionBypassEffect>().Any())
+                        throw new ArgumentException("A move can declare only one protectionBypass effect.");
+                    effects.Add(new ProtectionBypassEffect());
                     break;
 
                 case "forceSwitch": // switch_flow(force_target_switch) (catalog §9.6)
@@ -796,7 +841,7 @@ public static class MoveCompiler
             move.Priority, move.CritStage, ailment, ailmentChance, stageEffects.FirstOrDefault(), confuseChance, flinchChance,
             drain, recoil, recoilOnMiss, heal, multiHitMin, multiHitMax,
             fixedDamage, fixedDamageLevel, ohko, critBoost, selfDestruct, leechSeed, setsWeather,
-            binds, isProtect, forcesSwitch, counterCategory, bypassAccuracy, chargeTurn,
+            binds, forcesSwitch, counterCategory, bypassAccuracy, chargeTurn,
             multiTurnLock, move.MakesContact, stageEffects: stageEffects, target: move.Target,
             stageAllEffect: stageAllEffect, secondaryEffects: effects,
             offensiveStatOverride: offensiveStatOverride, defensiveStatOverride: defensiveStatOverride,
@@ -1009,6 +1054,44 @@ public static class MoveCompiler
     private static EntryHazardProfile ParseStageHazard(Effect effect) => EntryHazardConditions.Stage(
         Str(effect, "key"), ParseStat(Str(effect, "stat")), Int(effect, "delta"),
         RequiredBool(effect, "groundedOnly"));
+
+    private static IReadOnlyList<ProtectionContactEffect> ParseProtectionContact(string value)
+    {
+        string[] rows = value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (rows.Length == 0)
+            throw new ArgumentException("Protection contact payload cannot be empty.");
+        var effects = new List<ProtectionContactEffect>(rows.Length);
+        foreach (string row in rows)
+        {
+            string[] parts = row.Split(':', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 || parts[1].Length == 0)
+                throw new ArgumentException("Protection contact rows require kind:value.");
+            switch (parts[0])
+            {
+                case "damage":
+                    string[] fraction = parts[1].Split('/', StringSplitOptions.TrimEntries);
+                    if (fraction.Length != 2
+                        || !int.TryParse(fraction[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int num)
+                        || !int.TryParse(fraction[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int den))
+                        throw new ArgumentException("Protection contact damage requires num/den.");
+                    effects.Add(new ProtectionContactDamage(new Fraction(num, den)));
+                    break;
+                case "status":
+                    effects.Add(new ProtectionContactStatus(Parse<PersistentStatus>(parts[1], "protection contact status")));
+                    break;
+                case "stage":
+                    string[] stage = parts[1].Split('/', StringSplitOptions.TrimEntries);
+                    if (stage.Length != 2
+                        || !int.TryParse(stage[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int delta))
+                        throw new ArgumentException("Protection contact stage requires stat/delta.");
+                    effects.Add(new ProtectionContactStage(ParseStat(stage[0]), delta));
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown protection contact kind '{parts[0]}'.");
+            }
+        }
+        return effects;
+    }
 
     private static IReadOnlyList<Fraction> ParseFractions(string value, string label)
     {

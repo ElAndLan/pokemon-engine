@@ -220,6 +220,7 @@ public sealed class BattleController
         ]);
         BeginActionHistory(actions.Actions.Select(submission =>
             new BattleActionPlan(HistoryOwner(submission.Source), PlanKind(submission.Action))));
+        PrepareProtectionChains(actions.Actions);
 
         // 1. Switches happen before anything else.
         ApplySwitch(BattleSide.Player, resolvedPlayerAction);
@@ -280,6 +281,7 @@ public sealed class BattleController
         BeginActionHistory(admitted.Select(action => new BattleActionPlan(
             new BattleHistoryOwner(action.Submission.Source.Side, action.ActorPartyIndex, action.Submission.Source),
             PlanKind(action.Submission.Action))));
+        PrepareProtectionChains(admitted.Select(action => action.Submission));
         ResolveSwitchPhase(admitted);
         ResolveItemPhase(admitted);
         ResolveFormPhase(admitted);
@@ -477,12 +479,11 @@ public sealed class BattleController
     private void ResolveDoublesMoveScheduling(IReadOnlyList<AdmittedAction> actions)
     {
         _redirects.Clear();
-        // Flinch and Protect last only for a turn; Counter/Mirror Coat only see this turn's hits.
+        // Flinch lasts only for a turn; Counter/Mirror Coat only see this turn's hits.
         foreach (BattleSlot slot in Topology.Slots)
         {
             BattleCreature active = Active(slot);
             active.ClearFlinch();
-            active.ClearProtected();
             active.ResetDamageTaken();
         }
 
@@ -519,12 +520,14 @@ public sealed class BattleController
             BattleActionAttemptId attempt = _actionHistory.BeginMove(traceAction, sourceOwner, move.Move);
             if (!CanAct(attacker, action.Submission.Source, traceAction))
             {
+                ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Prevented);
                 TickRampageLock(action.Submission.Source, traceAction);
                 continue;
             }
             if (attacker.Flinched)
             {
+                ResetFailedProtection(attacker, move);
                 int start = _log.Count;
                 _log.Add(new Flinched(action.Submission.Source));
                 AddTrace(traceAction, action.Submission.Source, null, EffectTraceKind.FlinchGate, false, null, 0,
@@ -537,19 +540,19 @@ public sealed class BattleController
                 _log.Count, _log.Count);
             if (!PushesThroughConfusion(attacker, action.Submission.Source, traceAction))
             {
+                ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Prevented);
                 TickRampageLock(action.Submission.Source, traceAction);
                 continue;
             }
             if (!PassesMoveGates(attacker, action.Submission.Source, move, traceAction))
             {
+                ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Failed);
                 TickRampageLock(action.Submission.Source, traceAction);
                 continue;
             }
 
-            if (!move.IsProtect)
-                attacker.ResetProtectChain();
             _actionHistory.MarkStarted(attempt);
             int ppBeforeSpend = move.Pp;
             if (!PrepareTimedMove(attacker, action.Submission.Source, move, moveIndex, traceAction))
@@ -692,7 +695,7 @@ public sealed class BattleController
         foreach (BattleSlot targetSlot in targetSlots)
         {
             BattleCreature target = Active(targetSlot);
-            if (!AllowsSideProtectionHit(sourceSlot, targetSlot, move, traceAction))
+            if (!AllowsProtectionHit(sourceSlot, targetSlot, move, traceAction))
             {
                 sideProtected = true;
                 if (RecordsMoveDamage(move))
@@ -1101,12 +1104,11 @@ public sealed class BattleController
 
     private void ResolveMoves(BattleTurnActions actions)
     {
-        // Flinch and Protect last only for a turn; clear last turn's before this turn's moves resolve.
+        // Flinch lasts only for a turn; conditions own protection duration.
         foreach (BattleSlot slot in actions.Topology.Slots)
         {
             BattleCreature active = Active(slot);
             active.ClearFlinch();
-            active.ClearProtected();
             active.ResetDamageTaken(); // Counter/Mirror Coat only see this turn's hits
         }
 
@@ -1224,7 +1226,7 @@ public sealed class BattleController
         return allowed;
     }
 
-    private bool AllowsSideProtectionHit(BattleSlot sourceSlot, BattleSlot targetSlot,
+    private bool AllowsProtectionHit(BattleSlot sourceSlot, BattleSlot targetSlot,
         BattleMove move, int traceAction)
     {
         int effectivePriority = SideConditions.Active(ConditionSnapshot, targetSlot.Side,
@@ -1233,18 +1235,172 @@ public sealed class BattleController
             : move.Priority;
         BattleHookDispatchSnapshot protection = SideConditions.CollectProtectionHooks(
             ConditionSnapshot, sourceSlot, targetSlot, move, effectivePriority, Ruleset,
-            BypassesSideConditions(sourceSlot, move, "side_protection"), traceAction);
+            BypassesProtection(sourceSlot, move)
+                || BypassesSideConditions(sourceSlot, move, "side_protection"), traceAction);
         _hookTrace.AddRange(protection.Trace);
         bool allowed = !protection.Filters().Any(filter => filter is
             { Filter.Value: "side_protection", Decision: BattleHookFilterDecision.Deny });
         if (allowed)
-            return true;
+        {
+            BattleConditionOwner owner = new(BattleConditionScope.Creature, targetSlot.Side,
+                targetSlot, ActiveIndex(targetSlot));
+            BattleConditionInstance? personal = ProtectionConditions.Active(ConditionSnapshot, owner);
+            BattleHookDispatchSnapshot personalProtection = ProtectionConditions.CollectHooks(
+                ConditionSnapshot, owner, sourceSlot, targetSlot, move,
+                BypassesProtection(sourceSlot, move), traceAction);
+            _hookTrace.AddRange(personalProtection.Trace);
+            if (!personalProtection.Filters().Any(filter => filter is
+                    { Filter.Value: "personal_protection", Decision: BattleHookFilterDecision.Deny })
+                || personal?.Definition.Protection is not { } profile)
+                return true;
+
+            int personalStart = _log.Count;
+            _log.Add(new MoveBlocked(sourceSlot));
+            _log.Add(new ProtectionBlocked(sourceSlot, targetSlot, personal.Definition.Id));
+            int performed = move.MakesContact
+                ? ApplyProtectionContact(profile, sourceSlot, targetSlot, traceAction) : 0;
+            _trace.Add(new EffectTraceEntry(Turn, traceAction, sourceSlot, targetSlot,
+                EffectTraceKind.ProtectionBlock, performed > 0, null, performed,
+                personalStart, _log.Count) { Condition = personal.Definition.Id });
+            return false;
+        }
 
         int start = _log.Count;
         _log.Add(new MoveBlocked(sourceSlot));
         AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.SideProtection,
             false, null, 0, start, _log.Count);
         return false;
+    }
+
+    private bool ApplyProtection(EffectContext ctx, ProtectionProfile profile)
+    {
+        profile = ProtectionConditions.Validate(profile);
+        int start = _log.Count;
+        double chance = ProtectionConditions.SuccessChance(profile, ctx.Source.ProtectChain, Ruleset);
+        if (!ProtectionConditions.Succeeds(profile, ctx.Source.ProtectChain, Ruleset, _rng, out double? draw))
+        {
+            ctx.Source.ResetProtectChain();
+            _log.Add(new ProtectFailed(ctx.SourceSlot));
+            ctx.Action.MarkFailed();
+            TraceProtectionAttempt(ctx, profile.Id, draw, chance, false, start);
+            return false;
+        }
+
+        BattleConditionDefinition definition;
+        BattleConditionOwner owner;
+        if (profile.Scope == ProtectionScope.Personal)
+        {
+            definition = ProtectionConditions.Definition(profile);
+            owner = new BattleConditionOwner(BattleConditionScope.Creature, ctx.SourceSide,
+                ctx.SourceSlot, ActiveIndex(ctx.SourceSlot));
+        }
+        else
+        {
+            BattleSideCondition sideCondition = profile.Filter switch
+            {
+                ProtectionFilter.Priority => BattleSideCondition.PriorityProtection,
+                ProtectionFilter.MultiTarget => BattleSideCondition.MultiTargetProtection,
+                _ => throw new ArgumentOutOfRangeException(nameof(profile), profile.Filter,
+                    "Side protection requires a side filter."),
+            };
+            definition = SideConditions.For(sideCondition);
+            owner = SideConditions.Owner(ctx.SourceSide);
+        }
+
+        BattleConditionChangeSet changes = profile.Scope == ProtectionScope.Personal
+            ? _conditions.Apply(new BattleConditionApplication(definition.Id, owner,
+                new BattleConditionSource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)), Turn,
+                ctx.TraceAction), definition)
+            : _conditions.Apply(new BattleConditionApplication(definition.Id, owner,
+                new BattleConditionSource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)), Turn,
+                ctx.TraceAction));
+        RecordConditionChanges(changes);
+        if (changes.Events.OfType<ConditionApplicationRejected>().Any())
+        {
+            ctx.Source.ResetProtectChain();
+            _log.Add(new ProtectFailed(ctx.SourceSlot));
+            ctx.Action.MarkFailed();
+            TraceProtectionAttempt(ctx, definition.Id, draw, chance, false, start);
+            return false;
+        }
+
+        if (ProtectionConditions.UsesChain(profile, Ruleset))
+            ctx.Source.AdvanceProtectChain();
+        _log.Add(new Protected(ctx.SourceSlot));
+        TraceProtectionAttempt(ctx, definition.Id, draw, chance, true, start);
+        return true;
+    }
+
+    private void TraceProtectionAttempt(EffectContext ctx, BattleConditionId condition,
+        double? draw, double chance, bool succeeded, int start) =>
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, null,
+            EffectTraceKind.Protect, draw is not null, draw, succeeded ? 1 : 0, start, _log.Count)
+        {
+            Condition = condition,
+            DrawBound = 1,
+            DrawMinimum = 0,
+            ResolvedChance = chance,
+        });
+
+    private int ApplyProtectionContact(ProtectionProfile profile, BattleSlot sourceSlot,
+        BattleSlot protectingSlot, int traceAction)
+    {
+        BattleCreature source = Active(sourceSlot);
+        int performed = 0;
+        foreach (ProtectionContactEffect effect in profile.ContactEffects)
+        {
+            if (source.IsFainted)
+                break;
+            switch (effect)
+            {
+                case ProtectionContactDamage damage:
+                    int amount = EffectMath.FractionOfMaxHp(source.MaxHp, damage.Fraction);
+                    Sap(source, sourceSlot, amount,
+                        actual => new ProtectionContactDamaged(sourceSlot, profile.Id, actual));
+                    performed++;
+                    break;
+                case ProtectionContactStatus status when CanApplyProtectionStatus(
+                    protectingSlot, sourceSlot, status.Status, traceAction):
+                    source.SetStatus(status.Status);
+                    _log.Add(new StatusApplied(sourceSlot, status.Status));
+                    performed++;
+                    break;
+                case ProtectionContactStage stage when AllowsSideStageDrop(
+                    protectingSlot, sourceSlot, null, traceAction):
+                    int before = source.Stage(stage.Stat);
+                    source.ChangeStage(stage.Stat, stage.Delta);
+                    int delta = source.Stage(stage.Stat) - before;
+                    if (delta != 0)
+                    {
+                        _log.Add(new StatStageChanged(sourceSlot, stage.Stat, delta));
+                        performed++;
+                    }
+                    break;
+            }
+        }
+        return performed;
+    }
+
+    private bool CanApplyProtectionStatus(BattleSlot protectingSlot, BattleSlot sourceSlot,
+        PersistentStatus status, int traceAction)
+    {
+        BattleCreature source = Active(sourceSlot);
+        if (!StatusEffects.CanApplyStatus(source.Status)
+            || StatusEffects.TypeImmuneToStatus(status, EffectiveTypes(sourceSlot))
+            || BlocksStatus(sourceSlot, status))
+            return false;
+        BattleHookDispatchSnapshot weather = WeatherConditions.CollectStatusHooks(
+            ConditionSnapshot, status, traceAction);
+        _hookTrace.AddRange(weather.Trace);
+        if (weather.Filters().Any(filter => filter is
+            { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny }))
+            return false;
+        BattleHookDispatchSnapshot terrain = TerrainConditions.CollectStatusHooks(
+            ConditionSnapshot, status, IsGrounded(sourceSlot), traceAction);
+        _hookTrace.AddRange(terrain.Trace);
+        return !terrain.Filters().Any(filter => filter is
+                { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny })
+            && AllowsSideStatus(protectingSlot, sourceSlot, null, confusion: false, traceAction);
     }
 
     private bool ResolveAccuracy(BattleSlot sourceSlot, BattleSlot targetSlot, BattleCreature source,
@@ -1354,12 +1510,14 @@ public sealed class BattleController
         BattleActionAttemptId attempt = _actionHistory.BeginMove(traceAction, sourceOwner, move.Move);
         if (!CanAct(attacker, sourceSlot, traceAction))
         {
+            ResetFailedProtection(attacker, move);
             _actionHistory.Complete(attempt, BattleActionResult.Prevented);
             return; // frozen/asleep/fully-paralyzed — no PP spent, no move
         }
 
         if (attacker.Flinched)
         {
+            ResetFailedProtection(attacker, move);
             int start = _log.Count;
             _log.Add(new Flinched(sourceSlot));
             AddTrace(traceAction, sourceSlot, null, EffectTraceKind.FlinchGate, false, null, 0, start, _log.Count);
@@ -1370,12 +1528,14 @@ public sealed class BattleController
 
         if (!PushesThroughConfusion(attacker, sourceSlot, traceAction))
         {
+            ResetFailedProtection(attacker, move);
             _actionHistory.Complete(attempt, BattleActionResult.Prevented);
             return; // hurt itself in confusion — no PP, no move
         }
 
         if (!PassesMoveGates(attacker, sourceSlot, move, traceAction))
         {
+            ResetFailedProtection(attacker, move);
             _actionHistory.Complete(attempt, BattleActionResult.Failed);
             return;
         }
@@ -1390,9 +1550,6 @@ public sealed class BattleController
             return;
         }
         BattleHistoryOwner targetOwner = HistoryOwner(targetSlot);
-
-        if (!move.IsProtect)
-            attacker.ResetProtectChain(); // any non-protect move breaks the protect chain
 
         // Two-turn move: turn 1 charges (PP spent now, no damage); turn 2 fires as a normal hit.
         _actionHistory.MarkStarted(attempt);
@@ -1420,21 +1577,8 @@ public sealed class BattleController
             return;
         }
 
-        if (!AllowsSideProtectionHit(sourceSlot, targetSlot, move, traceAction))
+        if (!AllowsProtectionHit(sourceSlot, targetSlot, move, traceAction))
         {
-            if (RecordsMoveDamage(move))
-                RecordDamage(attempt, sourceOwner, targetOwner, move, DamageCause(move), 0,
-                    false, BattleDamageFailure.Protected, 0, default, critical: false,
-                    effectiveType: moveType);
-            ApplyCrashRecoil(attacker, sourceSlot, move);
-            _actionHistory.Complete(attempt, BattleActionResult.Failed, [targetOwner]);
-            return;
-        }
-
-        // Protect: a move aimed at a shielded target is blocked outright (PP already spent).
-        if (target.Protected && TargetsOpponent(move))
-        {
-            _log.Add(new MoveBlocked(sourceSlot));
             if (RecordsMoveDamage(move))
                 RecordDamage(attempt, sourceOwner, targetOwner, move, DamageCause(move), 0,
                     false, BattleDamageFailure.Protected, 0, default, critical: false,
@@ -1645,24 +1789,8 @@ public sealed class BattleController
             case FlinchEffect f: ApplyFlinch(ctx, f); break;
             case LeechSeedEffect: ApplyLeechSeed(ctx); break;
             case BindEffect: ApplyBind(ctx); break;
-            case ProtectEffect:
-                int protectStart = _log.Count;
-                if (VolatileEffects.ProtectSucceeds(ctx.Source.ProtectChain, _rng, out double protectDraw))
-                {
-                    ctx.Source.SetProtected();
-                    _log.Add(new Protected(ctx.SourceSlot));
-                    AddTrace(ctx.TraceAction, ctx.SourceSlot, null, EffectTraceKind.Protect, true, protectDraw, 1,
-                        protectStart, _log.Count, 1);
-                }
-                else
-                {
-                    ctx.Source.ResetProtectChain();
-                    _log.Add(new ProtectFailed(ctx.SourceSlot));
-                    ctx.Action.MarkFailed();
-                    AddTrace(ctx.TraceAction, ctx.SourceSlot, null, EffectTraceKind.Protect, true, protectDraw, 0,
-                        protectStart, _log.Count, 1);
-                }
-                break;
+            case ProtectEffect protect:
+                return ApplyProtection(ctx, protect.Profile);
             case ForceSwitchEffect: ForceSwitch(ctx); break;
             case PositionSwapEffect: SwapPositions(ctx); break;
             case RedirectEffect redirect: _redirects.Add(new RedirectCondition(ctx.SourceSlot, redirect.Priority,
@@ -1727,7 +1855,7 @@ public sealed class BattleController
             case RemoveSideConditionEffect { Timing: SideConditionTiming.AfterHit } remove:
                 RemoveSideConditions(ctx, remove);
                 break;
-            case SideConditionBypassEffect or RemoveSideConditionEffect:
+            case SideConditionBypassEffect or ProtectionBypassEffect or RemoveSideConditionEffect:
                 break;
             case RemoveTerrainEffect:
                 ClearTerrain();
@@ -2781,7 +2909,7 @@ public sealed class BattleController
                 ppBeforeSpend, move.Pp, itemPower, randomPower)
             : null;
         HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, target, physicalInputs,
-            actionInputs, resourceInputs);
+            actionInputs, resourceInputs, IsPersonallyProtected(sourceSlot), IsPersonallyProtected(targetSlot));
         var powerModifiers = powerQuery.Modifiers.ToList();
         if (move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is { } weatherEffect)
         {
@@ -3056,6 +3184,35 @@ public sealed class BattleController
         || Active(sourceSlot).AbilityHooks.SelectMany(hook => hook.Effects).Any(effect =>
             effect.Op == "sideConditionBypass"
             && string.Equals(Str(effect, "tag"), tag, StringComparison.Ordinal));
+
+    private bool BypassesProtection(BattleSlot sourceSlot, BattleMove move) =>
+        move.SecondaryEffects.OfType<ProtectionBypassEffect>().Any()
+        || Active(sourceSlot).AbilityHooks.SelectMany(hook => hook.Effects)
+            .Any(effect => effect.Op == "protectionBypass");
+
+    private bool IsPersonallyProtected(BattleSlot slot) => ProtectionConditions.Active(
+        ConditionSnapshot, new BattleConditionOwner(BattleConditionScope.Creature,
+            slot.Side, slot, ActiveIndex(slot))) is not null;
+
+    private void PrepareProtectionChains(IEnumerable<BattleActionSubmission> submissions)
+    {
+        foreach (BattleActionSubmission submission in submissions)
+        {
+            BattleCreature creature = Active(submission.Source);
+            ProtectionProfile? profile = MoveIndex(submission.Action) is { } moveIndex
+                ? creature.Moves[EffectiveMoveIndex(submission.Source, moveIndex)]
+                    .SecondaryEffects.OfType<ProtectEffect>().SingleOrDefault()?.Profile
+                : null;
+            if (profile is null || !ProtectionConditions.UsesChain(profile, Ruleset))
+                creature.ResetProtectChain();
+        }
+    }
+
+    private static void ResetFailedProtection(BattleCreature creature, BattleMove move)
+    {
+        if (move.SecondaryEffects.OfType<ProtectEffect>().Any())
+            creature.ResetProtectChain();
+    }
 
     private EntityId EffectiveMoveType(BattleSlot sourceSlot, BattleMove move, int traceAction)
     {

@@ -361,6 +361,36 @@ public sealed class ValidationTests
     }
 
     [Fact]
+    public void ProtectionBypass_RequiresOutgoingDamageHookAndNoPayload()
+    {
+        var invalid = new Ability
+        {
+            Id = EntityId.Parse("ability:invalid_protection_bypass"),
+            Name = "Invalid Protection Bypass",
+            Hooks = [new AbilityHook
+            {
+                Hook = AbilityHookPoint.OnSwitchIn,
+                Effects = [new Effect { Op = "protectionBypass", Chance = 100,
+                    Params = Params(("extra", 1)) }],
+            }],
+        };
+        ValidationIssue[] issues = Run(new AbilityHookRule(), Project(invalid)).ToArray();
+        Assert.Contains(issues, issue => issue.Message.Contains("requires onModifyOutgoingDamage"));
+        Assert.Contains(issues, issue => issue.Message.Contains("unknown param"));
+        Assert.Contains(issues, issue => issue.Message.Contains("does not support chance"));
+
+        Ability valid = invalid with
+        {
+            Hooks = [new AbilityHook
+            {
+                Hook = AbilityHookPoint.OnModifyOutgoingDamage,
+                Effects = [new Effect { Op = "protectionBypass" }],
+            }],
+        };
+        Assert.Empty(Run(new AbilityHookRule(), Project(valid)));
+    }
+
+    [Fact]
     public void GroundedModify_RequiresItsQueryHookAndClosedStateShape()
     {
         var invalid = new Ability

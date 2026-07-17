@@ -70,8 +70,11 @@ public sealed record LeechSeedEffect : MoveEffect;
 /// <summary>apply_condition(volatile:partial_trap) on the target (Bind/Wrap/Fire Spin).</summary>
 public sealed record BindEffect : MoveEffect;
 
-/// <summary>apply_condition(volatile:protect_family) on the user, with success-chain decay.</summary>
-public sealed record ProtectEffect : MoveEffect;
+/// <summary>Applies one typed personal or side protection profile.</summary>
+public sealed record ProtectEffect(ProtectionProfile Profile) : MoveEffect;
+
+/// <summary>Bypasses personal and side protection without removing either condition.</summary>
+public sealed record ProtectionBypassEffect : MoveEffect;
 
 /// <summary>switch_flow(force_target_switch) — forces the target out (Roar/Whirlwind).</summary>
 public sealed record ForceSwitchEffect : MoveEffect;

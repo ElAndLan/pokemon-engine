@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3/4/5, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; next eligible package is 15E-6 protect and contact-block families** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3/4/5/6, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; next eligible package is 15E-7 generic condition cleanup/transfer/swap** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -425,7 +425,7 @@ Current readiness ledger:
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
 | 15C-6 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
-| 15E scoped conditions/hooks | 15E-1/2/3/4/5 SPEC READY; 15E-6 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2/3/4/5 IMPLEMENTED | Begin 15E-6 protect and contact-block families from the locked package defaults |
+| 15E scoped conditions/hooks | 15E-1/2/3/4/5/6 SPEC READY; 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2/3/4/5/6 IMPLEMENTED | Begin 15E-7 generic condition cleanup/transfer/swap from the locked package defaults |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
@@ -1457,7 +1457,7 @@ Ordered feature packages:
    after assignment in slot order and condition sequence; a faint triggers the replacement loop only
    after the complete entry-hook batch. **Acceptance:** 0/max layers, grounded/airborne, immunity,
    absorption, removal, two-slot entry order, repeat faint/replacement, and hazard golden.
-6. **15E-6 — Protect and contact-block families (`PLANNED`; prerequisites 15E-1/2).** Lock protect
+6. **15E-6 — Protect and contact-block families (`COMPLETE`; prerequisites 15E-1/2).** Lock protect
    scope, accepted move tags, bypass, chain counter ownership, success fraction and RNG draw point,
    reset conditions, side variants, and ordered contact-block payloads. Standard chain probability
    is a ruleset fraction queried once on use; guaranteed first use draws only if the profile requires
@@ -2085,6 +2085,41 @@ passed. Focused review found no blocking scope, architecture, schema, dependency
 AI-fairness, IP, condition-lifecycle, replacement-order, event, trace, or named-move finding. Hazard
 transfer and atomic side swap remain 15E-7; no reference row is prematurely certified here. This
 closes 15E-5. Next eligible package: **15E-6 protect and contact-block families**.
+
+**15E-6 COMPLETE — protect/contact families and focused review: GO (2026-07-17).** Personal and
+side protection now compile into immutable typed profiles with closed scope, filter, chain,
+guaranteed-draw, bypass, and ordered contact-payload data. Personal protection is a one-turn
+creature-scoped `TryHit` condition; the existing priority/multi-target side rows remain the shared
+side store. Both paths dispatch typed filters per materialized target before accuracy and record
+protected damage-memory outcomes. One shared creature counter supplies exact `gen4_like` factor-2
+and `modern_reference` factor-3 fractions with capped exponent, profile-controlled guaranteed
+draws, and reset on Pass, item, switch, ordinary actions, prevention, or failed protection.
+Move- and ability-authored `protectionBypass` skip all protection without removal. Contact damage,
+status, and negative stage payloads execute in authored order through existing guards, stop after
+source faint, and do not stop later spread targets. Smart AI reads the immutable snapshot and
+multiplies its existing protect value by the resolver's exact fraction without mutation or RNG.
+
+Owning contracts updated: `BATTLE_SYSTEM_SPEC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`,
+`BATTLE_AI_SPEC.md`, `TESTING_STRATEGY.md`, `SCOPE_GUARD.md`, and this plan. Production changes:
+`ProtectionConditions.cs`, the shared condition registry/store, move compiler/effects, controller,
+creature chain state, events/traces, HP-status formula inputs, Smart AI, and strict ability-op
+validation. Tests update every legacy typed-protect construction and add compiler rejection,
+immutability, ruleset/draw, lifecycle/reset, personal/side, bypass, contact guard, source-faint,
+doubles, damage-memory, AI, replay, and checked-in `protection.golden` evidence. Schema/migration and
+dependency impact: none; the existing open effect payload remains the serialized boundary. RNG
+impact is exactly one protection draw when the profile and current fraction require it; blocked
+targets skip accuracy and later move draws. Presentation additions are `ProtectionBlocked` and
+`ProtectionContactDamaged`; generic condition events and typed effect/hook traces expose lifecycle.
+
+Verification: focused protection/side-protection/doubles/damage-memory/Smart-AI/validation tests
+passed 139/139; full solution build passed with 0 warnings/errors; full solution passed 1,629 tests
+(1,406 Core, 104 Creator, 21 Runtime, 98 Tools). Definition-aware audit regeneration was
+byte-identical at 937 inventoried / 84 certified with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check`
+passed. Focused review found no blocking scope, architecture, schema, dependency, determinism,
+AI-fairness, IP, condition-lifecycle, target-order, event, trace, or named-move finding. No reference
+row is prematurely certified. This closes 15E-6. Next eligible package: **15E-7 generic condition
+cleanup/transfer/swap**.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
@@ -2951,9 +2986,8 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5, 15D-1, 15E-1/2/3/4/5, 15F-1, and 15G-2. ACTIVE — 15E-6.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5, 15D-1, 15E-1/2/3/4/5/6, 15F-1, and 15G-2. ACTIVE — 15E-7.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.

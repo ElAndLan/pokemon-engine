@@ -35,7 +35,9 @@ public sealed class SmartAiTests
         new(EntityId.Parse("move:roar"), Normal, DamageClass.Status, null, null, 20, 0, 0, forcesSwitch: true);
 
     private static BattleMove Protect() =>
-        new(EntityId.Parse("move:protect"), Normal, DamageClass.Status, null, null, 10, 0, 0, isProtect: true);
+        new(EntityId.Parse("move:protect"), Normal, DamageClass.Status, null, null, 10, 0, 0,
+            target: MoveTarget.User,
+            secondaryEffects: [new ProtectEffect(ProtectionConditions.LegacyPersonal)]);
 
     private static BattleMove LayeredHazard() =>
         new(EntityId.Parse("move:layered_hazard"), Normal, DamageClass.Status, null, null, 20, 0, 0,
@@ -453,6 +455,51 @@ public sealed class SmartAiTests
         // Full-HP attacker not in KO range: no reason to Protect, attack instead.
         var atk = Attacker(Damage(Normal, 30), Protect());
         Assert.Equal(new UseMove(0), SmartAi.ChooseAction(Ctx([atk], [Defender(Normal, hp: 300)])).Action);
+    }
+
+    [Fact]
+    public void ProtectScore_UsesExactRulesetChainFractionWithoutMutatingState()
+    {
+        var attacker = new BattleCreature(EntityId.Parse("species:chain"), "Chain", 50, [Fire],
+            new Stats(1, 100, 100, 100, 100, 100), [Damage(Normal, 1), Protect()]);
+        attacker.AdvanceProtectChain();
+        BattleCreature defender = Defender(Normal, hp: 200);
+
+        static double ProtectComponent(SmartAiDecision decision) => decision.Scores
+            .Single(score => score.Action == new UseMove(1)).Components
+            .Single(component => component.Name == "protect").Value;
+
+        Assert.Equal(22.5, ProtectComponent(SmartAi.ChooseAction(Ctx([attacker], [defender]) with
+        {
+            Ruleset = BattleRulesets.Gen4Like,
+        })));
+        Assert.Equal(15, ProtectComponent(SmartAi.ChooseAction(Ctx([attacker], [defender]) with
+        {
+            Ruleset = BattleRulesets.ModernReference,
+        })));
+        Assert.Equal(1, attacker.ProtectChain);
+    }
+
+    [Fact]
+    public void ProtectScore_IsOmittedWhilePersonalProtectionIsAlreadyActive()
+    {
+        var attacker = new BattleCreature(EntityId.Parse("species:protected"), "Protected", 50, [Fire],
+            new Stats(1, 100, 100, 100, 100, 100), [Damage(Normal, 1), Protect()]);
+        ProtectionProfile profile = ProtectionConditions.LegacyPersonal;
+        BattleConditionDefinition definition = ProtectionConditions.Definition(profile);
+        var condition = new BattleConditionInstance(1, definition,
+            new BattleConditionOwner(BattleConditionScope.Creature, BattleSide.Enemy,
+                new BattleSlot(BattleSide.Enemy, 0), 0),
+            new BattleConditionSource(new BattleSlot(BattleSide.Enemy, 0), 0),
+            0, 0, 1, definition.Tags, new Dictionary<string, int>(), 1);
+
+        SmartAiDecision decision = SmartAi.ChooseAction(Ctx([attacker], [Defender(Normal)]) with
+        {
+            Conditions = [condition],
+        });
+
+        Assert.DoesNotContain(decision.Scores.Single(score => score.Action == new UseMove(1)).Components,
+            component => component.Name == "protect");
     }
 
     [Fact]

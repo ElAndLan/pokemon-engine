@@ -90,7 +90,8 @@ public sealed class BattleV5OpTests
         var jumpKick = new BattleMove(EntityId.Parse("move:jumpkick"), Normal, DamageClass.Physical, 100, 100, 25, 0, 0,
             recoil: new Fraction(1, 2), recoilOnMiss: true);
         var protect = new BattleMove(EntityId.Parse("move:protect"), Normal, DamageClass.Status, null, null, 25, priority: 4, 0,
-            isProtect: true);
+            target: MoveTarget.User,
+            secondaryEffects: [new ProtectEffect(ProtectionConditions.LegacyPersonal)]);
         var player = Fast(200, jumpKick);
         var enemy = Slow(300, protect);
 

@@ -87,6 +87,13 @@ public sealed class BattleConditionRegistry
                 || !hooks.Contains(BattleConditionHook.SwitchIn)
                 || definition.DefaultDuration is not null))
             throw new ArgumentException("Entry-hazard definitions require matching permanent side-scoped switch-in rows.", nameof(definition));
+        if (definition.Protection is { } protection
+            && (definition.Scope != BattleConditionScope.Creature
+                || definition.Id != ProtectionConditions.Validate(protection).Id
+                || !hooks.Contains(BattleConditionHook.TryHit)
+                || definition.DefaultDuration != 1
+                || definition.DurationCheckpoint != BattleIntentCheckpoint.TurnEnd))
+            throw new ArgumentException("Protection definitions require matching one-turn creature-scoped TryHit rows.", nameof(definition));
 
         return definition with
         {
@@ -95,6 +102,8 @@ public sealed class BattleConditionRegistry
             InitialCounters = new ReadOnlyDictionary<string, int>(orderedCounters),
             EntryHazard = definition.EntryHazard is { } entryHazard
                 ? EntryHazardConditions.Normalize(entryHazard) : null,
+            Protection = definition.Protection is { } normalizedProtection
+                ? ProtectionConditions.Normalize(normalizedProtection) : null,
         };
     }
 }

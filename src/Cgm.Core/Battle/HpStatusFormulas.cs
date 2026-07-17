@@ -32,7 +32,8 @@ public static class HpStatusFormulas
         return bands.First(band => scaled <= band.UpperInclusive).Power;
     }
 
-    public static bool Matches(BattleCreature creature, PersistentStatus? status, BattleVolatileStatus? volatileStatus)
+    public static bool Matches(BattleCreature creature, PersistentStatus? status,
+        BattleVolatileStatus? volatileStatus, bool protectedStatus = false)
     {
         if (volatileStatus is { } volatileValue)
             return volatileValue switch
@@ -41,20 +42,21 @@ public static class HpStatusFormulas
                 BattleVolatileStatus.Flinch => creature.Flinched,
                 BattleVolatileStatus.Bound => creature.IsTrapped,
                 BattleVolatileStatus.Seeded => creature.Seeded,
-                BattleVolatileStatus.Protected => creature.Protected,
+                BattleVolatileStatus.Protected => protectedStatus,
                 _ => throw new ArgumentOutOfRangeException(nameof(volatileStatus), volatileValue, "Unknown volatile status."),
             };
         return creature.Status is { } current && (status is null || current == status);
     }
 
     public static int Count(BattleCreature creature, IReadOnlyList<PersistentStatus> persistent,
-        IReadOnlyList<BattleVolatileStatus> volatileStatuses) =>
+        IReadOnlyList<BattleVolatileStatus> volatileStatuses, bool protectedStatus = false) =>
         (creature.Status is { } status && persistent.Contains(status) ? 1 : 0)
-        + volatileStatuses.Count(value => Matches(creature, null, value));
+        + volatileStatuses.Count(value => Matches(creature, null, value, protectedStatus));
 
     public static HpStatusPowerQuery PowerQuery(BattleMove move, BattleCreature source, BattleCreature target,
         PhysicalFormulaInputs? physicalInputs = null, BattleActionFormulaInputs? actionInputs = null,
-        PartyResourceFormulaInputs? resourceInputs = null)
+        PartyResourceFormulaInputs? resourceInputs = null, bool sourceProtected = false,
+        bool targetProtected = false)
     {
         var modifiers = new List<BattleQueryModifier>();
         int insertion = 0;
@@ -86,7 +88,8 @@ public static class HpStatusFormulas
         if (move.SecondaryEffects.OfType<StatusPowerEffect>().SingleOrDefault() is { } statusPower)
         {
             BattleCreature subject = statusPower.Subject == StatusPowerSubject.User ? source : target;
-            bool matches = Matches(subject, statusPower.Status, statusPower.Volatile);
+            bool matches = Matches(subject, statusPower.Status, statusPower.Volatile,
+                statusPower.Subject == StatusPowerSubject.User ? sourceProtected : targetProtected);
             if (matches)
                 modifiers.Add(Multiply(statusPower.Multiplier, insertion++));
             ignoreBurn = matches && statusPower.IgnoreSourceBurnPenalty;
@@ -96,10 +99,13 @@ public static class HpStatusFormulas
         {
             int count = statusCount.Subject switch
             {
-                StatusCountSubject.User => Count(source, statusCount.PersistentStatuses, statusCount.VolatileStatuses),
-                StatusCountSubject.Target => Count(target, statusCount.PersistentStatuses, statusCount.VolatileStatuses),
-                StatusCountSubject.Both => Count(source, statusCount.PersistentStatuses, statusCount.VolatileStatuses)
-                    + Count(target, statusCount.PersistentStatuses, statusCount.VolatileStatuses),
+                StatusCountSubject.User => Count(source, statusCount.PersistentStatuses,
+                    statusCount.VolatileStatuses, sourceProtected),
+                StatusCountSubject.Target => Count(target, statusCount.PersistentStatuses,
+                    statusCount.VolatileStatuses, targetProtected),
+                StatusCountSubject.Both => Count(source, statusCount.PersistentStatuses,
+                    statusCount.VolatileStatuses, sourceProtected)
+                    + Count(target, statusCount.PersistentStatuses, statusCount.VolatileStatuses, targetProtected),
                 _ => throw new ArgumentOutOfRangeException(nameof(statusCount.Subject), statusCount.Subject,
                     "Unknown status-count subject."),
             };

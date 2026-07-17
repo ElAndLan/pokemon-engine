@@ -200,6 +200,10 @@ public sealed record MoveBlocked(BattleSlot Slot) : BattleEvent
     public BattleSide Side => Slot.Side;
     public MoveBlocked(BattleSide side) : this(new BattleSlot(side, 0)) { }
 }
+public sealed record ProtectionBlocked(BattleSlot Source, BattleSlot Target,
+    BattleConditionId Condition) : BattleEvent;
+public sealed record ProtectionContactDamaged(BattleSlot Slot, BattleConditionId Condition,
+    int Amount) : BattleEvent;
 public sealed record ForcedOut(BattleSlot Slot) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
