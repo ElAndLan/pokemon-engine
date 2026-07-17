@@ -71,6 +71,24 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
+    public void CompilesTerrainOpStrictly()
+    {
+        BattleMove battleMove = MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("terrain", null, ("terrain", "electric")))
+            with { Target = MoveTarget.EntireField });
+
+        Assert.Contains(battleMove.SecondaryEffects, effect =>
+            effect is SetTerrainEffect { Terrain: Terrain.Electric });
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("terrain", 50, ("terrain", "electric")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("terrain", null, ("terrain", "none")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("terrain", null,
+                ("terrain", "electric"), ("extra", 1)))));
+    }
+
+    [Fact]
     public void CompilesPositionSwapOp()
     {
         BattleMove bm = MoveCompiler.ToBattleMove(

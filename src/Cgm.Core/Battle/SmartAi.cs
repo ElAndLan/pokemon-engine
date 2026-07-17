@@ -127,6 +127,8 @@ public static class SmartAi
             ? ExpectedDamage(attacker, defender, move, context.Chart, inputs, actionInputs, resourceInputs,
                 weatherMove, WeatherDamageModifiers(context, weatherMove.Type), context.Conditions, context.Ruleset)
             : 0;
+        if (!TerrainAllowsPriorityHit(context, move, defender))
+            damage = 0;
         int authoredAccuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, defender.Level) : move.Accuracy ?? 100;
         BattleHookDispatchSnapshot? weatherAccuracy = WeatherAccuracyHooks(context, move);
         bool weatherBypass = weatherAccuracy?.Filters().Any(filter => filter is
@@ -150,7 +152,9 @@ public static class SmartAi
         if (move.Ailment is { } ailment && move.AilmentChance > 0
             && StatusEffects.CanApplyStatus(defender.Status)
             && !StatusEffects.TypeImmuneToStatus(ailment, defender.Types)
-            && WeatherAllowsStatus(context, ailment))
+            && WeatherAllowsStatus(context, ailment)
+            && TerrainAllowsStatus(context, ailment, defender)
+            && TerrainAllowsPriorityHit(context, move, defender))
         {
             AilmentEffect? effect = move.SecondaryEffects.OfType<AilmentEffect>().FirstOrDefault();
             int chance = effect is null ? move.AilmentChance
@@ -298,6 +302,11 @@ public static class SmartAi
         string ruleset = BattleRulesets.Gen4Like)
     {
         EntityId moveType = weather?.Type ?? move.Type;
+        if (conditions is not null && TerrainConditions.CanBlockPriorityTarget(move.Target)
+            && TerrainConditions.CollectPriorityHooks(conditions, move.Priority, IsGrounded(defender), 0)
+                .Filters().Any(filter => filter is
+                    { Filter.Value: "priority_hit", Decision: BattleHookFilterDecision.Deny }))
+            return 0;
         double eff = chart.Effectiveness(moveType, defender.Types);
         if (eff <= 0)
             return 0;
@@ -356,8 +365,16 @@ public static class SmartAi
              .. WeatherStatModifiers(conditions, defender.Types, defenseStat, BattleQueryId.DefensiveStat, ruleset)]);
         double stab = TypeChart.Stab(moveType, attacker.Types);
         bool burn = attacker.Status == PersistentStatus.Burn && physical && !powerQuery.IgnoreSourceBurnPenalty;
+        var finalModifiers = modifiers?.ToList() ?? [];
+        if (conditions is not null)
+        {
+            BattleHookDispatchSnapshot terrain = TerrainConditions.CollectDamageHooks(conditions, moveType.Slug,
+                IsGrounded(attacker), IsGrounded(defender), actionSequence: 0);
+            finalModifiers.AddRange(terrain.QueryModifiers(BattleQueryId.FinalDamage)
+                .Select(modifier => modifier with { InsertionOrder = finalModifiers.Count }));
+        }
         int oneHit = BattleQuery.ResolveInteger(BattleQueryId.FinalDamage,
-            DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn), modifiers);
+            DamageCalc.Compute(attacker.Level, power, a, d, eff, stab, crit: false, MidpointRoll, burn), finalModifiers);
         double hits = move.MultiHitMax >= 2 ? (move.MultiHitMin + move.MultiHitMax) / 2.0 : 1;
         double total = oneHit * hits;
         int floor = HpStatusFormulas.CannotKoFloor(move);
@@ -404,6 +421,21 @@ public static class SmartAi
         context.Conditions is null || !WeatherConditions.CollectStatusHooks(context.Conditions, status, 0)
             .Filters().Any(filter => filter is
                 { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
+
+    private static bool TerrainAllowsStatus(SmartAiContext context, PersistentStatus status,
+        BattleCreature target) => context.Conditions is null
+        || !TerrainConditions.CollectStatusHooks(context.Conditions, status, IsGrounded(target), 0)
+            .Filters().Any(filter => filter is
+                { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
+
+    private static bool TerrainAllowsPriorityHit(SmartAiContext context, BattleMove move,
+        BattleCreature target) => context.Conditions is null || !TerrainConditions.CanBlockPriorityTarget(move.Target)
+        || !TerrainConditions.CollectPriorityHooks(context.Conditions, move.Priority, IsGrounded(target), 0)
+            .Filters().Any(filter => filter is
+                { Filter.Value: "priority_hit", Decision: BattleHookFilterDecision.Deny });
+
+    private static bool IsGrounded(BattleCreature creature) =>
+        TerrainConditions.GroundedQuery(creature).FinalValue.ToInt32() == 1;
 
     private static IReadOnlyList<BattleQueryModifier> WeatherHealingModifiers(
         SmartAiContext context, HealEffect effect, int maxHp) => context.Conditions is null

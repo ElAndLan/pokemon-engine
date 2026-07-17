@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B plus the 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, and 15G-2 foundations are complete; Phase 15 conformance continues at 84/937.**
+Status: **Phase 15B plus the 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, 15G-2, the 15E-3 weather family, and terrain intrinsic checkpoint are complete; Phase 15 conformance continues at 84/937.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -194,6 +194,14 @@ ruleset tables, singles and per-target doubles resolution, Smart AI score parity
 residual proof, strict profile/input rejection, and battle-start natural weather source/duration/
 event/expiry coverage. Terrain-owned natural environment selection remains in the terrain family;
 weather-setting move certifications remain separate per-move evidence.
+
+The terrain intrinsic checkpoint covers all four closed registry rows, modern-only profile
+admission, apply/same-no-op/replace/expiry source and event traces, natural/effective environment
+fallback, grounded and airborne query traces, exact grounded-source boosts and grounded-target
+Misty reduction, Electric/Misty status and confusion denial with skipped RNG, Psychic per-target
+priority denial before accuracy, Grassy topology healing before expiry, field-action exclusion,
+resolver/Smart-AI parity, and deterministic replay. Authored terrain-sensitive move interaction
+tables, grounded overrides, change hooks, and per-move certification remain open.
 
 ## Golden format
 

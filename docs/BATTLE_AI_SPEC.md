@@ -204,6 +204,10 @@ Capabilities beyond Beginner:
   ruleset profile as the resolver. Sandstorm Rock Special Defense and modern Snow Ice Defense are
   applied after ordinary stages with the same per-multiply flooring; the existing `damage`/`ko`
   components change without a hidden score term or additional AI RNG.
+- Terrain scoring consumes the controller's immutable condition snapshot and the same grounded,
+  `DamageQuery`, and `StatusAttempt` rows as the resolver. Matching grounded-source damage boosts,
+  grounded-target misty reduction, and electric/misty status denial alter only the existing
+  `damage`, `ko`, and `status` components. Preview adds no hidden field state and no AI RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

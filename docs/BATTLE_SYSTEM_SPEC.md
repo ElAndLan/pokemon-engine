@@ -405,11 +405,11 @@ previous turn and order by turn, action sequence, target topology, then hit numb
 | `cause` | `standard`, `fixed`, `level`, `oneHitKnockout`, `counter`, or `hpFormula`; later non-move causes require their owning package |
 | `attempted` | accuracy and protection gates passed and the resolver reached hit/immunity resolution |
 | `connected` | positive HP was removed from the intended creature target; substitute-only damage is not a creature connection |
-| `failure` | `none`, `missed`, `protected`, `immune`, `noDamage`, `noQualifyingDamage`, or `substitute` |
+| `failure` | `none`, `missed`, `protected`, `blocked`, `immune`, `noDamage`, `noQualifyingDamage`, or `substitute` |
 | `calculatedDamage` | final damage-query result before survival, cannot-KO, substitute, or HP-pool mitigation |
 | `appliedDamage` | nonnegative amount after those mitigation rules but before the selected HP pool clamps overkill |
 | `actualHpRemoved` | exact HP removed from the creature; this is the only amount summed by damage-memory queries |
-| `hitNumber` | `0` for a target-level miss/protection/no-qualifying-damage result; otherwise one-based within that target |
+| `hitNumber` | `0` for a target-level miss/protection/field-block/no-qualifying-damage result; otherwise one-based within that target |
 
 Validation rejects foreign attempt/source/move identities, duplicate `(attempt,target,hitNumber)`
 records, negative amounts, applied damage above calculated damage, actual HP removal above applied
@@ -1290,6 +1290,52 @@ and `weather-move-ai-parity`.
 Additional exit vectors are `weather-stat-present-absent`, `weather-stat-stage-order`,
 `weather-stat-floor`, `weather-stat-ruleset`, `weather-stat-ai-parity`,
 `weather-residual-grounded-invariant`, `weather-natural-input`, and `weather-profile-admission`.
+
+### Terrain field conditions (Phase 15E-3 intrinsic checkpoint)
+
+The closed intrinsic terrain registry rows are `terrain:electric`, `terrain:grassy`,
+`terrain:misty`, and `terrain:psychic`. All use scope `terrain`, stacking key `terrain`, replacement
+policy, `stayScope`/`persist` cleanup, and five `TurnEnd` checkpoints. Terrain is unavailable in
+`gen4_like` and available in `modern_reference`. Applying the effective terrain is an admitted
+no-op; a different terrain replaces the existing instance, captures its source, and starts a fresh
+duration. Apply/replace/tick/expire use the shared condition events and traces, alongside typed
+`TerrainChanged`, `TerrainHealed`, `TerrainPriorityBlocked`, and `TerrainEnded` presentation events.
+
+`Grounded` is a shared integer query clamped to `0..1`. The intrinsic base is zero when the
+creature's effective types include `flying` and one otherwise. Resolver and Smart AI use this same
+query result for terrain filters. Gravity, airborne volatiles, and ability/item overrides will add
+ordered query modifiers in their owning 15E-3 checkpoints; this checkpoint does not duplicate
+those later mechanics or infer them from names.
+
+Electric, grassy, and psychic terrain declare `DamageQuery`: when the move source is grounded,
+their matching Electric, Grass, or Psychic move receives a field-owned `3/2` final-damage
+multiplier. Misty terrain instead multiplies Dragon damage by `1/2` when the move target is
+grounded. These exact rational rows follow the locked local mechanics corpus. Flying sources do not
+receive terrain boosts, and Flying targets do not receive misty reduction.
+
+Electric and misty terrain declare `StatusAttempt`. Electric denies sleep against grounded
+targets. Misty denies every persistent status and confusion against grounded targets. Starting
+terrain never cures an existing condition. A denied attempt consumes neither status-chance nor
+confusion-duration RNG. Psychic terrain declares `PriorityQuery`/`TryHit` and denies opposing moves
+with effective priority above zero against each grounded target before accuracy; other targets of a
+spread action continue normally. Grassy terrain declares `TurnEnd` and heals each grounded live
+active in topology order by `max(1, floor(maxHp / 16))` before terrain duration completion. All
+intrinsic terrain hooks draw no RNG, and duration one executes its end-turn hook once before expiry.
+
+Battle construction may supply a natural environment, an initial terrain, and an optional positive
+terrain duration. Initial terrain uses the same store with an environment source and ordinary
+events/traces. The effective environment is the active terrain environment while terrain exists,
+otherwise the natural environment. Natural/effective environment consumption by Nature Power,
+Secret Power, and Camouflage, plus data-authored terrain type/power/priority/spread/gate/removal/heal
+interactions, remains required before the terrain-family exit and is not certified by this intrinsic
+checkpoint.
+
+Intrinsic terrain acceptance vectors are `terrain-registry`, `terrain-start-source`,
+`terrain-same-noop`, `terrain-replace`, `terrain-duration-one-many`, `terrain-profile-admission`,
+`terrain-grounded-query`, `terrain-damage-present-absent`, `terrain-status-present-absent`,
+`terrain-confusion-no-rng`, `terrain-priority-per-target`, `terrain-grassy-topology`,
+`terrain-ai-query-parity`, `terrain-natural-effective-environment`, `terrain-no-rng`, and
+`terrain-replay`.
 
 ### Effective-value overlays (Phase 15F-1)
 

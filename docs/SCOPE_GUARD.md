@@ -26,11 +26,12 @@ Starting baseline:
   15C-15G mechanics or later 15H reference closure. The 15C-1 exact numeric-query, 15D-1 typed-intent,
   15E-1 scoped-condition-store, 15E-2 typed-hook-dispatcher, 15F-1 effective-value-overlay, and
   15G-2 bounded action/damage-memory foundations, plus reusable queued-gate and HP-mutation packages,
-  have also landed outside that certified cohort. The 15E-3 weather store/damage/residual/accuracy/
-  status/healing checkpoints have landed; the next eligible work remains the rest of 15E-3 weather
-  interactions.
-- The 15E-3 weather move-type/base-power/charge checkpoint has also landed; grounded/stat,
-  natural-field-input, and ruleset-difference weather rows remain before the family can close.
+  have also landed outside that certified cohort. The complete 15E-3 weather family and the terrain
+  intrinsic lifecycle/grounded/damage/status/priority/healing checkpoint have landed; the next
+  eligible work remains authored terrain/environment/grounded-override interactions inside 15E-3.
+- Terrain move-sensitive tables, natural-environment consumers, grounded overrides, change/duration
+  hooks, and individual conformance vectors remain before the terrain family can close; room,
+  gravity, and sport families follow without advancing the package.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
   `IMPLEMENTATION_PLAN.md` record the growing verified suite; test count is evidence, not phase exit.
 

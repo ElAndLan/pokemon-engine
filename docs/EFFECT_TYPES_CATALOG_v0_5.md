@@ -684,6 +684,13 @@ family contract, not an individual checkpoint's certification surface.
 | `misty_terrain` | grounded status prevention, Dragon move reduction in modern rulesets, ability hooks. |
 | `psychic_terrain` | grounded priority-move blocking, Psychic move modifier, ability hooks. |
 
+Phase 15E-3 places these four intrinsic rows on the shared terrain store and grounded query path.
+Electric/Grass/Psychic boosts, Misty Dragon reduction, Electric/Misty status filters, Psychic
+per-target priority denial, Grassy end-turn healing, modern-profile admission, and natural/effective
+environment inputs are implemented with resolver/Smart-AI parity. Authored terrain-sensitive move
+tables, environment consumers, grounded overrides, seeds/change hooks, and individual move
+certification remain required before the terrain-family exit.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

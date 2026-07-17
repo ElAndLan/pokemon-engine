@@ -126,6 +126,16 @@ public static class MoveCompiler
                     effects.Add(new SetWeatherEffect(setsWeather));
                     break;
 
+                case "terrain":
+                    if (chance != 100)
+                        throw new ArgumentException("terrain does not support chance.");
+                    CheckAllowedParams(e, "terrain");
+                    Terrain terrain = Parse<Terrain>(Str(e, "terrain"), "terrain");
+                    if (terrain == Terrain.None)
+                        throw new ArgumentException("terrain requires an active terrain row.");
+                    effects.Add(new SetTerrainEffect(terrain));
+                    break;
+
                 case "stealthRock": // apply_condition(side:entry_hazard_damage, type_scaled) (catalog §9.4)
                     setsStealthRock = true;
                     effects.Add(new StealthRockEffect());

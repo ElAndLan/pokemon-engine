@@ -167,6 +167,10 @@ public sealed record WeatherDamage(BattleSlot Slot, int Amount) : BattleEvent
     public BattleSide Side => Slot.Side;
     public WeatherDamage(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
 }
+public sealed record TerrainChanged(Terrain Terrain) : BattleEvent;
+public sealed record TerrainEnded(Terrain Terrain) : BattleEvent;
+public sealed record TerrainHealed(BattleSlot Slot, int Amount) : BattleEvent;
+public sealed record TerrainPriorityBlocked(BattleSlot Source, BattleSlot Target) : BattleEvent;
 public sealed record Bound(BattleSlot Slot) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

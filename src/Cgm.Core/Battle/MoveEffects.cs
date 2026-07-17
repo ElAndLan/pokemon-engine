@@ -161,6 +161,8 @@ public sealed record EntryHazardEffect : MoveEffect;
 /// <summary>apply_condition(field:weather) — sets battlefield weather (catalog §7.6).</summary>
 public sealed record SetWeatherEffect(Weather Weather) : MoveEffect;
 
+public sealed record SetTerrainEffect(Terrain Terrain) : MoveEffect;
+
 /// <summary>Changes this move's accuracy under authored weather conditions.</summary>
 public sealed record WeatherAccuracyEffect(
     IReadOnlySet<Weather> BypassWeather,

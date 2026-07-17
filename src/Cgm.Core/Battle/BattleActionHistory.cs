@@ -19,6 +19,7 @@ public enum BattleDamageFailure
     None,
     Missed,
     Protected,
+    Blocked,
     Immune,
     NoDamage,
     NoQualifyingDamage,
@@ -330,7 +331,8 @@ public sealed class BattleActionHistory
     private static void ValidateDamageOutcome(BattleDamageRecord record)
     {
         bool targetLevelFailure = record.Failure is BattleDamageFailure.Missed
-            or BattleDamageFailure.Protected or BattleDamageFailure.NoQualifyingDamage;
+            or BattleDamageFailure.Protected or BattleDamageFailure.Blocked
+            or BattleDamageFailure.NoQualifyingDamage;
         if (targetLevelFailure)
         {
             if (record.HitNumber != 0 || record.Attempted || record.Connected || record.CalculatedDamage != 0

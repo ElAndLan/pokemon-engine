@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2 plus the 15E-3 weather family, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-3 terrain** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2 plus the 15E-3 weather family and terrain intrinsic checkpoint, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-3 terrain interactions** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -425,7 +425,7 @@ Current readiness ledger:
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
 | 15C-6 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
-| 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; 15E-3 IN PROGRESS (WEATHER FAMILY COMPLETE) | Weather owns the shared condition/query/profile path with resolver/AI parity; continue terrain, then room/gravity/sport work |
+| 15E scoped conditions/hooks | 15E-1/2 SPEC READY; 15E-3 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2 IMPLEMENTED; 15E-3 IN PROGRESS (WEATHER FAMILY + TERRAIN INTRINSICS COMPLETE) | Terrain lifecycle/grounded/intrinsic resolver-AI behavior is green; finish authored terrain/environment/override interactions, then room/gravity/sport work |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
@@ -1438,8 +1438,8 @@ Ordered feature packages:
    payload)` and cap nested emitted intents at 64 with a visible engine error. **Acceptance:** complete
    order golden, add/remove during dispatch, duplicate suppression, cap failure, no dictionary drift,
    and identical resolver/AI query collection.
-3. **15E-3 — Weather, terrain, room, gravity, and sport families (`IN PROGRESS`; weather family
-   complete; prerequisites 15E-1/2
+3. **15E-3 — Weather, terrain, room, gravity, and sport families (`IN PROGRESS`; weather family and
+   terrain intrinsic checkpoint complete; prerequisites 15E-1/2
    and 15C query seam).** Build these as field-scoped condition definitions. Each registry row locks
    duration/default, replace/coexist rules, damage/accuracy/status/heal/type/grounded/order hooks,
    residual timing, source, and removal. Weather and terrain each permit one effective instance;
@@ -1688,6 +1688,43 @@ determinism, AI-fairness, IP, event/RNG, or named-move branch defect: GO for wea
 not for 15E-3 package exit. Implementation checkpoint: `630b817`. Next slice:
 continue 15E-3 with the complete terrain family, including grounded queries and natural environment
 selection, before room/gravity/sport.
+
+Progress (2026-07-16): **15E-3 TERRAIN INTRINSIC CHECKPOINT COMPLETE; TERRAIN FAMILY AND PACKAGE
+REMAIN IN PROGRESS — focused review: GO.** The closed electric/grassy/misty/psychic registry now
+uses the shared terrain store with one effective instance, five-turn replacement lifecycle, exact
+source identity, profile admission, lifecycle events/traces, and validated natural/initial field
+inputs. `BattleQueryId.Grounded` supplies the shared intrinsic Flying-type filter. Grounded sources
+receive exact Electric/Grass/Psychic `3/2` damage rows; grounded targets receive Misty Dragon `1/2`,
+Electric sleep denial, Misty persistent-status/confusion denial, Psychic opposing-priority denial
+before accuracy, and topology-ordered Grassy `1/16` end-turn healing before duration expiry. The
+resolver and Smart AI collect the same immutable terrain condition snapshot; field actions are not
+misclassified as priority attacks, denied status/confusion consumes no effect/duration RNG, and no
+move ID/name branch was added. Effective environment maps active terrain over the validated natural
+environment and returns to natural on expiry. The strict generic `terrain` op supplies field
+application; certification remains 84/937 because individual terrain-setting and terrain-sensitive
+moves still need their complete normalized vectors.
+
+Changed production files: `src/Cgm.Core/Battle/TerrainConditions.cs`, `BattleQuery.cs`,
+`BattleActionHistory.cs`, `BattleController.cs`, `BattleEvents.cs`,
+`MoveEffects.cs`, `MoveCompiler.cs`, and `SmartAi.cs`. Changed focused tests:
+`tests/Cgm.Core.Tests/Battle/BattleTerrainConditionTests.cs` and `MoveCompilerTests.cs`. Contract/
+evidence updates: `docs/BATTLE_SYSTEM_SPEC.md`, `docs/BATTLE_AI_SPEC.md`,
+`docs/EFFECT_TYPES_CATALOG_v0_5.md`, `docs/TESTING_STRATEGY.md`, `docs/SCOPE_GUARD.md`, and this plan. Schema/migration and
+dependency impact: none. New simulation randomness: none. Verification: the focused terrain/compiler
+filter passed 12 tests; complete Battle passed 998 tests;
+Smart/Trainer/AI passed 218 tests; final build passed with 0 warnings/errors; and the final full
+solution passed 1,500 tests (1,277 Core, 104 Creator, 21 Runtime, 98 Tools). Deterministic audit
+regeneration was byte-identical at 937 inventoried / 84 certified with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check` passed.
+Focused review found and fixed positive-priority field actions being incorrectly eligible for the
+Psychic opposing-target block; final verdict GO for this checkpoint, not for terrain-family or
+15E-3 exit.
+
+Exact terrain continuation: add strict authored terrain type/power/priority/spread/gate/removal/heal
+rows; finish natural/effective environment selection inputs for Nature Power, Secret Power, and
+Camouflage while leaving called-move execution with 15D-7; integrate grounded overrides and
+`TerrainChange`/duration hooks from gravity, volatiles, abilities, and items at their owning
+checkpoints; then close the full terrain interaction matrix before room/gravity/sport.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup

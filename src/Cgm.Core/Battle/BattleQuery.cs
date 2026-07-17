@@ -24,6 +24,7 @@ public enum BattleQueryId
     Priority,
     Effectiveness,
     SecondaryChance,
+    Grounded,
 }
 
 public enum BattleQueryValueType { Integer, Fraction }
@@ -86,7 +87,8 @@ public sealed record BattleQueryContext(
     BattleSlot? TargetSlot = null,
     BattleCreature? Target = null,
     Weather Weather = Weather.None,
-    string Ruleset = BattleRulesets.Gen4Like);
+    string Ruleset = BattleRulesets.Gen4Like,
+    Terrain Terrain = Terrain.None);
 
 public sealed record BattleQueryModifier(
     BattleQueryStage Stage,
@@ -119,7 +121,8 @@ public sealed record BattleQueryInputs(
     BattleSlot? SourceSlot,
     BattleSlot? TargetSlot,
     Weather Weather,
-    string Ruleset);
+    string Ruleset,
+    Terrain Terrain = Terrain.None);
 
 public sealed record BattleQueryTraceEntry(
     int Turn,
@@ -155,6 +158,7 @@ public static class BattleQuery
         BattleQueryId.Priority => Integer(query, -7, 7),
         BattleQueryId.Effectiveness => Fraction(query, 0, 4),
         BattleQueryId.SecondaryChance => Integer(query, 0, 100),
+        BattleQueryId.Grounded => Integer(query, 0, 1),
         _ => throw new ArgumentOutOfRangeException(nameof(query), query, "Unknown battle query."),
     };
 
@@ -206,7 +210,8 @@ public static class BattleQuery
         value = Clamp(value, spec.Minimum, spec.Maximum);
         steps.Add(new BattleQueryStep(BattleQueryStage.FinalClamp, null, true, beforeClamp, null, value));
         return new BattleQueryResult(query, spec.ValueType, authoredBase, value,
-            new BattleQueryInputs(context.SourceSlot, context.TargetSlot, context.Weather, context.Ruleset), steps.ToArray());
+            new BattleQueryInputs(context.SourceSlot, context.TargetSlot, context.Weather, context.Ruleset,
+                context.Terrain), steps.ToArray());
     }
 
     private static List<BattleQueryModifier> ValidateAndOrder(IEnumerable<BattleQueryModifier> modifiers)
