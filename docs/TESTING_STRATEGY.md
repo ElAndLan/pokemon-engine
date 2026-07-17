@@ -200,8 +200,11 @@ admission, apply/same-no-op/replace/expiry source and event traces, natural/effe
 fallback, grounded and airborne query traces, exact grounded-source boosts and grounded-target
 Misty reduction, Electric/Misty status and confusion denial with skipped RNG, Psychic per-target
 priority denial before accuracy, Grassy topology healing before expiry, field-action exclusion,
-resolver/Smart-AI parity, and deterministic replay. Authored terrain-sensitive move interaction
-tables, grounded overrides, change hooks, and per-move certification remain open.
+resolver/Smart-AI parity, and deterministic replay. The authored-interaction checkpoint adds strict
+type/power/priority/spread/gate/removal/heal compilation, user/target grounded matrices, effective
+type and power traces, action-order proof, doubles materialization, pre-PP/RNG failure, exact-store
+removal traces, healing replacement, and Smart-AI parity. Environment consumers, grounded
+overrides, change hooks, and per-move certification remain open.
 
 ## Golden format
 

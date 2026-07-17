@@ -103,6 +103,11 @@ public static class SmartAi
     {
         BattleMove move = attacker.Moves[action.MoveIndex];
         var c = new List<AiScoreComponent>();
+        if (move.SecondaryEffects.OfType<TerrainGateEffect>().Any() && ActiveTerrain(context) == Terrain.None)
+        {
+            c.Add(new("terrainGate", -1_000_000));
+            return new AiCandidateScore(action, c[0].Value, c);
+        }
 
         PhysicalFormulaInputs? inputs = !PhysicalMetricFormulas.HasPowerFormula(move) ? null
             : context.Overlays is { } overlays
@@ -122,12 +127,12 @@ public static class SmartAi
         }
         bool hasResourceInputs = TryResourceInputs(attacker, defender, move, context.EnemyParty,
             context.EnemyActive, BattleSide.Enemy, context, out PartyResourceFormulaInputs? resourceInputs);
-        WeatherMovePreview weatherMove = PreviewWeatherMove(context, move);
+        FieldMovePreview weatherMove = PreviewFieldMove(context, move, attacker, defender);
         double damage = hasResourceInputs
             ? ExpectedDamage(attacker, defender, move, context.Chart, inputs, actionInputs, resourceInputs,
                 weatherMove, WeatherDamageModifiers(context, weatherMove.Type), context.Conditions, context.Ruleset)
             : 0;
-        if (!TerrainAllowsPriorityHit(context, move, defender))
+        if (!TerrainAllowsPriorityHit(context, move, attacker, defender))
             damage = 0;
         int authoredAccuracy = move.Ohko ? EffectMath.OhkoAccuracy(attacker.Level, defender.Level) : move.Accuracy ?? 100;
         BattleHookDispatchSnapshot? weatherAccuracy = WeatherAccuracyHooks(context, move);
@@ -154,7 +159,7 @@ public static class SmartAi
             && !StatusEffects.TypeImmuneToStatus(ailment, defender.Types)
             && WeatherAllowsStatus(context, ailment)
             && TerrainAllowsStatus(context, ailment, defender)
-            && TerrainAllowsPriorityHit(context, move, defender))
+            && TerrainAllowsPriorityHit(context, move, attacker, defender))
         {
             AilmentEffect? effect = move.SecondaryEffects.OfType<AilmentEffect>().FirstOrDefault();
             int chance = effect is null ? move.AilmentChance
@@ -260,7 +265,7 @@ public static class SmartAi
                 return ExpectedDamage(attacker, defender, move, chart);
             if (sourceParty is null)
             {
-                WeatherMovePreview weather = PreviewWeatherMove(context, move);
+                FieldMovePreview weather = PreviewFieldMove(context, move, attacker, defender);
                 return ExpectedDamage(attacker, defender, move, chart, weather: weather,
                     modifiers: WeatherDamageModifiers(context, weather.Type), conditions: context.Conditions,
                     ruleset: context.Ruleset);
@@ -268,7 +273,7 @@ public static class SmartAi
             if (!TryResourceInputs(attacker, defender, move, sourceParty, sourceIndex, BattleSide.Enemy,
                 context, out PartyResourceFormulaInputs? inputs))
                 return 0;
-            WeatherMovePreview resourceWeather = PreviewWeatherMove(context, move);
+            FieldMovePreview resourceWeather = PreviewFieldMove(context, move, attacker, defender);
             return ExpectedDamage(attacker, defender, move, chart, resourceInputs: inputs,
                 weather: resourceWeather, modifiers: WeatherDamageModifiers(context, resourceWeather.Type),
                 conditions: context.Conditions, ruleset: context.Ruleset);
@@ -280,7 +285,7 @@ public static class SmartAi
             && context.Memory.LastPlayerMove is { } last
             && attacker.Moves.FirstOrDefault(m => m.Move == last && m.HasPp) is { } repeated)
         {
-            WeatherMovePreview weather = PreviewWeatherMove(context, repeated);
+            FieldMovePreview weather = PreviewFieldMove(context, repeated, attacker, defender);
             return ExpectedDamage(attacker, defender, repeated, context.Chart, weather: weather,
                 modifiers: WeatherDamageModifiers(context, weather.Type), conditions: context.Conditions,
                 ruleset: context.Ruleset);
@@ -296,14 +301,15 @@ public static class SmartAi
     private static double ExpectedDamage(BattleCreature attacker, BattleCreature defender, BattleMove move, TypeChart chart,
         PhysicalFormulaInputs? physicalInputs = null, BattleActionFormulaInputs? actionInputs = null,
         PartyResourceFormulaInputs? resourceInputs = null,
-        WeatherMovePreview? weather = null,
+        FieldMovePreview? weather = null,
         IReadOnlyList<BattleQueryModifier>? modifiers = null,
         IReadOnlyList<BattleConditionInstance>? conditions = null,
         string ruleset = BattleRulesets.Gen4Like)
     {
         EntityId moveType = weather?.Type ?? move.Type;
         if (conditions is not null && TerrainConditions.CanBlockPriorityTarget(move.Target)
-            && TerrainConditions.CollectPriorityHooks(conditions, move.Priority, IsGrounded(defender), 0)
+            && TerrainConditions.CollectPriorityHooks(conditions,
+                EffectivePriority(conditions, move, attacker), IsGrounded(defender), 0)
                 .Filters().Any(filter => filter is
                     { Filter.Value: "priority_hit", Decision: BattleHookFilterDecision.Deny }))
             return 0;
@@ -381,19 +387,29 @@ public static class SmartAi
         return floor > 0 ? Math.Min(total, Math.Max(0, defender.CurrentHp - floor)) : total;
     }
 
-    private sealed record WeatherMovePreview(EntityId Type, IReadOnlyList<BattleQueryModifier> PowerModifiers);
+    private sealed record FieldMovePreview(EntityId Type, IReadOnlyList<BattleQueryModifier> PowerModifiers);
 
-    private static WeatherMovePreview PreviewWeatherMove(SmartAiContext context, BattleMove move)
+    private static FieldMovePreview PreviewFieldMove(SmartAiContext context, BattleMove move,
+        BattleCreature source, BattleCreature target)
     {
-        if (context.Conditions is null
-            || move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is not { } effect)
+        if (context.Conditions is null)
             return new(move.Type, []);
-        BattleHookDispatchSnapshot typeHooks = WeatherConditions.CollectMoveTypeHooks(context.Conditions, effect, 0);
-        EntityId type = typeHooks.MoveTypes().SingleOrDefault() is { } replacement && replacement != default
-            ? replacement
-            : move.Type;
-        return new(type, WeatherConditions.CollectBasePowerHooks(context.Conditions, effect, 0)
-            .QueryModifiers(BattleQueryId.BasePower));
+        if (move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is { } weather)
+        {
+            BattleHookDispatchSnapshot typeHooks = WeatherConditions.CollectMoveTypeHooks(context.Conditions, weather, 0);
+            EntityId type = typeHooks.MoveTypes().SingleOrDefault() is { } replacement && replacement != default
+                ? replacement : move.Type;
+            return new(type, WeatherConditions.CollectBasePowerHooks(context.Conditions, weather, 0)
+                .QueryModifiers(BattleQueryId.BasePower));
+        }
+        if (move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is not { } terrain)
+            return new(move.Type, []);
+        BattleHookDispatchSnapshot terrainType = TerrainConditions.CollectMoveTypeHooks(
+            context.Conditions, terrain, IsGrounded(source), 0);
+        EntityId terrainMoveType = terrainType.MoveTypes().SingleOrDefault() is { } replacementType
+            && replacementType != default ? replacementType : move.Type;
+        return new(terrainMoveType, TerrainConditions.CollectBasePowerHooks(context.Conditions, terrain,
+            IsGrounded(source), IsGrounded(target), 0).QueryModifiers(BattleQueryId.BasePower));
     }
 
     private static IReadOnlyList<BattleQueryModifier> WeatherDamageModifiers(
@@ -429,10 +445,27 @@ public static class SmartAi
                 { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
 
     private static bool TerrainAllowsPriorityHit(SmartAiContext context, BattleMove move,
-        BattleCreature target) => context.Conditions is null || !TerrainConditions.CanBlockPriorityTarget(move.Target)
-        || !TerrainConditions.CollectPriorityHooks(context.Conditions, move.Priority, IsGrounded(target), 0)
+        BattleCreature source, BattleCreature target) => context.Conditions is null
+        || !TerrainConditions.CanBlockPriorityTarget(move.Target)
+        || !TerrainConditions.CollectPriorityHooks(context.Conditions,
+            EffectivePriority(context.Conditions, move, source), IsGrounded(target), 0)
             .Filters().Any(filter => filter is
                 { Filter.Value: "priority_hit", Decision: BattleHookFilterDecision.Deny });
+
+    private static int EffectivePriority(IReadOnlyList<BattleConditionInstance> conditions,
+        BattleMove move, BattleCreature source)
+    {
+        if (move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is not { } effect)
+            return move.Priority;
+        return BattleQuery.ResolveInteger(BattleQueryId.Priority, move.Priority,
+            TerrainConditions.CollectMovePriorityHooks(conditions, effect,
+                IsGrounded(source), 0).QueryModifiers(BattleQueryId.Priority));
+    }
+
+    private static Terrain ActiveTerrain(SmartAiContext context) => context.Conditions?
+        .SingleOrDefault(instance => instance.Definition.Scope == BattleConditionScope.Terrain) is { } condition
+            ? TerrainConditions.For(condition.Definition.Id).Terrain
+            : Terrain.None;
 
     private static bool IsGrounded(BattleCreature creature) =>
         TerrainConditions.GroundedQuery(creature).FinalValue.ToInt32() == 1;
@@ -440,8 +473,10 @@ public static class SmartAi
     private static IReadOnlyList<BattleQueryModifier> WeatherHealingModifiers(
         SmartAiContext context, HealEffect effect, int maxHp) => context.Conditions is null
         ? []
-        : WeatherConditions.CollectHealingHooks(context.Conditions, effect, maxHp, actionSequence: 0)
-            .QueryModifiers(BattleQueryId.Healing);
+        : [.. WeatherConditions.CollectHealingHooks(context.Conditions, effect, maxHp, actionSequence: 0)
+                .QueryModifiers(BattleQueryId.Healing),
+           .. TerrainConditions.CollectHealingHooks(context.Conditions, effect, maxHp, actionSequence: 0)
+                .QueryModifiers(BattleQueryId.Healing)];
 
     private static bool TryResourceInputs(BattleCreature attacker, BattleCreature defender, BattleMove move,
         IReadOnlyList<BattleCreature> sourceParty, int sourceIndex, BattleSide sourceSide, SmartAiContext context,

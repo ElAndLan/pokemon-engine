@@ -23,6 +23,7 @@ public enum HpFractionOperation { Heal, Damage }
 public enum HpFractionBasis { MaxHp, CurrentHp }
 public enum StatusPowerSubject { User, Target }
 public enum StatusCountSubject { User, Target, Both }
+public enum TerrainMoveSubject { Field, User, Target }
 public enum BattleVolatileStatus { Confusion, Flinch, Bound, Seeded, Protected }
 public sealed record FormulaPowerBand(int MinInclusive, int Power);
 public sealed record StatusChanceFormula(
@@ -89,7 +90,8 @@ public sealed record RecoilEffect(Fraction Fraction) : MoveEffect;
 public sealed record HealEffect(
     Fraction Fraction,
     HpFractionRecipient Recipient = HpFractionRecipient.Self,
-    IReadOnlyDictionary<Weather, Fraction>? WeatherFractions = null) : MoveEffect;
+    IReadOnlyDictionary<Weather, Fraction>? WeatherFractions = null,
+    IReadOnlyDictionary<Terrain, Fraction>? TerrainFractions = null) : MoveEffect;
 
 /// <summary>Mutates a recipient's current or max-HP fraction through the shared HP primitives.</summary>
 public sealed record HpFractionEffect(
@@ -162,6 +164,14 @@ public sealed record EntryHazardEffect : MoveEffect;
 public sealed record SetWeatherEffect(Weather Weather) : MoveEffect;
 
 public sealed record SetTerrainEffect(Terrain Terrain) : MoveEffect;
+public sealed record TerrainMoveEffect(
+    TerrainMoveSubject Subject,
+    IReadOnlyDictionary<Terrain, EntityId> TypeOverrides,
+    IReadOnlyDictionary<Terrain, Fraction> PowerMultipliers,
+    IReadOnlyDictionary<Terrain, int> PriorityModifiers,
+    IReadOnlySet<Terrain> SpreadTerrains) : MoveEffect;
+public sealed record TerrainGateEffect : MoveEffect;
+public sealed record RemoveTerrainEffect : MoveEffect;
 
 /// <summary>Changes this move's accuracy under authored weather conditions.</summary>
 public sealed record WeatherAccuracyEffect(

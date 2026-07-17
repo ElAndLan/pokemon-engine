@@ -208,6 +208,10 @@ Capabilities beyond Beginner:
   `DamageQuery`, and `StatusAttempt` rows as the resolver. Matching grounded-source damage boosts,
   grounded-target misty reduction, and electric/misty status denial alter only the existing
   `damage`, `ko`, and `status` components. Preview adds no hidden field state and no AI RNG.
+- Authored `terrainMove` type/base-power/priority rows and `heal.terrain` replacements consume the
+  same typed hooks and grounded subjects as resolution. A failed `terrainGate` contributes the
+  explicit `terrainGate` rejection component so Smart AI avoids a known-failing move; removal and
+  spread add no hidden score term or RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

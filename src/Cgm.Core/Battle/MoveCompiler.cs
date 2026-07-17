@@ -59,14 +59,18 @@ public static class MoveCompiler
                     break;
 
                 case "heal":
-                    CheckAllowedParams(e, "num", "den", "recipient", "weather");
+                    CheckAllowedParams(e, "num", "den", "recipient", "weather", "terrain");
                     Fraction healFraction = ReadFraction(e, 1, 2);
                     HpFractionRecipient healRecipient = e.Params?.ContainsKey("recipient") == true
                         ? Parse<HpFractionRecipient>(Str(e, "recipient"), "recipient")
                         : HpFractionRecipient.Self;
                     if (healRecipient == HpFractionRecipient.Self)
                         heal = healFraction;
-                    effects.Add(new HealEffect(healFraction, healRecipient, ParseWeatherFractions(e)));
+                    IReadOnlyDictionary<Weather, Fraction>? healWeather = ParseWeatherFractions(e);
+                    IReadOnlyDictionary<Terrain, Fraction>? healTerrain = ParseTerrainFractions(e);
+                    if (healWeather is not null && healTerrain is not null)
+                        throw new ArgumentException("heal cannot combine weather and terrain replacement tables.");
+                    effects.Add(new HealEffect(healFraction, healRecipient, healWeather, healTerrain));
                     break;
 
                 case "hpFraction":
@@ -134,6 +138,42 @@ public static class MoveCompiler
                     if (terrain == Terrain.None)
                         throw new ArgumentException("terrain requires an active terrain row.");
                     effects.Add(new SetTerrainEffect(terrain));
+                    break;
+
+                case "terrainMove":
+                    if (chance != 100)
+                        throw new ArgumentException("terrainMove does not support chance.");
+                    if (move.DamageClass == DamageClass.Status || move.Power is null)
+                        throw new ArgumentException("terrainMove requires a damaging move with authored power.");
+                    CheckAllowedParams(e, "subject", "types", "power", "priority", "spread");
+                    TerrainMoveSubject terrainSubject = Parse<TerrainMoveSubject>(Str(e, "subject"), "subject");
+                    IReadOnlyDictionary<Terrain, EntityId> terrainTypes = ParseTerrainTypes(e);
+                    IReadOnlyDictionary<Terrain, Fraction> terrainPower = ParseTerrainPower(e);
+                    IReadOnlyDictionary<Terrain, int> terrainPriority = ParseTerrainPriority(e, move.Priority);
+                    IReadOnlySet<Terrain> spreadTerrains = ParseTerrainList(e, "spread");
+                    if (terrainTypes.Count + terrainPower.Count + terrainPriority.Count + spreadTerrains.Count == 0)
+                        throw new ArgumentException("terrainMove requires types, power, priority, or spread rows.");
+                    if (terrainSubject == TerrainMoveSubject.Target
+                        && (terrainTypes.Count + terrainPriority.Count + spreadTerrains.Count > 0))
+                        throw new ArgumentException("target-subject terrainMove supports power rows only.");
+                    if (spreadTerrains.Count > 0 && move.Target != MoveTarget.Selected)
+                        throw new ArgumentException("terrainMove spread requires the selected target.");
+                    effects.Add(new TerrainMoveEffect(terrainSubject, terrainTypes, terrainPower,
+                        terrainPriority, spreadTerrains));
+                    break;
+
+                case "terrainGate":
+                    if (chance != 100)
+                        throw new ArgumentException("terrainGate does not support chance.");
+                    CheckAllowedParams(e);
+                    effects.Add(new TerrainGateEffect());
+                    break;
+
+                case "removeTerrain":
+                    if (chance != 100)
+                        throw new ArgumentException("removeTerrain does not support chance.");
+                    CheckAllowedParams(e);
+                    effects.Add(new RemoveTerrainEffect());
                     break;
 
                 case "stealthRock": // apply_condition(side:entry_hazard_damage, type_scaled) (catalog §9.4)
@@ -583,6 +623,12 @@ public static class MoveCompiler
             throw new ArgumentException("A move can declare one weatherAccuracy op and cannot combine it with accuracyBypass or ohko.");
         if (effects.OfType<WeatherMoveEffect>().Count() > 1)
             throw new ArgumentException("A move can declare only one weatherMove op.");
+        if (effects.OfType<TerrainMoveEffect>().Count() > 1)
+            throw new ArgumentException("A move can declare only one terrainMove op.");
+        if (effects.OfType<TerrainGateEffect>().Count() > 1 || effects.OfType<RemoveTerrainEffect>().Count() > 1)
+            throw new ArgumentException("A move can declare at most one terrainGate and one removeTerrain op.");
+        if (effects.OfType<WeatherMoveEffect>().Any() && effects.OfType<TerrainMoveEffect>().Any())
+            throw new ArgumentException("A move cannot combine weatherMove and terrainMove query rows.");
         if (!chargeTurn && effects.OfType<WeatherMoveEffect>().Any(effect => effect.SkipChargeWeather.Count > 0))
             throw new ArgumentException("weatherMove skipCharge requires chargeTurn.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
@@ -880,6 +926,86 @@ public static class MoveCompiler
         return fractions.Count > 0
             ? fractions
             : throw new ArgumentException("heal weather cannot be empty.");
+    }
+
+    private static IReadOnlySet<Terrain> ParseTerrainList(Effect effect, string key)
+    {
+        if (effect.Params?.ContainsKey(key) != true)
+            return new HashSet<Terrain>();
+        Terrain[] values = Str(effect, key).Split(',', StringSplitOptions.TrimEntries)
+            .Select(value => ParseTerrain(value, key)).ToArray();
+        if (values.Length == 0 || values.Contains(Terrain.None) || values.Distinct().Count() != values.Length)
+            throw new ArgumentException($"terrainMove {key} must contain unique active terrain values.");
+        return new HashSet<Terrain>(values);
+    }
+
+    private static IReadOnlyDictionary<Terrain, EntityId> ParseTerrainTypes(Effect effect)
+    {
+        if (effect.Params?.ContainsKey("types") != true)
+            return new Dictionary<Terrain, EntityId>();
+        var result = new Dictionary<Terrain, EntityId>();
+        foreach (string entry in Str(effect, "types").Split(',', StringSplitOptions.TrimEntries))
+        {
+            string[] row = entry.Split(':', StringSplitOptions.TrimEntries);
+            if (row.Length != 2 || !TryParseTerrain(row[0], out Terrain terrain)
+                || !BattleConditionId.ValidToken(row[1]) || !result.TryAdd(terrain, EntityId.Parse($"type:{row[1]}")))
+                throw new ArgumentException("terrainMove types require unique terrain:type-slug rows.");
+        }
+        return result.Count > 0 ? result : throw new ArgumentException("terrainMove types cannot be empty.");
+    }
+
+    private static IReadOnlyDictionary<Terrain, Fraction> ParseTerrainPower(Effect effect) =>
+        ParseTerrainRatioTable(effect, "power", "terrainMove power", maximumOne: false)
+        ?? new Dictionary<Terrain, Fraction>();
+
+    private static IReadOnlyDictionary<Terrain, int> ParseTerrainPriority(Effect effect, int authoredPriority)
+    {
+        if (effect.Params?.ContainsKey("priority") != true)
+            return new Dictionary<Terrain, int>();
+        var result = new Dictionary<Terrain, int>();
+        foreach (string entry in Str(effect, "priority").Split(',', StringSplitOptions.TrimEntries))
+        {
+            string[] row = entry.Split(':', StringSplitOptions.TrimEntries);
+            if (row.Length != 2 || !TryParseTerrain(row[0], out Terrain terrain)
+                || !int.TryParse(row[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int delta)
+                || authoredPriority + delta is < -7 or > 7 || !result.TryAdd(terrain, delta))
+                throw new ArgumentException("terrainMove priority requires unique terrain:delta rows with effective priority in -7..7.");
+        }
+        return result.Count > 0 ? result : throw new ArgumentException("terrainMove priority cannot be empty.");
+    }
+
+    private static IReadOnlyDictionary<Terrain, Fraction>? ParseTerrainFractions(Effect effect) =>
+        ParseTerrainRatioTable(effect, "terrain", "heal terrain", maximumOne: true);
+
+    private static IReadOnlyDictionary<Terrain, Fraction>? ParseTerrainRatioTable(
+        Effect effect, string key, string label, bool maximumOne)
+    {
+        if (effect.Params?.ContainsKey(key) != true)
+            return null;
+        var result = new Dictionary<Terrain, Fraction>();
+        foreach (string entry in Str(effect, key).Split(',', StringSplitOptions.TrimEntries))
+        {
+            string[] row = entry.Split(':', StringSplitOptions.TrimEntries);
+            string[] ratio = row.Length == 2 ? row[1].Split('/', StringSplitOptions.TrimEntries) : [];
+            if (row.Length != 2 || ratio.Length != 2 || !TryParseTerrain(row[0], out Terrain terrain)
+                || !int.TryParse(ratio[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int num)
+                || !int.TryParse(ratio[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int den)
+                || num <= 0 || den <= 0 || maximumOne && num > den
+                || !result.TryAdd(terrain, new Fraction(num, den)))
+                throw new ArgumentException($"{label} requires unique active terrain:num/den rows with positive ratios{(maximumOne ? " in (0,1]" : "")}.");
+        }
+        return result.Count > 0 ? result : throw new ArgumentException($"{label} cannot be empty.");
+    }
+
+    private static Terrain ParseTerrain(string value, string what) => TryParseTerrain(value, out Terrain terrain)
+        ? terrain
+        : throw new ArgumentException($"Unknown {what} '{value}'.");
+
+    private static bool TryParseTerrain(string value, out Terrain terrain)
+    {
+        terrain = Terrain.None;
+        return !int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+            && Enum.TryParse(value, true, out terrain) && terrain != Terrain.None && Enum.IsDefined(terrain);
     }
 
     private static Weather ParseWeather(string value, string what) => TryParseWeather(value, out Weather weather)

@@ -590,7 +590,8 @@ public sealed class BattleController
         out BattleTargetScopeKind scopeKind, out BattleSide? scopeSide)
     {
         BattleSlot? selected = (submission.Selection as ActiveSlotSelection)?.Slot;
-        BattleTargetScope scope = BattleTargetResolver.ResolveScope(move.Target, Topology, submission.Source, selected);
+        MoveTarget effectiveTarget = EffectiveTarget(submission.Source, move);
+        BattleTargetScope scope = BattleTargetResolver.ResolveScope(effectiveTarget, Topology, submission.Source, selected);
         scopeKind = scope.Kind;
         scopeSide = scope.Side;
         if (scope.Kind is BattleTargetScopeKind.Side or BattleTargetScopeKind.Field
@@ -600,14 +601,14 @@ public sealed class BattleController
         }
 
         List<BattleSlot> slots = scope.Slots.Where(IsLive).ToList();
-        if ((move.Target is MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst) && slots.Count == 0
+        if ((effectiveTarget is MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst) && slots.Count == 0
             && selected is { Side: var side } && side != submission.Source.Side)
         {
             slots = Topology.SlotsFor(Opponent(submission.Source.Side)).Where(IsLive).ToList();
             if (slots.Count > 1)
                 slots = [slots[0]];
         }
-        if (IsRedirectable(move.Target) && slots.Count > 0)
+        if (IsRedirectable(effectiveTarget) && slots.Count > 0)
         {
             BattleSlot original = slots[0];
             HashSet<string> moveTags = MoveTags(move);
@@ -674,7 +675,7 @@ public sealed class BattleController
         BattleActionAttemptId attempt)
     {
         BattleCreature attacker = Active(sourceSlot);
-        EntityId moveType = EffectiveMoveType(move, traceAction);
+        EntityId moveType = EffectiveMoveType(sourceSlot, move, traceAction);
         var actionContext = new BattleActionContext(move, attacker, sourceSlot, traceAction);
         if (!TryItemPower(sourceSlot, move, out int? itemPower))
         {
@@ -1160,8 +1161,16 @@ public sealed class BattleController
     private int EffectivePriority(BattleSlot slot, BattleMove move, int traceAction)
     {
         BattleCreature creature = Active(slot);
+        var modifiers = new List<BattleQueryModifier>();
+        if (move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is { } terrainEffect)
+        {
+            BattleHookDispatchSnapshot terrain = TerrainConditions.CollectMovePriorityHooks(
+                ConditionSnapshot, terrainEffect, IsGrounded(slot), traceAction);
+            _hookTrace.AddRange(terrain.Trace);
+            modifiers.AddRange(terrain.QueryModifiers(BattleQueryId.Priority));
+        }
         BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.Priority,
-            new BattleQueryValue(move.Priority), context:
+            new BattleQueryValue(move.Priority), modifiers, context:
             new BattleQueryContext(slot, creature, Weather: CurrentWeather, Ruleset: Ruleset,
                 Terrain: CurrentTerrain));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, slot, null, result));
@@ -1337,7 +1346,7 @@ public sealed class BattleController
 
         _log.Add(new MoveUsed(sourceSlot, move.Move));
         attacker.RecordMoveUse(move.Move);
-        EntityId moveType = EffectiveMoveType(move, traceAction);
+        EntityId moveType = EffectiveMoveType(sourceSlot, move, traceAction);
 
         var actionContext = new BattleActionContext(move, attacker, sourceSlot, traceAction);
         BattleTargetContext targetContext = actionContext.AddTarget(target, targetSlot);
@@ -1597,9 +1606,13 @@ public sealed class BattleController
                     BattleHookDispatchSnapshot weather = WeatherConditions.CollectHealingHooks(
                         ConditionSnapshot, h, healRecipient.MaxHp, ctx.TraceAction);
                     _hookTrace.AddRange(weather.Trace);
+                    BattleHookDispatchSnapshot terrain = TerrainConditions.CollectHealingHooks(
+                        ConditionSnapshot, h, healRecipient.MaxHp, ctx.TraceAction);
+                    _hookTrace.AddRange(terrain.Trace);
                     Heal(healRecipient, healSlot,
                         EffectMath.HealAmount(healRecipient.MaxHp, h.Fraction.Num, h.Fraction.Den),
-                        weather.QueryModifiers(BattleQueryId.Healing));
+                        [.. weather.QueryModifiers(BattleQueryId.Healing),
+                         .. terrain.QueryModifiers(BattleQueryId.Healing)]);
                 }
                 break;
             case HpFractionEffect h:
@@ -1637,6 +1650,11 @@ public sealed class BattleController
                 break;
             case SetTerrainEffect t when t.Terrain != CurrentTerrain:
                 SetTerrain(t.Terrain, TerrainConditions.DefaultTurns, ctx.SourceSlot);
+                break;
+            case RemoveTerrainEffect:
+                ClearTerrain();
+                break;
+            case TerrainMoveEffect or TerrainGateEffect:
                 break;
             case MoveGateEffect:
                 break; // evaluated before PP/RNG in PassesMoveGates.
@@ -1767,6 +1785,17 @@ public sealed class BattleController
 
     private bool PassesMoveGates(BattleCreature creature, BattleSlot slot, BattleMove move, int traceAction)
     {
+        if (move.SecondaryEffects.OfType<TerrainGateEffect>().Any())
+        {
+            bool passed = CurrentTerrain != Terrain.None;
+            int start = _log.Count;
+            if (!passed)
+                _log.Add(new MoveFailed(slot, move.Move, MoveFailureReason.TerrainRequired));
+            AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, false, null, passed ? 1 : 0,
+                start, _log.Count);
+            if (!passed)
+                return false;
+        }
         foreach (MoveGateEffect gate in move.SecondaryEffects.OfType<MoveGateEffect>())
         {
             MoveFailureReason? failure = gate.Kind switch
@@ -2424,6 +2453,14 @@ public sealed class BattleController
             powerModifiers.AddRange(weather.QueryModifiers(BattleQueryId.BasePower)
                 .Select(modifier => modifier with { InsertionOrder = powerModifiers.Count }));
         }
+        if (move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is { } terrainEffect)
+        {
+            BattleHookDispatchSnapshot terrain = TerrainConditions.CollectBasePowerHooks(
+                ConditionSnapshot, terrainEffect, IsGrounded(sourceSlot), IsGrounded(targetSlot), traceAction);
+            _hookTrace.AddRange(terrain.Trace);
+            powerModifiers.AddRange(terrain.QueryModifiers(BattleQueryId.BasePower)
+                .Select(modifier => modifier with { InsertionOrder = powerModifiers.Count }));
+        }
         BattleQueryResult powerResult = BattleQuery.Evaluate(BattleQueryId.BasePower,
             new BattleQueryValue(powerQuery.AuthoredBase), powerModifiers,
             new BattleQueryContext(sourceSlot, attacker, targetSlot, target, CurrentWeather, Ruleset, CurrentTerrain));
@@ -2568,15 +2605,31 @@ public sealed class BattleController
         return modifiers;
     }
 
-    private EntityId EffectiveMoveType(BattleMove move, int traceAction)
+    private EntityId EffectiveMoveType(BattleSlot sourceSlot, BattleMove move, int traceAction)
     {
-        if (move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is not { } effect)
+        if (move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is { } weatherEffect)
+        {
+            BattleHookDispatchSnapshot weather = WeatherConditions.CollectMoveTypeHooks(
+                ConditionSnapshot, weatherEffect, traceAction);
+            _hookTrace.AddRange(weather.Trace);
+            return weather.MoveTypes().SingleOrDefault() is { } weatherType && weatherType != default
+                ? weatherType : move.Type;
+        }
+        if (move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is not { } terrainEffect)
             return move.Type;
-        BattleHookDispatchSnapshot weather = WeatherConditions.CollectMoveTypeHooks(
-            ConditionSnapshot, effect, traceAction);
-        _hookTrace.AddRange(weather.Trace);
-        return weather.MoveTypes().SingleOrDefault() is { } type && type != default ? type : move.Type;
+        BattleHookDispatchSnapshot terrain = TerrainConditions.CollectMoveTypeHooks(
+            ConditionSnapshot, terrainEffect, IsGrounded(sourceSlot), traceAction);
+        _hookTrace.AddRange(terrain.Trace);
+        return terrain.MoveTypes().SingleOrDefault() is { } terrainType && terrainType != default
+            ? terrainType : move.Type;
     }
+
+    private MoveTarget EffectiveTarget(BattleSlot sourceSlot, BattleMove move) =>
+        move.Target == MoveTarget.Selected
+        && move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is { } effect
+        && TerrainConditions.Spreads(ConditionSnapshot, effect, IsGrounded(sourceSlot))
+            ? MoveTarget.AllOpponents
+            : move.Target;
 
     private IReadOnlyList<BattleQueryModifier> StatHookModifiers(
         BattleSlot sourceSlot, BattleSlot targetSlot, BattleSlot statOwner, StatKind stat, BattleQueryId query)
@@ -2733,6 +2786,16 @@ public sealed class BattleController
             _traceActionSequence,
             Math.Max(1, turns))));
         _log.Add(new TerrainChanged(terrain));
+    }
+
+    private void ClearTerrain()
+    {
+        if (CurrentTerrain == Terrain.None)
+            return;
+        Terrain terrain = CurrentTerrain;
+        RecordConditionChanges(_conditions.Remove(TerrainConditions.For(terrain).Definition!.Id,
+            TerrainConditions.FieldOwner, Turn, _traceActionSequence));
+        _log.Add(new TerrainEnded(terrain));
     }
 
     private void RecordConditionChanges(BattleConditionChangeSet changes)

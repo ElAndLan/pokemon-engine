@@ -301,6 +301,149 @@ public sealed class BattleTerrainConditionTests
     }
 
     [Fact]
+    public void AuthoredTerrainRows_ResolveTypePowerPriorityAndAiParity()
+    {
+        var interaction = new TerrainMoveEffect(TerrainMoveSubject.User,
+            new Dictionary<Terrain, EntityId> { [Terrain.Electric] = Electric },
+            new Dictionary<Terrain, Fraction> { [Terrain.Electric] = new(2, 1) },
+            new Dictionary<Terrain, int> { [Terrain.Electric] = 1 },
+            new HashSet<Terrain>());
+        BattleMove terrainHit = new(EntityId.Parse("move:terrain_hit"), Normal, DamageClass.Special,
+            50, 100, 30, 0, 0, secondaryEffects: [interaction]);
+        var battle = new BattleController(
+            Creature("source", 20, [Normal], moves: [terrainHit]),
+            Creature("target", 100, [Normal], moves: [Inert()]), Chart(), new Rng(2),
+            fieldInputs: Field(Terrain.Electric));
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Equal(BattleSide.Player, events.OfType<MoveUsed>().First().Side);
+        Assert.Equal(Electric, Assert.Single(battle.ActionHistory.DamageSnapshot()).DamageType);
+        Assert.Equal(100, battle.QueryTrace.Last(entry => entry.Result.Query == BattleQueryId.BasePower
+            && entry.SourceSlot.Side == BattleSide.Player).Result.FinalValue.ToInt32());
+        Assert.Contains(battle.QueryTrace, entry => entry.Result.Query == BattleQueryId.Priority
+            && entry.SourceSlot.Side == BattleSide.Player && entry.Result.FinalValue.ToInt32() == 1);
+
+        BattleCreature ai = Creature("ai", 20, [Normal], moves:
+            [terrainHit, Hit(Normal, 80, "plain")]);
+        SmartAiDecision decision = SmartAi.ChooseAction(new SmartAiContext([ai], 0,
+            [Creature("ai_target", 100, moves: [Inert("ai_inert")])], 0, Chart(), new Rng(1),
+            Weights: new SmartAiWeights { NoiseFraction = 0 },
+            Conditions: StoresWith(Terrain.Electric).Snapshot(), Ruleset: BattleRulesets.ModernReference));
+        Assert.Equal(new UseMove(0), decision.Action);
+        Assert.Empty(TerrainConditions.CollectMoveTypeHooks(StoresWith(Terrain.Electric).Snapshot(),
+            interaction, sourceGrounded: false, 0).MoveTypes());
+        Assert.Single(TerrainConditions.CollectMoveTypeHooks(StoresWith(Terrain.Electric).Snapshot(),
+            interaction with { Subject = TerrainMoveSubject.Field }, sourceGrounded: false, 0).MoveTypes());
+        Assert.False(TerrainConditions.Spreads(StoresWith(Terrain.Psychic).Snapshot(),
+            interaction with { SpreadTerrains = new HashSet<Terrain> { Terrain.Psychic } },
+            sourceGrounded: false));
+
+        var targetInteraction = interaction with
+        {
+            Subject = TerrainMoveSubject.Target,
+            TypeOverrides = new Dictionary<Terrain, EntityId>(),
+            PriorityModifiers = new Dictionary<Terrain, int>(),
+        };
+        Assert.Single(TerrainConditions.CollectBasePowerHooks(StoresWith(Terrain.Electric).Snapshot(),
+            targetInteraction, sourceGrounded: true, targetGrounded: true, 0)
+            .QueryModifiers(BattleQueryId.BasePower));
+        Assert.Empty(TerrainConditions.CollectBasePowerHooks(StoresWith(Terrain.Electric).Snapshot(),
+            targetInteraction, sourceGrounded: true, targetGrounded: false, 0)
+            .QueryModifiers(BattleQueryId.BasePower));
+    }
+
+    [Fact]
+    public void AuthoredTerrainSpread_MaterializesAllOpponentsOnlyForGroundedSource()
+    {
+        var spread = new TerrainMoveEffect(TerrainMoveSubject.User,
+            new Dictionary<Terrain, EntityId>(), new Dictionary<Terrain, Fraction>(),
+            new Dictionary<Terrain, int>(), new HashSet<Terrain> { Terrain.Psychic });
+        BattleMove hit = new(EntityId.Parse("move:expanding"), Psychic, DamageClass.Special,
+            50, 100, 30, 0, 0, target: MoveTarget.Selected, secondaryEffects: [spread]);
+        var battle = new BattleController(
+            [Creature("source", 100, moves: [hit]), Creature("ally", 90, moves: [Inert("ally")])],
+            [Creature("target_zero", 20, moves: [Inert("zero")]),
+                Creature("target_one", 10, moves: [Inert("one")])],
+            BattleTopology.Doubles, [0, 1], [0, 1], Chart(), new Rng(4),
+            fieldInputs: Field(Terrain.Psychic));
+        var actions = new BattleTurnActions(BattleTopology.Doubles,
+        [
+            new(new BattleSlot(BattleSide.Player, 0), new UseMove(0),
+                new ActiveSlotSelection(new BattleSlot(BattleSide.Enemy, 0))),
+            new(new BattleSlot(BattleSide.Player, 1), new Pass()),
+            new(new BattleSlot(BattleSide.Enemy, 0), new Pass()),
+            new(new BattleSlot(BattleSide.Enemy, 1), new Pass()),
+        ]);
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(actions);
+
+        Assert.Equal(2, events.OfType<DamageDealt>().Count(entry => entry.Slot.Side == BattleSide.Enemy));
+    }
+
+    [Fact]
+    public void TerrainGateRemovalAndHealing_UseSharedStoreAndQueriesWithoutRng()
+    {
+        BattleMove gatedRemoval = new(EntityId.Parse("move:roller"), Normal, DamageClass.Physical,
+            40, null, 30, 0, 0, secondaryEffects: [new TerrainGateEffect(), new RemoveTerrainEffect()]);
+        var clearRng = new CountingRng();
+        var clear = new BattleController(Creature("clear_source", 100, moves: [gatedRemoval]),
+            Creature("clear_target", 1, moves: [Inert()]), Chart(), clearRng,
+            fieldInputs: new BattleFieldInputs(BattleRulesets.ModernReference));
+        IReadOnlyList<BattleEvent> failed = clear.ResolveTurn(new UseMove(0), new UseMove(0));
+        Assert.Contains(failed, entry => entry is MoveFailed { Reason: MoveFailureReason.TerrainRequired });
+        Assert.DoesNotContain(failed, entry => entry is MoveUsed { Side: BattleSide.Player });
+        Assert.Equal(30, gatedRemoval.Pp);
+        Assert.Equal(0, clearRng.Calls);
+
+        var terrainRng = new CountingRng();
+        var active = new BattleController(Creature("active_source", 100, moves: [gatedRemoval]),
+            Creature("active_target", 1, moves: [Inert()]), Chart(), terrainRng,
+            fieldInputs: Field(Terrain.Grassy));
+        IReadOnlyList<BattleEvent> removed = active.ResolveTurn(new UseMove(0), new UseMove(0));
+        Assert.Equal(Terrain.None, active.CurrentTerrain);
+        Assert.Contains(removed, entry => entry is TerrainEnded { Terrain: Terrain.Grassy });
+        Assert.Contains(removed, entry => entry is ConditionRemoved
+            { Reason: BattleConditionCleanupReason.Effect });
+
+        BattleMove heal = new(EntityId.Parse("move:terrain_heal"), Normal, DamageClass.Status,
+            null, null, 30, 0, 0, heal: new Fraction(1, 2), secondaryEffects:
+            [new HealEffect(new Fraction(1, 2), TerrainFractions:
+                new Dictionary<Terrain, Fraction> { [Terrain.Grassy] = new(2, 3) })]);
+        BattleCreature healer = Creature("healer", 100, hp: 320, moves: [heal]);
+        healer.TakeDamage(240);
+        var healBattle = new BattleController(healer,
+            Creature("heal_target", 1, moves: [Inert()]), Chart(), new CountingRng(),
+            fieldInputs: Field(Terrain.Grassy));
+
+        IReadOnlyList<BattleEvent> healed = healBattle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Contains(healed, entry => entry is Healed { Amount: 213 });
+        Assert.Contains(healBattle.HookTrace, entry => entry.Checkpoint == BattleConditionHook.HealingQuery);
+
+        BattleCreature aiHealer = Creature("ai_healer", 100, hp: 320, moves:
+            [heal, Hit(Normal, 1, "weak")]);
+        aiHealer.TakeDamage(240);
+        SmartAiDecision healDecision = SmartAi.ChooseAction(new SmartAiContext([aiHealer], 0,
+            [Creature("ai_heal_target", 1, hp: 320, moves: [Inert("ai_heal_inert")])], 0,
+            Chart(), new Rng(1), Weights: new SmartAiWeights { NoiseFraction = 0 },
+            Conditions: StoresWith(Terrain.Grassy).Snapshot(), Ruleset: BattleRulesets.ModernReference));
+        Assert.Equal(new UseMove(0), healDecision.Action);
+        Assert.Contains(healDecision.Scores.Single(score => score.Action == new UseMove(0)).Components,
+            component => component is { Name: "recovery", Value: 213 });
+
+        BattleCreature gatedAi = Creature("gated_ai", 100, moves:
+            [gatedRemoval, Hit(Normal, 1, "legal")]);
+        SmartAiDecision gateDecision = SmartAi.ChooseAction(new SmartAiContext([gatedAi], 0,
+            [Creature("gate_target", 1, moves: [Inert("gate_inert")])], 0, Chart(), new Rng(1),
+            Weights: new SmartAiWeights { NoiseFraction = 0 },
+            Conditions: [], Ruleset: BattleRulesets.ModernReference));
+        Assert.Equal(new UseMove(1), gateDecision.Action);
+        Assert.Contains(gateDecision.Scores.Single(score => score.Action == new UseMove(0)).Components,
+            component => component.Name == "terrainGate" && component.Value < 0);
+    }
+
+    [Fact]
     public void Replay_ReproducesTerrainEventsQueriesAndHooks()
     {
         static string Run()

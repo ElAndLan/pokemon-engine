@@ -1291,7 +1291,7 @@ Additional exit vectors are `weather-stat-present-absent`, `weather-stat-stage-o
 `weather-stat-floor`, `weather-stat-ruleset`, `weather-stat-ai-parity`,
 `weather-residual-grounded-invariant`, `weather-natural-input`, and `weather-profile-admission`.
 
-### Terrain field conditions (Phase 15E-3 intrinsic checkpoint)
+### Terrain field conditions (Phase 15E-3)
 
 The closed intrinsic terrain registry rows are `terrain:electric`, `terrain:grassy`,
 `terrain:misty`, and `terrain:psychic`. All use scope `terrain`, stacking key `terrain`, replacement
@@ -1326,9 +1326,23 @@ Battle construction may supply a natural environment, an initial terrain, and an
 terrain duration. Initial terrain uses the same store with an environment source and ordinary
 events/traces. The effective environment is the active terrain environment while terrain exists,
 otherwise the natural environment. Natural/effective environment consumption by Nature Power,
-Secret Power, and Camouflage, plus data-authored terrain type/power/priority/spread/gate/removal/heal
-interactions, remains required before the terrain-family exit and is not certified by this intrinsic
-checkpoint.
+Secret Power, and Camouflage remains required before the terrain-family exit.
+
+Terrain-sensitive moves use three closed, generic effect rows. `terrainMove` requires a damaging
+move with authored power and accepts `subject=field|user|target` plus optional comma-separated tables:
+`types=terrain:type-slug`, `power=terrain:num/den`, `priority=terrain:signed-delta`, and
+`spread=terrain`. Field rows require only the named active terrain, user rows require a grounded
+source, and target rows require a grounded target. Target-subject rows support power only; spread temporarily materializes a
+selected target as `allOpponents` without changing the authored selection/admission contract.
+`terrainGate` has no params and fails before PP or RNG when no active terrain exists.
+`removeTerrain` has no params and removes the effective terrain after a successful action through
+the shared condition store with cleanup reason `effect`; an absent terrain is an admitted no-op.
+The existing `heal` op may declare one `terrain=terrain:num/den` replacement table; weather and
+terrain healing tables cannot coexist on one row because both replace the same healing query.
+All terrain tables require unique active terrain keys, positive ratios, and effective priorities in
+the `-7..7` range. Resolver and Smart AI collect the same type, base-power, priority, and healing
+query modifiers from the immutable condition snapshot. Explicit removal emits the ordinary
+`ConditionRemoved` trace/event plus `TerrainEnded`; it does not consume RNG.
 
 Intrinsic terrain acceptance vectors are `terrain-registry`, `terrain-start-source`,
 `terrain-same-noop`, `terrain-replace`, `terrain-duration-one-many`, `terrain-profile-admission`,

@@ -546,16 +546,24 @@ public sealed class ValidationTests
     }
 
     [Fact]
-    public void Move_WeatherMoveTypeRowsRequireExistingTypes()
+    public void Move_FieldSensitiveTypeRowsRequireExistingTypes()
     {
         Move move = Move("weather_move") with
         {
             Effects = [new Effect { Op = "weatherMove", Params = Params(("types", "rain:water")) }],
         };
         var water = new TypeDef { Id = EntityId.Parse("type:water") };
+        Move terrainMove = Move("terrain_move") with
+        {
+            Effects = [new Effect { Op = "terrainMove", Params = Params(
+                ("subject", "user"), ("types", "electric:electric")) }],
+        };
+        var electric = new TypeDef { Id = EntityId.Parse("type:electric") };
 
         Assert.Contains(Run(new MoveRule(), Project(move)), issue => issue.Message.Contains("type:water"));
         Assert.Empty(Run(new MoveRule(), Project(move, water)));
+        Assert.Contains(Run(new MoveRule(), Project(terrainMove)), issue => issue.Message.Contains("type:electric"));
+        Assert.Empty(Run(new MoveRule(), Project(terrainMove, electric)));
     }
 
     // --- World rules -------------------------------------------------------------

@@ -155,6 +155,102 @@ public static class TerrainConditions
         return FilterSnapshot(condition, denied, BattleConditionHook.TryHit, "priority_hit", actionSequence);
     }
 
+    public static BattleHookDispatchSnapshot CollectMoveTypeHooks(IEnumerable<BattleConditionInstance> conditions,
+        TerrainMoveEffect effect, bool sourceGrounded, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(effect);
+        BattleConditionInstance? condition = Active(conditions);
+        Terrain terrain = condition is null ? Terrain.None : For(condition.Definition.Id).Terrain;
+        bool eligible = effect.Subject == TerrainMoveSubject.Field
+            || effect.Subject == TerrainMoveSubject.User && sourceGrounded;
+        BattleHookRegistration[] registrations = condition is not null && eligible
+            && effect.TypeOverrides.TryGetValue(terrain, out EntityId type)
+            ? [BattleHookRegistration.ForCondition(condition, BattleConditionHook.MoveTypeQuery, 0, 0,
+                new BattleHookMoveType(type))]
+            : [];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.MoveTypeQuery), registrations);
+    }
+
+    public static BattleHookDispatchSnapshot CollectBasePowerHooks(IEnumerable<BattleConditionInstance> conditions,
+        TerrainMoveEffect effect, bool sourceGrounded, bool targetGrounded, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(effect);
+        BattleConditionInstance? condition = Active(conditions);
+        Terrain terrain = condition is null ? Terrain.None : For(condition.Definition.Id).Terrain;
+        bool eligible = effect.Subject switch
+        {
+            TerrainMoveSubject.Field => true,
+            TerrainMoveSubject.User => sourceGrounded,
+            TerrainMoveSubject.Target => targetGrounded,
+            _ => throw new ArgumentOutOfRangeException(nameof(effect), effect.Subject, "Unknown terrain subject."),
+        };
+        BattleHookRegistration[] registrations = condition is not null && eligible
+            && effect.PowerMultipliers.TryGetValue(terrain, out Fraction fraction)
+            ? [BattleHookRegistration.ForCondition(condition, BattleConditionHook.BasePowerQuery, 0, 0,
+                new BattleHookQueryModifier(BattleQueryId.BasePower,
+                    new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Multiply,
+                        new BattleQueryValue(fraction.Num, fraction.Den), OwnerScope: BattleQueryOwnerScope.Field)))]
+            : [];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.BasePowerQuery), registrations);
+    }
+
+    public static BattleHookDispatchSnapshot CollectMovePriorityHooks(IEnumerable<BattleConditionInstance> conditions,
+        TerrainMoveEffect effect, bool sourceGrounded, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(effect);
+        BattleConditionInstance? condition = Active(conditions);
+        Terrain terrain = condition is null ? Terrain.None : For(condition.Definition.Id).Terrain;
+        bool eligible = effect.Subject == TerrainMoveSubject.Field
+            || effect.Subject == TerrainMoveSubject.User && sourceGrounded;
+        BattleHookRegistration[] registrations = condition is not null && eligible
+            && effect.PriorityModifiers.TryGetValue(terrain, out int modifier)
+            ? [BattleHookRegistration.ForCondition(condition, BattleConditionHook.PriorityQuery, 0, 0,
+                new BattleHookQueryModifier(BattleQueryId.Priority,
+                    new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Add,
+                        new BattleQueryValue(modifier), OwnerScope: BattleQueryOwnerScope.Field)))]
+            : [];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.PriorityQuery), registrations);
+    }
+
+    public static BattleHookDispatchSnapshot CollectHealingHooks(IEnumerable<BattleConditionInstance> conditions,
+        HealEffect effect, int maxHp, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(effect);
+        if (maxHp <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxHp), "Maximum HP must be positive.");
+        BattleConditionInstance? condition = Active(conditions);
+        Terrain terrain = condition is null ? Terrain.None : For(condition.Definition.Id).Terrain;
+        BattleHookRegistration[] registrations = condition is not null
+            && effect.TerrainFractions?.TryGetValue(terrain, out Fraction fraction) == true
+            ? [BattleHookRegistration.ForCondition(condition, BattleConditionHook.HealingQuery, 0, 0,
+                new BattleHookQueryModifier(BattleQueryId.Healing,
+                    new BattleQueryModifier(BattleQueryStage.Hooks, BattleQueryOperation.Replace,
+                        new BattleQueryValue(EffectMath.HealAmount(maxHp, fraction.Num, fraction.Den)),
+                        OwnerScope: BattleQueryOwnerScope.Field)))]
+            : [];
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.HealingQuery), registrations);
+    }
+
+    public static bool Spreads(IEnumerable<BattleConditionInstance> conditions, TerrainMoveEffect effect,
+        bool sourceGrounded)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(effect);
+        BattleConditionInstance? condition = Active(conditions);
+        bool eligible = effect.Subject == TerrainMoveSubject.Field
+            || effect.Subject == TerrainMoveSubject.User && sourceGrounded;
+        return condition is not null && eligible
+            && effect.SpreadTerrains.Contains(For(condition.Definition.Id).Terrain);
+    }
+
     public static BattleEnvironment Environment(Terrain terrain) => terrain switch
     {
         Terrain.Electric => BattleEnvironment.ElectricTerrain,
@@ -182,7 +278,12 @@ public static class TerrainConditions
     {
         Id = new BattleConditionId($"terrain:{slug}"),
         Scope = BattleConditionScope.Terrain,
-        Hooks = hooks,
+        Hooks = hooks.Concat([
+            BattleConditionHook.MoveTypeQuery,
+            BattleConditionHook.BasePowerQuery,
+            BattleConditionHook.PriorityQuery,
+            BattleConditionHook.HealingQuery,
+        ]).Distinct().ToArray(),
         DefaultDuration = DefaultTurns,
         DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
         Tags = [slug],

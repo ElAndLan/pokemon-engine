@@ -89,6 +89,51 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
+    public void CompilesTerrainInteractionOpsStrictly()
+    {
+        BattleMove move = MoveCompiler.ToBattleMove(Move(DamageClass.Special, 50,
+            Op("terrainMove", null, ("subject", "user"), ("types", "electric:electric"),
+                ("power", "electric:2/1,grassy:3/2"), ("priority", "grassy:1"),
+                ("spread", "psychic")), Op("terrainGate"), Op("removeTerrain"))
+            with { Target = MoveTarget.Selected });
+
+        TerrainMoveEffect effect = Assert.Single(move.SecondaryEffects.OfType<TerrainMoveEffect>());
+        Assert.Equal(EntityId.Parse("type:electric"), effect.TypeOverrides[Terrain.Electric]);
+        Assert.Equal(new Fraction(2, 1), effect.PowerMultipliers[Terrain.Electric]);
+        Assert.Equal(1, effect.PriorityModifiers[Terrain.Grassy]);
+        Assert.Contains(Terrain.Psychic, effect.SpreadTerrains);
+        Assert.Single(move.SecondaryEffects.OfType<TerrainGateEffect>());
+        Assert.Single(move.SecondaryEffects.OfType<RemoveTerrainEffect>());
+
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Status, null, Op("terrainMove", null,
+                ("subject", "user"), ("power", "electric:2/1")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50, Op("terrainMove", null,
+                ("subject", "target"), ("priority", "grassy:1")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50, Op("terrainMove", null,
+                ("subject", "user"), ("spread", "psychic"))) with { Target = MoveTarget.AllOpponents }));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(
+            Move(DamageClass.Special, 50, Op("terrainMove", null,
+                ("subject", "user"), ("priority", "grassy:8")))));
+    }
+
+    [Fact]
+    public void CompilesTerrainHealingAndRejectsCompetingReplacementTables()
+    {
+        BattleMove move = MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("heal", null, ("num", 1), ("den", 2), ("terrain", "grassy:2/3"))));
+
+        Assert.Equal(new Fraction(2, 3), Assert.Single(move.SecondaryEffects.OfType<HealEffect>())
+            .TerrainFractions![Terrain.Grassy]);
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("heal", null, ("weather", "sun:2/3"), ("terrain", "grassy:2/3")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("heal", null, ("terrain", "none:1/2")))));
+    }
+
+    [Fact]
     public void CompilesPositionSwapOp()
     {
         BattleMove bm = MoveCompiler.ToBattleMove(

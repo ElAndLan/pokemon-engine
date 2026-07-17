@@ -50,12 +50,18 @@ public sealed class MoveRule : IValidationRule
         try
         {
             BattleMove compiled = MoveCompiler.ToBattleMove(move);
-            EntityId? missingType = compiled.SecondaryEffects.OfType<WeatherMoveEffect>()
-                .SelectMany(effect => effect.TypeOverrides.Values)
+            EntityId? missingType = compiled.SecondaryEffects
+                .Where(effect => effect is WeatherMoveEffect or TerrainMoveEffect)
+                .SelectMany(effect => effect switch
+                {
+                    WeatherMoveEffect weather => weather.TypeOverrides.Values,
+                    TerrainMoveEffect terrain => terrain.TypeOverrides.Values,
+                    _ => [],
+                })
                 .FirstOrDefault(type => project.Find<TypeDef>(type) is null);
             if (missingType is { } type && type != default)
                 return new ValidationIssue(Id, ValidationSeverity.Error, move.Id,
-                    $"weatherMove references '{type}', which does not exist.");
+                    $"A field-sensitive move references '{type}', which does not exist.");
             return null;
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException)

@@ -110,7 +110,7 @@ public sealed record BattleConditionInstance(
     int StackCount);
 
 public enum BattleConditionRejectionReason { Duplicate, StackLimit }
-public enum BattleConditionCleanupReason { Switch, Faint, BattleEnd }
+public enum BattleConditionCleanupReason { Switch, Faint, BattleEnd, Effect }
 public enum BattleConditionTraceKind { Applied, Rejected, Refreshed, Replaced, Stacked, Ticked, Expired, Removed, Transferred }
 
 public sealed record BattleConditionTraceEntry(
@@ -262,6 +262,19 @@ public sealed class BattleConditionStores
         var changes = new ChangeBuilder();
         foreach (BattleConditionInstance instance in Snapshot())
             Remove(instance, BattleConditionCleanupReason.BattleEnd, turn, actionSequence, changes);
+        return changes.Build();
+    }
+
+    public BattleConditionChangeSet Remove(BattleConditionId condition, BattleConditionOwner owner,
+        int turn, int actionSequence)
+    {
+        ValidateTime(turn, actionSequence);
+        BattleConditionDefinition definition = _registry.For(condition);
+        var changes = new ChangeBuilder();
+        BattleConditionInstance? instance = _stores[definition.Scope]
+            .SingleOrDefault(candidate => candidate.Definition.Id == condition && candidate.Owner == owner);
+        if (instance is not null)
+            Remove(instance, BattleConditionCleanupReason.Effect, turn, actionSequence, changes);
         return changes.Build();
     }
 
