@@ -1685,7 +1685,7 @@ build passed with 0 warnings/errors and all 1,488 tests passed (1,265 Core, 104 
 with corpus digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`;
 `git diff --check` passed. Focused review found no blocking scope, architecture, schema, dependency,
 determinism, AI-fairness, IP, event/RNG, or named-move branch defect: GO for weather-family exit,
-not for 15E-3 package exit. Next slice:
+not for 15E-3 package exit. Implementation checkpoint: `630b817`. Next slice:
 continue 15E-3 with the complete terrain family, including grounded queries and natural environment
 selection, before room/gravity/sport.
 
