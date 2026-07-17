@@ -795,6 +795,22 @@ move effects are not secondary chances. One side instance serves both doubles sl
 coexist and add no RNG. Pair detection, combined execution/type/power, and row selection remain the
 15D-7 action package; generic cleanup/transfer remains 15E-7.
 
+### 7.7g Side-Wide Protection
+
+`sideCondition` admits the one-checkpoint behavior rows `priorityProtection`,
+`multiTargetProtection`, `statusProtection`, and `damageProtection`. Each is side-owned,
+reject-on-duplicate, source-independent, tagged `side_protection`, and filters through `TryHit`
+before accuracy. The filters respectively match positive resolved priority, authored multi-active-
+target scopes, externally directed status-class moves, and physical/special moves. One shared
+instance protects both active doubles slots and an eligible allied spread move is filtered too.
+
+`sideConditionBypass { tag: side_protection }` bypasses without removal. A matching target-side
+`removeSideCondition` at `beforeDamage` both bypasses the pre-accuracy filter and removes every
+matching row through the existing tagged-removal path after accuracy. `moveGate { kind:
+firstAction }` composes with `damageProtection`; the condition never adds private switch history.
+Classic consecutive-use checks and personal/contact protect variants remain 15E-6. Blocked targets
+draw no accuracy or hit RNG and emit the shared blocked/protected memory and trace result.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

@@ -24,6 +24,7 @@ public enum EffectTraceKind
     TrapDuration,
     ConfusionDuration,
     Protect,
+    SideProtection,
     ForceSwitchReserve,
     PositionSwap,
     Redirection,

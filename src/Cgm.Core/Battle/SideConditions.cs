@@ -14,6 +14,10 @@ public enum BattleSideCondition
     SpeedReduction,
     ResidualDamage,
     SecondaryChanceBoost,
+    PriorityProtection,
+    MultiTargetProtection,
+    StatusProtection,
+    DamageProtection,
 }
 
 public static class SideConditions
@@ -38,6 +42,10 @@ public static class SideConditions
                 BattleConditionHook.TurnEnd, "residual_damage"),
             [BattleSideCondition.SecondaryChanceBoost] = Combo("side:secondary_chance_boost",
                 "side_secondary_chance_boost", BattleConditionHook.SecondaryEffect, "secondary_chance"),
+            [BattleSideCondition.PriorityProtection] = Protection("side:priority_protection", "side_priority_protection"),
+            [BattleSideCondition.MultiTargetProtection] = Protection("side:multi_target_protection", "side_multi_target_protection"),
+            [BattleSideCondition.StatusProtection] = Protection("side:status_protection", "side_status_protection"),
+            [BattleSideCondition.DamageProtection] = Protection("side:damage_protection", "side_damage_protection"),
         };
 
     public static IReadOnlyList<BattleConditionDefinition> Definitions { get; } = [.. Rows.Values];
@@ -161,12 +169,60 @@ public static class SideConditions
             new BattleHookDispatchContext(actionSequence, BattleConditionHook.CriticalQuery), registrations);
     }
 
+    public static BattleHookDispatchSnapshot CollectProtectionHooks(
+        IEnumerable<BattleConditionInstance> conditions,
+        BattleSlot sourceSlot,
+        BattleSlot targetSlot,
+        BattleMove move,
+        int effectivePriority,
+        string ruleset,
+        bool bypass,
+        int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        ArgumentNullException.ThrowIfNull(move);
+        if (!BattleRulesets.IsSupported(ruleset))
+            throw new ArgumentException($"Unknown battle ruleset '{ruleset}'.", nameof(ruleset));
+        if (bypass)
+            return Empty(BattleConditionHook.TryHit, actionSequence);
+
+        var registrations = new List<BattleHookRegistration>();
+        foreach (BattleConditionInstance instance in conditions.Where(instance =>
+            instance.Owner == Owner(targetSlot.Side) && Protects(instance, sourceSlot, targetSlot, move,
+                effectivePriority, ruleset)))
+        {
+            registrations.Add(BattleHookRegistration.ForCondition(instance, BattleConditionHook.TryHit,
+                0, registrations.Count,
+                new BattleHookFilter(new BattleHookFilterId("side_protection"), BattleHookFilterDecision.Deny)));
+        }
+        return BattleHookDispatcher.Collect(
+            new BattleHookDispatchContext(actionSequence, BattleConditionHook.TryHit), registrations);
+    }
+
     private static bool Applies(BattleConditionInstance instance, DamageClass damageClass) =>
         instance.Definition.Id == For(BattleSideCondition.AllDamageScreen).Id
         || damageClass == DamageClass.Physical
             && instance.Definition.Id == For(BattleSideCondition.PhysicalScreen).Id
         || damageClass == DamageClass.Special
             && instance.Definition.Id == For(BattleSideCondition.SpecialScreen).Id;
+
+    private static bool Protects(BattleConditionInstance instance, BattleSlot sourceSlot,
+        BattleSlot targetSlot, BattleMove move, int effectivePriority, string ruleset) =>
+        sourceSlot != targetSlot && IsActiveCreatureTarget(move.Target) &&
+        (instance.Definition.Id == For(BattleSideCondition.PriorityProtection).Id
+            && (ruleset == BattleRulesets.ModernReference ? effectivePriority : move.Priority) > 0
+        || instance.Definition.Id == For(BattleSideCondition.MultiTargetProtection).Id
+            && move.Target is MoveTarget.AllOpponents or MoveTarget.AllOtherPokemon or MoveTarget.AllPokemon
+        || instance.Definition.Id == For(BattleSideCondition.StatusProtection).Id
+            && move.DamageClass == DamageClass.Status
+            && move.Target is not (MoveTarget.UsersField or MoveTarget.OpponentsField or MoveTarget.EntireField
+                or MoveTarget.AllPokemon or MoveTarget.AllAllies or MoveTarget.UserAndAllies)
+        || instance.Definition.Id == For(BattleSideCondition.DamageProtection).Id
+            && move.DamageClass != DamageClass.Status);
+
+    private static bool IsActiveCreatureTarget(MoveTarget target) => target is not
+        (MoveTarget.UsersField or MoveTarget.OpponentsField or MoveTarget.EntireField
+            or MoveTarget.FaintingPokemon or MoveTarget.SpecificMove);
 
     private static BattleHookDispatchSnapshot CollectGuardHooks(
         IEnumerable<BattleConditionInstance> conditions, BattleSide sourceSide, BattleSide targetSide,
@@ -254,6 +310,20 @@ public static class SideConditions
         DefaultDuration = 4,
         DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
         Tags = ["combo_effect", tag],
+        StackingKey = stackingKey,
+        StackingPolicy = BattleConditionStackingPolicy.Reject,
+        SwitchPolicy = BattleConditionSwitchPolicy.StayScope,
+        FaintPolicy = BattleConditionFaintPolicy.Persist,
+    };
+
+    private static BattleConditionDefinition Protection(string id, string stackingKey) => new()
+    {
+        Id = new BattleConditionId(id),
+        Scope = BattleConditionScope.Side,
+        Hooks = [BattleConditionHook.TryHit],
+        DefaultDuration = 1,
+        DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
+        Tags = ["side_protection"],
         StackingKey = stackingKey,
         StackingPolicy = BattleConditionStackingPolicy.Reject,
         SwitchPolicy = BattleConditionSwitchPolicy.StayScope,

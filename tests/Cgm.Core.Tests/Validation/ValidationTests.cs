@@ -353,6 +353,7 @@ public sealed class ValidationTests
                     new Effect { Op = "sideConditionBypass", Params = Params(("tag", "screen")) },
                     new Effect { Op = "sideConditionBypass", Params = Params(("tag", "status_guard")) },
                     new Effect { Op = "sideConditionBypass", Params = Params(("tag", "stage_guard")) },
+                    new Effect { Op = "sideConditionBypass", Params = Params(("tag", "side_protection")) },
                 ],
             }],
         };

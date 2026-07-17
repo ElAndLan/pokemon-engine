@@ -695,9 +695,19 @@ public sealed class BattleController
         }
         var accurateTargets = new List<BattleTargetContext>(targetSlots.Count);
         bool priorityBlocked = false;
+        bool sideProtected = false;
         foreach (BattleSlot targetSlot in targetSlots)
         {
             BattleCreature target = Active(targetSlot);
+            if (!AllowsSideProtectionHit(sourceSlot, targetSlot, move, traceAction))
+            {
+                sideProtected = true;
+                if (RecordsMoveDamage(move))
+                    RecordDamage(attempt, sourceOwner, HistoryOwner(targetSlot), move, DamageCause(move),
+                        0, false, BattleDamageFailure.Protected, 0, default, critical: false,
+                        effectiveType: moveType);
+                continue;
+            }
             if (!TerrainAllowsPriorityHit(sourceSlot, targetSlot, move, traceAction))
             {
                 priorityBlocked = true;
@@ -727,7 +737,7 @@ public sealed class BattleController
         {
             if (move.Power is not null)
                 ApplyCrashRecoil(attacker, sourceSlot, move);
-            return priorityBlocked ? BattleActionResult.Failed : BattleActionResult.Missed;
+            return sideProtected || priorityBlocked ? BattleActionResult.Failed : BattleActionResult.Missed;
         }
 
         if (!HpStatusFormulas.HasBasePower(move))
@@ -1221,6 +1231,29 @@ public sealed class BattleController
         return allowed;
     }
 
+    private bool AllowsSideProtectionHit(BattleSlot sourceSlot, BattleSlot targetSlot,
+        BattleMove move, int traceAction)
+    {
+        int effectivePriority = SideConditions.Active(ConditionSnapshot, targetSlot.Side,
+            BattleSideCondition.PriorityProtection)
+            ? EffectivePriority(sourceSlot, move, traceAction)
+            : move.Priority;
+        BattleHookDispatchSnapshot protection = SideConditions.CollectProtectionHooks(
+            ConditionSnapshot, sourceSlot, targetSlot, move, effectivePriority, Ruleset,
+            BypassesSideConditions(sourceSlot, move, "side_protection"), traceAction);
+        _hookTrace.AddRange(protection.Trace);
+        bool allowed = !protection.Filters().Any(filter => filter is
+            { Filter.Value: "side_protection", Decision: BattleHookFilterDecision.Deny });
+        if (allowed)
+            return true;
+
+        int start = _log.Count;
+        _log.Add(new MoveBlocked(sourceSlot));
+        AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.SideProtection,
+            false, null, 0, start, _log.Count);
+        return false;
+    }
+
     private bool ResolveAccuracy(BattleSlot sourceSlot, BattleSlot targetSlot, BattleCreature source,
         BattleCreature target, BattleMove move, int traceAction, out int? draw)
     {
@@ -1390,6 +1423,17 @@ public sealed class BattleController
             RecordDamage(attempt, sourceOwner, targetOwner, move, DamageCause(move), 0,
                 false, BattleDamageFailure.NoQualifyingDamage, 0, default, critical: false,
                 effectiveType: moveType);
+            _actionHistory.Complete(attempt, BattleActionResult.Failed, [targetOwner]);
+            return;
+        }
+
+        if (!AllowsSideProtectionHit(sourceSlot, targetSlot, move, traceAction))
+        {
+            if (RecordsMoveDamage(move))
+                RecordDamage(attempt, sourceOwner, targetOwner, move, DamageCause(move), 0,
+                    false, BattleDamageFailure.Protected, 0, default, critical: false,
+                    effectiveType: moveType);
+            ApplyCrashRecoil(attacker, sourceSlot, move);
             _actionHistory.Complete(attempt, BattleActionResult.Failed, [targetOwner]);
             return;
         }
@@ -2886,8 +2930,10 @@ public sealed class BattleController
 
     private bool BypassesSideConditions(BattleSlot sourceSlot, BattleMove? move, string tag) =>
         move?.SecondaryEffects.OfType<SideConditionBypassEffect>().Any(effect => effect.Tag == tag) == true
-        || tag == "screen" && move?.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
-            effect.Tag is "screen" or "barrier" && effect.Side == SideConditionTarget.Target
+        || (tag is "screen" or "side_protection")
+            && move?.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
+                (effect.Tag == tag || tag == "screen" && effect.Tag == "barrier")
+                && effect.Side == SideConditionTarget.Target
                 && effect.Timing == SideConditionTiming.BeforeDamage) == true
         || Active(sourceSlot).AbilityHooks.SelectMany(hook => hook.Effects).Any(effect =>
             effect.Op == "sideConditionBypass"

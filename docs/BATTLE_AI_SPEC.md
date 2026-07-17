@@ -259,6 +259,11 @@ Capabilities beyond Beginner:
   state but adds no speculative setup score before the 15D-7 paired-action candidate exists. Preview
   does not mutate duration, roll effect chance, read the opponent's selected action, or infer a
   paired move that has not been authored by the later action package.
+- Side-wide protection preview collects the resolver's target-side `TryHit` filter with the same
+  authored target, damage class, resolved priority, ruleset profile, and bypass tag. A blocked
+  damaging candidate contributes zero existing `damage`/`ko` value and a blocked status candidate
+  contributes no `status` component. Preview does not mutate or expire protection, value a
+  speculative guard action, inspect a selected opposing action, or consume extra RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

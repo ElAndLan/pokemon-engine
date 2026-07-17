@@ -204,6 +204,12 @@ public static class MoveCompiler
                         : SideConditions.For(sideCondition).DefaultDuration!.Value;
                     if (sideDuration <= 0)
                         throw new ArgumentException("sideCondition duration must be positive.");
+                    if ((sideCondition is BattleSideCondition.PriorityProtection
+                        or BattleSideCondition.MultiTargetProtection
+                        or BattleSideCondition.StatusProtection
+                        or BattleSideCondition.DamageProtection)
+                        && sideDuration != 1)
+                        throw new ArgumentException("Side protection conditions require duration 1.");
                     if (effects.OfType<SetSideConditionEffect>().Any())
                         throw new ArgumentException("A move can declare only one sideCondition effect.");
                     effects.Add(new SetSideConditionEffect(sideCondition, sideDuration, conditionSide));
@@ -214,7 +220,7 @@ public static class MoveCompiler
                         throw new ArgumentException("sideConditionBypass does not support chance.");
                     CheckAllowedParams(e, "tag");
                     string bypassTag = Str(e, "tag");
-                    if (bypassTag is not ("screen" or "status_guard" or "stage_guard"))
+                    if (bypassTag is not ("screen" or "status_guard" or "stage_guard" or "side_protection"))
                         throw new ArgumentException("sideConditionBypass has an unknown side-condition tag.");
                     bool compatibleBypass = bypassTag switch
                     {
@@ -222,6 +228,9 @@ public static class MoveCompiler
                         "status_guard" => move.Effects.Any(effect => effect.Op == "ailment"),
                         "stage_guard" => move.Effects.Any(effect =>
                             (effect.Op is "statStage" or "statStageAll") && Int(effect, "delta") < 0),
+                        "side_protection" => move.Target is not (MoveTarget.User or MoveTarget.UsersField
+                            or MoveTarget.OpponentsField or MoveTarget.EntireField or MoveTarget.FaintingPokemon
+                            or MoveTarget.SpecificMove),
                         _ => false,
                     };
                     if (!compatibleBypass)
@@ -239,7 +248,7 @@ public static class MoveCompiler
                         throw new ArgumentException("removeSideCondition does not support chance.");
                     CheckAllowedParams(e, "tag", "side", "timing");
                     string removeTag = Str(e, "tag");
-                    if (removeTag is not ("screen" or "status_guard" or "stage_guard" or "barrier"))
+                    if (removeTag is not ("screen" or "status_guard" or "stage_guard" or "barrier" or "side_protection"))
                         throw new ArgumentException("removeSideCondition has an unknown side-condition tag.");
                     SideConditionTarget removeSide = ParseNamed<SideConditionTarget>(Str(e, "side"), "side condition target");
                     SideConditionTiming removeTiming = ParseNamed<SideConditionTiming>(Str(e, "timing"), "side condition timing");

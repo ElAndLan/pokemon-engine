@@ -1615,6 +1615,51 @@ Acceptance vectors: `side-combo-compile-scope`, `side-combo-owner-coexist-duplic
 `side-combo-secondary-clamp-draw`, `side-combo-status-exclusion`, `side-combo-source-switch-expiry`,
 `side-combo-ai-parity`, `side-combo-hook-query-trace`, and `side-combo-replay`.
 
+### Side-wide protection (Phase 15E-4)
+
+Four behavior-named `sideCondition` rows close the side-wide protection surface:
+`priorityProtection`, `multiTargetProtection`, `statusProtection`, and `damageProtection`. Each is a
+chance-free `users-field` status effect with one `TurnEnd` checkpoint including application, one
+distinct reject-on-duplicate stacking key, tag `side_protection`, `TryHit`, and
+`stayScope`/`persist` cleanup. The rows coexist, one instance serves both active doubles slots, and
+the source switching or fainting does not remove protection before the turn ends. Reapplication
+fails without refreshing source, sequence, or duration.
+
+The target-level `TryHit` filter runs after target materialization and redirection but before
+accuracy, immunity, hit-count, critical, damage, or secondary-effect RNG. It evaluates once for each
+live target against the target side's shared instances. `priorityProtection` denies a move whose
+resolved priority is greater than zero; `gen4_like` uses the authored priority while
+`modern_reference` includes resolved priority modifiers. `multiTargetProtection` denies active-
+creature moves authored for `all-opponents`, `all-other-pokemon`, or `all-pokemon`, even when only
+one live target is present. `statusProtection` denies status-class moves directed at another active
+creature, but not self, side, field, all-Pokemon, or user-and-allies scopes. `damageProtection`
+denies physical and special moves. The filter is side-owned rather than opponent-owned, so an
+eligible allied spread action is blocked for protected targets too.
+
+`sideConditionBypass { tag: side_protection }` skips all four filters for the authored action without
+removing them. A target-side `removeSideCondition { tag: side_protection, timing: beforeDamage }`
+also supplies that bypass, then removes every matching row after accuracy and before damage through
+the existing tagged-removal path. Ability-based bypass uses the same closed tag and immutable
+condition query. Blocked targets emit `MoveBlocked`, record target-level `protected` failure for
+damage memory, and add condition-hook and protection effect traces; they draw no accuracy or later
+RNG. If every materialized target is blocked, the action fails after its ordinary PP spend. Mixed
+doubles actions continue against unprotected targets in topology order.
+
+The generic first-action move gate composes with `damageProtection` for a first-action-only source;
+the side condition does not duplicate switch-history state. Classic consecutive-use probability
+and protect-chain sharing for the two classic guard rows remain 15E-6, as do contact-punishment and
+the broader personal-protect family. Resolver and Smart AI consume the same protection predicate;
+AI damage and status value are zero when the candidate is blocked, with no new score component or
+hidden information. The condition family adds no RNG.
+
+Acceptance vectors: `side-protection-compile`, `side-protection-owner-coexist-duplicate`,
+`side-protection-priority-profile`, `side-protection-multi-target-singles-doubles`,
+`side-protection-status-scope`, `side-protection-damage-first-action`,
+`side-protection-allied-spread`, `side-protection-bypass-removal`,
+`side-protection-mixed-targets`, `side-protection-source-faint-expiry`,
+`side-protection-hook-event-trace`, `side-protection-ai-parity`,
+`side-protection-no-added-rng`, and `side-protection-replay`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

@@ -375,9 +375,9 @@ internal static class Phase15EffectRules
 
         if (effect.Op == "sideConditionBypass")
         {
-            if (!HasString(effect, "tag") || Str(effect, "tag") is not ("screen" or "status_guard" or "stage_guard"))
+            if (!HasString(effect, "tag") || Str(effect, "tag") is not ("screen" or "status_guard" or "stage_guard" or "side_protection"))
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
-                    "Effect op 'sideConditionBypass' requires tag 'screen', 'status_guard', or 'stage_guard'.");
+                    "Effect op 'sideConditionBypass' requires tag 'screen', 'status_guard', 'stage_guard', or 'side_protection'.");
             foreach (string key in effect.Params?.Keys.Where(key => key != "tag") ?? [])
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     $"Effect op 'sideConditionBypass' has unknown param '{key}'.");

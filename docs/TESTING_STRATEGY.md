@@ -272,6 +272,15 @@ replay. Pair recognition and combined execution remain 15D-7; generic removal/tr
 15E-7. The open effect payload gains only an optional closed `side` parameter, so no schema version
 or migration vector changes.
 
+The 15E-4 side-wide protection exit covers all four closed behavior rows, exact one-checkpoint
+lifecycle, coexistence and duplicate rejection, authored-versus-resolved priority profiles,
+authored multi-target scope in singles/doubles, active-target status exclusions, damaging-move and
+first-action composition, eligible allied spread targets, per-target mixed doubles outcomes,
+pre-accuracy/effect RNG skips, tagged bypass and removal, source-faint persistence, damage-memory,
+condition hook and effect traces, Smart-AI damage/status parity, and deterministic replay. Classic
+guard success-chain sharing and personal/contact variants remain 15E-6. The open effect payload and
+existing tag selectors require no schema or migration vector.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

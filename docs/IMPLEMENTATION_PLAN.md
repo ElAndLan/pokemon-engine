@@ -160,7 +160,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; continue 15E-4 after green screen, side-guard, side speed/order, and critical-guard checkpoints** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5, 15D-1, 15E-1/2/3/4, 15F-1, and 15G-2 complete; 937 inventoried, 84/937 certified; next eligible package is 15E-5 entry hazards** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -425,7 +425,7 @@ Current readiness ledger:
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
 | 15C-6 through 15C-7 formula families | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Publish each complete formula registry before implementation |
 | 15D timing/queue/lock families | 15D-1 SPEC READY; 15D-2 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue and existing queued action gate use one deterministic path; apply 15D-2 through 15D-7 lifecycle defaults |
-| 15E scoped conditions/hooks | 15E-1/2/3 SPEC READY; 15E-4 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2/3 IMPLEMENTED; 15E-4 IN PROGRESS (SCREENS + SIDE GUARDS GREEN) | Continue Tailwind/order; critical guards, pledges, and side-wide protection remain later criteria |
+| 15E scoped conditions/hooks | 15E-1/2/3/4 SPEC READY; 15E-5 through 15E-7 PLANNED — SPEC LOCK AUTHORIZED | 15E-1/2/3/4 IMPLEMENTED | Begin 15E-5 entry hazards from the locked package defaults |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
@@ -1445,7 +1445,7 @@ Ordered feature packages:
    room/gravity/sport coexist when tags differ. Reapplying the same instance refreshes only when the
    row permits. **Acceptance:** start/replace/refresh/expire, every query hook present/absent, residual
    ordering, field coexistence, ruleset difference vectors, and family goldens.
-4. **15E-4 — Side conditions and guards (`IN PROGRESS`; screen contract locked; prerequisites 15E-1/2).** Lock screens, status/
+4. **15E-4 — Side conditions and guards (`COMPLETE`; prerequisites 15E-1/2).** Lock screens, status/
    stage guards, speed/order modifiers, critical guard, pledges, and side-wide protection as side
    conditions with exact duration, doubles multiplier, bypass tags, stacking, source, and removal.
    A side hook evaluates once per affected target but owns one shared duration/counter. **Acceptance:**
@@ -2020,6 +2020,38 @@ inventoried / 84 certified with corpus digest
 passed. Pair recognition, ally prioritization, combined power/type, and side-row selection remain
 15D-7 action work; no move row is prematurely certified here. The package remains `IN PROGRESS`:
 side-wide protection is the final 15E-4 criterion.
+
+**15E-4 COMPLETE — side-wide protection exit and focused review: GO (2026-07-17).** Four generic
+one-checkpoint side rows now filter positive-priority, authored multi-target, externally directed
+status, and damaging moves through the shared `TryHit` hook before accuracy. One side instance serves
+both doubles slots, persists if its source faints, rejects duplicates without refresh, coexists with
+the other rows, and expires at the application turn's `TurnEnd`. The resolver records per-target
+protected damage-memory results, `MoveBlocked`, condition-hook traces, and `SideProtection` effect
+traces while skipping accuracy and later RNG for blocked targets. Eligible allied spread targets use
+the same side-owned predicate. Existing `sideConditionBypass` and tagged before-damage removal now
+admit `side_protection`; the existing first-action move gate composes with damage protection. Smart
+AI uses the same immutable filter to zero existing damage/KO value or omit blocked status value.
+
+Owning contracts updated: `BATTLE_SYSTEM_SPEC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`,
+`BATTLE_AI_SPEC.md`, `TESTING_STRATEGY.md`, `SCOPE_GUARD.md`, and this plan. Production changes:
+`SideConditions.cs`, `MoveCompiler.cs`, `BattleController.cs`,
+`EffectTrace.cs`, `SmartAi.cs`, and `BattleV6Rules.cs`. Tests:
+`BattleSideProtectionTests.cs` plus the closed ability-bypass validation vector in
+`ValidationTests.cs`. Schema/migration and dependency impact: none; the existing open effect payload
+and tag selectors remain the serialized boundary. RNG impact: none; blocked targets skip ordinary
+accuracy/effect draws and the conditions add no draws. New presentation surface: the typed
+`SideProtection` effect trace; existing `MoveBlocked` and condition lifecycle events remain the event
+contract.
+
+Verification: focused protection/validation tests passed 13/13; the broader battle/Smart-AI filter
+passed 1,137 tests; full solution build passed with 0 warnings/errors; full solution passed 1,613
+tests (1,390 Core, 104 Creator, 21 Runtime, 98 Tools). Decision-catalog regeneration was
+byte-identical at 937 inventoried / 84 certified with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check`
+passed. Focused review found no blocking scope, architecture, schema, dependency, determinism,
+AI-fairness, IP, lifecycle, target-order, event, trace, or named-move issue. Classic side-guard
+success-chain sharing and personal/contact variants remain 15E-6 as specified; no reference row is
+prematurely certified here. This closes 15E-4. Next eligible package: **15E-5 entry hazards**.
 
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
@@ -2886,7 +2918,7 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5, 15D-1, 15E-1/2/3, 15F-1, and 15G-2. ACTIVE — 15E-4.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5, 15D-1, 15E-1/2/3/4, 15F-1, and 15G-2. ACTIVE — 15E-5.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
    **15E-3**; **15E-4**; **15E-5**; **15E-6**;
    **15E-7**; **15C-6**; **15C-7**; **15D-2** through **15D-7**; **15F-2** through
