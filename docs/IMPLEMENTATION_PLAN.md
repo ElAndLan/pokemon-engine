@@ -1813,6 +1813,39 @@ for this checkpoint, not for terrain-family or 15E-3 exit. Next slice: complete 
 override matrix for gravity, airborne volatiles, abilities, and items before terrain seeds and
 terrain-family closeout.
 
+Progress (2026-07-16): **15E-3 GROUNDED-OVERRIDE CHECKPOINT COMPLETE; TERRAIN FAMILY AND PACKAGE
+REMAIN IN PROGRESS — focused review: GO.** The shared `Grounded` query now consumes effective
+creature types plus field/creature conditions and passive ability/item rows under one locked
+precedence: field grounding, explicit grounded state, explicit airborne state, then intrinsic
+typing. Strict generic `groundedState` rows apply target-owned grounded/airborne conditions or the
+field-owned grounded component required by Gravity; invalid chance, numeric enums, unknown params,
+nonpositive duration, duplicate rows, field-airborne rows, and non-creature target scopes fail
+compilation. Creature siblings replace under one stacking key, tick at `TurnEnd`, and clean up on
+switch/faint; ordinary condition events/traces expose application, replacement, expiry, and cleanup.
+`onGroundedQuery` ability hooks and held `groundedModify` rows feed the same query without condition
+mutation or RNG. Resolver and Smart AI share effective typing, visible condition snapshots,
+ability/item rows, and terrain damage/status/priority outcomes; no move ID/name branch was added.
+This checkpoint implements only Gravity's grounded component; its accuracy and move-availability
+rows remain open with the complete room/gravity/sport interaction criterion.
+
+Schema impact: project schema v7 adds the serialized `onGroundedQuery` enum value with a no-op
+v6→v7 migration and old-shape fixture; save format is unchanged. Dependency impact: none. New
+production files: `src/Cgm.Core/Battle/GroundedConditions.cs`. Changed production files:
+`BattleConditions.cs`, `BattleController.cs`, `MoveCompiler.cs`, `MoveEffects.cs`, `SmartAi.cs`,
+`Model/Entities/Ability.cs`, `Model/SchemaVersions.cs`, `Serialization/Migrator.cs`, and
+`Validation/Rules/BattleV6Rules.cs`. Focused tests: `BattleGroundedConditionTests.cs`,
+`MoveCompilerTests.cs`, `ValidationTests.cs`, `MigratorTests.cs`, and
+`SchemaV2SerializationTests.cs`, plus `tests/fixtures/schema-v6/ability.json`. Contract/evidence
+updates: `BATTLE_SYSTEM_SPEC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`, `BATTLE_AI_SPEC.md`,
+`DATA_SCHEMA.md`, `TESTING_STRATEGY.md`, `docs/AGENTS.md`, and this plan. Verification: the focused
+compiler/schema/validation/grounding filter passed 144 tests; complete Battle passed 1,029 tests;
+full Core passed 1,311 tests; full solution build passed with 0 warnings/errors; full solution passed
+1,534 tests (1,311 Core, 104 Creator, 21 Runtime, 98 Tools). Deterministic audit regeneration was
+byte-identical at 937 inventoried / 84 certified with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; `git diff --check` passed.
+Next slice: complete terrain seed activation/consumption and resolver/AI interaction evidence, then
+close the terrain-family matrix before room/gravity/sport.
+
 Required evidence: condition lifecycle matrix; hook-order goldens; duration/refresh/stack tests;
 weather/terrain/room interaction tables; side/slot ownership tests; hazard switch-in and cleanup
 goldens; protect contact/bypass matrix; hook-loop termination guard.

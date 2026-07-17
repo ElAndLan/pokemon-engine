@@ -324,6 +324,54 @@ public sealed class ValidationTests
     }
 
     [Fact]
+    public void GroundedModify_RequiresItsQueryHookAndClosedStateShape()
+    {
+        var invalid = new Ability
+        {
+            Id = EntityId.Parse("ability:invalid_grounding"),
+            Name = "Invalid Grounding",
+            Hooks =
+            [
+                new AbilityHook
+                {
+                    Hook = AbilityHookPoint.OnSwitchIn,
+                    Effects = [new Effect { Op = "groundedModify", Params = Params(("state", "grounded")) }],
+                },
+                new AbilityHook
+                {
+                    Hook = AbilityHookPoint.OnGroundedQuery,
+                    Effects =
+                    [
+                        new Effect { Op = "groundedModify", Chance = 50, Params = Params(("state", "floating")) },
+                        new Effect { Op = "groundedModify", Params = Params(("state", "airborne"), ("extra", 1)) },
+                        new Effect { Op = "residualHeal", Params = Params(("num", 1), ("den", 16)) },
+                    ],
+                },
+            ],
+        };
+
+        ValidationIssue[] issues = Run(new AbilityHookRule(), Project(invalid)).ToArray();
+        Assert.Contains(issues, issue => issue.Message.Contains("requires onGroundedQuery"));
+        Assert.Contains(issues, issue => issue.Message.Contains("grounded") && issue.Message.Contains("airborne"));
+        Assert.Contains(issues, issue => issue.Message.Contains("unknown param 'extra'"));
+        Assert.Contains(issues, issue => issue.Message.Contains("does not support chance"));
+        Assert.Contains(issues, issue => issue.Message.Contains("onGroundedQuery") && issue.Message.Contains("residualHeal"));
+
+        var valid = invalid with
+        {
+            Hooks =
+            [
+                new AbilityHook
+                {
+                    Hook = AbilityHookPoint.OnGroundedQuery,
+                    Effects = [new Effect { Op = "groundedModify", Params = Params(("state", "airborne")) }],
+                },
+            ],
+        };
+        Assert.Empty(Run(new AbilityHookRule(), Project(valid)));
+    }
+
+    [Fact]
     public void HeldItemBattleEffects_RequireHoldableAndClosedOps()
     {
         var item = new Item
@@ -347,6 +395,7 @@ public sealed class ValidationTests
                 new Effect { Op = "terrainDurationExtend" },
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 0)) },
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2), ("extra", 1)) },
+                new Effect { Op = "groundedModify", Params = Params(("state", "floating")) },
             ],
         };
 
@@ -366,6 +415,7 @@ public sealed class ValidationTests
         Assert.Contains(issues, i => i.Message.Contains("weatherDurationExtend") && i.Message.Contains("turns"));
         Assert.Contains(issues, i => i.Message.Contains("terrainDurationExtend") && i.Message.Contains("turns"));
         Assert.Contains(issues, i => i.Message.Contains("terrainDurationExtend") && i.Message.Contains("unknown param"));
+        Assert.Contains(issues, i => i.Message.Contains("grounded") && i.Message.Contains("airborne"));
         Assert.Empty(Run(new HeldItemBattleEffectRule(), Project(item with
         {
             Holdable = true,
@@ -379,6 +429,7 @@ public sealed class ValidationTests
                 new Effect { Op = "surviveFromFull" },
                 new Effect { Op = "weatherDurationExtend", Params = Params(("turns", 2)) },
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2)) },
+                new Effect { Op = "groundedModify", Params = Params(("state", "grounded")) },
             ],
         })));
     }

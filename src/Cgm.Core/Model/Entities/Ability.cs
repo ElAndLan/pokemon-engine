@@ -11,6 +11,7 @@ public enum AbilityHookPoint
     OnContactReceived,
     OnWeatherChange,
     OnTerrainChange,
+    OnGroundedQuery,
     OnFaint,
 }
 

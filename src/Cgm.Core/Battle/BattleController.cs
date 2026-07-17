@@ -39,7 +39,8 @@ public sealed class BattleController
     private readonly BattleOverlayStore _overlays = new();
     private readonly BattleActionHistory _actionHistory = new();
     private readonly BattleConditionStores _conditions =
-        new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions]));
+        new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
+            .. GroundedConditions.Definitions]));
     private readonly List<BattleConditionTraceEntry> _conditionTrace = [];
     private readonly List<BattleHookTraceEntry> _hookTrace = [];
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
@@ -151,7 +152,11 @@ public sealed class BattleController
     public bool IsGrounded(BattleSlot slot)
     {
         BattleCreature creature = Active(slot);
-        BattleQueryResult result = TerrainConditions.GroundedQuery(creature, context:
+        var owner = new BattleOverlayOwner(slot.Side, ActiveIndex(slot), slot);
+        BattleQueryResult result = GroundedConditions.Query(creature,
+            PhysicalMetricFormulas.EffectiveValues(creature, _overlays, owner).CreatureTypes,
+            new BattleConditionOwner(BattleConditionScope.Creature, slot.Side, slot, ActiveIndex(slot)),
+            ConditionSnapshot,
             new BattleQueryContext(slot, creature, Weather: CurrentWeather, Ruleset: Ruleset,
                 Terrain: CurrentTerrain));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, _traceActionSequence, slot, slot, result));
@@ -807,6 +812,7 @@ public sealed class BattleController
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
             or HpEqualizeEffect => true,
+        GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
         _ => false,
     };
 
@@ -1063,6 +1069,8 @@ public sealed class BattleController
         outgoing.ResetStages();
         outgoing.ClearVolatiles();
         TraceCleanup(_intentQueue.OwnerSwitched(slot.Side, outgoingPartyIndex, null));
+        RecordConditionChanges(_conditions.OwnerSwitched(slot.Side, outgoingPartyIndex, null,
+            Turn, _traceActionSequence));
         _overlays.OwnerSwitched(slot.Side, outgoingPartyIndex, null, Turn, _traceActionSequence);
         _activeSlots.Assign(slot, index);
         _overlays.OwnerSwitched(slot.Side, index, slot, Turn, _traceActionSequence);
@@ -1651,6 +1659,9 @@ public sealed class BattleController
             case SetTerrainEffect t when t.Terrain != CurrentTerrain:
                 SetTerrain(t.Terrain, TerrainConditions.DefaultTurns, ctx.SourceSlot);
                 break;
+            case GroundedStateEffect grounded:
+                ApplyGroundedState(ctx, grounded);
+                break;
             case RemoveTerrainEffect:
                 ClearTerrain();
                 break;
@@ -1663,6 +1674,22 @@ public sealed class BattleController
                 break;
         }
         return true;
+    }
+
+    private void ApplyGroundedState(EffectContext ctx, GroundedStateEffect effect)
+    {
+        BattleConditionDefinition definition = GroundedConditions.For(effect.State, effect.Scope);
+        BattleConditionOwner owner = effect.Scope == GroundedStateScope.Field
+            ? new BattleConditionOwner(BattleConditionScope.Field)
+            : new BattleConditionOwner(BattleConditionScope.Creature, ctx.TargetSlot.Side, ctx.TargetSlot,
+                ActiveIndex(ctx.TargetSlot));
+        RecordConditionChanges(_conditions.Apply(new BattleConditionApplication(
+            definition.Id,
+            owner,
+            new BattleConditionSource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)),
+            Turn,
+            ctx.TraceAction,
+            effect.Duration)));
     }
 
     private void SwapPositions(EffectContext ctx)
@@ -3073,9 +3100,6 @@ public sealed class BattleController
             }
         }
 
-        if (weather == Weather.None && terrain == Terrain.None)
-            return;
-
         BattleConditionChangeSet completion = _conditions.CompleteCheckpoint(
             BattleIntentCheckpoint.TurnEnd, Turn, _traceActionSequence);
         RecordConditionChanges(completion);
@@ -3137,6 +3161,8 @@ public sealed class BattleController
         foreach (BattleSlot slot in Topology.Slots.Where(slot => !IsLive(slot)))
         {
             TraceCancelled(_intentQueue.OwnerFainted(slot.Side, ActiveIndex(slot)));
+            RecordConditionChanges(_conditions.OwnerFainted(slot.Side, ActiveIndex(slot), Turn,
+                _traceActionSequence));
             _overlays.OwnerFainted(slot.Side, ActiveIndex(slot), Turn, _traceActionSequence);
         }
         _pendingReplacementSlots.Clear();

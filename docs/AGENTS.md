@@ -19,7 +19,7 @@
 | Scope | SCOPE_GUARD.md | Written |
 | Code style & invariants | CODING_STANDARDS.md | Written |
 | Module boundaries, ADRs | ARCHITECTURE.md + docs/adr/ | Partial — addendum/ADRs authoritative; summary doc still thin |
-| Serialized shapes, IDs, migration | DATA_SCHEMA.md | **Schema v6** (adds the Phase 15E-3 `onTerrainChange` hook vocabulary with v5 migration) |
+| Serialized shapes, IDs, migration | DATA_SCHEMA.md | **Schema v7** (adds the Phase 15E-3 `onGroundedQuery` hook vocabulary with v6 migration) |
 | Damage formula, type/STAB/crit | BATTLE_DAMAGE_CALC.md | **Reference-frozen v1** |
 | Trainer battle AI tiers/scoring | BATTLE_AI_SPEC.md | Phase 14 verified Core baseline; full tuning deferred until Phase 15+ mechanics |
 | Creator screens, undo, validation UI | CREATOR_APP_SPEC.md | Shell + editor pattern + pathfinders written (Phase 3) |

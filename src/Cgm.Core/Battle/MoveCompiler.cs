@@ -140,6 +140,29 @@ public static class MoveCompiler
                     effects.Add(new SetTerrainEffect(terrain));
                     break;
 
+                case "groundedState":
+                    if (chance != 100)
+                        throw new ArgumentException("groundedState does not support chance.");
+                    CheckAllowedParams(e, "state", "scope", "duration");
+                    GroundedState groundedState = ParseNamed<GroundedState>(Str(e, "state"), "grounded state");
+                    GroundedStateScope groundedScope = e.Params?.ContainsKey("scope") == true
+                        ? ParseNamed<GroundedStateScope>(Str(e, "scope"), "grounded scope")
+                        : GroundedStateScope.Target;
+                    int groundedDuration = e.Params?.ContainsKey("duration") == true
+                        ? Int(e, "duration")
+                        : GroundedConditions.DefaultTurns;
+                    if (groundedDuration <= 0)
+                        throw new ArgumentException("groundedState duration must be positive.");
+                    if (groundedScope == GroundedStateScope.Field
+                        && (groundedState != GroundedState.Grounded || move.Target != MoveTarget.EntireField))
+                        throw new ArgumentException("Field groundedState requires grounded state and target entire-field.");
+                    if (groundedScope == GroundedStateScope.Target && move.Target is
+                        MoveTarget.UsersField or MoveTarget.OpponentsField or MoveTarget.EntireField
+                        or MoveTarget.FaintingPokemon or MoveTarget.SpecificMove)
+                        throw new ArgumentException("Target groundedState requires an active-creature move target.");
+                    effects.Add(new GroundedStateEffect(groundedState, groundedScope, groundedDuration));
+                    break;
+
                 case "terrainMove":
                     if (chance != 100)
                         throw new ArgumentException("terrainMove does not support chance.");
@@ -623,6 +646,8 @@ public static class MoveCompiler
             throw new ArgumentException("A move can declare one weatherAccuracy op and cannot combine it with accuracyBypass or ohko.");
         if (effects.OfType<WeatherMoveEffect>().Count() > 1)
             throw new ArgumentException("A move can declare only one weatherMove op.");
+        if (effects.OfType<GroundedStateEffect>().Count() > 1)
+            throw new ArgumentException("A move can declare only one groundedState op.");
         if (effects.OfType<TerrainMoveEffect>().Count() > 1)
             throw new ArgumentException("A move can declare only one terrainMove op.");
         if (effects.OfType<TerrainGateEffect>().Count() > 1 || effects.OfType<RemoveTerrainEffect>().Count() > 1)
@@ -691,6 +716,13 @@ public static class MoveCompiler
 
     private static T Parse<T>(string value, string what) where T : struct, Enum =>
         Enum.TryParse(value, ignoreCase: true, out T result)
+            ? result
+            : throw new ArgumentException($"Unknown {what} '{value}'.");
+
+    private static T ParseNamed<T>(string value, string what) where T : struct, Enum =>
+        !int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+        && Enum.TryParse(value, ignoreCase: true, out T result)
+        && Enum.IsDefined(result)
             ? result
             : throw new ArgumentException($"Unknown {what} '{value}'.");
 

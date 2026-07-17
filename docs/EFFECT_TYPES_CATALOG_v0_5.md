@@ -689,9 +689,9 @@ Electric/Grass/Psychic boosts, Misty Dragon reduction, Electric/Misty status fil
 per-target priority denial, Grassy end-turn healing, modern-profile admission, and natural/effective
 environment inputs are implemented with resolver/Smart-AI parity. Authored terrain-sensitive move
 tables compile through `terrainMove` (grounded user/target type, power, priority, and spread rows),
-`terrainGate`, `removeTerrain`, and the `heal.terrain` replacement table. They use the same typed
+`terrainGate`, `removeTerrain`, `groundedState`, and the `heal.terrain` replacement table. They use the same typed
 query/store paths and resolver/Smart-AI inputs as the intrinsic rows. Environment consumers,
-grounded overrides, seeds, and individual move certification remain required before
+terrain seeds and individual move certification remain required before
 the terrain-family exit.
 
 The environment input is an immutable `{ natural, effective }` state. Only non-terrain environment

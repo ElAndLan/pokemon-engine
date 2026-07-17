@@ -1,15 +1,16 @@
 # DATA_SCHEMA
 
-Status: **Schema v6 (2026-07-16)** — the single source of truth for all serialized shapes.
+Status: **Schema v7 (2026-07-16)** — the single source of truth for all serialized shapes.
 Derived from the local PokeAPI corpus per [ADR-010](adr/ADR-010-pokeapi-derived-schema.md).
 Changes require a `schemaVersion` bump + migration + this doc edited in the same change
 (CLAUDE.md §2). v3 adds the move contact marker used by Phase 15 contact hooks; v4 expands the
 move target vocabulary required by Phase 15B topology; v5 adds positive species weight/height
 metrics required by Phase 15C-3 formulas; v6 adds the `onTerrainChange` ability-hook enum value
-required by the Phase 15E-3 terrain lifecycle. Save-file
+required by the Phase 15E-3 terrain lifecycle; v7 adds the `onGroundedQuery` ability-hook enum value
+required by the Phase 15E-3 shared grounded-state query. Save-file
 ability/form progression remains under `saveFormatVersion`.
 
-Scope of v6: the MVP + vertical-slice entities plus Phase 15 Core authoring data. Numbers in
+Scope of v7: the MVP + vertical-slice entities plus Phase 15 Core authoring data. Numbers in
 `(PokeAPI: x)` note the source field.
 
 ---
@@ -17,7 +18,7 @@ Scope of v6: the MVP + vertical-slice entities plus Phase 15 Core authoring data
 ## 1. Conventions
 - One JSON file per entity: `data/<category>/<id-slug>.json`. UTF-8, `\n`, 2-space indent,
   **stable property order** (byte-stable output so git diffs and fixtures stay honest).
-- Every file starts: `{ "schemaVersion": 6, "id": "<category:slug>", "name": "<display>", ... }`.
+- Every file starts: `{ "schemaVersion": 7, "id": "<category:slug>", "name": "<display>", ... }`.
 - Unknown fields tolerated on read (forward-compat); never written back.
 - All numbers are integers unless the field says otherwise. `null` = "not applicable" (e.g. a
   status move has `power: null`), distinct from `0`.
@@ -175,7 +176,7 @@ Prose `effect_entries` are discarded (ADR-010).
 
 **AbilityHook**: `{ hook, effects[] }`, where `hook` is one of `onSwitchIn`,
 `onModifyOutgoingDamage`, `onModifyIncomingDamage`, `onStatusAttempt`, `onEndOfTurn`,
-`onContactReceived`, `onWeatherChange`, `onTerrainChange`. `onModifyStat` and `onFaint` are reserved/deferred enum
+`onContactReceived`, `onWeatherChange`, `onTerrainChange`, `onGroundedQuery`. `onModifyStat` and `onFaint` are reserved/deferred enum
 values and are rejected by Phase 15 validation until BATTLE_SYSTEM_SPEC.md assigns closed ops to
 those timings. `effects[]` uses the shared `Effect` shape with the closed ability-op palette in
 BATTLE_SYSTEM_SPEC.md.
@@ -259,4 +260,6 @@ Volatile battle state (stat stages, confusion, flinch) is NOT saved — it lives
 - v4→v5: additive species metric migration. Species rows missing `weightHectograms` or
   `heightDecimeters` receive 1; non-species rows are unchanged.
 - v5→v6: no-op data migration. `onTerrainChange` is an additive ability-hook enum value; every
+  existing ability hook remains valid and older files require no rewritten fields.
+- v6→v7: no-op data migration. `onGroundedQuery` is an additive ability-hook enum value; every
   existing ability hook remains valid and older files require no rewritten fields.

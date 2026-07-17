@@ -32,6 +32,7 @@ public enum BattleConditionHook
     MoveAvailability,
     ObedienceCheck,
     TargetingQuery,
+    GroundedQuery,
     PriorityQuery,
     TurnOrderQuery,
     TryMove,

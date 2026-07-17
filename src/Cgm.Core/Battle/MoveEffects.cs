@@ -164,6 +164,11 @@ public sealed record EntryHazardEffect : MoveEffect;
 public sealed record SetWeatherEffect(Weather Weather) : MoveEffect;
 
 public sealed record SetTerrainEffect(Terrain Terrain) : MoveEffect;
+
+public sealed record GroundedStateEffect(
+    GroundedState State,
+    GroundedStateScope Scope,
+    int Duration) : MoveEffect;
 public sealed record TerrainMoveEffect(
     TerrainMoveSubject Subject,
     IReadOnlyDictionary<Terrain, EntityId> TypeOverrides,

@@ -510,8 +510,8 @@ Ability definitions are project data keyed by `ability:*` IDs. Species expose 1-
 slots plus an optional hidden slot; generated creature instances store the chosen ability ID.
 
 Phase 15 supports only these hook points: `onSwitchIn`, `onModifyOutgoingDamage`,
-`onModifyIncomingDamage`, `onStatusAttempt`, `onEndOfTurn`, `onContactReceived`, and
-`onWeatherChange`, and `onTerrainChange`. `statModify` effects run through the outgoing/incoming damage hooks because
+`onModifyIncomingDamage`, `onStatusAttempt`, `onEndOfTurn`, `onContactReceived`,
+`onWeatherChange`, `onTerrainChange`, and `onGroundedQuery`. `statModify` effects run through the outgoing/incoming damage hooks because
 they modify damage-stat queries during damage calculation. `onModifyStat` and `onFaint` are reserved
 until a closed op needs those timings; Phase 15 validation rejects them.
 
@@ -530,6 +530,9 @@ Closed ability-op palette for the first v6 slice:
   and terrain-change hooks, uses the shared terrain condition store, and draws no RNG. Until later
   terrain reaction ops are specified, `onTerrainChange` admits only `terrainSummon`; other pairings
   fail validation rather than compiling to a silent no-op.
+- `groundedModify` - passively replace the holder's shared grounded query. Params:
+  `{ state: grounded|airborne }`. It is valid only on `onGroundedQuery`, draws no RNG, and does not
+  dispatch as an action hook.
 - `contactChanceEffect` - when the holder receives contact from a move with `makesContact`,
   chance-gate and apply one effect to the contacting attacker. Params:
   `{ status: burn|poison|toxic|paralysis|sleep|freeze }`, `{ stat: atk|def|spa|spd|spe, delta: int }`,
@@ -1313,9 +1316,22 @@ duration. Apply/replace/tick/expire use the shared condition events and traces, 
 
 `Grounded` is a shared integer query clamped to `0..1`. The intrinsic base is zero when the
 creature's effective types include `flying` and one otherwise. Resolver and Smart AI use this same
-query result for terrain filters. Gravity, airborne volatiles, and ability/item overrides will add
-ordered query modifiers in their owning 15E-3 checkpoints; this checkpoint does not duplicate
-those later mechanics or infer them from names.
+query result for terrain filters. Ordered replacement precedence is field grounded state, explicit
+creature/passive grounded state, then explicit creature/passive airborne state, then the intrinsic
+base. Thus Gravity-like field grounding and grounded items beat airborne volatiles/abilities, while
+an airborne override beats intrinsic non-Flying typing. Same-state ties are semantically identical
+and retain deterministic condition/effect order.
+
+The generic `groundedState` move op accepts
+`{ state: grounded|airborne, scope?: target|field, duration?: positive int }`; scope defaults to
+`target` and duration defaults to five `TurnEnd` checkpoints. Target scope owns one creature
+condition under stacking key `grounded_state`, replaces grounded/airborne siblings, and removes on
+switch or faint. Field scope admits only `grounded`, requires `target: entire-field`, and owns one
+field condition under stacking key `field_grounded`. Ability hooks and held items use passive
+`groundedModify { state }` rows rather than creating conditions. All four sources feed the same
+query, condition events/traces expose lifecycle, and none draws RNG. This closes only Gravity's
+grounded component; its accuracy and move-availability rows remain part of the later Gravity
+interaction criterion.
 
 Electric, grassy, and psychic terrain declare `DamageQuery`: when the move source is grounded,
 their matching Electric, Grass, or Psychic move receives a field-owned `3/2` final-damage
@@ -1379,6 +1395,9 @@ Intrinsic terrain acceptance vectors are `terrain-registry`, `terrain-start-sour
 `terrain-ai-query-parity`, `terrain-natural-effective-environment`, `terrain-no-rng`, and
 `terrain-replay`, plus `terrain-ability-summon`, `terrain-change-hook-order`,
 `terrain-change-hook-loop-guard`, and `terrain-duration-source-owner`.
+Grounded-override vectors are `grounded-compile-valid-invalid`, `grounded-effective-types`,
+`grounded-precedence`, `grounded-replace-expire`, `grounded-switch-faint-cleanup`,
+`grounded-ability-item`, `grounded-terrain-resolver-ai-parity`, and `grounded-no-rng`.
 
 ### Effective-value overlays (Phase 15F-1)
 

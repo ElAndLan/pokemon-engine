@@ -215,6 +215,12 @@ effective-state transitions without changing the natural value, and requires val
 resolver/Smart-AI environment snapshots with no additional RNG. Called-move, conditional-secondary,
 and type-mutation behavior is not claimed by this checkpoint.
 
+The grounded-override checkpoint covers strict `groundedState` compilation and target admission,
+effective-type inputs, field/creature/ability/item precedence, same-owner grounded/airborne
+replacement, duration expiry, switch/faint cleanup, ordinary condition events/traces, zero effect
+RNG, and resolver/Smart-AI terrain parity. Schema-v7 round-trip and v6 no-op migration prove the
+additive `onGroundedQuery` hook. Gravity accuracy/move blocking and terrain seeds remain open.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

@@ -18,6 +18,7 @@ public sealed class AbilityHookRule : IValidationRule
         AbilityHookPoint.OnContactReceived,
         AbilityHookPoint.OnWeatherChange,
         AbilityHookPoint.OnTerrainChange,
+        AbilityHookPoint.OnGroundedQuery,
     };
 
     public IEnumerable<ValidationIssue> Check(Project project)
@@ -38,6 +39,12 @@ public sealed class AbilityHookRule : IValidationRule
                     else if (hook.Hook == AbilityHookPoint.OnTerrainChange && effect.Op != "terrainSummon")
                         yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
                             $"Ability hook 'onTerrainChange' does not support effect op '{effect.Op}'.");
+                    else if (effect.Op == "groundedModify" && hook.Hook != AbilityHookPoint.OnGroundedQuery)
+                        yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                            "Effect op 'groundedModify' requires onGroundedQuery.");
+                    else if (hook.Hook == AbilityHookPoint.OnGroundedQuery && effect.Op != "groundedModify")
+                        yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                            $"Ability hook 'onGroundedQuery' does not support effect op '{effect.Op}'.");
                 }
 
                 foreach (ValidationIssue issue in Phase15EffectRules.Check(
@@ -167,13 +174,13 @@ internal static class Phase15EffectRules
     public static readonly IReadOnlySet<string> AbilityOps = new HashSet<string>
     {
         "statModify", "typeDamageModify", "statusImmunity", "weatherSummon", "terrainSummon",
-        "contactChanceEffect", "residualHeal", "residualDamage",
+        "contactChanceEffect", "residualHeal", "residualDamage", "groundedModify",
     };
 
     public static readonly IReadOnlySet<string> HeldItemOps = new HashSet<string>
     {
         "thresholdHeal", "statusCure", "typeDamageBoost", "choiceLock",
-        "residualHeal", "surviveFromFull", "weatherDurationExtend", "terrainDurationExtend",
+        "residualHeal", "surviveFromFull", "weatherDurationExtend", "terrainDurationExtend", "groundedModify",
     };
 
     public static IEnumerable<ValidationIssue> Check(
@@ -338,6 +345,20 @@ internal static class Phase15EffectRules
             foreach (string key in effect.Params?.Keys.Where(key => key != "turns") ?? [])
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     $"Effect op 'terrainDurationExtend' has unknown param '{key}'.");
+
+        if (effect.Op == "groundedModify")
+        {
+            if (!HasString(effect, "state")
+                || Str(effect, "state") is not ("grounded" or "airborne"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'groundedModify' requires state 'grounded' or 'airborne'.");
+            foreach (string key in effect.Params?.Keys.Where(key => key != "state") ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'groundedModify' has unknown param '{key}'.");
+            if (effect.Chance is not null)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'groundedModify' does not support chance.");
+        }
     }
 
     private static IEnumerable<ValidationIssue> CheckNumericParams(string ruleId, EntityId owner, Effect effect)

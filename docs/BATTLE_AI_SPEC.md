@@ -219,6 +219,10 @@ Capabilities beyond Beginner:
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.
+- Grounded-state preview resolves effective creature types, visible field/creature conditions, and
+  passive `onGroundedQuery` ability/held-item rows through the same precedence function as the
+  resolver. It changes only existing terrain `damage`, `ko`, and `status` outcomes; it adds no
+  hidden score component and consumes no AI RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

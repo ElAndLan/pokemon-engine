@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 6,
+  "id": "ability:terrain_listener",
+  "name": "Terrain Listener",
+  "hooks": [
+    {
+      "hook": "onTerrainChange",
+      "effects": []
+    }
+  ]
+}

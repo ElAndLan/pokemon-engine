@@ -47,13 +47,19 @@ public sealed class MigratorTests
         public void Apply(JsonObject json) { }
     }
 
+    private sealed class NoOpV6ToV7 : IJsonMigration
+    {
+        public int FromVersion => 6;
+        public void Apply(JsonObject json) { }
+    }
+
     [Fact]
     public void Migrate_AppliesStepAndBumpsVersion()
     {
         var json = new JsonObject { ["schemaVersion"] = 0, ["foo"] = 42 };
         JsonObject result = Migrator.Migrate(json,
             [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4(), new NoOpV4ToV5(),
-                new NoOpV5ToV6()]);
+                new NoOpV5ToV6(), new NoOpV6ToV7()]);
 
         Assert.Equal(Migrator.CurrentVersion, result["schemaVersion"]!.GetValue<int>());
         Assert.Null(result["foo"]);
@@ -116,7 +122,7 @@ public sealed class MigratorTests
     }
 
     [Fact]
-    public void Migrate_V5Ability_PreservesExistingHookAndLoadsAtV6()
+    public void Migrate_V5Ability_PreservesExistingHookAndLoadsAtCurrent()
     {
         string text = File.ReadAllText(TestPaths.Fixture("schema-v5/ability.json"));
         var json = JsonNode.Parse(text)!.AsObject();
@@ -126,5 +132,18 @@ public sealed class MigratorTests
 
         Assert.Equal(SchemaVersions.Current, json["schemaVersion"]!.GetValue<int>());
         Assert.Equal(AbilityHookPoint.OnWeatherChange, ability.Hooks.Single().Hook);
+    }
+
+    [Fact]
+    public void Migrate_V6Ability_PreservesExistingHookAndLoadsAtV7()
+    {
+        string text = File.ReadAllText(TestPaths.Fixture("schema-v6/ability.json"));
+        var json = JsonNode.Parse(text)!.AsObject();
+
+        Migrator.Migrate(json);
+        Ability ability = CgmJson.Deserialize<Ability>(json.ToJsonString());
+
+        Assert.Equal(7, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(AbilityHookPoint.OnTerrainChange, ability.Hooks.Single().Hook);
     }
 }

@@ -56,16 +56,16 @@ public sealed class SchemaV2SerializationTests
             [
                 new AbilityHook
                 {
-                    Hook = AbilityHookPoint.OnTerrainChange,
-                    Effects = [new Effect { Op = "terrainSummon" }],
+                    Hook = AbilityHookPoint.OnGroundedQuery,
+                    Effects = [new Effect { Op = "groundedModify" }],
                 },
             ],
         };
 
         Ability back = CgmJson.Deserialize<Ability>(CgmJson.Serialize(ability));
         Assert.Equal(SchemaVersions.Current, back.SchemaVersion);
-        Assert.Equal(AbilityHookPoint.OnTerrainChange, back.Hooks.Single().Hook);
-        Assert.Equal("terrainSummon", back.Hooks.Single().Effects.Single().Op);
+        Assert.Equal(AbilityHookPoint.OnGroundedQuery, back.Hooks.Single().Hook);
+        Assert.Equal("groundedModify", back.Hooks.Single().Effects.Single().Op);
     }
 
     [Fact]

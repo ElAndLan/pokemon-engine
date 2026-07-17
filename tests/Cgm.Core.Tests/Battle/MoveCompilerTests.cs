@@ -120,6 +120,42 @@ public sealed class MoveCompilerTests
     }
 
     [Fact]
+    public void CompilesGroundedStateStrictly()
+    {
+        BattleMove target = MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "airborne"), ("duration", 3))));
+        Assert.Equal(new GroundedStateEffect(GroundedState.Airborne, GroundedStateScope.Target, 3),
+            Assert.Single(target.SecondaryEffects.OfType<GroundedStateEffect>()));
+
+        BattleMove field = MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "grounded"), ("scope", "field")))
+            with { Target = MoveTarget.EntireField });
+        Assert.Equal(new GroundedStateEffect(GroundedState.Grounded, GroundedStateScope.Field, 5),
+            Assert.Single(field.SecondaryEffects.OfType<GroundedStateEffect>()));
+
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", 50, ("state", "grounded")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "1")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "grounded"), ("scope", "1")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "airborne"), ("scope", "field")))
+            with { Target = MoveTarget.EntireField }));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "grounded"), ("scope", "field")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "grounded"))) with { Target = MoveTarget.UsersField }));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "grounded"), ("duration", 0)))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "grounded"), ("extra", true)))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("groundedState", null, ("state", "grounded")),
+            Op("groundedState", null, ("state", "airborne")))));
+    }
+
+    [Fact]
     public void CompilesTerrainHealingAndRejectsCompetingReplacementTables()
     {
         BattleMove move = MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
