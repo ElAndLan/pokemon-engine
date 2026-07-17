@@ -59,7 +59,8 @@ public static class BattleTurnOrder
     public static IReadOnlyList<BattleScheduledAction> Order(
         IReadOnlyList<BattleScheduledAction> scheduled,
         IRng rng,
-        Action<BattleScheduledAction, int, int, int>? tieDraw = null)
+        Action<BattleScheduledAction, int, int, int>? tieDraw = null,
+        bool reverseSpeed = false)
     {
         ArgumentNullException.ThrowIfNull(scheduled);
         ArgumentNullException.ThrowIfNull(rng);
@@ -68,7 +69,7 @@ public static class BattleTurnOrder
         foreach (IGrouping<(int Priority, int Speed), BattleScheduledAction> group in scheduled
             .GroupBy(action => (action.Priority, action.Speed))
             .OrderByDescending(group => group.Key.Priority)
-            .ThenByDescending(group => group.Key.Speed))
+            .ThenBy(group => reverseSpeed ? group.Key.Speed : -group.Key.Speed))
         {
             List<BattleScheduledAction> tied = [.. group];
             for (int index = tied.Count - 1; index > 0; index--)

@@ -29,11 +29,11 @@ Starting baseline:
   have also landed outside that certified cohort. The complete 15E-3 weather family and the terrain
   intrinsic lifecycle/grounded/damage/status/priority/healing, authored-interaction, and shared
   natural/effective-environment input, lifecycle-hook, grounded-override, and terrain-seed
-  checkpoints have landed; the terrain family is complete. The next eligible work is the combined
-  room/gravity/sport interaction criterion inside 15E-3.
-- Gravity's shared grounded component is complete; its accuracy and move-availability rows remain
-  with room/gravity/sport. Deferred environment consumers and individual conformance vectors remain
-  with their owning later packages without advancing the package.
+  checkpoints have landed; the terrain family is complete. The combined room/gravity/sport
+  criterion is also complete, including Gravity accuracy and move availability, room interactions,
+  sport profile vectors, source cleanup, and AI parity. Phase 15E-3 is complete; the next eligible
+  work is 15E-4 side conditions and guards. Deferred environment consumers and individual
+  conformance vectors remain with their owning later packages without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
   `IMPLEMENTATION_PLAN.md` record the growing verified suite; test count is evidence, not phase exit.
 

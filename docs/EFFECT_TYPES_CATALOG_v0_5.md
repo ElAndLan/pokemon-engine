@@ -646,7 +646,7 @@ create a private timer or pending list.
 | `magic_room` | held-item suppression field condition. |
 | `wonder_room` | defense/spdef stat-query swap field condition. |
 | `gravity` | grounded-state override, accuracy modifier, move-use blocker. |
-| `water_sport` / `mud_sport` | type-specific damage/base-power modifier, optional older-gen support. |
+| `water_sport` / `mud_sport` | type-specific base-power modifier with classic source-bound and modern timed profiles. |
 | `fairy_lock` | switch-prevention field condition. |
 | `inverse_battle` | ruleset/type-chart policy condition. |
 | `neutralizing_field` | ability suppression field condition, e.g. Neutralizing Gas-like effects. |
@@ -714,6 +714,21 @@ activate in topology order after initial terrain state is visible; switch-in hol
 entry hazards; `onTerrainChange` holders activate after `TerrainChanged` in the ordinary ability/item
 hook order. A mismatched terrain, prior consumption, fainted holder, or capped stat is a no-op; a
 capped stat leaves the item available for a later eligible checkpoint. Seed activation draws no RNG.
+
+### 7.7a Room, Gravity, And Sport Conditions
+
+`fieldCondition { condition, duration? }` is the shared application op for `trickRoom`,
+`wonderRoom`, `magicRoom`, `gravity`, `mudSport`, and `waterSport`; it is status-only,
+`entire-field`-only, chance-free, and permits no other params. Rooms toggle on same-row reapplication;
+Gravity and sports reject duplicates. `fieldMoveGate { condition: gravity }` marks a move as
+unavailable while Gravity is active and is evaluated before PP or RNG. These typed ops compile to
+condition identities and never inspect an authored move ID.
+
+Trick Room supplies `TurnOrderQuery`, Wonder Room supplies `StatQuery`, Magic Room supplies
+`ItemTrigger` suppression, and Gravity supplies `GroundedQuery`, `AccuracyQuery`, and
+`MoveAvailability`. Mud/Water Sport supply type-filtered `BasePowerQuery`: Electric/Fire respectively,
+with `1/2` source-bound classic rows and `1/3` five-turn modern rows. All use the shared field/room
+stores and lifecycle traces.
 
 ### 7.8 Transformation And Gimmick Conditions
 

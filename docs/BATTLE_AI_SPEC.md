@@ -227,6 +227,13 @@ Capabilities beyond Beginner:
   stages. Smart AI therefore consumes their result through existing offensive/defensive stat-stage
   damage scoring; it neither predicts unrevealed seed activation nor adds a seed-specific component
   or RNG draw.
+- Room/gravity/sport scoring reads the same immutable conditions and query helpers as resolution.
+  Trick Room reverses only action-history before/after previews inside the existing priority model;
+  Wonder Room maps the defensive base stat and stage; Gravity contributes its `5/3` accuracy row,
+  grounded result, and an explicit `fieldMoveGate` rejection; sports modify the existing base-power
+  damage component with the active ruleset fraction. Magic Room excludes held battle effects and
+  held-item formula inputs without hiding or deleting the item definition. These rows add no
+  speculative score component and no AI RNG.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

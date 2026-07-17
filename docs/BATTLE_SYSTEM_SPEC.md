@@ -1404,6 +1404,48 @@ Grounded-override vectors are `grounded-compile-valid-invalid`, `grounded-effect
 `grounded-precedence`, `grounded-replace-expire`, `grounded-switch-faint-cleanup`,
 `grounded-ability-item`, `grounded-terrain-resolver-ai-parity`, and `grounded-no-rng`.
 
+### Room, gravity, and sport field conditions (Phase 15E-3)
+
+The closed move op `fieldCondition { condition, duration? }` accepts `trickRoom`, `wonderRoom`,
+`magicRoom`, `gravity`, `mudSport`, or `waterSport`. It requires a status move targeting
+`entire-field`, rejects chance and unknown params, and defaults to five `TurnEnd` checkpoints.
+Each logical row has its own stacking key, so unlike weather and terrain these conditions coexist.
+Gravity and modern sports reject reapplication without refreshing. Reapplying an active room
+toggles only that room off through ordinary effect cleanup; it never removes a sibling room.
+All apply/reject/tick/expire/remove results use the shared condition events and traces and draw no
+condition RNG.
+
+Trick Room reverses effective-speed order inside each priority band; priority remains descending
+and equal-priority/equal-speed ties retain the seeded tie draw. Wonder Room maps Defense to Special
+Defense and Special Defense to Defense before both the base defensive value and its stat stage are
+queried, including a move-authored defensive-stat override or a defensive stat used offensively.
+Magic Room leaves the held-item ID and
+payload intact but suppresses held hook dispatch, grounding modifiers, duration extenders, seeds,
+choice locks, survival triggers, and held-item formula input while active. Form identity requirements
+are definition gates rather than held battle effects and are not rewritten by the room.
+
+Gravity contributes the highest-precedence field-grounded replacement to the shared `Grounded`
+query and multiplies non-bypassed accuracy by exactly `5/3` after authored weather replacements and
+ordinary accuracy/evasion stages. The closed marker `fieldMoveGate { condition: gravity }` is the
+only admitted field move gate in this package; while Gravity is active it fails before PP, target
+materialization, accuracy, or effect RNG. Cancellation of an already queued airborne charge remains
+with the queued/charge interaction package rather than being inferred from the move name.
+
+Mud Sport affects Electric base power and Water Sport affects Fire base power. In `gen4_like` the
+multiplier is `1/2`, the condition has no duration, and the ordinary source identity removes it when
+that creature switches or faints. In `modern_reference` the multiplier is `1/3`, the condition lasts
+five turns including its application turn, and source departure does not remove it. These are
+ruleset-selected condition definitions behind one logical effect row; move data never names a
+profile-specific condition ID.
+
+Resolver and Smart AI consume the same immutable condition snapshot for room stat routing, Gravity
+grounding/accuracy/legality, sport base power, held-effect suppression, and Trick Room action-history
+preview. No consumer reconstructs state from presentation events. Acceptance vectors are
+`field-condition-compile`, `field-condition-coexist`, `room-toggle-expire`, `trick-room-priority-speed-tie`,
+`wonder-room-stat-stage`, `magic-room-held-suppression`, `gravity-grounded-accuracy-gate`,
+`sport-present-absent-profile`, `sport-source-cleanup`, `field-condition-ai-parity`,
+`field-condition-no-rng`, and `field-condition-replay`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

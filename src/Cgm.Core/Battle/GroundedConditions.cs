@@ -33,7 +33,7 @@ public static class GroundedConditions
 
     public static BattleQueryResult Query(BattleCreature creature, IReadOnlyList<EntityId> effectiveTypes,
         BattleConditionOwner owner, IEnumerable<BattleConditionInstance>? conditions = null,
-        BattleQueryContext? context = null)
+        BattleQueryContext? context = null, bool suppressHeldItems = false)
     {
         ArgumentNullException.ThrowIfNull(creature);
         ArgumentNullException.ThrowIfNull(effectiveTypes);
@@ -55,7 +55,7 @@ public static class GroundedConditions
         foreach (Effect effect in creature.AbilityHooks
             .Where(hook => hook.Hook == AbilityHookPoint.OnGroundedQuery)
             .SelectMany(hook => hook.Effects)
-            .Concat(creature.HeldItemBattleEffects)
+            .Concat(suppressHeldItems ? [] : creature.HeldItemBattleEffects)
             .Where(effect => effect.Op == "groundedModify"))
             AddModifier(modifiers, ParseState(effect), field: false, ref insertion);
 
@@ -73,7 +73,9 @@ public static class GroundedConditions
             insertion++));
 
     private static GroundedState State(BattleConditionInstance condition) =>
-        condition.Counters.TryGetValue(StateCounter, out int value) && value is 0 or 1
+        condition.Definition.Id == FieldConditions.For(BattleFieldCondition.Gravity).Id
+            ? GroundedState.Grounded
+        : condition.Counters.TryGetValue(StateCounter, out int value) && value is 0 or 1
             ? value == 1 ? GroundedState.Grounded : GroundedState.Airborne
             : throw new InvalidOperationException($"Condition '{condition.Definition.Id}' has invalid grounded state.");
 

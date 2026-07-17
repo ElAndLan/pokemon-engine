@@ -112,6 +112,12 @@ public static class SmartAi
             c.Add(new("terrainGate", -1_000_000));
             return new AiCandidateScore(action, c[0].Value, c);
         }
+        if (move.SecondaryEffects.OfType<FieldMoveGateEffect>().Any(gate =>
+            context.Conditions is not null && FieldConditions.Active(context.Conditions, gate.Condition)))
+        {
+            c.Add(new("fieldMoveGate", -1_000_000));
+            return new AiCandidateScore(action, c[0].Value, c);
+        }
 
         PhysicalFormulaInputs? inputs = !PhysicalMetricFormulas.HasPowerFormula(move) ? null
             : context.Overlays is { } overlays
@@ -127,7 +133,7 @@ public static class SmartAi
             actionInputs = (context.ActionHistory ?? new BattleActionHistory()).PreviewPowerInputs(
                 new BattleHistoryOwner(BattleSide.Enemy, context.EnemyActive, new BattleSlot(BattleSide.Enemy, 0)),
                 new BattleHistoryOwner(BattleSide.Player, context.PlayerActive, new BattleSlot(BattleSide.Player, 0)),
-                move.Move, sourceSpeed > targetSpeed, sourceSpeed < targetSpeed);
+                move.Move, ActsBefore(sourceSpeed, targetSpeed, context), ActsBefore(targetSpeed, sourceSpeed, context));
         }
         bool hasResourceInputs = TryResourceInputs(attacker, defender, move, context.EnemyParty,
             context.EnemyActive, BattleSide.Enemy, context, out PartyResourceFormulaInputs? resourceInputs);
@@ -151,6 +157,10 @@ public static class SmartAi
                 BattleQueryOperation.Multiply,
                 BattleQuery.AccuracyStageMultiplier(attacker.Stage(StatKind.Accuracy), defender.Stage(StatKind.Evasion)),
                 InsertionOrder: accuracyModifiers.Count));
+            if (context.Conditions is not null)
+                accuracyModifiers.AddRange(FieldConditions.CollectAccuracyHooks(context.Conditions, 0)
+                    .QueryModifiers(BattleQueryId.Accuracy)
+                    .Select(modifier => modifier with { InsertionOrder = accuracyModifiers.Count }));
         }
         int resolvedAccuracy = BattleQuery.ResolveInteger(BattleQueryId.Accuracy, authoredAccuracy,
             accuracyModifiers);
@@ -359,19 +369,25 @@ public static class SmartAi
         bool physical = move.DamageClass == DamageClass.Physical;
         HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(
             move, attacker, defender, physicalInputs, actionInputs, resourceInputs);
-        IReadOnlyList<BattleQueryModifier> powerModifiers = weather is null
+        var powerModifiers = (weather is null
             ? powerQuery.Modifiers
-            : [.. powerQuery.Modifiers, .. weather.PowerModifiers];
+            : [.. powerQuery.Modifiers, .. weather.PowerModifiers]).ToList();
+        if (conditions is not null)
+            powerModifiers.AddRange(FieldConditions.CollectBasePowerHooks(conditions, moveType.Slug, ruleset, 0)
+                .QueryModifiers(BattleQueryId.BasePower)
+                .Select(modifier => modifier with { InsertionOrder = powerModifiers.Count }));
         int power = BattleQuery.ResolveInteger(BattleQueryId.BasePower, powerQuery.AuthoredBase, powerModifiers);
-        StatKind attackStat = physical ? StatKind.Atk : StatKind.Spa;
-        StatKind defenseStat = physical ? StatKind.Def : StatKind.Spd;
+        StatKind attackStat = FieldConditions.DefensiveStat(conditions ?? [],
+            move.OffensiveStatOverride ?? (physical ? StatKind.Atk : StatKind.Spa));
+        StatKind defenseStat = FieldConditions.DefensiveStat(conditions ?? [],
+            move.DefensiveStatOverride ?? (physical ? StatKind.Def : StatKind.Spd));
         int a = BattleQuery.ResolveInteger(BattleQueryId.OffensiveStat,
-            physical ? attacker.Stats.Atk : attacker.Stats.Spa,
+            StatValue(attacker.Stats, attackStat),
             [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
                 BattleQuery.StatStageMultiplier(attacker.Stage(attackStat)), InsertionOrder: 0),
              .. WeatherStatModifiers(conditions, attacker.Types, attackStat, BattleQueryId.OffensiveStat, ruleset)]);
         int d = BattleQuery.ResolveInteger(BattleQueryId.DefensiveStat,
-            physical ? defender.Stats.Def : defender.Stats.Spd,
+            StatValue(defender.Stats, defenseStat),
             [new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
                 BattleQuery.StatStageMultiplier(defender.Stage(defenseStat)), InsertionOrder: 0),
              .. WeatherStatModifiers(conditions, defender.Types, defenseStat, BattleQueryId.DefensiveStat, ruleset)]);
@@ -486,7 +502,7 @@ public static class SmartAi
             : creature.Types;
         return GroundedConditions.Query(creature, types,
             new BattleConditionOwner(BattleConditionScope.Creature, side, slot, partyIndex),
-            context.Conditions).FinalValue.ToInt32() == 1;
+            context.Conditions, suppressHeldItems: ItemsSuppressed(context)).FinalValue.ToInt32() == 1;
     }
 
     private static bool TryOwner(BattleCreature creature, SmartAiContext context,
@@ -530,6 +546,8 @@ public static class SmartAi
         int? itemPower = null;
         if (move.SecondaryEffects.OfType<ItemDataPowerEffect>().Any())
         {
+            if (ItemsSuppressed(context))
+                return false;
             EntityId? heldItem = context.Overlays is { } overlays
                 ? PhysicalMetricFormulas.EffectiveValues(attacker, overlays,
                     new BattleOverlayOwner(sourceSide, sourceIndex, new BattleSlot(sourceSide, 0))).HeldItem
@@ -571,6 +589,23 @@ public static class SmartAi
             ? PhysicalMetricFormulas.SpeedQuery(creature, overlays,
                 new BattleOverlayOwner(side, partyIndex, new BattleSlot(side, 0))).FinalValue.ToInt32()
             : PhysicalMetricFormulas.SpeedQuery(creature).FinalValue.ToInt32();
+
+    private static bool ActsBefore(int sourceSpeed, int targetSpeed, SmartAiContext context) =>
+        context.Conditions is not null
+        && FieldConditions.Active(context.Conditions, BattleFieldCondition.TrickRoom)
+            ? sourceSpeed < targetSpeed : sourceSpeed > targetSpeed;
+
+    private static bool ItemsSuppressed(SmartAiContext context) => context.Conditions is not null
+        && FieldConditions.Active(context.Conditions, BattleFieldCondition.MagicRoom);
+
+    private static int StatValue(Stats stats, StatKind stat) => stat switch
+    {
+        StatKind.Atk => stats.Atk,
+        StatKind.Def => stats.Def,
+        StatKind.Spa => stats.Spa,
+        StatKind.Spd => stats.Spd,
+        _ => throw new ArgumentException($"Stat {stat} is not valid for damage scoring."),
+    };
 
     private static double HpFraction(BattleCreature c) => c.CurrentHp / (double)c.MaxHp;
 

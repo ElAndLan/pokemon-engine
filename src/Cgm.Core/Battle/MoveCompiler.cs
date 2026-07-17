@@ -163,6 +163,36 @@ public static class MoveCompiler
                     effects.Add(new GroundedStateEffect(groundedState, groundedScope, groundedDuration));
                     break;
 
+                case "fieldCondition":
+                    if (chance != 100)
+                        throw new ArgumentException("fieldCondition does not support chance.");
+                    CheckAllowedParams(e, "condition", "duration");
+                    if (move.Target != MoveTarget.EntireField || move.DamageClass != DamageClass.Status)
+                        throw new ArgumentException("fieldCondition requires a status move targeting entire-field.");
+                    BattleFieldCondition fieldCondition = ParseNamed<BattleFieldCondition>(
+                        Str(e, "condition"), "field condition");
+                    int fieldDuration = e.Params?.ContainsKey("duration") == true
+                        ? Int(e, "duration") : FieldConditions.DefaultTurns;
+                    if (fieldDuration <= 0)
+                        throw new ArgumentException("fieldCondition duration must be positive.");
+                    if (effects.OfType<SetFieldConditionEffect>().Any())
+                        throw new ArgumentException("A move can declare only one fieldCondition effect.");
+                    effects.Add(new SetFieldConditionEffect(fieldCondition, fieldDuration));
+                    break;
+
+                case "fieldMoveGate":
+                    if (chance != 100)
+                        throw new ArgumentException("fieldMoveGate does not support chance.");
+                    CheckAllowedParams(e, "condition");
+                    BattleFieldCondition gateCondition = ParseNamed<BattleFieldCondition>(
+                        Str(e, "condition"), "field condition");
+                    if (gateCondition != BattleFieldCondition.Gravity)
+                        throw new ArgumentException("fieldMoveGate currently admits only gravity.");
+                    if (effects.OfType<FieldMoveGateEffect>().Any())
+                        throw new ArgumentException("A move can declare only one fieldMoveGate effect.");
+                    effects.Add(new FieldMoveGateEffect(gateCondition));
+                    break;
+
                 case "terrainMove":
                     if (chance != 100)
                         throw new ArgumentException("terrainMove does not support chance.");

@@ -169,6 +169,8 @@ public sealed record GroundedStateEffect(
     GroundedState State,
     GroundedStateScope Scope,
     int Duration) : MoveEffect;
+public sealed record SetFieldConditionEffect(BattleFieldCondition Condition, int Duration) : MoveEffect;
+public sealed record FieldMoveGateEffect(BattleFieldCondition Condition) : MoveEffect;
 public sealed record TerrainMoveEffect(
     TerrainMoveSubject Subject,
     IReadOnlyDictionary<Terrain, EntityId> TypeOverrides,

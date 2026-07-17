@@ -229,6 +229,14 @@ Together with the intrinsic, authored, environment-input, lifecycle-hook, and gr
 checkpoints, this closes the terrain family; Gravity accuracy/move blocking remains in the combined
 room/gravity/sport criterion.
 
+The room/gravity/sport exit covers strict `fieldCondition` and `fieldMoveGate` compilation,
+coexistence, room toggle, duplicate rejection, one/many-turn expiry, priority-preserving Trick Room
+speed reversal, Wonder Room defensive base/stage routing, Magic Room held-effect suppression without
+payload mutation, Gravity grounding/accuracy/pre-PP legality, classic/modern sport fractions and
+source/duration cleanup, shared lifecycle events/traces, resolver/Smart-AI parity, zero condition RNG,
+and deterministic replay. No project/save schema vector changes because both ops use the existing
+open effect payload shape.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

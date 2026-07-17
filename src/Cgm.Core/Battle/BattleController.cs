@@ -40,7 +40,7 @@ public sealed class BattleController
     private readonly BattleActionHistory _actionHistory = new();
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
-            .. GroundedConditions.Definitions]));
+            .. GroundedConditions.Definitions, .. FieldConditions.Definitions]));
     private readonly List<BattleConditionTraceEntry> _conditionTrace = [];
     private readonly List<BattleHookTraceEntry> _hookTrace = [];
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
@@ -160,7 +160,7 @@ public sealed class BattleController
             new BattleConditionOwner(BattleConditionScope.Creature, slot.Side, slot, ActiveIndex(slot)),
             ConditionSnapshot,
             new BattleQueryContext(slot, creature, Weather: CurrentWeather, Ruleset: Ruleset,
-                Terrain: CurrentTerrain));
+                Terrain: CurrentTerrain), suppressHeldItems: ItemsSuppressed);
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, _traceActionSequence, slot, slot, result));
         return result.FinalValue.ToInt32() == 1;
     }
@@ -862,7 +862,8 @@ public sealed class BattleController
     private IReadOnlyList<BattleScheduledAction> OrderActions(IReadOnlyList<BattleScheduledAction> scheduled) =>
         BattleTurnOrder.Order(scheduled, _rng, (action, draw, bound, selectedIndex) =>
             AddTrace(0, action.Submission.Source, null, EffectTraceKind.TurnOrderTie, true, draw, selectedIndex,
-                _log.Count, _log.Count, bound));
+                _log.Count, _log.Count, bound),
+            reverseSpeed: FieldConditions.Active(ConditionSnapshot, BattleFieldCondition.TrickRoom));
 
     private bool IsLive(BattleSlot slot) => !Active(slot).IsFainted;
 
@@ -1014,7 +1015,8 @@ public sealed class BattleController
         BattleSide side = slot.Side;
         if (moveIndex < 0 || moveIndex >= c.Moves.Count)
             throw new ArgumentException($"{side} move index {moveIndex} out of range.");
-        if (!c.IsCharging && !c.IsLocked && c.ChoiceLockedMoveIndex is { } locked && moveIndex != locked)
+        if (!ItemsSuppressed && !c.IsCharging && !c.IsLocked
+            && c.ChoiceLockedMoveIndex is { } locked && moveIndex != locked)
             throw new ArgumentException($"{side} is locked into move {locked}.");
         if (!c.Moves[moveIndex].HasPp && !c.IsCharging && !c.IsLocked)
             throw new ArgumentException($"{side} move {moveIndex} has no PP.");
@@ -1073,6 +1075,8 @@ public sealed class BattleController
         TraceCleanup(_intentQueue.OwnerSwitched(slot.Side, outgoingPartyIndex, null));
         RecordConditionChanges(_conditions.OwnerSwitched(slot.Side, outgoingPartyIndex, null,
             Turn, _traceActionSequence));
+        RecordConditionChanges(_conditions.SourceLeft(slot.Side, outgoingPartyIndex,
+            BattleConditionCleanupReason.Switch, Turn, _traceActionSequence));
         _overlays.OwnerSwitched(slot.Side, outgoingPartyIndex, null, Turn, _traceActionSequence);
         _activeSlots.Assign(slot, index);
         _overlays.OwnerSwitched(slot.Side, index, slot, Turn, _traceActionSequence);
@@ -1220,6 +1224,10 @@ public sealed class BattleController
             modifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
                 BattleQuery.AccuracyStageMultiplier(source.Stage(StatKind.Accuracy), target.Stage(StatKind.Evasion)),
                 InsertionOrder: modifiers.Count));
+            BattleHookDispatchSnapshot field = FieldConditions.CollectAccuracyHooks(ConditionSnapshot, traceAction);
+            _hookTrace.AddRange(field.Trace);
+            modifiers.AddRange(field.QueryModifiers(BattleQueryId.Accuracy)
+                .Select(modifier => modifier with { InsertionOrder = modifiers.Count }));
         }
         BattleQueryResult result = BattleQuery.Evaluate(BattleQueryId.Accuracy, new BattleQueryValue(authored), modifiers,
             new BattleQueryContext(sourceSlot, source, targetSlot, target, CurrentWeather, Ruleset, CurrentTerrain));
@@ -1664,12 +1672,15 @@ public sealed class BattleController
             case GroundedStateEffect grounded:
                 ApplyGroundedState(ctx, grounded);
                 break;
+            case SetFieldConditionEffect field:
+                ApplyFieldCondition(ctx, field);
+                break;
             case RemoveTerrainEffect:
                 ClearTerrain();
                 break;
             case TerrainMoveEffect or TerrainGateEffect:
                 break;
-            case MoveGateEffect:
+            case MoveGateEffect or FieldMoveGateEffect:
                 break; // evaluated before PP/RNG in PassesMoveGates.
             case QueueActionGateEffect gate:
                 QueueActionGate(ctx, gate.Turns);
@@ -1692,6 +1703,23 @@ public sealed class BattleController
             Turn,
             ctx.TraceAction,
             effect.Duration)));
+    }
+
+    private void ApplyFieldCondition(EffectContext ctx, SetFieldConditionEffect effect)
+    {
+        BattleConditionDefinition definition = FieldConditions.For(effect.Condition, Ruleset);
+        BattleConditionOwner owner = definition.Scope == BattleConditionScope.Room
+            ? FieldConditions.RoomOwner : FieldConditions.FieldOwner;
+        bool toggles = effect.Condition is BattleFieldCondition.TrickRoom
+            or BattleFieldCondition.WonderRoom or BattleFieldCondition.MagicRoom;
+        if (toggles && FieldConditions.Active(ConditionSnapshot, effect.Condition))
+        {
+            RecordConditionChanges(_conditions.Remove(definition.Id, owner, Turn, ctx.TraceAction));
+            return;
+        }
+        RecordConditionChanges(_conditions.Apply(new BattleConditionApplication(definition.Id, owner,
+            new BattleConditionSource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)), Turn, ctx.TraceAction,
+            definition.DurationCheckpoint is null ? null : effect.Duration)));
     }
 
     private void SwapPositions(EffectContext ctx)
@@ -1814,6 +1842,17 @@ public sealed class BattleController
 
     private bool PassesMoveGates(BattleCreature creature, BattleSlot slot, BattleMove move, int traceAction)
     {
+        foreach (FieldMoveGateEffect gate in move.SecondaryEffects.OfType<FieldMoveGateEffect>())
+        {
+            bool passed = !FieldConditions.Active(ConditionSnapshot, gate.Condition);
+            int start = _log.Count;
+            if (!passed)
+                _log.Add(new MoveFailed(slot, move.Move, MoveFailureReason.FieldConditionBlocked));
+            AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, false, null, passed ? 1 : 0,
+                start, _log.Count);
+            if (!passed)
+                return false;
+        }
         if (move.SecondaryEffects.OfType<TerrainGateEffect>().Any())
         {
             bool passed = CurrentTerrain != Terrain.None;
@@ -2406,7 +2445,7 @@ public sealed class BattleController
     {
         if (amount < target.CurrentHp || target.CurrentHp != target.MaxHp || target.HasConsumedHeldEffect("surviveFromFull"))
             return amount;
-        if (!target.HeldItemBattleEffects.Any(e => e.Op == "surviveFromFull"))
+        if (!HeldEffects(target).Any(e => e.Op == "surviveFromFull"))
             return amount;
 
         target.ConsumeHeldEffect("surviveFromFull");
@@ -2422,7 +2461,7 @@ public sealed class BattleController
             return true;
 
         BattleCreature source = Active(sourceSlot);
-        EntityId? heldItem = PhysicalMetricFormulas.EffectiveValues(source, _overlays,
+        EntityId? heldItem = ItemsSuppressed ? null : PhysicalMetricFormulas.EffectiveValues(source, _overlays,
             new BattleOverlayOwner(sourceSlot.Side, ActiveIndex(sourceSlot), sourceSlot)).HeldItem;
         if (heldItem is not { } itemId || !_itemData.TryGetValue(itemId, out Item? item) || item.FlingPower is not > 0)
             return false;
@@ -2483,6 +2522,11 @@ public sealed class BattleController
             powerModifiers.AddRange(weather.QueryModifiers(BattleQueryId.BasePower)
                 .Select(modifier => modifier with { InsertionOrder = powerModifiers.Count }));
         }
+        BattleHookDispatchSnapshot fieldPower = FieldConditions.CollectBasePowerHooks(
+            ConditionSnapshot, moveType.Slug, Ruleset, traceAction);
+        _hookTrace.AddRange(fieldPower.Trace);
+        powerModifiers.AddRange(fieldPower.QueryModifiers(BattleQueryId.BasePower)
+            .Select(modifier => modifier with { InsertionOrder = powerModifiers.Count }));
         if (move.SecondaryEffects.OfType<TerrainMoveEffect>().SingleOrDefault() is { } terrainEffect)
         {
             BattleHookDispatchSnapshot terrain = TerrainConditions.CollectBasePowerHooks(
@@ -2507,8 +2551,10 @@ public sealed class BattleController
         int roll = BattleRolls.DamageRoll(_rng, out int randomRoll);
         damageRollDraw = randomRoll;
 
-        StatKind offStat = move.OffensiveStatOverride ?? (physical ? StatKind.Atk : StatKind.Spa);
-        StatKind defStat = move.DefensiveStatOverride ?? (physical ? StatKind.Def : StatKind.Spd);
+        StatKind offStat = FieldConditions.DefensiveStat(ConditionSnapshot,
+            move.OffensiveStatOverride ?? (physical ? StatKind.Atk : StatKind.Spa));
+        StatKind defStat = FieldConditions.DefensiveStat(ConditionSnapshot,
+            move.DefensiveStatOverride ?? (physical ? StatKind.Def : StatKind.Spd));
         int aStage = attacker.Stage(offStat);
         int dStage = target.Stage(defStat);
         if (crit)
@@ -2564,7 +2610,7 @@ public sealed class BattleController
             BattleCreature c = Active(slot);
             foreach (AbilityHook hook in c.AbilityHooks)
                 yield return new BattleHookSource(slot, BattleHookSourceKind.Ability, hook.Hook, hook.Effects);
-            foreach (var group in c.HeldItemBattleEffects.Select(e => (Hook: HeldHook(e), Effect: e))
+            foreach (var group in HeldEffects(c).Select(e => (Hook: HeldHook(e), Effect: e))
                 .Where(x => x.Hook is not null).GroupBy(x => x.Hook!.Value))
                 yield return new BattleHookSource(slot, BattleHookSourceKind.HeldItem, group.Key, group.Select(x => x.Effect).ToList());
         }
@@ -2601,7 +2647,7 @@ public sealed class BattleController
 
     private void TriggerTerrainSeed(BattleSlot slot)
     {
-        foreach (Effect effect in Active(slot).HeldItemBattleEffects.Where(effect => effect.Op == "terrainSeed"))
+        foreach (Effect effect in HeldEffects(Active(slot)).Where(effect => effect.Op == "terrainSeed"))
             TriggerTerrainSeed(slot, effect);
     }
 
@@ -2624,20 +2670,24 @@ public sealed class BattleController
     }
 
     private int WeatherDurationExtension(BattleSlot slot) =>
-        Active(slot).HeldItemBattleEffects
+        HeldEffects(Active(slot))
             .Where(e => e.Op == "weatherDurationExtend")
             .Sum(e => Int(e, "turns") ?? 0);
 
     private int TerrainDurationExtension(BattleSlot slot) =>
-        Active(slot).HeldItemBattleEffects
+        HeldEffects(Active(slot))
             .Where(e => e.Op == "terrainDurationExtend")
             .Sum(e => Int(e, "turns") ?? 0);
 
-    private static void ApplyChoiceLock(BattleCreature creature, int moveIndex)
+    private void ApplyChoiceLock(BattleCreature creature, int moveIndex)
     {
-        if (creature.HeldItemBattleEffects.Any(e => e.Op == "choiceLock"))
+        if (HeldEffects(creature).Any(e => e.Op == "choiceLock"))
             creature.SetChoiceLock(moveIndex);
     }
+
+    private bool ItemsSuppressed => FieldConditions.Active(ConditionSnapshot, BattleFieldCondition.MagicRoom);
+    private IReadOnlyList<Effect> HeldEffects(BattleCreature creature) =>
+        ItemsSuppressed ? [] : creature.HeldItemBattleEffects;
 
     private IReadOnlyList<BattleQueryModifier> DamageHookModifiers(
         BattleMove move, EntityId moveType, BattleSlot sourceSlot, BattleSlot targetSlot)
@@ -3202,6 +3252,8 @@ public sealed class BattleController
             TraceCancelled(_intentQueue.OwnerFainted(slot.Side, ActiveIndex(slot)));
             RecordConditionChanges(_conditions.OwnerFainted(slot.Side, ActiveIndex(slot), Turn,
                 _traceActionSequence));
+            RecordConditionChanges(_conditions.SourceLeft(slot.Side, ActiveIndex(slot),
+                BattleConditionCleanupReason.Faint, Turn, _traceActionSequence));
             _overlays.OwnerFainted(slot.Side, ActiveIndex(slot), Turn, _traceActionSequence);
         }
         _pendingReplacementSlots.Clear();

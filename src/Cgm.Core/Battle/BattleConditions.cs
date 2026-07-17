@@ -257,6 +257,21 @@ public sealed class BattleConditionStores
         return changes.Build();
     }
 
+    public BattleConditionChangeSet SourceLeft(BattleSide side, int partyIndex,
+        BattleConditionCleanupReason reason, int turn, int actionSequence)
+    {
+        ValidateIdentity(side, partyIndex, null);
+        if (reason is not (BattleConditionCleanupReason.Switch or BattleConditionCleanupReason.Faint))
+            throw new ArgumentException("Source cleanup requires switch or faint.", nameof(reason));
+        ValidateTime(turn, actionSequence);
+        var changes = new ChangeBuilder();
+        foreach (BattleConditionInstance instance in Snapshot().Where(instance =>
+            instance.Tags.Contains("source_bound", StringComparer.Ordinal)
+            && instance.Source.Slot?.Side == side && instance.Source.PartyIndex == partyIndex))
+            Remove(instance, reason, turn, actionSequence, changes);
+        return changes.Build();
+    }
+
     public BattleConditionChangeSet EndBattle(int turn, int actionSequence)
     {
         ValidateTime(turn, actionSequence);
