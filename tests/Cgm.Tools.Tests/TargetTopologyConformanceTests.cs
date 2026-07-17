@@ -25,6 +25,13 @@ public sealed class TargetTopologyConformanceTests
             new Dictionary<EntityId, IEntity> { [move.Id] = move });
         Assert.Empty(new MoveRule().Check(project));
         BattleMove compiled = MoveCompiler.ToBattleMove(move);
+        MoveGateEffect? requiredDamageGate = compiled.SecondaryEffects.OfType<MoveGateEffect>()
+            .SingleOrDefault(gate => gate is
+                { Kind: MoveGateKind.DamageReceived, DamageMode: MoveGateDamageMode.Require });
+        BattleMove enemyMove = requiredDamageGate is null
+            ? Wait(move.Type)
+            : new BattleMove(EntityId.Parse("move:gate_setup"), move.Type,
+                requiredDamageGate.DamageClass ?? DamageClass.Physical, 40, null, 20, 0, 0);
 
         BattleCreature player0 = Creature("p0", compiled, move.Type, 200);
         BattleCreature player1 = Creature("p1", Wait(move.Type), move.Type, 150);
@@ -33,7 +40,7 @@ public sealed class TargetTopologyConformanceTests
             Hook = AbilityHookPoint.OnContactReceived,
             Effects = [new Effect { Op = "contactChanceEffect", Chance = 100, Params = Params(("damage", 1)) }],
         };
-        BattleCreature enemy0 = Creature("e0", Wait(move.Type), move.Type, 100, [contactHook]);
+        BattleCreature enemy0 = Creature("e0", enemyMove, move.Type, 100, [contactHook]);
         BattleCreature enemy1 = Creature("e1", Wait(move.Type), move.Type, 50);
         player0.TakeDamage(400);
         var battle = new BattleController(
@@ -51,7 +58,9 @@ public sealed class TargetTopologyConformanceTests
         [
             new BattleActionSubmission(source, new UseMove(0), selected),
             new BattleActionSubmission(new(BattleSide.Player, 1), new Pass()),
-            new BattleActionSubmission(new(BattleSide.Enemy, 0), new Pass()),
+            new BattleActionSubmission(new(BattleSide.Enemy, 0),
+                requiredDamageGate is null ? new Pass() : new UseMove(0),
+                requiredDamageGate is null ? null : new ActiveSlotSelection(source)),
             new BattleActionSubmission(new(BattleSide.Enemy, 1), new Pass()),
         ]);
 
@@ -73,22 +82,26 @@ public sealed class TargetTopologyConformanceTests
         }
         BattleSlot[] expectedTargets = ExpectedTargets(move.Target);
         Assert.Contains(events, e => e is MoveUsed used && used.Slot == source);
+        IReadOnlyList<BattleEvent> sourceEvents = events
+            .SkipWhile(e => e is not MoveUsed { Slot: { Side: BattleSide.Player, Position: 0 } })
+            .ToArray();
         Assert.Equal(expectedTargets, battle.Trace
             .Where(e => e.Kind == EffectTraceKind.Accuracy && e.SourceSlot == source)
             .Select(e => e.TargetSlot!.Value)
             .ToArray());
 
         if (move.DamageClass != DamageClass.Status)
-            Assert.Equal(expectedTargets, events.OfType<DamageDealt>().Select(e => e.Slot).ToArray());
+            Assert.Equal(expectedTargets, sourceEvents.OfType<DamageDealt>().Select(e => e.Slot).ToArray());
 
         foreach (MoveEffect effect in compiled.SecondaryEffects)
-            AssertEffect(effect, player0, [player0, player1, enemy0, enemy1], expectedTargets, events);
+            AssertEffect(effect, player0, [player0, player1, enemy0, enemy1], expectedTargets, sourceEvents);
         if (compiled.MultiTurnLock)
             Assert.True(player0.IsLocked);
         if (compiled.SelfDestruct)
             Assert.True(player0.IsFainted);
         Assert.Equal(compiled.MakesContact,
-            events.Any(e => e is ContactDamaged { Slot: { Side: BattleSide.Player, Position: 0 }, Amount: 1 }));
+            sourceEvents.Any(e => e is ContactDamaged
+                { Slot: { Side: BattleSide.Player, Position: 0 }, Amount: 1 }));
 
         Assert.Contains($"TargetTopologyConformanceTests.Certified({record.ReferenceKey})", record.TestIds);
         Assert.Equal("doubles", record.RequiredTopology);

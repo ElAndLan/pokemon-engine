@@ -50,7 +50,22 @@ public sealed record MoveMissed(BattleSlot Slot, EntityId Move, BattleSlot? Targ
     public BattleSide Side => Slot.Side;
     public MoveMissed(BattleSide side, EntityId move) : this(new BattleSlot(side, 0), move) { }
 }
-public enum MoveFailureReason { FirstActionOnly, CannotRepeat, TargetUnavailable, FormulaInputUnavailable, TerrainRequired, FieldConditionBlocked, ConditionRequirementNotMet, ConditionAlreadyActive }
+public enum MoveFailureReason
+{
+    FirstActionOnly,
+    CannotRepeat,
+    PreviousActionRequired,
+    ActionOrderRequirementNotMet,
+    TargetActionRequirementNotMet,
+    InterruptedByDamage,
+    DamageRequired,
+    TargetUnavailable,
+    FormulaInputUnavailable,
+    TerrainRequired,
+    FieldConditionBlocked,
+    ConditionRequirementNotMet,
+    ConditionAlreadyActive,
+}
 public sealed record MoveFailed(BattleSlot Slot, EntityId Move, MoveFailureReason Reason) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

@@ -180,6 +180,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"ActionHistoryFormulaConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => IsPartyResourceFormula(effect.Op)))
             testIds.Add($"PartyResourceFormulaConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => IsActionGate(effect.Op)))
+            testIds.Add($"ActionGateConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
@@ -297,6 +299,8 @@ public static class MoveConformanceNormalizer
 
     private static bool IsPartyResourceFormula(string op) => op is "partyCountPower" or "friendshipPower"
         or "ppPower" or "positiveStagePower" or "itemDataPower" or "randomTablePower";
+
+    private static bool IsActionGate(string op) => op is "moveGate" or "queueActionGate" or "recharge";
 
     private static MoveTarget ParseTarget(string value, string path) => value switch
     {

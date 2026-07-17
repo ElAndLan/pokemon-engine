@@ -221,8 +221,7 @@ public sealed class BattleController
             new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), resolvedPlayerAction),
             new BattleActionSubmission(new BattleSlot(BattleSide.Enemy, 0), resolvedEnemyAction),
         ]);
-        BeginActionHistory(actions.Actions.Select(submission =>
-            new BattleActionPlan(HistoryOwner(submission.Source), PlanKind(submission.Action))));
+        BeginActionHistory(actions.Actions.Select(submission => ActionPlan(submission)));
         PrepareProtectionChains(actions.Actions);
 
         // 1. Switches happen before anything else.
@@ -281,9 +280,9 @@ public sealed class BattleController
         BattleIntentPreview intentPreview = _intentQueue.Preview(Turn, BattleIntentCheckpoint.PreAction);
         IReadOnlyList<AdmittedAction> admitted = Admit(submitted, intentPreview);
         ConsumePreviewedIntents(intentPreview);
-        BeginActionHistory(admitted.Select(action => new BattleActionPlan(
-            new BattleHistoryOwner(action.Submission.Source.Side, action.ActorPartyIndex, action.Submission.Source),
-            PlanKind(action.Submission.Action))));
+        BeginActionHistory(admitted.Select(action => ActionPlan(action.Submission,
+            new BattleHistoryOwner(action.Submission.Source.Side, action.ActorPartyIndex,
+                action.Submission.Source))));
         PrepareProtectionChains(admitted.Select(action => action.Submission));
         ResolveSwitchPhase(admitted);
         ResolveItemPhase(admitted);
@@ -548,7 +547,10 @@ public sealed class BattleController
                 TickRampageLock(action.Submission.Source, traceAction);
                 continue;
             }
-            if (!PassesMoveGates(attacker, action.Submission.Source, move, traceAction))
+            BattleSlot? gateTarget = GateTarget(action.Submission.Source, move,
+                action.Submission.Selection);
+            if (!PassesMoveGates(attacker, action.Submission.Source, move, traceAction,
+                    MoveGateTiming.BeforeMove, gateTarget))
             {
                 ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Failed);
@@ -564,6 +566,15 @@ public sealed class BattleController
                 continue;
             }
             _log.Add(new MoveUsed(action.Submission.Source, move.Move));
+            if (!PassesMoveGates(attacker, action.Submission.Source, move, traceAction,
+                    MoveGateTiming.AfterMoveUsed, gateTarget))
+            {
+                attacker.RecordMoveUse(move.Move);
+                ResetFailedProtection(attacker, move);
+                _actionHistory.Complete(attempt, BattleActionResult.Failed);
+                TickRampageLock(action.Submission.Source, traceAction);
+                continue;
+            }
             attacker.RecordMoveUse(move.Move);
             IReadOnlyList<BattleSlot>? targets = MaterializeLiveTargets(action.Submission, move, traceAction,
                 out BattleTargetScopeKind scopeKind, out BattleSide? scopeSide);
@@ -948,12 +959,16 @@ public sealed class BattleController
         {
             case UseMove use:
                 ValidateMoveUse(slot, use.MoveIndex);
-                ValidateSelection(slot, Active(slot).Moves[EffectiveMoveIndex(slot, use.MoveIndex)].Target, selection);
+                BattleMove move = Active(slot).Moves[EffectiveMoveIndex(slot, use.MoveIndex)];
+                ValidateSelectionMoveGates(slot, move);
+                ValidateSelection(slot, move.Target, selection);
                 break;
 
             case ActivateForm form:
                 ValidateMoveUse(slot, form.MoveIndex);
-                ValidateSelection(slot, Active(slot).Moves[EffectiveMoveIndex(slot, form.MoveIndex)].Target, selection);
+                BattleMove formMove = Active(slot).Moves[EffectiveMoveIndex(slot, form.MoveIndex)];
+                ValidateSelectionMoveGates(slot, formMove);
+                ValidateSelection(slot, formMove.Target, selection);
                 BattleCreature active = Active(slot);
                 bool temporary = !_temporaryFormUsed[(int)side]
                     && active.CanActivateTemporaryForm(form.FormId, item => _itemStock[(int)side].TryGetValue(item, out int count) && count > 0);
@@ -1010,6 +1025,14 @@ public sealed class BattleController
     }
 
     private void ValidateMoveUse(BattleSide side, int moveIndex) => ValidateMoveUse(new BattleSlot(side, 0), moveIndex);
+
+    private void ValidateSelectionMoveGates(BattleSlot slot, BattleMove move)
+    {
+        BattleHistoryOwner source = HistoryOwner(slot);
+        if (!BattleActionGates.SourceHistoryAllows(move, Active(slot),
+                _actionHistory.PreviousActionFailed(source), MoveGateTiming.Selection))
+            throw new ArgumentException($"{slot.Side} move '{move.Move}' fails its selection-time action gate.");
+    }
 
     private void ValidateSelection(BattleSlot source, MoveTarget target, BattleActionSelection? selection)
     {
@@ -1178,9 +1201,17 @@ public sealed class BattleController
     private void BeginActionHistory(IEnumerable<BattleActionPlan> plans) =>
         _actionHistory.BeginTurn(Turn, plans);
 
-    private static BattlePlannedActionKind PlanKind(BattleAction action) => MoveIndex(action) is not null
-        ? BattlePlannedActionKind.Move
-        : action is Switch ? BattlePlannedActionKind.Switch : BattlePlannedActionKind.Other;
+    private BattleActionPlan ActionPlan(BattleActionSubmission submission,
+        BattleHistoryOwner? capturedOwner = null)
+    {
+        int? moveIndex = MoveIndex(submission.Action);
+        return new BattleActionPlan(capturedOwner ?? HistoryOwner(submission.Source),
+            moveIndex is not null ? BattlePlannedActionKind.Move
+                : submission.Action is Switch ? BattlePlannedActionKind.Switch : BattlePlannedActionKind.Other,
+            moveIndex is { } index
+                ? Active(submission.Source).Moves[EffectiveMoveIndex(submission.Source, index)].DamageClass
+                : null);
+    }
 
     private BattleHistoryOwner HistoryOwner(BattleSlot slot) =>
         new(slot.Side, ActiveIndex(slot), slot);
@@ -1564,7 +1595,9 @@ public sealed class BattleController
             return; // hurt itself in confusion — no PP, no move
         }
 
-        if (!PassesMoveGates(attacker, sourceSlot, move, traceAction))
+        BattleSlot? gateTarget = GateTarget(sourceSlot, move, null);
+        if (!PassesMoveGates(attacker, sourceSlot, move, traceAction,
+                MoveGateTiming.BeforeMove, gateTarget))
         {
             ResetFailedProtection(attacker, move);
             _actionHistory.Complete(attempt, BattleActionResult.Failed);
@@ -1592,6 +1625,14 @@ public sealed class BattleController
         }
 
         _log.Add(new MoveUsed(sourceSlot, move.Move));
+        if (!PassesMoveGates(attacker, sourceSlot, move, traceAction,
+                MoveGateTiming.AfterMoveUsed, gateTarget))
+        {
+            attacker.RecordMoveUse(move.Move);
+            ResetFailedProtection(attacker, move);
+            _actionHistory.Complete(attempt, BattleActionResult.Failed, [targetOwner]);
+            return;
+        }
         attacker.RecordMoveUse(move.Move);
         BattleMoveIdentityQueryResult moveIdentity = EffectiveMoveIdentity(sourceSlot, move, traceAction);
         EntityId moveType = moveIdentity.EffectiveType;
@@ -1918,8 +1959,11 @@ public sealed class BattleController
                 break;
             case MoveGateEffect or FieldMoveGateEffect:
                 break; // evaluated before PP/RNG in PassesMoveGates.
+            case QueueActionGateEffect gate when gate.Owner == QueueActionGateOwner.Creature
+                && ctx.ActionDamageDealt <= 0:
+                break;
             case QueueActionGateEffect gate:
-                QueueActionGate(ctx, gate.Turns);
+                QueueActionGate(ctx, gate);
                 break;
         }
         return true;
@@ -2251,38 +2295,52 @@ public sealed class BattleController
         _ => throw new ArgumentOutOfRangeException(nameof(recipient), recipient, "Unknown HP-fraction recipient."),
     };
 
-    private bool PassesMoveGates(BattleCreature creature, BattleSlot slot, BattleMove move, int traceAction)
+    private bool PassesMoveGates(BattleCreature creature, BattleSlot slot, BattleMove move,
+        int traceAction, MoveGateTiming timing, BattleSlot? targetSlot)
     {
-        foreach (FieldMoveGateEffect gate in move.SecondaryEffects.OfType<FieldMoveGateEffect>())
+        if (timing == MoveGateTiming.BeforeMove)
         {
-            bool passed = !FieldConditions.Active(ConditionSnapshot, gate.Condition);
-            int start = _log.Count;
-            if (!passed)
-                _log.Add(new MoveFailed(slot, move.Move, MoveFailureReason.FieldConditionBlocked));
-            AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, false, null, passed ? 1 : 0,
-                start, _log.Count);
-            if (!passed)
-                return false;
-        }
-        if (move.SecondaryEffects.OfType<TerrainGateEffect>().Any())
-        {
-            bool passed = CurrentTerrain != Terrain.None;
-            int start = _log.Count;
-            if (!passed)
-                _log.Add(new MoveFailed(slot, move.Move, MoveFailureReason.TerrainRequired));
-            AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, false, null, passed ? 1 : 0,
-                start, _log.Count);
-            if (!passed)
-                return false;
-        }
-        foreach (MoveGateEffect gate in move.SecondaryEffects.OfType<MoveGateEffect>())
-        {
-            MoveFailureReason? failure = gate.Kind switch
+            foreach (FieldMoveGateEffect gate in move.SecondaryEffects.OfType<FieldMoveGateEffect>())
             {
-                MoveGateKind.FirstAction when creature.ActionsSinceSwitch > 0 => MoveFailureReason.FirstActionOnly,
-                MoveGateKind.NotPreviousMove when creature.LastMoveUsed == move.Move => MoveFailureReason.CannotRepeat,
-                _ => null,
-            };
+                bool passed = !FieldConditions.Active(ConditionSnapshot, gate.Condition);
+                int start = _log.Count;
+                if (!passed)
+                    _log.Add(new MoveFailed(slot, move.Move, MoveFailureReason.FieldConditionBlocked));
+                AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, false, null, passed ? 1 : 0,
+                    start, _log.Count);
+                if (!passed)
+                    return false;
+            }
+            if (move.SecondaryEffects.OfType<TerrainGateEffect>().Any())
+            {
+                bool passed = CurrentTerrain != Terrain.None;
+                int start = _log.Count;
+                if (!passed)
+                    _log.Add(new MoveFailed(slot, move.Move, MoveFailureReason.TerrainRequired));
+                AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, false, null, passed ? 1 : 0,
+                    start, _log.Count);
+                if (!passed)
+                    return false;
+            }
+        }
+
+        BattleHistoryOwner sourceOwner = HistoryOwner(slot);
+        BattleActionFormulaInputs? history = targetSlot is { } target
+            ? _actionHistory.PowerInputs(sourceOwner, HistoryOwner(target), move.Move) : null;
+        foreach (MoveGateEffect gate in move.SecondaryEffects.OfType<MoveGateEffect>()
+            .Where(gate => gate.Timing == timing))
+        {
+            bool matchingDamage = gate.Kind == MoveGateKind.DamageReceived
+                && _actionHistory.DamageTo(sourceOwner, Turn).Any(record => record.ActualHpRemoved > 0
+                    && (gate.DamageClass is null || record.DamageClass == gate.DamageClass));
+            MoveFailureReason? failure = BattleActionGates.Failure(move, creature, gate,
+                new BattleMoveGateInputs(
+                    _actionHistory.PreviousActionFailed(sourceOwner),
+                    history?.SourceBeforeTarget ?? false,
+                    history?.SourceAfterTarget ?? false,
+                    targetSlot is { } plannedTarget
+                        ? _actionHistory.PlannedMoveClass(HistoryOwner(plannedTarget)) : null,
+                    matchingDamage));
             if (failure is { } reason)
             {
                 int start = _log.Count;
@@ -2295,15 +2353,43 @@ public sealed class BattleController
         return true;
     }
 
-    private void QueueActionGate(EffectContext ctx, int turns)
+    private BattleSlot? GateTarget(BattleSlot source, BattleMove move,
+        BattleActionSelection? selection)
     {
+        if (!move.SecondaryEffects.OfType<MoveGateEffect>().Any(gate => gate.Kind is
+                MoveGateKind.SourceBeforeTarget or MoveGateKind.SourceAfterTarget
+                or MoveGateKind.TargetAction))
+            return null;
+        if (Topology.ActiveSlotsPerSide == 1)
+            return new BattleSlot(Opponent(source.Side), 0);
+        return selection is ActiveSlotSelection active
+            ? active.Slot
+            : throw new ArgumentException("Target-relative action gates require an active-slot selection.",
+                nameof(selection));
+    }
+
+    private void QueueActionGate(EffectContext ctx, QueueActionGateEffect gate)
+    {
+        if (gate.Turns <= 0 || !Enum.IsDefined(gate.Owner))
+            throw new ArgumentOutOfRangeException(nameof(gate),
+                "Queued action gates require positive turns and a defined owner.");
         if (Outcome is not null)
             return;
+        BattleIntentOwner owner = gate.Owner switch
+        {
+            QueueActionGateOwner.Slot => new BattleIntentOwner(BattleIntentOwnerScope.Slot,
+                ctx.SourceSide, ctx.SourceSlot, null, BattleIntentSwitchPolicy.StaySlot,
+                BattleIntentFaintPolicy.Persist),
+            QueueActionGateOwner.Creature => new BattleIntentOwner(BattleIntentOwnerScope.Creature,
+                ctx.SourceSide, ctx.SourceSlot, ActiveIndex(ctx.SourceSlot),
+                BattleIntentSwitchPolicy.Cancel, BattleIntentFaintPolicy.Cancel),
+            _ => throw new ArgumentOutOfRangeException(nameof(gate), gate.Owner,
+                "Unknown queued action-gate owner."),
+        };
         BattleIntent intent = _intentQueue.Enqueue(new BattleIntentRequest(
-            Turn + turns,
+            Turn + gate.Turns,
             BattleIntentCheckpoint.PreAction,
-            new BattleIntentOwner(BattleIntentOwnerScope.Slot, ctx.SourceSide, ctx.SourceSlot, null,
-                BattleIntentSwitchPolicy.StaySlot, BattleIntentFaintPolicy.Persist),
+            owner,
             new BattleIntentTarget(BattleIntentTargetPolicy.Source),
             new SkipActionIntent(),
             ctx.Move.Move,

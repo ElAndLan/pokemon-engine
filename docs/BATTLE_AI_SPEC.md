@@ -227,6 +227,11 @@ Capabilities beyond Beginner:
   stage-ignore and screen eligibility, then apply resolved hit probability. The `recovery` component
   consumes the same move and field healing rows. Visible next-query conditions are previewed but
   never consumed; no query performs AI RNG or adds an opaque score component.
+- Phase 15D-2 move legality uses the shared action-gate evaluator for source-local first-action,
+  cannot-repeat, and previous-failure rows. The AI reads only its own completed history for these
+  checks. It never inspects the player's submitted action this turn for target-action or moved-
+  before/after gates. Due recharge/generic action blocks are applied by controller intent preview
+  before validation, so AI scoring adds no hidden workaround or new RNG.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

@@ -173,6 +173,21 @@ public sealed class BattleActionHistoryFormulaTests
     }
 
     [Fact]
+    public void TurnPlan_ValidatesAndExposesMoveDamageClass()
+    {
+        var history = new BattleActionHistory();
+        BattleHistoryOwner source = Owner(BattleSide.Player, 0, Player0);
+
+        Assert.Throws<ArgumentException>(() => history.BeginTurn(0,
+            [new(source, BattlePlannedActionKind.Other, DamageClass.Physical)]));
+        Assert.Throws<ArgumentException>(() => history.BeginTurn(0,
+            [new(source, BattlePlannedActionKind.Move, (DamageClass)99)]));
+
+        history.BeginTurn(0, [new(source, BattlePlannedActionKind.Move, DamageClass.Special)]);
+        Assert.Equal(DamageClass.Special, history.PlannedMoveClass(source));
+    }
+
+    [Fact]
     public void Compiler_ProducesBothTypedOpsAndRejectsMalformedVariants()
     {
         BattleMove move = Compile(40,

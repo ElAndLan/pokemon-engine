@@ -330,6 +330,17 @@ and fixed families; move healing multiply/replace-zero/missing-HP clamp with no 
 singles/doubles per-target isolation; resolver/Smart-AI parity; replay; and a deterministic family
 golden. Query metadata has strict enum/operand/composition validation and no named-move branch.
 
+The 15D-2 exit covers every action-gate kind/timing and every missing, unknown, duplicate,
+mis-targeted, mistimed, or incompatible param sibling; atomic selection rejection with no state/PP/
+event/queue/RNG mutation; before-versus-after-`MoveUsed` PP and event order; previous-result and
+before/after target history; target any/damaging/status plans without AI hidden-action access;
+required/forbidden any/physical/special current-turn damage; miss/protection/immunity/no-damage
+boundaries; generic slot block versus creature-owned recharge; all submitted action kinds;
+switch/faint cancellation; singles/doubles actor isolation; Smart-AI source-history legality;
+intent/effect trace order; replay identity; zero added RNG; sanitized conformance vectors; and the
+checked-in `action-gate.golden`. The open effect payload adds closed params only, so no schema
+migration vector changes.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

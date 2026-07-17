@@ -28,7 +28,10 @@ public enum BattleDamageFailure
 
 public readonly record struct BattleHistoryOwner(BattleSide Side, int PartyIndex, BattleSlot Slot);
 public readonly record struct BattleActionAttemptId(int Turn, int ActionSequence);
-public sealed record BattleActionPlan(BattleHistoryOwner Owner, BattlePlannedActionKind Kind);
+public sealed record BattleActionPlan(
+    BattleHistoryOwner Owner,
+    BattlePlannedActionKind Kind,
+    DamageClass? MoveClass = null);
 public sealed record BattleActionAttempt(
     BattleActionAttemptId Id,
     BattleHistoryOwner Source,
@@ -71,7 +74,7 @@ public sealed class BattleActionHistory
     private readonly List<BattleActionAttempt> _attempts = [];
     private readonly List<BattleDamageRecord> _damage = [];
     private readonly Dictionary<BattleActionAttemptId, Pending> _pending = [];
-    private readonly Dictionary<(BattleSide Side, int Party), BattlePlannedActionKind> _plans = [];
+    private readonly Dictionary<(BattleSide Side, int Party), BattleActionPlan> _plans = [];
     private readonly HashSet<(BattleSide Side, int Party)> _completed = [];
     private readonly HashSet<(BattleSide Side, int Party)> _switched = [];
     private readonly HashSet<(BattleSide Side, int Party)> _faintedOwners = [];
@@ -91,7 +94,13 @@ public sealed class BattleActionHistory
 
         BattleActionPlan[] captured = plans.ToArray();
         foreach (BattleActionPlan plan in captured)
+        {
             ValidateOwner(plan.Owner);
+            if (!Enum.IsDefined(plan.Kind)
+                || (plan.MoveClass is { } moveClass && !Enum.IsDefined(moveClass))
+                || plan.Kind != BattlePlannedActionKind.Move && plan.MoveClass is not null)
+                throw new ArgumentException("Only move plans may carry a damage class.", nameof(plans));
+        }
         if (captured.Select(plan => Key(plan.Owner)).Distinct().Count() != captured.Length
             || captured.Select(plan => plan.Owner.Slot).Distinct().Count() != captured.Length)
             throw new ArgumentException("Turn plans require unique actors and slots.", nameof(plans));
@@ -103,7 +112,7 @@ public sealed class BattleActionHistory
         _faintedOwners.Clear();
         foreach (BattleActionPlan plan in captured)
         {
-            _plans.Add(Key(plan.Owner), plan.Kind);
+            _plans.Add(Key(plan.Owner), plan);
             if (plan.Kind != BattlePlannedActionKind.Move)
                 ClearCreature(plan.Owner);
         }
@@ -220,6 +229,19 @@ public sealed class BattleActionHistory
         .ThenBy(attempt => attempt.Id.ActionSequence)
         .ToArray();
 
+    public bool PreviousActionFailed(BattleHistoryOwner source)
+    {
+        ValidateOwner(source);
+        return _lastResults.TryGetValue(Key(source), out BattleActionResult result)
+            && result is BattleActionResult.Prevented or BattleActionResult.Failed or BattleActionResult.Missed;
+    }
+
+    public DamageClass? PlannedMoveClass(BattleHistoryOwner owner)
+    {
+        ValidateOwner(owner);
+        return _plans.TryGetValue(Key(owner), out BattleActionPlan? plan) ? plan.MoveClass : null;
+    }
+
     public void RecordDamage(BattleDamageRecord record)
     {
         ValidateOwner(record.Source);
@@ -310,16 +332,15 @@ public sealed class BattleActionHistory
             : side.LastTurn == _currentTurn - 1 ? side.Count : 0
             : 0;
         bool switched = _switched.Contains(targetKey);
-        bool pendingTargetMove = _plans.TryGetValue(targetKey, out BattlePlannedActionKind plan)
-            && plan == BattlePlannedActionKind.Move && !_completed.Contains(targetKey);
+        bool pendingTargetMove = _plans.TryGetValue(targetKey, out BattleActionPlan? plan)
+            && plan.Kind == BattlePlannedActionKind.Move && !_completed.Contains(targetKey);
         bool completedTargetMove = _completed.Contains(targetKey) && !switched;
         return new BattleActionFormulaInputs(
             connected,
             attemptedTurns,
             sourceBeforeTarget ?? (switched || pendingTargetMove),
             sourceAfterTarget ?? completedTargetMove,
-            _lastResults.TryGetValue(sourceKey, out BattleActionResult result)
-                && result is BattleActionResult.Prevented or BattleActionResult.Failed or BattleActionResult.Missed,
+            PreviousActionFailed(source),
             _faints.Contains((_currentTurn - 1, source.Side)));
     }
 

@@ -46,7 +46,20 @@ public sealed record OneShotQueryEffect(OneShotQuery Query, int Duration) : Move
 
 public enum StageEffectScope { Self, Target, Both }
 public enum StageSwapGroup { All, Offense, Defense }
-public enum MoveGateKind { FirstAction, NotPreviousMove }
+public enum MoveGateKind
+{
+    FirstAction,
+    NotPreviousMove,
+    PreviousActionFailed,
+    SourceBeforeTarget,
+    SourceAfterTarget,
+    TargetAction,
+    DamageReceived,
+}
+public enum MoveGateTiming { Selection, BeforeMove, AfterMoveUsed }
+public enum MoveGateTargetClass { AnyMove, DamagingMove, StatusMove }
+public enum MoveGateDamageMode { Require, Forbid }
+public enum QueueActionGateOwner { Slot, Creature }
 public enum HpFractionRecipient { Self, Target }
 public enum HpFractionOperation { Heal, Damage }
 public enum HpFractionBasis { MaxHp, CurrentHp }
@@ -244,8 +257,15 @@ public sealed record WeatherMoveEffect(
     IReadOnlyDictionary<Weather, Fraction> PowerMultipliers,
     IReadOnlySet<Weather> SkipChargeWeather) : MoveEffect;
 
-/// <summary>Pre-move legality gate evaluated before PP, RNG, damage, and later effects.</summary>
-public sealed record MoveGateEffect(MoveGateKind Kind) : MoveEffect;
+/// <summary>Typed action-legality gate evaluated at its authored timing checkpoint.</summary>
+public sealed record MoveGateEffect(
+    MoveGateKind Kind,
+    MoveGateTiming Timing = MoveGateTiming.BeforeMove,
+    MoveGateTargetClass? TargetClass = null,
+    MoveGateDamageMode? DamageMode = null,
+    DamageClass? DamageClass = null) : MoveEffect;
 
-/// <summary>Queues a source-slot action skip for a future turn.</summary>
-public sealed record QueueActionGateEffect(int Turns) : MoveEffect;
+/// <summary>Queues a source-slot or source-creature action skip for a future turn.</summary>
+public sealed record QueueActionGateEffect(
+    int Turns,
+    QueueActionGateOwner Owner = QueueActionGateOwner.Slot) : MoveEffect;

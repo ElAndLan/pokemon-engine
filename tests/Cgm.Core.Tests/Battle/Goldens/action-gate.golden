@@ -1,0 +1,7 @@
+intent:Creature:PreAction:SkipAction:due=1
+event:move:BattleSlot { Side = Player, Position = 0 }:move:golden_recharge
+event:damage:BattleSlot { Side = Enemy, Position = 0 }:54
+event:skip:BattleSlot { Side = Player, Position = 0 }
+trace:IntentEnqueued:0:SkipAction
+trace:IntentConsumed:0:SkipAction
+pp:9

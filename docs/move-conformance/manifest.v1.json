@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 853
+      "count": 843
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 84
+      "count": 94
     },
     {
       "status": "blockedReference",
@@ -969,12 +969,17 @@
       "payloadContentHash": "e6c9187ef4ba94ff3e83f352d99bd02623b266e2b4481a3e92eeec3531302bb8",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "recharge",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "e6ea9f0f496d6f16dbf9be135e415272c2d1c0f9689b97f7d77f595e98af1639",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0063)"
+      ]
     },
     {
       "referenceKey": "move-0064",
@@ -3777,12 +3782,17 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "flinch",
-        "standardDamage"
+        "moveGate",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "d7ca20246b4898461754c6804d39cd1c4e978ae78b70a91174996163ae4b8369",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0252)"
+      ]
     },
     {
       "referenceKey": "move-0253",
@@ -3958,12 +3968,17 @@
       "payloadContentHash": "fdc9cf20c7a0b8ffef80982f84b3e6d82f1247159fe57c173e39fa9a08de8f6b",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "moveGate",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "3bb2040596d5ed434e1fedffcc336e30515c16be592b868279de80478795eb66",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0264)"
+      ]
     },
     {
       "referenceKey": "move-0265",
@@ -4588,12 +4603,17 @@
       "payloadContentHash": "0b2a50799c5730a46e4238e256034bd991fac3f3d850c89362eca547379e918a",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "recharge",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "592a0c20f9b6dfd787f073b0fc6e8e7c71be994ca37da6e0bd4667605f8a3ac2",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0307)"
+      ]
     },
     {
       "referenceKey": "move-0308",
@@ -4602,12 +4622,17 @@
       "payloadContentHash": "eb9aa43a3a25514b9c07522741b3363b5bb855db45ac9e8b3d8662d929350496",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "recharge",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "5f10f5f369135b30cc3fca3a3ab56f7e8a70cf04efdcea7eb06d2f9262cfbd86",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0308)"
+      ]
     },
     {
       "referenceKey": "move-0309",
@@ -5054,12 +5079,17 @@
       "payloadContentHash": "81ba0e6b46adecfdc4e8744b4ca00d4208167d29cf2da078347008e676011cd9",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "recharge",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "7f8f6aa9d8bd66201bbbd941727e361e9e14dd242f6796f93e082c4571107b44",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0338)"
+      ]
     },
     {
       "referenceKey": "move-0339",
@@ -5809,12 +5839,17 @@
       "payloadContentHash": "237279946132c4d86b4836e45803302e0da9b408a86bd2055463f8cd4a4f13cf",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "moveGate",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "88aba400ac3b8e5f026654f4a1dada75e0b812b3c667f8645ca45c9def30bc7f",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0389)"
+      ]
     },
     {
       "referenceKey": "move-0390",
@@ -6201,12 +6236,17 @@
       "payloadContentHash": "a60c7285ba5da995deffaa27de1da5678aa67e63aafab889581653dca3a23f75",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "recharge",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "816860efc8ed49b94a4ffb2f58b2fd9debc7acf87e22bfb61c00c0e80941b234",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0416)"
+      ]
     },
     {
       "referenceKey": "move-0417",
@@ -9822,12 +9862,17 @@
       "payloadContentHash": "473728bd3c4f8cd543357aa892db04248304ecde3b9d6bf57960d8385c79ac6d",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "moveGate",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "714ea62d730dad2f01a7e205f54f76051f271a079cbc827d291efaadc48f3a1a",
+      "testIds": [
+        "ActionGateConformanceTests.Certified(move-0660)"
+      ]
     },
     {
       "referenceKey": "move-0661",
@@ -10465,12 +10510,18 @@
       "payloadContentHash": "e6535cd398652892fc5d08b87dd77aa686abdb5853f797b0adf85a714368da4f",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "moveGate",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "9871689ec5701faadc22e3fb527bdb59cbade4975996f446f857f8cd5a7c45fd",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0704)",
+        "ActionGateConformanceTests.Certified(move-0704)"
+      ]
     },
     {
       "referenceKey": "move-0705",

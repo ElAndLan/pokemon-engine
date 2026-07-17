@@ -187,6 +187,12 @@ ceiling, events, and trace fields are locked in `BATTLE_SYSTEM_SPEC.md` under ‚Ä
 lifecycle.‚Äù The initial typed payload is `skipAction`; every later payload extends the closed union
 before use.
 
+Phase 15D-2 extends `moveGate` with closed source-history, target-order/action-class, and
+damage-received predicates plus explicit `selection|beforeMove|afterMoveUsed` timing. These remain
+typed legality rows and never become move-ID branches. `recharge { turns? }` compiles to the same
+`skipAction` payload as `queueActionGate`, but uses a creature owner with switch/faint cancellation;
+the generic queue op remains slot-owned and stays with the slot. Both are chance-free and add no RNG.
+
 ### 3.3 Damage, Accuracy, Hit Count, And Criticals
 
 | Primitive | What It Does | Covers |

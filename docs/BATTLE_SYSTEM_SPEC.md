@@ -1107,6 +1107,63 @@ Three generic effect operations govern action timing without any move identity i
   due turn it replaces that slot's submitted action with a generic pass, emits `ActionSkipped`, and
   consumes the entry. It therefore blocks switching, items, forms, and move use uniformly.
 
+#### Action-gate and recharge registry (Phase 15D-2)
+
+`moveGate` extends to the closed params `{ kind, timing?, targetClass?, damageMode?, damageClass? }`.
+`timing` is `selection|beforeMove|afterMoveUsed` and defaults to `beforeMove`, preserving existing
+rows. The closed kinds are:
+
+| kind | pass condition |
+|---|---|
+| `firstAction` | the source has completed no move since entering its current active stint |
+| `notPreviousMove` | the source's last completed move ID differs from this move |
+| `previousActionFailed` | the source's previous move result was prevented, failed, or missed |
+| `sourceBeforeTarget` | the selected target has not completed its submitted action this turn |
+| `sourceAfterTarget` | the selected target completed its submitted action this turn |
+| `targetAction` | the selected target submitted a move matching `targetClass:anyMove|damagingMove|statusMove` |
+| `damageReceived` | current-turn direct move damage received before the gate matches `damageMode:require|forbid` and optional `damageClass:physical|special` |
+
+`targetClass` is required only for `targetAction`. `damageMode` is required only for
+`damageReceived`; `damageClass` is optional only there and omission means either damaging class.
+Target-relative order/action gates require the single `selected` target. Multiple rows compose in
+authored order and the first failure stops later gates. Duplicate `(kind,timing)` rows are invalid.
+Selection timing admits only the source-local `firstAction`, `notPreviousMove`, and
+`previousActionFailed` kinds. A selection failure rejects the complete turn before state, PP,
+events, queue consumption, or RNG changes. A `beforeMove` failure emits typed `MoveFailed` and its
+`MoveGate` trace before PP, `MoveUsed`, accuracy, or later RNG. An `afterMoveUsed` failure occurs
+after ordinary PP spend and `MoveUsed`, records that move as the source's last use, then emits
+`MoveFailed`; it performs no target materialization, accuracy, damage, or later effect work. Every
+gate is deterministic.
+
+Turn plans snapshot action kind and, for a submitted move/form action, its authored damage class at
+admission. Target-action gates use that immutable plan and current actor identity; they never inspect
+a later replacement or UI state. `sourceBeforeTarget` treats a pending target move or an already
+resolved switch as before-target under the existing action-history rule; `sourceAfterTarget` requires
+the target action to have completed without a switch reset. Damage-received gates use positive actual
+HP removed by ordinary move damage records, not residual/self-cost/item damage. A class filter uses
+the resolved record's effective damage class.
+
+`recharge { turns? }` is the creature-owned form of the existing queued action block; `turns`
+defaults to one and is positive. It is chance-free, unique, and valid only on a damaging move. After
+the action deals positive direct move damage to at least one target, it enqueues one `skipAction`
+intent due at `PreAction` on `currentTurn + turns`, with creature owner, `cancel` switch policy, and
+`cancel` faint policy. Miss, protection, immunity, and zero direct damage enqueue nothing. On the due
+turn the existing preview atomically replaces any submitted move, form, item, switch, or pass with
+the forced pass, emits one `ActionSkipped`, consumes the intent, spends no PP, and draws no RNG.
+Switch or faint before consumption cancels recharge visibly in intent trace. `queueActionGate`
+remains the generic slot-owned/stay-slot next-action block; both use the same queue and payload.
+
+Smart AI rejects source-local gates it can prove false from its own visible action history. It does
+not read the player's current submitted action to predict target-action/order gates; controller
+admission/resolution remains authoritative. Recharge and generic action blocks require no AI
+prediction because the controller preview replaces the submitted action before validation.
+
+Acceptance vectors: `action-gate-compile-validation`, `action-gate-selection-atomic`,
+`action-gate-before-after-pp`, `action-gate-history-order`, `action-gate-target-class`,
+`action-gate-damage-received`, `recharge-all-action-block`, `recharge-switch-faint-cleanup`,
+`action-gate-doubles-isolation`, `action-gate-ai-legality`, `action-gate-no-rng`, and
+`action-gate-golden`.
+
 #### Typed intent queue lifecycle (Phase 15D-1)
 
 All future battle work uses one `BattleIntentQueue`; no condition or move owns a private delayed-work

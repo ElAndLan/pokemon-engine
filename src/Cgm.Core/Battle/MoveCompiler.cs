@@ -521,8 +521,24 @@ public static class MoveCompiler
                 case "moveGate":
                     if (chance != 100)
                         throw new ArgumentException("moveGate does not support chance.");
-                    CheckAllowedParams(e, "kind");
-                    effects.Add(new MoveGateEffect(Parse<MoveGateKind>(Str(e, "kind"), "kind")));
+                    CheckAllowedParams(e, "kind", "timing", "targetClass", "damageMode", "damageClass");
+                    MoveGateKind gateKind = Parse<MoveGateKind>(Str(e, "kind"), "kind");
+                    MoveGateTiming gateTiming = e.Params?.ContainsKey("timing") == true
+                        ? Parse<MoveGateTiming>(Str(e, "timing"), "timing")
+                        : MoveGateTiming.BeforeMove;
+                    MoveGateTargetClass? gateTargetClass = e.Params?.ContainsKey("targetClass") == true
+                        ? Parse<MoveGateTargetClass>(Str(e, "targetClass"), "targetClass") : null;
+                    MoveGateDamageMode? gateDamageMode = e.Params?.ContainsKey("damageMode") == true
+                        ? Parse<MoveGateDamageMode>(Str(e, "damageMode"), "damageMode") : null;
+                    DamageClass? gateDamageClass = e.Params?.ContainsKey("damageClass") == true
+                        ? Parse<DamageClass>(Str(e, "damageClass"), "damageClass") : null;
+                    var moveGate = new MoveGateEffect(gateKind, gateTiming, gateTargetClass,
+                        gateDamageMode, gateDamageClass);
+                    BattleActionGates.Validate(moveGate);
+                    if (effects.OfType<MoveGateEffect>().Any(gate =>
+                        gate.Kind == gateKind && gate.Timing == gateTiming))
+                        throw new ArgumentException("A move can declare one moveGate per kind/timing pair.");
+                    effects.Add(moveGate);
                     break;
 
                 case "queueActionGate":
@@ -533,6 +549,19 @@ public static class MoveCompiler
                     if (turns <= 0)
                         throw new ArgumentException("queueActionGate turns must be positive.");
                     effects.Add(new QueueActionGateEffect(turns));
+                    break;
+
+                case "recharge":
+                    if (chance != 100)
+                        throw new ArgumentException("recharge does not support chance.");
+                    CheckAllowedParams(e, "turns");
+                    int rechargeTurns = e.Params?.ContainsKey("turns") == true ? Int(e, "turns") : 1;
+                    if (rechargeTurns <= 0)
+                        throw new ArgumentException("recharge turns must be positive.");
+                    if (effects.OfType<QueueActionGateEffect>().Any(gate =>
+                        gate.Owner == QueueActionGateOwner.Creature))
+                        throw new ArgumentException("A move can declare only one recharge effect.");
+                    effects.Add(new QueueActionGateEffect(rechargeTurns, QueueActionGateOwner.Creature));
                     break;
 
                 case "damageStatOverride": // damage stat query override
@@ -1008,6 +1037,13 @@ public static class MoveCompiler
             if (oneShot.Query == OneShotQuery.Accuracy && move.Target != MoveTarget.Selected)
                 throw new ArgumentException("An accuracy nextQuery requires the selected target.");
         }
+        if (effects.OfType<MoveGateEffect>().Any(gate => gate.Kind is MoveGateKind.SourceBeforeTarget
+                or MoveGateKind.SourceAfterTarget or MoveGateKind.TargetAction)
+            && move.Target != MoveTarget.Selected)
+            throw new ArgumentException("Target-relative moveGate rows require the selected target.");
+        if (effects.OfType<QueueActionGateEffect>().Any(gate => gate.Owner == QueueActionGateOwner.Creature)
+            && move.DamageClass == DamageClass.Status)
+            throw new ArgumentException("recharge requires a damaging move.");
         if (!chargeTurn && effects.OfType<WeatherMoveEffect>().Any(effect => effect.SkipChargeWeather.Count > 0))
             throw new ArgumentException("weatherMove skipCharge requires chargeTurn.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0

@@ -86,9 +86,13 @@ public static class SmartAi
         BattleCreature active = context.EnemyParty[context.EnemyActive];
         BattleCreature target = context.PlayerParty[context.PlayerActive];
         var scores = new List<AiCandidateScore>();
+        bool previousActionFailed = context.ActionHistory?.PreviousActionFailed(
+            new BattleHistoryOwner(BattleSide.Enemy, context.EnemyActive,
+                new BattleSlot(BattleSide.Enemy, 0))) == true;
 
         for (int i = 0; i < active.Moves.Count; i++)
-            if (active.Moves[i].HasPp)
+            if (active.Moves[i].HasPp && BattleActionGates.SourceHistoryAllows(
+                    active.Moves[i], active, previousActionFailed))
                 scores.Add(ScoreMove(new UseMove(i), active, target, context, weights, context.Rng));
 
         scores.AddRange(ScoreItems(context, weights));
@@ -96,7 +100,9 @@ public static class SmartAi
         if (CanSwitch(active) && context.Turn - (context.Memory?.LastVoluntarySwitchTurn ?? -99) >= 3)
             scores.AddRange(ScoreSwitches(context, weights, BestMoveScore(scores)));
 
-        if (scores.Count == 0)
+        if (scores.Count == 0 && active.Moves.Any(move => move.HasPp))
+            scores.Add(new AiCandidateScore(new Pass(), 0, [new("actionGateFallback", 0)]));
+        else if (scores.Count == 0)
             scores.Add(new AiCandidateScore(new UseMove(FirstUsableOrZero(active)), 0, [new("fallback", 0)]));
 
         AiCandidateScore best = scores.OrderByDescending(s => s.Score).First();
