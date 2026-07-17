@@ -2,7 +2,14 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Battle;
 
-public enum BattleSideCondition { PhysicalScreen, SpecialScreen, AllDamageScreen }
+public enum BattleSideCondition
+{
+    PhysicalScreen,
+    SpecialScreen,
+    AllDamageScreen,
+    StatusGuard,
+    StageDropGuard,
+}
 
 public static class SideConditions
 {
@@ -14,6 +21,10 @@ public static class SideConditions
             [BattleSideCondition.PhysicalScreen] = Screen("side:physical_screen", "side_physical_screen"),
             [BattleSideCondition.SpecialScreen] = Screen("side:special_screen", "side_special_screen"),
             [BattleSideCondition.AllDamageScreen] = Screen("side:all_damage_screen", "side_all_damage_screen"),
+            [BattleSideCondition.StatusGuard] = Guard("side:status_guard", "side_status_guard",
+                BattleConditionHook.StatusAttempt, "status_guard"),
+            [BattleSideCondition.StageDropGuard] = Guard("side:stage_drop_guard", "side_stage_drop_guard",
+                BattleConditionHook.SecondaryEffect, "stage_guard"),
         };
 
     public static IReadOnlyList<BattleConditionDefinition> Definitions { get; } = [.. Rows.Values];
@@ -37,7 +48,7 @@ public static class SideConditions
         if (!Enum.IsDefined(targetSide))
             throw new ArgumentOutOfRangeException(nameof(targetSide));
         if (damageClass == DamageClass.Status || critical || bypass)
-            return Empty(actionSequence);
+            return Empty(BattleConditionHook.DamageQuery, actionSequence);
         if (activeSlotsPerSide is not (1 or 2))
             throw new ArgumentOutOfRangeException(nameof(activeSlotsPerSide), "Side screens support singles or doubles topology.");
 
@@ -57,6 +68,24 @@ public static class SideConditions
             new BattleHookDispatchContext(actionSequence, BattleConditionHook.DamageQuery), registrations);
     }
 
+    public static BattleHookDispatchSnapshot CollectStatusHooks(
+        IEnumerable<BattleConditionInstance> conditions, BattleSide sourceSide, BattleSide targetSide,
+        bool bypass, int actionSequence) => CollectGuardHooks(conditions, sourceSide, targetSide,
+            BattleSideCondition.StatusGuard, BattleConditionHook.StatusAttempt, "status_attempt", bypass,
+            actionSequence);
+
+    public static BattleHookDispatchSnapshot CollectConfusionHooks(
+        IEnumerable<BattleConditionInstance> conditions, BattleSide sourceSide, BattleSide targetSide,
+        bool bypass, int actionSequence) => CollectGuardHooks(conditions, sourceSide, targetSide,
+            BattleSideCondition.StatusGuard, BattleConditionHook.StatusAttempt, "confusion_attempt", bypass,
+            actionSequence);
+
+    public static BattleHookDispatchSnapshot CollectStageDropHooks(
+        IEnumerable<BattleConditionInstance> conditions, BattleSide sourceSide, BattleSide targetSide,
+        bool bypass, int actionSequence) => CollectGuardHooks(conditions, sourceSide, targetSide,
+            BattleSideCondition.StageDropGuard, BattleConditionHook.SecondaryEffect, "stage_drop_attempt", bypass,
+            actionSequence);
+
     private static bool Applies(BattleConditionInstance instance, DamageClass damageClass) =>
         instance.Definition.Id == For(BattleSideCondition.AllDamageScreen).Id
         || damageClass == DamageClass.Physical
@@ -64,8 +93,25 @@ public static class SideConditions
         || damageClass == DamageClass.Special
             && instance.Definition.Id == For(BattleSideCondition.SpecialScreen).Id;
 
-    private static BattleHookDispatchSnapshot Empty(int actionSequence) => BattleHookDispatcher.Collect(
-        new BattleHookDispatchContext(actionSequence, BattleConditionHook.DamageQuery), []);
+    private static BattleHookDispatchSnapshot CollectGuardHooks(
+        IEnumerable<BattleConditionInstance> conditions, BattleSide sourceSide, BattleSide targetSide,
+        BattleSideCondition condition, BattleConditionHook hook, string filterId, bool bypass, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        if (!Enum.IsDefined(sourceSide) || !Enum.IsDefined(targetSide))
+            throw new ArgumentOutOfRangeException(nameof(targetSide));
+        if (sourceSide == targetSide || bypass)
+            return Empty(hook, actionSequence);
+        BattleConditionInstance? instance = conditions.SingleOrDefault(item =>
+            item.Owner == Owner(targetSide) && item.Definition.Id == For(condition).Id);
+        BattleHookRegistration[] registrations = instance is null ? []
+            : [BattleHookRegistration.ForCondition(instance, hook, 0, 0,
+                new BattleHookFilter(new BattleHookFilterId(filterId), BattleHookFilterDecision.Deny))];
+        return BattleHookDispatcher.Collect(new BattleHookDispatchContext(actionSequence, hook), registrations);
+    }
+
+    private static BattleHookDispatchSnapshot Empty(BattleConditionHook hook, int actionSequence) =>
+        BattleHookDispatcher.Collect(new BattleHookDispatchContext(actionSequence, hook), []);
 
     private static BattleConditionDefinition Screen(string id, string stackingKey) => new()
     {
@@ -74,7 +120,22 @@ public static class SideConditions
         Hooks = [BattleConditionHook.DamageQuery],
         DefaultDuration = DefaultTurns,
         DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
-        Tags = ["screen"],
+        Tags = ["screen", "barrier"],
+        StackingKey = stackingKey,
+        StackingPolicy = BattleConditionStackingPolicy.Reject,
+        SwitchPolicy = BattleConditionSwitchPolicy.StayScope,
+        FaintPolicy = BattleConditionFaintPolicy.Persist,
+    };
+
+    private static BattleConditionDefinition Guard(string id, string stackingKey,
+        BattleConditionHook hook, string tag) => new()
+    {
+        Id = new BattleConditionId(id),
+        Scope = BattleConditionScope.Side,
+        Hooks = [hook],
+        DefaultDuration = DefaultTurns,
+        DurationCheckpoint = BattleIntentCheckpoint.TurnEnd,
+        Tags = [tag, "barrier"],
         StackingKey = stackingKey,
         StackingPolicy = BattleConditionStackingPolicy.Reject,
         SwitchPolicy = BattleConditionSwitchPolicy.StayScope,

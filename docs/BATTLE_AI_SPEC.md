@@ -240,6 +240,11 @@ Capabilities beyond Beginner:
   Explicit `screen` bypass and a before-damage matching removal exclude the modifier without
   mutating the preview snapshot. AI does not infer screen state from events or inspect hidden held
   items, and screen preview adds no RNG or unnamed score component.
+- Side status-guard scoring collects the resolver's target-side `StatusAttempt` filter. An opposing
+  persistent-status candidate contributes no `status` component while guarded unless its move or
+  outgoing ability carries the matching bypass tag. Stage-drop guard uses the same resolver
+  legality path, but adds no score term until opponent debuff scoring exists. Preview never mutates
+  guard duration, consumes RNG, or reads a selected opposing action.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

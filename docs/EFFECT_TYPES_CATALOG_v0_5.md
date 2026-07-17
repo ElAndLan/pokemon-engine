@@ -744,6 +744,19 @@ after hit admission and before damage or in ordinary post-hit effect order.
 `sideConditionDurationExtend { tag: screen, turns }` is the held-effect duration adapter. These
 payloads are behavior/tag driven and never identify a move, item, or ability by content ID.
 
+### 7.7c Side Status And Stage Guards
+
+`sideCondition` also admits five-turn `statusGuard` and `stageDropGuard` rows. Status guard denies
+opposing persistent-status and confusion attempts before chance/duration RNG. Stage-drop guard
+denies opposing negative `statStage` and `statStageAll` deltas before chance RNG; it does not block
+self/allied drops, positive boosts, reset, copy, swap, or inversion. Both are side-owned,
+reject-on-duplicate, source-independent conditions.
+
+Their specific tags are `status_guard` and `stage_guard`. Screens and guards additionally share
+`barrier`, which is an admitted `removeSideCondition` selector. `sideConditionBypass` admits each
+specific guard tag so a data-authored move or outgoing ability can bypass one family without
+removing it.
+
 ### 7.8 Transformation And Gimmick Conditions
 
 | Mechanic | Representation |

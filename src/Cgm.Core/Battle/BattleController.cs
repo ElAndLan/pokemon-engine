@@ -2090,6 +2090,9 @@ public sealed class BattleController
                 eligible = !terrain.Filters().Any(filter => filter is
                     { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
             }
+            if (eligible)
+                eligible = AllowsSideStatus(ctx.SourceSlot, ctx.TargetSlot, ctx.Move, confusion: false,
+                    ctx.TraceAction);
         }
         EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), eligible);
         if (chance.Passed)
@@ -2105,7 +2108,9 @@ public sealed class BattleController
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !recipient.IsFainted);
+        bool eligible = !recipient.IsFainted && (effect.Delta >= 0
+            || AllowsSideStageDrop(ctx.SourceSlot, recipientSlot, ctx.Move, ctx.TraceAction));
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), eligible);
         if (!chance.Passed)
         {
             TraceEffectChance(ctx, chance, start);
@@ -2128,7 +2133,9 @@ public sealed class BattleController
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
-        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !recipient.IsFainted);
+        bool eligible = !recipient.IsFainted && (effect.Delta >= 0
+            || AllowsSideStageDrop(ctx.SourceSlot, recipientSlot, ctx.Move, ctx.TraceAction));
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), eligible);
         if (!chance.Passed)
         {
             TraceEffectChance(ctx, chance, start);
@@ -2300,6 +2307,9 @@ public sealed class BattleController
             eligible = !terrain.Filters().Any(filter => filter is
                 { Filter.Value: "confusion_attempt", Decision: BattleHookFilterDecision.Deny });
         }
+        if (eligible)
+            eligible = AllowsSideStatus(ctx.SourceSlot, ctx.TargetSlot, ctx.Move, confusion: true,
+                ctx.TraceAction);
         EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), eligible);
         TraceEffectChance(ctx, chance, start);
         if (!chance.Passed)
@@ -2356,14 +2366,19 @@ public sealed class BattleController
             int chance = effect.Chance ?? 100;
             bool eligible = !source.IsFainted;
             string statusName = Str(effect, "status");
+            string statName = Str(effect, "stat");
+            int statDelta = Int(effect, "delta") ?? 0;
             if (statusName.Length > 0)
             {
                 PersistentStatus status = Parse<PersistentStatus>(statusName);
                 eligible = eligible
                     && StatusEffects.CanApplyStatus(source.Status)
                     && !StatusEffects.TypeImmuneToStatus(status, source.Types)
-                    && !BlocksStatus(sourceSlot, status);
+                    && !BlocksStatus(sourceSlot, status)
+                    && AllowsSideStatus(targetSlot, sourceSlot, null, confusion: false, traceAction);
             }
+            else if (statName.Length > 0 && statDelta < 0)
+                eligible = eligible && AllowsSideStageDrop(targetSlot, sourceSlot, null, traceAction);
             EffectChanceResult result = CheckEffectChance(chance, eligible);
             if (!result.Passed)
             {
@@ -2387,13 +2402,11 @@ public sealed class BattleController
                 continue;
             }
 
-            string statName = Str(effect, "stat");
             if (statName.Length > 0)
             {
                 StatKind stat = Parse<StatKind>(statName);
-                int delta = Int(effect, "delta") ?? 0;
-                source.ChangeStage(stat, delta);
-                _log.Add(new StatStageChanged(sourceSlot, stat, delta));
+                source.ChangeStage(stat, statDelta);
+                _log.Add(new StatStageChanged(sourceSlot, stat, statDelta));
             }
             TraceChance(traceAction, sourceSlot, targetSlot, EffectTraceKind.ContactChance, result, start);
         }
@@ -2788,7 +2801,7 @@ public sealed class BattleController
             .Select(modifier => modifier with { InsertionOrder = insertion++ }));
         BattleHookDispatchSnapshot side = SideConditions.CollectDamageHooks(ConditionSnapshot,
             targetSlot.Side, move.DamageClass, Topology.ActiveSlotsPerSide, critical,
-            BypassesSideConditions(sourceSlot, move), _traceActionSequence);
+            BypassesSideConditions(sourceSlot, move, "screen"), _traceActionSequence);
         _hookTrace.AddRange(side.Trace);
         modifiers.AddRange(side.QueryModifiers(BattleQueryId.FinalDamage)
             .Select(modifier => modifier with { InsertionOrder = insertion++ }));
@@ -2819,14 +2832,38 @@ public sealed class BattleController
         return modifiers;
     }
 
-    private bool BypassesSideConditions(BattleSlot sourceSlot, BattleMove move) =>
-        move.SecondaryEffects.OfType<SideConditionBypassEffect>().Any(effect => effect.Tag == "screen")
-        || move.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
-            effect.Tag == "screen" && effect.Side == SideConditionTarget.Target
-                && effect.Timing == SideConditionTiming.BeforeDamage)
+    private bool AllowsSideStatus(BattleSlot sourceSlot, BattleSlot targetSlot, BattleMove? move,
+        bool confusion, int traceAction)
+    {
+        BattleHookDispatchSnapshot side = confusion
+            ? SideConditions.CollectConfusionHooks(ConditionSnapshot, sourceSlot.Side, targetSlot.Side,
+                BypassesSideConditions(sourceSlot, move, "status_guard"), traceAction)
+            : SideConditions.CollectStatusHooks(ConditionSnapshot, sourceSlot.Side, targetSlot.Side,
+                BypassesSideConditions(sourceSlot, move, "status_guard"), traceAction);
+        _hookTrace.AddRange(side.Trace);
+        string filter = confusion ? "confusion_attempt" : "status_attempt";
+        return !side.Filters().Any(item => item is
+            { Filter.Value: var value, Decision: BattleHookFilterDecision.Deny } && value == filter);
+    }
+
+    private bool AllowsSideStageDrop(BattleSlot sourceSlot, BattleSlot targetSlot, BattleMove? move,
+        int traceAction)
+    {
+        BattleHookDispatchSnapshot side = SideConditions.CollectStageDropHooks(ConditionSnapshot,
+            sourceSlot.Side, targetSlot.Side, BypassesSideConditions(sourceSlot, move, "stage_guard"), traceAction);
+        _hookTrace.AddRange(side.Trace);
+        return !side.Filters().Any(item => item is
+            { Filter.Value: "stage_drop_attempt", Decision: BattleHookFilterDecision.Deny });
+    }
+
+    private bool BypassesSideConditions(BattleSlot sourceSlot, BattleMove? move, string tag) =>
+        move?.SecondaryEffects.OfType<SideConditionBypassEffect>().Any(effect => effect.Tag == tag) == true
+        || tag == "screen" && move?.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
+            effect.Tag is "screen" or "barrier" && effect.Side == SideConditionTarget.Target
+                && effect.Timing == SideConditionTiming.BeforeDamage) == true
         || Active(sourceSlot).AbilityHooks.SelectMany(hook => hook.Effects).Any(effect =>
             effect.Op == "sideConditionBypass"
-            && string.Equals(Str(effect, "tag"), "screen", StringComparison.Ordinal));
+            && string.Equals(Str(effect, "tag"), tag, StringComparison.Ordinal));
 
     private EntityId EffectiveMoveType(BattleSlot sourceSlot, BattleMove move, int traceAction)
     {

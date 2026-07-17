@@ -201,11 +201,22 @@ public static class MoveCompiler
                     if (chance != 100)
                         throw new ArgumentException("sideConditionBypass does not support chance.");
                     CheckAllowedParams(e, "tag");
-                    if (move.DamageClass == DamageClass.Status || move.Power is null)
-                        throw new ArgumentException("sideConditionBypass requires a damaging move with authored power.");
                     string bypassTag = Str(e, "tag");
-                    if (!string.Equals(bypassTag, "screen", StringComparison.Ordinal))
-                        throw new ArgumentException("sideConditionBypass currently admits only the screen tag.");
+                    if (bypassTag is not ("screen" or "status_guard" or "stage_guard"))
+                        throw new ArgumentException("sideConditionBypass has an unknown side-condition tag.");
+                    bool compatibleBypass = bypassTag switch
+                    {
+                        "screen" => move.DamageClass != DamageClass.Status && move.Power is not null,
+                        "status_guard" => move.Effects.Any(effect => effect.Op == "ailment"),
+                        "stage_guard" => move.Effects.Any(effect =>
+                            (effect.Op is "statStage" or "statStageAll") && Int(effect, "delta") < 0),
+                        _ => false,
+                    };
+                    if (!compatibleBypass)
+                        throw new ArgumentException($"sideConditionBypass tag '{bypassTag}' has no compatible move effect.");
+                    if (move.Target is MoveTarget.UsersField or MoveTarget.OpponentsField or MoveTarget.EntireField
+                        or MoveTarget.FaintingPokemon or MoveTarget.SpecificMove)
+                        throw new ArgumentException("sideConditionBypass requires an active-creature move target.");
                     if (effects.OfType<SideConditionBypassEffect>().Any())
                         throw new ArgumentException("A move can declare only one sideConditionBypass effect.");
                     effects.Add(new SideConditionBypassEffect(bypassTag));
@@ -216,8 +227,8 @@ public static class MoveCompiler
                         throw new ArgumentException("removeSideCondition does not support chance.");
                     CheckAllowedParams(e, "tag", "side", "timing");
                     string removeTag = Str(e, "tag");
-                    if (!string.Equals(removeTag, "screen", StringComparison.Ordinal))
-                        throw new ArgumentException("removeSideCondition currently admits only the screen tag.");
+                    if (removeTag is not ("screen" or "status_guard" or "stage_guard" or "barrier"))
+                        throw new ArgumentException("removeSideCondition has an unknown side-condition tag.");
                     SideConditionTarget removeSide = ParseNamed<SideConditionTarget>(Str(e, "side"), "side condition target");
                     SideConditionTiming removeTiming = ParseNamed<SideConditionTiming>(Str(e, "timing"), "side condition timing");
                     if (removeTiming == SideConditionTiming.BeforeDamage

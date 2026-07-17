@@ -245,6 +245,12 @@ admission, per-target query/hook traces with one shared duration, Smart-AI parit
 ownership, and deterministic replay. General tag/source selectors and side transfer/swap remain
 15E-7.
 
+The 15E-4 side-guard checkpoint covers persistent status and confusion, single/all-stat negative
+deltas, self/ally/positive and stage-transform exclusions, contact sources, chance/duration RNG
+skips, bypass and common-barrier removal, doubles side ownership, AI status parity, replay, and
+unchanged audit regeneration. It adds no schema vector because the open effect payload and existing
+typed side-condition op remain the serialized boundary.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

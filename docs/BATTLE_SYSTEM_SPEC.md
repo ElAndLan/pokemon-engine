@@ -1488,6 +1488,41 @@ Acceptance vectors: `screen-compile-valid-invalid`, `screen-owner-coexist`, `scr
 `screen-snow-gate`, `screen-query-trace`, `screen-ai-parity`, `screen-no-added-rng`, and
 `screen-replay`.
 
+### Side status and stage guards (Phase 15E-4)
+
+The paired guard rows reuse `sideCondition`: `statusGuard` registers `side:status_guard` with
+`StatusAttempt`, while `stageDropGuard` registers `side:stage_drop_guard` with `SecondaryEffect`.
+Both are chance-free `users-field` status effects, last five `TurnEnd` checkpoints including the
+application turn, reject duplicate application without refresh, remain when their source leaves,
+and coexist with each other and every screen through distinct side stacking keys. They carry their
+specific `status_guard` or `stage_guard` tag plus the shared `barrier` removal tag.
+
+Status guard denies opposing persistent-status and confusion attempts against either active slot on
+its side. Existing status or confusion is not cured. Self- and ally-origin attempts are admitted;
+this preserves authored self-confusion and allied effects without naming their callers. Denial runs
+after field/terrain eligibility and before effect-chance or confusion-duration admission, so it
+draws neither chance nor duration RNG and emits no status/confusion event. Stage-drop guard similarly
+denies only negative `statStage`/`statStageAll` deltas whose source is opposing the recipient side,
+before the shared chance gate. Self costs, allied reductions, positive boosts, resets, copies,
+swaps, and inversion are not stage reductions and remain admitted. Contact ability payloads use the
+same source-side/recipient-side checks as move effects.
+
+`sideConditionBypass` admits `status_guard` and `stage_guard` tags in addition to `screen`; matching
+move or outgoing-ability payloads skip only that guard. Screen and guard definitions also carry
+`barrier`, so `removeSideCondition { tag: barrier, ... }` removes the currently implemented screen
+and guard family together at its authored timing. Specific `screen`, `status_guard`, and
+`stage_guard` removal remains valid. Hazard cleanup remains its owning package and is not inferred
+from `barrier`.
+
+Resolver and Smart AI use the same immutable status-guard filter for the existing named `status`
+score component. The current AI has no opponent-stage-drop value component, so stage guard changes
+legality/resolution without inventing speculative scoring. Neither guard adds RNG. Acceptance
+vectors: `side-guard-compile`, `side-guard-owner-coexist-duplicate`, `status-guard-persistent-confusion`,
+`status-guard-self-ally`, `status-guard-chance-duration-skip`, `stage-guard-single-all`,
+`stage-guard-self-ally-positive-transform`, `side-guard-contact`, `side-guard-bypass`,
+`side-guard-barrier-removal`, `side-guard-doubles`, `side-guard-ai-parity`,
+`side-guard-no-added-rng`, and `side-guard-replay`.
+
 ### Effective-value overlays (Phase 15F-1)
 
 Battle definitions and saved creature data are immutable inputs. Temporary battle mechanics read one

@@ -324,7 +324,7 @@ public sealed class ValidationTests
     }
 
     [Fact]
-    public void SideConditionBypass_RequiresOutgoingDamageHookAndScreenTag()
+    public void SideConditionBypass_RequiresOutgoingDamageHookAndClosedTag()
     {
         var invalid = new Ability
         {
@@ -339,7 +339,7 @@ public sealed class ValidationTests
         };
         ValidationIssue[] issues = Run(new AbilityHookRule(), Project(invalid)).ToArray();
         Assert.Contains(issues, issue => issue.Message.Contains("requires onModifyOutgoingDamage"));
-        Assert.Contains(issues, issue => issue.Message.Contains("requires tag 'screen'"));
+        Assert.Contains(issues, issue => issue.Message.Contains("requires tag"));
         Assert.Contains(issues, issue => issue.Message.Contains("unknown param"));
         Assert.Contains(issues, issue => issue.Message.Contains("does not support chance"));
 
@@ -348,7 +348,12 @@ public sealed class ValidationTests
             Hooks = [new AbilityHook
             {
                 Hook = AbilityHookPoint.OnModifyOutgoingDamage,
-                Effects = [new Effect { Op = "sideConditionBypass", Params = Params(("tag", "screen")) }],
+                Effects =
+                [
+                    new Effect { Op = "sideConditionBypass", Params = Params(("tag", "screen")) },
+                    new Effect { Op = "sideConditionBypass", Params = Params(("tag", "status_guard")) },
+                    new Effect { Op = "sideConditionBypass", Params = Params(("tag", "stage_guard")) },
+                ],
             }],
         };
         Assert.Empty(Run(new AbilityHookRule(), Project(valid)));

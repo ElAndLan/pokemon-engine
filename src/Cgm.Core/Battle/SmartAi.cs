@@ -175,6 +175,7 @@ public static class SmartAi
             && !StatusEffects.TypeImmuneToStatus(ailment, defender.Types)
             && WeatherAllowsStatus(context, ailment)
             && TerrainAllowsStatus(context, ailment, defender)
+            && SideAllowsStatus(context, attacker, move)
             && TerrainAllowsPriorityHit(context, move, attacker, defender))
         {
             AilmentEffect? effect = move.SecondaryEffects.OfType<AilmentEffect>().FirstOrDefault();
@@ -405,7 +406,7 @@ public static class SmartAi
                 ? BattleSide.Enemy : BattleSide.Player;
             BattleHookDispatchSnapshot side = SideConditions.CollectDamageHooks(conditions, targetSide,
                 move.DamageClass, context?.ActiveSlotsPerSide ?? 1, critical: false,
-                BypassesSideConditions(attacker, move), actionSequence: 0);
+                BypassesSideConditions(attacker, move, "screen"), actionSequence: 0);
             finalModifiers.AddRange(side.QueryModifiers(BattleQueryId.FinalDamage)
                 .Select(modifier => modifier with { InsertionOrder = finalModifiers.Count }));
         }
@@ -417,15 +418,15 @@ public static class SmartAi
         return floor > 0 ? Math.Min(total, Math.Max(0, defender.CurrentHp - floor)) : total;
     }
 
-    private static bool BypassesSideConditions(BattleCreature attacker, BattleMove move) =>
-        move.SecondaryEffects.OfType<SideConditionBypassEffect>().Any(effect => effect.Tag == "screen")
-        || move.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
-            effect.Tag == "screen" && effect.Side == SideConditionTarget.Target
+    private static bool BypassesSideConditions(BattleCreature attacker, BattleMove move, string tag) =>
+        move.SecondaryEffects.OfType<SideConditionBypassEffect>().Any(effect => effect.Tag == tag)
+        || tag == "screen" && move.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
+            effect.Tag is "screen" or "barrier" && effect.Side == SideConditionTarget.Target
                 && effect.Timing == SideConditionTiming.BeforeDamage)
         || attacker.AbilityHooks.SelectMany(hook => hook.Effects).Any(effect =>
             effect.Op == "sideConditionBypass"
-            && effect.Params?.TryGetValue("tag", out var tag) == true
-            && tag.GetString() == "screen");
+            && effect.Params?.TryGetValue("tag", out var tagValue) == true
+            && tagValue.GetString() == tag);
 
     private sealed record FieldMovePreview(EntityId Type, IReadOnlyList<BattleQueryModifier> PowerModifiers);
 
@@ -482,6 +483,12 @@ public static class SmartAi
         BattleCreature target) => context.Conditions is null
         || !TerrainConditions.CollectStatusHooks(context.Conditions, status, IsGrounded(target, context), 0)
             .Filters().Any(filter => filter is
+                { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
+
+    private static bool SideAllowsStatus(SmartAiContext context, BattleCreature source, BattleMove move) =>
+        context.Conditions is null
+        || !SideConditions.CollectStatusHooks(context.Conditions, BattleSide.Enemy, BattleSide.Player,
+            BypassesSideConditions(source, move, "status_guard"), 0).Filters().Any(filter => filter is
                 { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
 
     private static bool TerrainAllowsPriorityHit(SmartAiContext context, BattleMove move,
