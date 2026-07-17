@@ -565,6 +565,11 @@ Closed held-op palette for the first v6 slice:
 - `terrainDurationExtend` - extend terrain summoned by the holder's ability by a fixed positive
   turn count. It does not extend terrain from another creature, a move, or battle-start input.
   Params: `{ turns: int }`.
+- `terrainSeed` - when the holder starts active under, switches into, or observes activation of the
+  authored modern terrain, consume once and raise the authored defensive stat by one stage. Params:
+  `{ terrain: electric|grassy|misty|psychic, stat: def|spd }`. Activation follows topology/hook
+  order after `TerrainChanged`, does not require the holder to be grounded, draws no RNG, and is
+  deferred without consumption while the stat is already at +6. One item may author one such row.
 
 ### Forms
 

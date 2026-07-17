@@ -223,6 +223,10 @@ Capabilities beyond Beginner:
   passive `onGroundedQuery` ability/held-item rows through the same precedence function as the
   resolver. It changes only existing terrain `damage`, `ko`, and `status` outcomes; it adds no
   hidden score component and consumes no AI RNG.
+- Terrain seeds resolve before the next AI choice and mutate the holder's ordinary visible stat
+  stages. Smart AI therefore consumes their result through existing offensive/defensive stat-stage
+  damage scoring; it neither predicts unrevealed seed activation nor adds a seed-specific component
+  or RNG draw.
 - Values hazards based on remaining opposing party and expected future switches.
 - Values setup based on expected survival and sweep potential.
 - Values status by matchup:

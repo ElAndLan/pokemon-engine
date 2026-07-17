@@ -690,9 +690,12 @@ per-target priority denial, Grassy end-turn healing, modern-profile admission, a
 environment inputs are implemented with resolver/Smart-AI parity. Authored terrain-sensitive move
 tables compile through `terrainMove` (grounded user/target type, power, priority, and spread rows),
 `terrainGate`, `removeTerrain`, `groundedState`, and the `heal.terrain` replacement table. They use the same typed
-query/store paths and resolver/Smart-AI inputs as the intrinsic rows. Environment consumers,
-terrain seeds and individual move certification remain required before
-the terrain-family exit.
+query/store paths and resolver/Smart-AI inputs as the intrinsic rows. Deferred environment
+consumers and individual move certification remain with their owning later packages. Terrain seeds
+activate on battle start, switch-in, and terrain change through the generic `terrainSeed` held op;
+they consume once, raise Defense or Special Defense by one stage, do not require grounding, and
+expose their result through ordinary held-consumption/stat-stage events. The terrain family is
+complete.
 
 The environment input is an immutable `{ natural, effective }` state. Only non-terrain environment
 values are valid natural inputs; active terrain derives the effective value and removal/expiry
@@ -705,6 +708,12 @@ replace it once without recursive redispatch, and `terrainDurationExtend` adds p
 when its holder's ability summoned that terrain. Move-authored and initial terrain do not receive
 the held extension. These rows draw no RNG and expose their result through the ordinary condition
 snapshot rather than parallel terrain state.
+
+Terrain-seed rows use `{ terrain, stat }` data rather than named-item code. Battle-start holders
+activate in topology order after initial terrain state is visible; switch-in holders activate before
+entry hazards; `onTerrainChange` holders activate after `TerrainChanged` in the ordinary ability/item
+hook order. A mismatched terrain, prior consumption, fainted holder, or capped stat is a no-op; a
+capped stat leaves the item available for a later eligible checkpoint. Seed activation draws no RNG.
 
 ### 7.8 Transformation And Gimmick Conditions
 

@@ -64,6 +64,19 @@ public sealed class BattleTerrainConditionTests
             abilityHooks: hooks, heldItemBattleEffects: heldEffects);
     }
 
+    private static BattleCreature SeedHolder(string slug, Terrain terrain, StatKind stat,
+        IReadOnlyList<EntityId>? types = null, params BattleMove[] moves) =>
+        new(EntityId.Parse($"species:{slug}"), slug, 50, types ?? [Normal],
+            new Stats(320, 100, 100, 100, 100, 100), moves,
+            heldItemBattleEffects:
+            [
+                new Effect
+                {
+                    Op = "terrainSeed",
+                    Params = Params(("terrain", terrain.ToString()), ("stat", stat.ToString())),
+                },
+            ]);
+
     private static BattleFieldInputs Field(Terrain terrain, int? duration = null,
         BattleEnvironment environment = BattleEnvironment.Building) =>
         new(BattleRulesets.ModernReference, NaturalEnvironment: environment,
@@ -588,6 +601,106 @@ public sealed class BattleTerrainConditionTests
     }
 
     [Fact]
+    public void TerrainSeed_InitialTerrainConsumesInTopologyOrderAndAiReadsStageState()
+    {
+        BattleCreature player = SeedHolder("player_seed", Terrain.Grassy, StatKind.Def,
+            moves: [Inert("player_seed_inert")]);
+        BattleCreature ally = SeedHolder("ally_seed", Terrain.Grassy, StatKind.Spd,
+            moves: [Inert("ally_seed_inert")]);
+        BattleCreature enemy = SeedHolder("enemy_seed", Terrain.Grassy, StatKind.Spd,
+            moves: [Inert("enemy_seed_inert")]);
+        BattleCreature enemyAlly = SeedHolder("enemy_ally_seed", Terrain.Grassy, StatKind.Def,
+            moves: [Inert("enemy_ally_seed_inert")]);
+        var rng = new CountingRng();
+        var battle = new BattleController([player, ally], [enemy, enemyAlly], BattleTopology.Doubles,
+            [0, 1], [0, 1], Chart(), rng,
+            fieldInputs: Field(Terrain.Grassy));
+
+        Assert.Equal(1, player.Stage(StatKind.Def));
+        Assert.Equal(1, ally.Stage(StatKind.Spd));
+        Assert.Equal(1, enemy.Stage(StatKind.Spd));
+        Assert.Equal(1, enemyAlly.Stage(StatKind.Def));
+        Assert.Equal([
+            new BattleSlot(BattleSide.Player, 0), new BattleSlot(BattleSide.Player, 1),
+            new BattleSlot(BattleSide.Enemy, 0), new BattleSlot(BattleSide.Enemy, 1),
+        ], battle.Log.OfType<HeldItemConsumed>().Select(entry => entry.Slot).ToArray());
+        Assert.Equal([StatKind.Def, StatKind.Spd, StatKind.Spd, StatKind.Def],
+            battle.Log.OfType<StatStageChanged>().Select(entry => entry.Stat).ToArray());
+        Assert.Equal(0, rng.Calls);
+
+        BattleMove physical = new(EntityId.Parse("move:physical_probe"), Normal, DamageClass.Physical,
+            70, null, 30, 0, 0);
+        BattleMove special = new(EntityId.Parse("move:special_probe"), Normal, DamageClass.Special,
+            60, null, 30, 0, 0);
+        BattleCreature ai = Creature("seed_ai", 100, moves: [physical, special]);
+        SmartAiDecision control = SmartAi.ChooseAction(new SmartAiContext([ai], 0,
+            [Creature("seed_control", 100, moves: [Inert("seed_control_inert")])], 0,
+            Chart(), new Rng(1), Weights: new SmartAiWeights { NoiseFraction = 0 }));
+        SmartAiDecision decision = SmartAi.ChooseAction(new SmartAiContext([ai], 0, [player], 0,
+            Chart(), new Rng(1), Weights: new SmartAiWeights { NoiseFraction = 0 },
+            Conditions: battle.ConditionSnapshot, Ruleset: battle.Ruleset));
+
+        Assert.Equal(new UseMove(0), control.Action);
+        Assert.Equal(new UseMove(1), decision.Action);
+    }
+
+    [Fact]
+    public void TerrainSeed_TerrainChangeActivatesAirborneHolderOnceAfterChangeEvent()
+    {
+        BattleCreature source = Creature("seed_setter", 101,
+            moves: [SetTerrain(Terrain.Electric, "seed_terrain")]);
+        BattleCreature holder = SeedHolder("airborne_seed", Terrain.Electric, StatKind.Def, [Flying],
+            Inert("airborne_seed_inert"));
+        var rng = new CountingRng();
+        var battle = new BattleController(source, holder, Chart(), rng,
+            fieldInputs: Field(Terrain.None));
+
+        IReadOnlyList<BattleEvent> first = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+        IReadOnlyList<BattleEvent> second = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        Assert.Equal(1, holder.Stage(StatKind.Def));
+        Assert.True(holder.HasConsumedHeldEffect("terrainSeed"));
+        Assert.True(IndexOf<TerrainChanged>(first) < IndexOf<HeldItemConsumed>(first));
+        Assert.True(IndexOf<HeldItemConsumed>(first) < IndexOf<StatStageChanged>(first));
+        Assert.Single(first.OfType<HeldItemConsumed>());
+        Assert.DoesNotContain(second, entry => entry is HeldItemConsumed);
+        Assert.Equal(0, rng.Calls);
+    }
+
+    [Fact]
+    public void TerrainSeed_SwitchInRequiresMatchingTerrainAndAvailableStage()
+    {
+        BattleCreature mismatch = SeedHolder("mismatched_seed", Terrain.Misty, StatKind.Spd,
+            moves: [Inert("mismatched_seed_inert")]);
+        BattleCreature matching = SeedHolder("matching_seed", Terrain.Psychic, StatKind.Spd,
+            moves: [Inert("matching_seed_inert")]);
+        BattleCreature capped = SeedHolder("capped_seed", Terrain.Psychic, StatKind.Def,
+            moves: [Inert("capped_seed_inert")]);
+        capped.ChangeStage(StatKind.Def, StatStages.Max);
+        var battle = new BattleController(
+            [Creature("seed_lead", 100, moves: [Inert("seed_lead_inert")]), mismatch, matching, capped],
+            [Creature("seed_target", 1, moves: [Inert("seed_target_inert")])], Chart(), new CountingRng(),
+            fieldInputs: Field(Terrain.Psychic));
+
+        IReadOnlyList<BattleEvent> mismatchEvents = battle.ResolveTurn(new Switch(1), new UseMove(0));
+
+        Assert.False(mismatch.HasConsumedHeldEffect("terrainSeed"));
+        Assert.DoesNotContain(mismatchEvents, entry => entry is HeldItemConsumed);
+
+        IReadOnlyList<BattleEvent> matchingEvents = battle.ResolveTurn(new Switch(2), new UseMove(0));
+
+        Assert.Equal(1, matching.Stage(StatKind.Spd));
+        Assert.Contains(matchingEvents, entry => entry is HeldItemConsumed
+            { Side: BattleSide.Player, Op: "terrainSeed" });
+
+        IReadOnlyList<BattleEvent> cappedEvents = battle.ResolveTurn(new Switch(3), new UseMove(0));
+
+        Assert.Equal(StatStages.Max, capped.Stage(StatKind.Def));
+        Assert.False(capped.HasConsumedHeldEffect("terrainSeed"));
+        Assert.DoesNotContain(cappedEvents, entry => entry is HeldItemConsumed);
+    }
+
+    [Fact]
     public void Replay_ReproducesTerrainEventsQueriesAndHooks()
     {
         static string Run()
@@ -620,6 +733,14 @@ public sealed class BattleTerrainConditionTests
 
     private static Dictionary<string, JsonElement> Params(params (string Key, object Value)[] values) =>
         values.ToDictionary(value => value.Key, value => JsonSerializer.SerializeToElement(value.Value));
+
+    private static int IndexOf<T>(IReadOnlyList<BattleEvent> events) where T : BattleEvent
+    {
+        for (int i = 0; i < events.Count; i++)
+            if (events[i] is T)
+                return i;
+        return -1;
+    }
 
     private sealed class CountingRng : IRng
     {

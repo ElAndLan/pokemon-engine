@@ -66,6 +66,7 @@ public sealed class BattleController
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _ruleset = InitializeField(fieldInputs);
+        TriggerInitialTerrainSeeds();
         IsWild = isWild;
     }
 
@@ -101,6 +102,7 @@ public sealed class BattleController
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _ruleset = InitializeField(fieldInputs);
+        TriggerInitialTerrainSeeds();
         IsWild = isWild;
     }
 
@@ -1878,6 +1880,7 @@ public sealed class BattleController
         ApplyHookInvocations(Topology.ActiveSlotsPerSide == 1
             ? BattleHookDispatcher.SwitchIn(side, HookSources())
             : BattleHookDispatcher.SwitchIn(slot, HookSources()));
+        TriggerTerrainSeed(slot);
 
         if (_stealthRock[(int)side])
         {
@@ -2561,7 +2564,8 @@ public sealed class BattleController
             BattleCreature c = Active(slot);
             foreach (AbilityHook hook in c.AbilityHooks)
                 yield return new BattleHookSource(slot, BattleHookSourceKind.Ability, hook.Hook, hook.Effects);
-            foreach (var group in c.HeldItemBattleEffects.Select(e => (Hook: HeldHook(e), Effect: e)).Where(x => x.Hook is not null).GroupBy(x => x.Hook!.Value))
+            foreach (var group in c.HeldItemBattleEffects.Select(e => (Hook: HeldHook(e), Effect: e))
+                .Where(x => x.Hook is not null).GroupBy(x => x.Hook!.Value))
                 yield return new BattleHookSource(slot, BattleHookSourceKind.HeldItem, group.Key, group.Select(x => x.Effect).ToList());
         }
     }
@@ -2582,7 +2586,41 @@ public sealed class BattleController
                 SetTerrain(Parse<Terrain>(Str(invocation.Effect, "terrain")),
                     turns + TerrainDurationExtension(invocation.Slot), invocation.Slot);
             }
+            else if (invocation.Effect.Op == "terrainSeed")
+                TriggerTerrainSeed(invocation.Slot, invocation.Effect);
         }
+    }
+
+    private void TriggerInitialTerrainSeeds()
+    {
+        if (CurrentTerrain == Terrain.None)
+            return;
+        foreach (BattleSlot slot in Topology.Slots)
+            TriggerTerrainSeed(slot);
+    }
+
+    private void TriggerTerrainSeed(BattleSlot slot)
+    {
+        foreach (Effect effect in Active(slot).HeldItemBattleEffects.Where(effect => effect.Op == "terrainSeed"))
+            TriggerTerrainSeed(slot, effect);
+    }
+
+    private void TriggerTerrainSeed(BattleSlot slot, Effect effect)
+    {
+        BattleCreature holder = Active(slot);
+        if (holder.IsFainted || holder.HasConsumedHeldEffect(effect.Op)
+            || Parse<Terrain>(Str(effect, "terrain")) != CurrentTerrain)
+            return;
+
+        StatKind stat = Parse<StatKind>(Str(effect, "stat"));
+        if (holder.Stage(stat) >= StatStages.Max)
+            return;
+
+        holder.ConsumeHeldEffect(effect.Op);
+        _log.Add(new HeldItemConsumed(slot, effect.Op));
+        holder.ChangeStage(stat, 1);
+        _log.Add(new StatStageChanged(slot, stat, 1));
+        ReevaluateConditionForms();
     }
 
     private int WeatherDurationExtension(BattleSlot slot) =>
@@ -2861,6 +2899,7 @@ public sealed class BattleController
         "thresholdHeal" => AbilityHookPoint.OnEndOfTurn,
         "statusCure" => AbilityHookPoint.OnEndOfTurn,
         "residualHeal" => AbilityHookPoint.OnEndOfTurn,
+        "terrainSeed" => AbilityHookPoint.OnTerrainChange,
         _ => null,
     };
 

@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B plus the 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, 15G-2, the 15E-3 weather family, and terrain intrinsic checkpoint are complete; Phase 15 conformance continues at 84/937.**
+Status: **Phase 15B plus the 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, 15G-2, and the 15E-3 weather and terrain families are complete; Phase 15 conformance continues at 84/937.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -203,8 +203,8 @@ priority denial before accuracy, Grassy topology healing before expiry, field-ac
 resolver/Smart-AI parity, and deterministic replay. The authored-interaction checkpoint adds strict
 type/power/priority/spread/gate/removal/heal compilation, user/target grounded matrices, effective
 type and power traces, action-order proof, doubles materialization, pre-PP/RNG failure, exact-store
-removal traces, healing replacement, and Smart-AI parity. Environment consumers, grounded
-overrides, seeds, and per-move certification remain open. The lifecycle-hook checkpoint additionally
+removal traces, healing replacement, and Smart-AI parity. Deferred environment consumers and
+per-move certification remain with their owning later packages. The lifecycle-hook checkpoint additionally
 covers ability switch-in summon, post-event `onTerrainChange` replacement with bounded redispatch,
 source-owned held duration extension versus an opposing holder, strict op/hook validation, schema-v6
 round-trip and v5 no-op migration, exact condition source/duration, and zero added RNG.
@@ -219,7 +219,15 @@ The grounded-override checkpoint covers strict `groundedState` compilation and t
 effective-type inputs, field/creature/ability/item precedence, same-owner grounded/airborne
 replacement, duration expiry, switch/faint cleanup, ordinary condition events/traces, zero effect
 RNG, and resolver/Smart-AI terrain parity. Schema-v7 round-trip and v6 no-op migration prove the
-additive `onGroundedQuery` hook. Gravity accuracy/move blocking and terrain seeds remain open.
+additive `onGroundedQuery` hook. Gravity accuracy/move blocking remains open.
+
+The terrain-seed exit checkpoint covers valid/missing/unknown/wrong-type/numeric/duplicate payloads,
+battle-start topology order, post-`TerrainChanged` event order, switch-in activation, mismatch,
+airborne holders, +6 deferral without consumption, consume-once state, Defense and Special Defense,
+zero added RNG, deterministic event output, and Smart AI use of the resulting ordinary stat stages.
+Together with the intrinsic, authored, environment-input, lifecycle-hook, and grounded-override
+checkpoints, this closes the terrain family; Gravity accuracy/move blocking remains in the combined
+room/gravity/sport criterion.
 
 ## Golden format
 

@@ -396,6 +396,9 @@ public sealed class ValidationTests
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 0)) },
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2), ("extra", 1)) },
                 new Effect { Op = "groundedModify", Params = Params(("state", "floating")) },
+                new Effect { Op = "terrainSeed", Chance = 100, Params = Params(("terrain", "none"), ("stat", "atk"), ("extra", 1)) },
+                new Effect { Op = "terrainSeed", Params = Params(("terrain", 1), ("stat", 1)) },
+                new Effect { Op = "terrainSeed", Params = Params(("terrain", "1"), ("stat", "2")) },
             ],
         };
 
@@ -416,6 +419,13 @@ public sealed class ValidationTests
         Assert.Contains(issues, i => i.Message.Contains("terrainDurationExtend") && i.Message.Contains("turns"));
         Assert.Contains(issues, i => i.Message.Contains("terrainDurationExtend") && i.Message.Contains("unknown param"));
         Assert.Contains(issues, i => i.Message.Contains("grounded") && i.Message.Contains("airborne"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainSeed") && i.Message.Contains("unknown terrain"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainSeed") && i.Message.Contains("unknown stat"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainSeed") && i.Message.Contains("unknown param"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainSeed") && i.Message.Contains("does not support chance"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainSeed") && i.Message.Contains("requires string param 'terrain'"));
+        Assert.Contains(issues, i => i.Message.Contains("terrainSeed") && i.Message.Contains("requires string param 'stat'"));
+        Assert.Contains(issues, i => i.Message.Contains("only one terrainSeed"));
         Assert.Empty(Run(new HeldItemBattleEffectRule(), Project(item with
         {
             Holdable = true,
@@ -430,6 +440,7 @@ public sealed class ValidationTests
                 new Effect { Op = "weatherDurationExtend", Params = Params(("turns", 2)) },
                 new Effect { Op = "terrainDurationExtend", Params = Params(("turns", 2)) },
                 new Effect { Op = "groundedModify", Params = Params(("state", "grounded")) },
+                new Effect { Op = "terrainSeed", Params = Params(("terrain", "grassy"), ("stat", "def")) },
             ],
         })));
     }

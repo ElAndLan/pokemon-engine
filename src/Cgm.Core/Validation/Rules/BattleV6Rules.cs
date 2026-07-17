@@ -69,6 +69,10 @@ public sealed class HeldItemBattleEffectRule : IValidationRule
             foreach (ValidationIssue issue in Phase15EffectRules.Check(
                 Id, item.Id, item.BattleEffects, Phase15EffectRules.HeldItemOps, "held-item"))
                 yield return issue;
+
+            if (item.BattleEffects.Count(effect => effect.Op == "terrainSeed") > 1)
+                yield return new ValidationIssue(Id, ValidationSeverity.Error, item.Id,
+                    "Held item supports only one terrainSeed effect because consumption is per op.");
         }
     }
 }
@@ -181,6 +185,7 @@ internal static class Phase15EffectRules
     {
         "thresholdHeal", "statusCure", "typeDamageBoost", "choiceLock",
         "residualHeal", "surviveFromFull", "weatherDurationExtend", "terrainDurationExtend", "groundedModify",
+        "terrainSeed",
     };
 
     public static IEnumerable<ValidationIssue> Check(
@@ -345,6 +350,30 @@ internal static class Phase15EffectRules
             foreach (string key in effect.Params?.Keys.Where(key => key != "turns") ?? [])
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     $"Effect op 'terrainDurationExtend' has unknown param '{key}'.");
+
+        if (effect.Op == "terrainSeed")
+        {
+            if (!HasString(effect, "terrain"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'terrainSeed' requires string param 'terrain'.");
+            else if (!Enum.GetNames<Terrain>().Any(name =>
+                    !string.Equals(name, nameof(Terrain.None), StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(name, Str(effect, "terrain"), StringComparison.OrdinalIgnoreCase)))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'terrainSeed' has unknown terrain '{Str(effect, "terrain")}'.");
+            if (!HasString(effect, "stat"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'terrainSeed' requires string param 'stat'.");
+            else if (!new[] { "def", "spd" }.Contains(Str(effect, "stat"), StringComparer.OrdinalIgnoreCase))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'terrainSeed' has unknown stat '{Str(effect, "stat")}'.");
+            foreach (string key in effect.Params?.Keys.Where(key => key is not "terrain" and not "stat") ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'terrainSeed' has unknown param '{key}'.");
+            if (effect.Chance is not null)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'terrainSeed' does not support chance.");
+        }
 
         if (effect.Op == "groundedModify")
         {
