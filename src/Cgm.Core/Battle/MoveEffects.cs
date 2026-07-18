@@ -24,7 +24,7 @@ public sealed record DamageStatQueryEffect(
 public enum DamageClassQueryMode { Physical, Special, HigherOffense }
 public sealed record DamageClassQueryEffect(DamageClassQueryMode Mode) : MoveEffect;
 
-public enum EffectivenessQueryMode { Standard, Inverse }
+public enum EffectivenessQueryMode { Standard, Inverse, Neutral }
 public enum StabQuerySource { User, Target, None }
 public sealed record EffectivenessQueryEffect(
     EffectivenessQueryMode Mode,
@@ -222,6 +222,11 @@ public sealed record SetSideConditionEffect(
     BattleSideCondition Condition,
     int Duration,
     SideConditionTarget Side = SideConditionTarget.Source) : MoveEffect;
+public sealed record ApplyActionFilterEffect(
+    ActionFilterKind Filter,
+    SideConditionTarget Owner,
+    int? Duration = null,
+    string? MoveTag = null) : MoveEffect;
 public sealed record SideConditionBypassEffect(string Tag) : MoveEffect;
 public sealed record RemoveSideConditionEffect(
     string Tag, SideConditionTarget Side, SideConditionTiming Timing) : MoveEffect;

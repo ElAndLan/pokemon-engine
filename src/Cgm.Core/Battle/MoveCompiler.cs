@@ -34,6 +34,7 @@ public static class MoveCompiler
         TargetHpThresholdPower? targetHpThresholdPower = null;
         HpRatioPower? hpRatioPower = null;
         HpBandPower? hpBandPower = null;
+        var moveTags = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (Effect e in move.Effects)
         {
@@ -46,6 +47,42 @@ public static class MoveCompiler
                 case "noBattleEffect":
                 case "postBattleReward":
                     break; // intentional no-op/reward marker; outside battle-state mutation
+
+                case "moveTags":
+                    if (chance != 100)
+                        throw new ArgumentException("moveTags does not support chance.");
+                    CheckAllowedParams(e, "tags");
+                    foreach (string tag in Str(e, "tags").Split(',', StringSplitOptions.RemoveEmptyEntries
+                        | StringSplitOptions.TrimEntries))
+                    {
+                        if (!BattleConditionId.ValidToken(tag) || !moveTags.Add(tag))
+                            throw new ArgumentException("moveTags requires unique lowercase comma-separated tokens.");
+                    }
+                    if (moveTags.Count == 0)
+                        throw new ArgumentException("moveTags requires at least one tag.");
+                    break;
+
+                case "actionFilter":
+                    if (chance != 100)
+                        throw new ArgumentException("actionFilter does not support chance.");
+                    CheckAllowedParams(e, "filter", "owner", "duration", "tag");
+                    ActionFilterKind filter = ParseNamed<ActionFilterKind>(Str(e, "filter"), "action filter");
+                    SideConditionTarget filterOwner = e.Params?.ContainsKey("owner") == true
+                        ? ParseNamed<SideConditionTarget>(Str(e, "owner"), "action filter owner")
+                        : filter == ActionFilterKind.BlockKnownBySource ? SideConditionTarget.Source : SideConditionTarget.Target;
+                    string? filterTag = e.Params?.ContainsKey("tag") == true ? Str(e, "tag") : null;
+                    BattleConditionDefinition filterDefinition = ActionFilterConditions.For(filter, filterTag);
+                    int? filterDuration = e.Params?.ContainsKey("duration") == true ? Int(e, "duration")
+                        : filterDefinition.DefaultDuration;
+                    if (filterOwner == SideConditionTarget.Target && !IsActiveCreatureTarget(move.Target)
+                        || filter == ActionFilterKind.BlockKnownBySource
+                            && filterOwner != SideConditionTarget.Source)
+                        throw new ArgumentException("actionFilter owner is incompatible with the move target or filter.");
+                    if ((filterDuration is not null) != (filterDefinition.DurationCheckpoint is not null)
+                        || filterDuration is <= 0)
+                        throw new ArgumentException("actionFilter duration does not match its registry row.");
+                    effects.Add(new ApplyActionFilterEffect(filter, filterOwner, filterDuration, filterTag));
+                    break;
 
                 case "drain":
                     drain = ReadFraction(e, 1, 2);
@@ -1201,7 +1238,7 @@ public static class MoveCompiler
             stageAllEffect: stageAllEffect, secondaryEffects: effects,
             offensiveStatOverride: offensiveStatOverride, defensiveStatOverride: defensiveStatOverride,
             targetHpThresholdPower: targetHpThresholdPower, hpRatioPower: hpRatioPower,
-            hpBandPower: hpBandPower, charge: charge, multiTurnLockProfile: multiTurnLock);
+            hpBandPower: hpBandPower, charge: charge, multiTurnLockProfile: multiTurnLock, tags: moveTags.ToArray());
     }
 
     /// <summary>Reads a <c>{ num, den }</c> fraction, defaulting either component when absent.</summary>

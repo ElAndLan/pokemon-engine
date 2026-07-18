@@ -1015,6 +1015,16 @@ five-use power-ramp family. `multiTurnPowerBoost { key, num, den }` sets the key
 multiplier consumed by matching lock profiles. Both ops reject chance, unknown params, invalid bounds,
 nonpositive fractions, duplicates, non-damaging locks, and charge/lock composition.
 
+The implemented selection-lock vocabulary is `actionFilter { filter, owner?, duration?, tag? }`
+plus metadata-only `moveTags { tags }`. Closed filters are `disableMove`, `forceMove`,
+`blockStatusMoves`, `blockLastMove`, `blockKnownBySource`, `blockMoveTag`, `blockItems`, and
+`actionBlockChance`. `blockMoveTag` requires `healing` or `sound`; other filters reject `tag`.
+Registry-owned defaults, timed-versus-untimed checkpoints, duplicate policy, source tracking, and
+switch/faint cleanup are specified in `BATTLE_SYSTEM_SPEC.md`; authored duration overrides must keep
+the row's timed-versus-untimed contract.
+If every ordinary move is filtered out, the ruleset-owned `UseFallback` action is exposed rather
+than mapping the behavior to a named move or an ordinary move slot.
+
 ### 9.4 Battlefield Presets
 
 | Preset | Normalization |

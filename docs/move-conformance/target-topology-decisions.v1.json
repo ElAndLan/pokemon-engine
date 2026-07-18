@@ -125,6 +125,15 @@
     { "referenceKey": "move-0824", "makesContact": false },
     { "referenceKey": "move-0825", "makesContact": false },
     { "referenceKey": "move-0833", "makesContact": false, "additionalEffects": [{ "op": "multiTurnLock" }] },
-    { "referenceKey": "move-0915", "makesContact": true, "additionalEffects": [{ "op": "historyPower", "params": { "condition": "previousActionFailed", "multiplierNum": 2, "multiplierDen": 1 } }] }
+    { "referenceKey": "move-0915", "makesContact": true, "additionalEffects": [{ "op": "historyPower", "params": { "condition": "previousActionFailed", "multiplierNum": 2, "multiplierDen": 1 } }] },
+    { "referenceKey": "move-0050", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "disableMove" } }] },
+    { "referenceKey": "move-0213", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "actionBlockChance" } }] },
+    { "referenceKey": "move-0227", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "forceMove" } }] },
+    { "referenceKey": "move-0259", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockLastMove" } }] },
+    { "referenceKey": "move-0269", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockStatusMoves" } }] },
+    { "referenceKey": "move-0286", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockKnownBySource", "owner": "source" } }] },
+    { "referenceKey": "move-0373", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockItems" } }] },
+    { "referenceKey": "move-0377", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockMoveTag", "tag": "healing" } }] },
+    { "referenceKey": "move-0675", "makesContact": true, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockMoveTag", "tag": "sound" } }] }
   ]
 }

@@ -246,6 +246,12 @@ Capabilities beyond Beginner:
   stored move index. It does not rescore alternatives, switch, use an item, inspect the opponent's
   submitted action, or consume AI RNG; the resolver remains the sole owner of lock-step and keyed
   power-boost application.
+- Phase 15D-6 obtains move and battle-item candidates from `BattleActionLegality`, including PP,
+  held-choice, owner filters, source-known filters, and move tags. It never reproduces a filter in a
+  score branch. If no move remains after filters, it exposes exactly one zero-score `UseFallback`
+  candidate alongside any legal item/switch candidates. Infatuation remains execution RNG and is
+  not predicted or scored. An active multi-turn repeat is still the sole forced candidate; the
+  resolver performs its condition-filter recheck and visible termination.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

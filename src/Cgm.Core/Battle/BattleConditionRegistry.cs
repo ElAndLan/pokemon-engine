@@ -94,6 +94,16 @@ public sealed class BattleConditionRegistry
                 || definition.DefaultDuration != 1
                 || definition.DurationCheckpoint != BattleIntentCheckpoint.TurnEnd))
             throw new ArgumentException("Protection definitions require matching one-turn creature-scoped TryHit rows.", nameof(definition));
+        if (definition.ActionFilter is { } actionFilter
+            && (definition.Scope != BattleConditionScope.Creature
+                || !Enum.IsDefined(actionFilter.Kind)
+                || actionFilter.Kind == ActionFilterKind.BlockMoveTag
+                    && !BattleConditionId.ValidToken(actionFilter.MoveTag)
+                || actionFilter.Kind != ActionFilterKind.BlockMoveTag && actionFilter.MoveTag is not null
+                || actionFilter.Kind == ActionFilterKind.ActionBlockChance
+                    && actionFilter.BlockChance is not (> 0 and < 100)
+                || actionFilter.Kind != ActionFilterKind.ActionBlockChance && actionFilter.BlockChance != 0))
+            throw new ArgumentException("Action-filter definitions require a valid creature-scoped profile.", nameof(definition));
 
         return definition with
         {

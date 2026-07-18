@@ -36,6 +36,31 @@ public sealed class MoveCompilerTests
         Assert.Equal(0, bm.FlinchChance);
     }
 
+    [Fact]
+    public void CompilesMoveTagsAndActionFilterFromClosedDataOps()
+    {
+        BattleMove tagged = MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("moveTags", null, ("tags", "healing,sound")),
+            Op("actionFilter", null, ("filter", "blockMoveTag"), ("tag", "sound"))));
+
+        Assert.Equal(["healing", "sound"], tagged.Tags);
+        Assert.Equal(new ApplyActionFilterEffect(ActionFilterKind.BlockMoveTag,
+            SideConditionTarget.Target, 2, "sound"),
+            Assert.Single(tagged.SecondaryEffects.OfType<ApplyActionFilterEffect>()));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("moveTags", null, ("tags", "Bad")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("actionFilter", 50, ("filter", "blockItems")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("actionFilter", null, ("filter", "unknown")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("actionFilter", null, ("filter", "blockMoveTag"), ("tag", "unknown")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("actionFilter", null, ("filter", "blockKnownBySource"), ("owner", "target")))));
+        Assert.Throws<ArgumentException>(() => MoveCompiler.ToBattleMove(Move(DamageClass.Status, null,
+            Op("actionFilter", null, ("filter", "blockLastMove"), ("duration", 2)))));
+    }
+
     [Theory]
     [InlineData("noBattleEffect")]
     [InlineData("postBattleReward")]

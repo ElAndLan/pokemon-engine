@@ -188,6 +188,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"DelayedActionConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op is "multiTurnLock" or "multiTurnPowerBoost"))
             testIds.Add($"MultiTurnLockConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op == "actionFilter"))
+            testIds.Add($"ActionFilterConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
@@ -205,7 +207,8 @@ public static class MoveConformanceNormalizer
     private static void AddAilment(JsonElement meta, List<Effect> effects, string path)
     {
         string ailment = ReferenceName(meta, "ailment", path);
-        if (ailment is "none" or "yawn")
+        if (ailment is "none" or "yawn" or "disable" or "infatuation" or "torment"
+            or "embargo" or "heal-block" or "silence")
             return;
         string normalized = ailment switch
         {

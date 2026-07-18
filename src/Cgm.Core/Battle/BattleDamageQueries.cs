@@ -204,6 +204,7 @@ public static class BattleDamageQueries
     private static BattleQueryValue Profile(BattleQueryValue value, EffectivenessQueryMode mode) => mode switch
     {
         EffectivenessQueryMode.Standard => value,
+        EffectivenessQueryMode.Neutral => new BattleQueryValue(1),
         EffectivenessQueryMode.Inverse when value.Numerator == 0 => new BattleQueryValue(2),
         EffectivenessQueryMode.Inverse when Compare(value, new BattleQueryValue(1)) < 0 => new BattleQueryValue(2),
         EffectivenessQueryMode.Inverse when Compare(value, new BattleQueryValue(1)) > 0 => new BattleQueryValue(1, 2),

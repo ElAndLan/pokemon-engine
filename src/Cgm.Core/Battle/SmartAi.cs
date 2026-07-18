@@ -73,8 +73,13 @@ public static class SmartAi
     private const int MidpointRoll = 92;
 
     public static int ChooseMove(BattleCreature attacker, BattleCreature defender, TypeChart chart, IRng rng,
-        SmartAiWeights? weights = null) =>
-        ((UseMove)ChooseAction(new SmartAiContext([attacker], 0, [defender], 0, chart, rng, Weights: weights)).Action).MoveIndex;
+        SmartAiWeights? weights = null) => ChooseAction(
+            new SmartAiContext([attacker], 0, [defender], 0, chart, rng, Weights: weights)).Action switch
+        {
+            UseMove move => move.MoveIndex,
+            UseFallback => -1,
+            _ => throw new InvalidOperationException("Move-only Smart AI selected a non-move action."),
+        };
 
     public static SmartAiDecision ChooseAction(SmartAiContext context)
     {
@@ -101,21 +106,34 @@ public static class SmartAi
         bool previousActionFailed = context.ActionHistory?.PreviousActionFailed(
             new BattleHistoryOwner(BattleSide.Enemy, context.EnemyActive,
                 new BattleSlot(BattleSide.Enemy, 0))) == true;
+        BattleSlot activeSlot = new(BattleSide.Enemy, 0);
+        IReadOnlyList<BattleConditionInstance> conditions = context.Conditions ?? [];
+        BattleCreature? SourceCreature(BattleConditionSource source)
+        {
+            if (source.Slot is not { } slot || source.PartyIndex is not { } index)
+                return null;
+            IReadOnlyList<BattleCreature> party = slot.Side == BattleSide.Enemy
+                ? context.EnemyParty : context.PlayerParty;
+            return index >= 0 && index < party.Count ? party[index] : null;
+        }
 
-        for (int i = 0; i < active.Moves.Count; i++)
-            if (active.Moves[i].HasPp && BattleActionGates.SourceHistoryAllows(
+        IReadOnlyList<int> legalMoves = BattleActionLegality.LegalMoves(active, activeSlot,
+            context.EnemyActive, conditions, SourceCreature);
+        foreach (int i in legalMoves)
+            if (BattleActionGates.SourceHistoryAllows(
                     active.Moves[i], active, previousActionFailed))
                 scores.Add(ScoreMove(new UseMove(i), active, target, context, weights, context.Rng));
+        if (legalMoves.Count == 0)
+            scores.Add(new AiCandidateScore(new UseFallback(), 0, [new("fallback", 0)]));
 
-        scores.AddRange(ScoreItems(context, weights));
+        if (BattleActionLegality.Item(activeSlot, context.EnemyActive, conditions).Allowed)
+            scores.AddRange(ScoreItems(context, weights));
 
         if (CanSwitch(active) && context.Turn - (context.Memory?.LastVoluntarySwitchTurn ?? -99) >= 3)
             scores.AddRange(ScoreSwitches(context, weights, BestMoveScore(scores)));
 
-        if (scores.Count == 0 && active.Moves.Any(move => move.HasPp))
+        if (scores.Count == 0)
             scores.Add(new AiCandidateScore(new Pass(), 0, [new("actionGateFallback", 0)]));
-        else if (scores.Count == 0)
-            scores.Add(new AiCandidateScore(new UseMove(FirstUsableOrZero(active)), 0, [new("fallback", 0)]));
 
         AiCandidateScore best = scores.OrderByDescending(s => s.Score).First();
         if (best.Action is Switch && context.Memory is not null)

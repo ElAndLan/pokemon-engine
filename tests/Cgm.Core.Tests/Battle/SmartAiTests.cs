@@ -413,12 +413,12 @@ public sealed class SmartAiTests
     }
 
     [Fact]
-    public void FallsBackToFirstMove_WhenAllMovesOutOfPp()
+    public void ExposesGenericFallback_WhenAllMovesOutOfPp()
     {
-        // No usable move and no reserve: don't crash, pick move 0 (the controller resolves Struggle).
+        // No usable move and no reserve: expose the ruleset-owned fallback action.
         var atk = Attacker(Damage(Normal, 40, pp: 0), Damage(Fire, 60, pp: 0));
         var decision = SmartAi.ChooseAction(Ctx([atk], [Defender(Grass)]));
-        Assert.Equal(new UseMove(0), decision.Action);
+        Assert.Equal(new UseFallback(), decision.Action);
     }
 
     [Fact]

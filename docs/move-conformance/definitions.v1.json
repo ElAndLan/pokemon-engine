@@ -267,6 +267,39 @@
       ]
     },
     {
+      "referenceKey": "move-0050",
+      "sourceFileHash": "ebfcc5a42c5c102abfc61236c0b1c7ea7425ae1c4b04f5b66a5b8075cefef250",
+      "payloadContentHash": "3ab880a965ef3955c93154f72889d359fd12c81c4d6c8c3c0da6bfdf1846f34f",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "disableMove"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "7a2cd527003f4dd6d2653889557713ab8c9f18b6cf396318a99c8f91dd9906f7",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0050)"
+      ]
+    },
+    {
       "referenceKey": "move-0051",
       "sourceFileHash": "bfc94f05d348cdf64043781eb666450d5ed977b048e120310d3be497d4439e52",
       "payloadContentHash": "4970c7dd1986c7f6ce530ad802fbbb700c9728b3a0b4c23a4c1ede768b46e8c1",
@@ -1305,6 +1338,39 @@
       ]
     },
     {
+      "referenceKey": "move-0213",
+      "sourceFileHash": "f076dd45548d9add1e4ebab9b1116d4034095306007add45ba0dcfda5dff42d2",
+      "payloadContentHash": "3c8741557adcb00c273ae0ac007df805d26f6846e9b2ffc385cdeafa086fdefd",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "actionBlockChance"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "5bacd555e2eac0cd945186d93468471e6675cf3d96ef73b168f5d8c6de0ca620",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0213)"
+      ]
+    },
+    {
       "referenceKey": "move-0216",
       "sourceFileHash": "b870bb7d82f1d9abdc2f3ae901256fe528383e6fffaabb1c16e8a5485c6d9c41",
       "payloadContentHash": "cdf47299419e878e48c472a721e57b3cf40690f3becd966032570849a73839d5",
@@ -1406,6 +1472,39 @@
       "normalizedDefinitionHash": "3da4b671b36ebcc3291b2798e4b0825616146605a66f038b6cd427c6d61db374",
       "testIds": [
         "HpStatusFormulaConformanceTests.Certified(move-0220)"
+      ]
+    },
+    {
+      "referenceKey": "move-0227",
+      "sourceFileHash": "af327d3bfea021dbc1ccf129bb9830e760d4a2cba699149725eb6518d0f481d6",
+      "payloadContentHash": "db04e6e87fa2aac8b57db1985fb47ca9b404681449672c66490210127e1936e4",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "accuracy": 100,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "forceMove"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "08f2e085dd74d996f00b943e14110ce2386e68b9b8846a44106799427c11af25",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0227)"
       ]
     },
     {
@@ -1576,6 +1675,39 @@
       ]
     },
     {
+      "referenceKey": "move-0259",
+      "sourceFileHash": "ebca1b9a574b9c2a14639d9fa351e7e524af09d5637dc569412c1abcc38a9099",
+      "payloadContentHash": "78ed0b75e0e79657582afe0b4d85ef7729edd5c39b65f22eae274ae2d37859d5",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "status",
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "blockLastMove"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "40c18daa0b63c3726abc9c93dac391646b482d3888cf7618f0281ea1f10f4ced",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0259)"
+      ]
+    },
+    {
       "referenceKey": "move-0263",
       "sourceFileHash": "a64e7db38bae860f84ed5f93992221b55bed2a520fb27635da99f7f68e0c6b5f",
       "payloadContentHash": "8663bd68d7b780abd0777d708c1caa62b6db04d3d0bf6950d5d85490aa5593c8",
@@ -1655,6 +1787,39 @@
       "normalizedDefinitionHash": "3bb2040596d5ed434e1fedffcc336e30515c16be592b868279de80478795eb66",
       "testIds": [
         "ActionGateConformanceTests.Certified(move-0264)"
+      ]
+    },
+    {
+      "referenceKey": "move-0269",
+      "sourceFileHash": "3503392feb3134840758d01faa099ce70eddfd5083b520c416e599d7c3aa315f",
+      "payloadContentHash": "19039ebfbb28c35fb61b8596a8a1f9f6c96b12bd42bc4fb0c69d9b2de5543393",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "status",
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "blockStatusMoves"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "e77832e2c89a00e74e3dfeecb9a4bc1cb4140049233b00c074bddf50aa1ac75e",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0269)"
       ]
     },
     {
@@ -1800,6 +1965,39 @@
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0284)",
         "HpStatusFormulaConformanceTests.Certified(move-0284)"
+      ]
+    },
+    {
+      "referenceKey": "move-0286",
+      "sourceFileHash": "81af3a7496b4d69a17c010de466c735e94d1571d22678ca3150aada49adad873",
+      "payloadContentHash": "8fa39aa0b189fdf17cc3e8c5524fd4b1c480906821eebe221122f64c2e196f76",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "blockKnownBySource",
+              "owner": "source"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "a77c5efe920fbe79144dc2e409ee921d7570b9c23e5649db19cf9a52b31a7080",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0286)"
       ]
     },
     {
@@ -2492,6 +2690,39 @@
       ]
     },
     {
+      "referenceKey": "move-0373",
+      "sourceFileHash": "83a12b487a6dd99579ae3195ff8db0e69509abe57ee828a595ff026a3c557c63",
+      "payloadContentHash": "9b90ad4fe682778f761f7e166e234c2456e1358921084da127c2d0fb761dda7d",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "status",
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "blockItems"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "42f9d55861956026cdc81272efbaa71e62e5fe0cb1c7c2b073d6762386899dda",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0373)"
+      ]
+    },
+    {
       "referenceKey": "move-0376",
       "sourceFileHash": "18256f53afc8de13f33a18ce931e4f8c7afce9d51ad2c17d05f7b9f871d61875",
       "payloadContentHash": "dde31503eccc06911103b5370a2f9bafbf3869b464e6696e41cb67a285beb6e4",
@@ -2525,6 +2756,41 @@
       "normalizedDefinitionHash": "8594177f27a1ab3596797278530cd7244baedc8407439d270a10f1e8b5388167",
       "testIds": [
         "PartyResourceFormulaConformanceTests.Certified(move-0376)"
+      ]
+    },
+    {
+      "referenceKey": "move-0377",
+      "sourceFileHash": "ae25b84e76e6a2e4e23a49eb98bb61079cffed520955565c04bb576e3719c1b1",
+      "payloadContentHash": "f950964f8c0858afc4f324d000d8f6d8fca7f51003280d401d19e8ea9414d5d3",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "status",
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "allOpponents",
+        "effects": [
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "blockMoveTag",
+              "tag": "healing"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "85a1878185225f3d54be9272536543afff8524964f3f4ceafece7b400dcccd79",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0377)",
+        "ActionFilterConformanceTests.Certified(move-0377)"
       ]
     },
     {
@@ -4034,6 +4300,45 @@
       "normalizedDefinitionHash": "084256eb6b4988688c335abdcf42aea12960eb9f8f09d798e29c9adebc2b77a9",
       "testIds": [
         "ChargeConformanceTests.Certified(move-0669)"
+      ]
+    },
+    {
+      "referenceKey": "move-0675",
+      "sourceFileHash": "5216c2f4cf427c1c21f468269b108bde859ed4890cd94faadfae2ef33fadc7e7",
+      "payloadContentHash": "85b4e2f8de54173b3ade5b3bfc44709664acc93b6042b3800120f89d4ccfbbc4",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "actionFilter",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "actionFilter",
+            "params": {
+              "filter": "blockMoveTag",
+              "tag": "sound"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "c86d4f923202a2239138bc93a1b4a779fdafc8bee6749850a4d3b2dd71be1f21",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0675)"
       ]
     },
     {

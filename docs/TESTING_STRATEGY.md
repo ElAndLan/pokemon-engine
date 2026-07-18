@@ -360,6 +360,14 @@ switch cleanup; doubles isolation; Smart-AI forced-candidate parity; `BasePower`
 checked-in `multi-turn-lock-termination.golden`; and generated per-reference vectors for all seven
 affected rows. The corpus remains 937 entries and strict certification advances to 121/937.
 
+The 15D-6 exit covers all eight closed selection filters plus the execution-time chance gate;
+compiler rejection of unknown tags/filter/owner/duration/chance combinations; PP, choice, owner,
+and opposing-source precedence; all-moves-blocked `UseFallback` admission and damage/recoil; timed
+refresh/expiry and owner/source switch cleanup; multi-turn selection-block termination; exact
+infatuation draw/event/PP boundaries; singles/doubles owner isolation; Smart-AI legality parity; and
+nine sanitized generated vectors. Repeated normalization must be byte-identical. The corpus remains
+937 entries and strict certification advances to 130/937.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

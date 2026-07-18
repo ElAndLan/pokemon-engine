@@ -55,7 +55,9 @@ public sealed class BattleMove
         StatKind? offensiveStatOverride = null, StatKind? defensiveStatOverride = null,
         TargetHpThresholdPower? targetHpThresholdPower = null, HpRatioPower? hpRatioPower = null,
         HpBandPower? hpBandPower = null, ChargeMoveEffect? charge = null,
-        MultiTurnLockProfile? multiTurnLockProfile = null)
+        MultiTurnLockProfile? multiTurnLockProfile = null,
+        IReadOnlyList<string>? tags = null,
+        bool isFallback = false)
     {
         Move = move;
         Type = type;
@@ -98,12 +100,19 @@ public sealed class BattleMove
         TargetHpThresholdPower = targetHpThresholdPower;
         HpRatioPower = hpRatioPower;
         HpBandPower = hpBandPower;
+        Tags = Array.AsReadOnly((tags ?? []).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+        if (Tags.Any(tag => !BattleConditionId.ValidToken(tag)))
+            throw new ArgumentException("Battle move tags must be lowercase tokens.", nameof(tags));
+        IsFallback = isFallback;
         SecondaryEffects = secondaryEffects ?? BuildSecondaryEffects();
         BattleChargeMechanics.Validate(Charge, SecondaryEffects);
         ValidateMultiTurnLock(MultiTurnLockProfile, DamageClass, Power, Charge);
         BattleDelayedMechanics.Validate(SecondaryEffects, DamageClass, Power, Target, SelfDestruct,
             TargetHpThresholdPower is not null || HpRatioPower is not null || HpBandPower is not null);
     }
+
+    public IReadOnlyList<string> Tags { get; }
+    public bool IsFallback { get; }
 
     private static void ValidateMultiTurnLock(MultiTurnLockProfile? profile, DamageClass damageClass,
         int? power, ChargeMoveEffect? charge)
@@ -167,6 +176,8 @@ public sealed class BattleMove
         CritBoost = source.CritBoost;
         SelfDestruct = source.SelfDestruct;
         LeechSeed = source.LeechSeed;
+        Tags = source.Tags;
+        IsFallback = source.IsFallback;
         SetsWeather = source.SetsWeather;
         Binds = source.Binds;
         ForcesSwitch = source.ForcesSwitch;

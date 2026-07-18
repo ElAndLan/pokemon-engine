@@ -1014,6 +1014,51 @@ lock and keyed boost. Post-lock confusion draws only after the completed lock-en
 switch/faint cleanup. A lock whose `powerBoostKey` matches composes that multiplier with its current
 ramp step. This is the reusable defense-boost interaction for reference rows `move-0111`,
 `move-0205`, and `move-0301`; no move identity participates in resolution.
+
+#### Selection lockouts and legal fallback
+
+All ordinary move and battle-item admission uses one `BattleActionLegality` result. Precedence is
+range, PP, held-choice lock, owner-scoped filters in condition sequence order, then opposing
+source-known filters. The result is `{ allowed, reason, condition? }`; controller admission,
+availability queries, Smart AI, and forced-lock continuation consume it rather than reconstructing
+legality. A forced charge release keeps its queued-action precedence. A multi-turn repeat ignores
+ordinary PP/choice admission but rechecks condition filters; a blocked repeat emits `ActionBlocked`
+and closes with `SelectionBlocked` before PP or move RNG.
+
+`actionFilter { filter, owner?, duration?, tag? }` is chance-free and compiles one creature condition.
+`owner` defaults to `target`, except `blockKnownBySource` defaults to `source`. `moveTags { tags }`
+attaches unique lowercase comma-separated tags to compiled move data; it performs no effect. The
+registry rows are:
+
+| Filter | Condition | Stored/filter input | Duration and duplicate policy | Cleanup |
+|---|---|---|---|---|
+| `disableMove` | `volatile:disable` | snapshotted owner last-used move index | 4 TurnEnd checkpoints; reject duplicate | owner switch/faint |
+| `forceMove` | `volatile:encore` | snapshotted owner last-used move index | 3 TurnEnd checkpoints; reject duplicate | owner switch/faint |
+| `blockStatusMoves` | `volatile:taunt` | status damage class | 3 TurnEnd checkpoints; refresh duration | owner switch/faint |
+| `blockLastMove` | `volatile:torment` | live owner last-used move identity | untimed; reject duplicate | owner switch/faint |
+| `blockKnownBySource` | `volatile:imprison` | opposing source's known move identities | untimed; reject duplicate | source/owner switch/faint |
+| `blockMoveTag:healing` | `volatile:heal_block` | `healing` | 5 TurnEnd checkpoints; refresh duration | owner switch/faint |
+| `blockItems` | `volatile:item_lock` | submitted battle-item action | 5 TurnEnd checkpoints; refresh duration | owner switch/faint |
+| `blockMoveTag:sound` | `volatile:sound_lock` | `sound` | 2 TurnEnd checkpoints; refresh duration | owner switch/faint |
+| `actionBlockChance` | `volatile:infatuation` | 50% `BeforeMove` gate | untimed; reject duplicate | source/owner switch/faint |
+
+Durations include the application turn. Refresh preserves instance/source/counters and changes only
+remaining duration. Infatuation does not make a submitted move illegal: it draws `Next(100)` exactly
+once after ordinary hard status gates and blocks on `0..49`, emitting `ActionBlocked`; a block spends
+no PP and performs no target, accuracy, damage, or effect draws.
+
+When the legal ordinary-move set is empty, availability exposes exactly one `UseFallback` action.
+It is invalid while any ordinary move is legal. `BattleFallbackRules` compiles the active ruleset row
+to a neutral physical 50-power, always-hit, quarter-recoil action with inexhaustible action-local PP.
+It carries the source's first authored move type only as a valid project type boundary; its explicit
+neutral effectiveness profile forces 1x and disables STAB regardless of either creature's types.
+The fallback is not stored in the creature's move list, cannot establish a held-choice lock, and is
+identified only by the generic engine ID `move:fallback_action` in events/history.
+
+Acceptance vectors: every filter allow/block pair, PP/choice/filter precedence, overlapping filters,
+all-moves-blocked fallback admission and resolution, compiler/tag validation, duration refresh/expiry,
+owner/source switch cleanup, forced-lock termination, deterministic infatuation draw/event/PP boundary,
+Smart-AI parity, and nine sanitized per-reference conformance vectors.
 3. Materialize live targets and redirection. Random targeting draws here. Zero targets emits the
    target failure and stops.
    A side or field scope materializes exactly one non-creature context, with no accuracy check; it

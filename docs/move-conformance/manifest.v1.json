@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 816
+      "count": 807
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 121
+      "count": 130
     },
     {
       "status": "blockedReference",
@@ -786,13 +786,16 @@
       "payloadContentHash": "3ab880a965ef3955c93154f72889d359fd12c81c4d6c8c3c0da6bfdf1846f34f",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "ailment",
-        "multiTurn"
+        "actionFilter",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "7a2cd527003f4dd6d2653889557713ab8c9f18b6cf396318a99c8f91dd9906f7",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0050)"
+      ]
     },
     {
       "referenceKey": "move-0051",
@@ -3266,12 +3269,16 @@
       "payloadContentHash": "3c8741557adcb00c273ae0ac007df805d26f6846e9b2ffc385cdeafa086fdefd",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "ailment"
+        "actionFilter",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "5bacd555e2eac0cd945186d93468471e6675cf3d96ef73b168f5d8c6de0ca620",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0213)"
+      ]
     },
     {
       "referenceKey": "move-0214",
@@ -3478,12 +3485,16 @@
       "payloadContentHash": "db04e6e87fa2aac8b57db1985fb47ca9b404681449672c66490210127e1936e4",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "actionFilter",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "08f2e085dd74d996f00b943e14110ce2386e68b9b8846a44106799427c11af25",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0227)"
+      ]
     },
     {
       "referenceKey": "move-0228",
@@ -3960,12 +3971,16 @@
       "payloadContentHash": "78ed0b75e0e79657582afe0b4d85ef7729edd5c39b65f22eae274ae2d37859d5",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "ailment"
+        "actionFilter",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "40c18daa0b63c3726abc9c93dac391646b482d3888cf7618f0281ea1f10f4ced",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0259)"
+      ]
     },
     {
       "referenceKey": "move-0260",
@@ -4112,12 +4127,16 @@
       "payloadContentHash": "19039ebfbb28c35fb61b8596a8a1f9f6c96b12bd42bc4fb0c69d9b2de5543393",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "actionFilter",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "e77832e2c89a00e74e3dfeecb9a4bc1cb4140049233b00c074bddf50aa1ac75e",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0269)"
+      ]
     },
     {
       "referenceKey": "move-0270",
@@ -4369,12 +4388,16 @@
       "payloadContentHash": "8fa39aa0b189fdf17cc3e8c5524fd4b1c480906821eebe221122f64c2e196f76",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "unclassified"
+        "actionFilter",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "a77c5efe920fbe79144dc2e409ee921d7570b9c23e5649db19cf9a52b31a7080",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0286)"
+      ]
     },
     {
       "referenceKey": "move-0287",
@@ -5708,13 +5731,16 @@
       "payloadContentHash": "9b90ad4fe682778f761f7e166e234c2456e1358921084da127c2d0fb761dda7d",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "ailment",
-        "multiTurn"
+        "actionFilter",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "42f9d55861956026cdc81272efbaa71e62e5fe0cb1c7c2b073d6762386899dda",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0373)"
+      ]
     },
     {
       "referenceKey": "move-0374",
@@ -5769,13 +5795,17 @@
       "payloadContentHash": "f950964f8c0858afc4f324d000d8f6d8fca7f51003280d401d19e8ea9414d5d3",
       "sourceTarget": "all-opponents",
       "observedMechanicFamilies": [
-        "ailment",
-        "multiTurn"
+        "actionFilter",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "85a1878185225f3d54be9272536543afff8524964f3f4ceafece7b400dcccd79",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0377)",
+        "ActionFilterConformanceTests.Certified(move-0377)"
+      ]
     },
     {
       "referenceKey": "move-0378",
@@ -10224,14 +10254,17 @@
       "payloadContentHash": "85b4e2f8de54173b3ade5b3bfc44709664acc93b6042b3800120f89d4ccfbbc4",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "ailment",
-        "multiTurn",
-        "standardDamage"
+        "actionFilter",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "c86d4f923202a2239138bc93a1b4a779fdafc8bee6749850a4d3b2dd71be1f21",
+      "testIds": [
+        "ActionFilterConformanceTests.Certified(move-0675)"
+      ]
     },
     {
       "referenceKey": "move-0676",

@@ -40,7 +40,7 @@ public sealed class BattleController
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
             .. GroundedConditions.Definitions, .. FieldConditions.Definitions, .. SideConditions.Definitions,
-            .. OneShotQueryConditions.Definitions]));
+            .. OneShotQueryConditions.Definitions, .. ActionFilterConditions.Definitions]));
     private readonly List<BattleConditionTraceEntry> _conditionTrace = [];
     private readonly List<BattleHookTraceEntry> _hookTrace = [];
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
@@ -163,6 +163,43 @@ public sealed class BattleController
 
     public void SetBattleItemStock(BattleSide side, EntityId item, int count) =>
         _itemStock[(int)side][item] = Math.Max(0, count);
+
+    public IReadOnlyList<BattleAction> LegalMoveActions(BattleSlot slot)
+    {
+        if (!Topology.Contains(slot))
+            throw new ArgumentException("Slot is outside this battle topology.", nameof(slot));
+        BattleCreature active = Active(slot);
+        if (active.ChargingMoveIndex is { } charge)
+            return [new UseMove(charge)];
+        if (active.IsLocked)
+            return [new UseMove(active.LockedMoveIndex)];
+        IReadOnlyList<int> legal = BattleActionLegality.LegalMoves(active, slot, ActiveIndex(slot),
+            ConditionSnapshot, SourceCreature, ItemsSuppressed);
+        return legal.Count == 0 ? [new UseFallback()] : legal.Select(index => (BattleAction)new UseMove(index)).ToArray();
+    }
+
+    public BattleConditionChangeSet ApplyActionFilterCondition(BattleSlot ownerSlot, BattleSlot sourceSlot,
+        ActionFilterKind kind, int? duration = null, string? moveTag = null)
+    {
+        if (!Topology.Contains(ownerSlot) || !Topology.Contains(sourceSlot))
+            throw new ArgumentException("Action-filter owner and source must be active battle slots.");
+        BattleConditionDefinition definition = ActionFilterConditions.For(kind, moveTag);
+        Dictionary<string, int>? counters = null;
+        if (kind is ActionFilterKind.DisableMove or ActionFilterKind.ForceMove)
+        {
+            EntityId? last = Active(ownerSlot).LastMoveUsed;
+            int index = last is null ? -1 : Active(ownerSlot).Moves.ToList().FindIndex(move => move.Move == last);
+            if (index < 0)
+                throw new ArgumentException("Move-specific action filters require an owner last-used move.");
+            counters = new() { [ActionFilterConditions.MoveIndexCounter] = index };
+        }
+        var application = new BattleConditionApplication(definition.Id,
+            new BattleConditionOwner(BattleConditionScope.Creature, ownerSlot.Side, ownerSlot, ActiveIndex(ownerSlot)),
+            new BattleConditionSource(sourceSlot, ActiveIndex(sourceSlot)), Turn, _traceActionSequence, duration, counters);
+        BattleConditionChangeSet changes = _conditions.Apply(application, definition);
+        RecordConditionChanges(changes);
+        return changes;
+    }
 
     public bool CanSubmitAction(BattleSide side, BattleAction action)
     {
@@ -352,7 +389,7 @@ public sealed class BattleController
             Validate(effective.Source, effective.Action, effective.Selection);
             BattleCreature actor = Active(submission.Source);
             EntityId? moveId = MoveIndex(effective.Action) is { } moveIndex
-                ? actor.Moves[EffectiveMoveIndex(submission.Source, moveIndex)].Move
+                ? MoveAt(submission.Source, EffectiveMoveIndex(submission.Source, moveIndex)).Move
                 : null;
             admitted.Add(new AdmittedAction(effective, ActiveIndex(submission.Source), moveId));
         }
@@ -530,7 +567,7 @@ public sealed class BattleController
                 continue;
             int effective = EffectiveMoveIndex(action.Submission.Source, moveIndex);
             scheduled.Add(new BattleScheduledAction(action.Submission,
-                EffectivePriority(action.Submission.Source, Active(action.Submission.Source).Moves[effective], 0),
+                EffectivePriority(action.Submission.Source, MoveAt(action.Submission.Source, effective), 0),
                 Speed(action.Submission.Source)));
         }
         foreach (BattleScheduledAction scheduledAction in OrderActions(scheduled))
@@ -544,7 +581,15 @@ public sealed class BattleController
 
             int moveIndex = EffectiveMoveIndex(action.Submission.Source, MoveIndex(action.Submission.Action)!.Value);
             BattleCreature attacker = Active(action.Submission.Source);
-            BattleMove move = attacker.Moves[moveIndex];
+            BattleMove move = MoveAt(action.Submission.Source, moveIndex);
+            ActionLegalityResult lockedLegality = LockedMoveLegality(attacker, action.Submission.Source, moveIndex);
+            if (!lockedLegality.Allowed)
+            {
+                _log.Add(new ActionBlocked(action.Submission.Source, lockedLegality.Reason,
+                    lockedLegality.Condition!.Value));
+                EndMultiTurnLock(action.Submission.Source, attacker, MultiTurnLockEndReason.SelectionBlocked);
+                continue;
+            }
             if (!move.HasPp && !attacker.IsCharging
                 && (!attacker.IsLocked || move.MultiTurnLockProfile?.RepeatPaysPp == true))
             {
@@ -560,6 +605,12 @@ public sealed class BattleController
             {
                 CancelCharge(action.Submission.Source, attacker);
                 ResetFailedProtection(attacker, move);
+                _actionHistory.Complete(attempt, BattleActionResult.Prevented);
+                AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Prevented, traceAction);
+                continue;
+            }
+            if (!PassesActionFilterGate(action.Submission.Source, traceAction))
+            {
                 _actionHistory.Complete(attempt, BattleActionResult.Prevented);
                 AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Prevented, traceAction);
                 continue;
@@ -923,6 +974,7 @@ public sealed class BattleController
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
             or HpEqualizeEffect or OneShotQueryEffect { Query: OneShotQuery.Accuracy } => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
+        ApplyActionFilterEffect { Owner: SideConditionTarget.Target } => true,
         RemoveSideConditionEffect { Side: SideConditionTarget.Target, Timing: SideConditionTiming.AfterHit } => true,
         RemoveConditionEffect { Owner: SideConditionTarget.Target }
             or RemoveConditionEffect { Selector.Source: BattleConditionSourceTarget.Target }
@@ -988,7 +1040,7 @@ public sealed class BattleController
             return false;
         return action.MoveId is null || MoveIndex(action.Submission.Action) is { } moveIndex
             && moveIndex < actor.Moves.Count
-            && actor.Moves[EffectiveMoveIndex(action.Submission.Source, moveIndex)].Move == action.MoveId;
+            && MoveAt(action.Submission.Source, EffectiveMoveIndex(action.Submission.Source, moveIndex)).Move == action.MoveId;
     }
 
     private void InvalidateActor(AdmittedAction action)
@@ -1011,9 +1063,17 @@ public sealed class BattleController
         {
             case UseMove use:
                 ValidateMoveUse(slot, use.MoveIndex);
-                BattleMove move = Active(slot).Moves[EffectiveMoveIndex(slot, use.MoveIndex)];
+                BattleMove move = MoveAt(slot, EffectiveMoveIndex(slot, use.MoveIndex));
                 ValidateSelectionMoveGates(slot, move);
                 ValidateSelection(slot, move.Target, selection);
+                break;
+
+            case UseFallback:
+                if (BattleActionLegality.LegalMoves(Active(slot), slot, ActiveIndex(slot), ConditionSnapshot,
+                        SourceCreature, ItemsSuppressed).Count != 0)
+                    throw new ArgumentException($"{side} may use the fallback only when no ordinary move is legal.");
+                BattleMove fallback = MoveAt(slot, -1);
+                ValidateSelection(slot, fallback.Target, selection);
                 break;
 
             case ActivateForm form:
@@ -1054,6 +1114,9 @@ public sealed class BattleController
                 break;
 
             case UseBattleItem item:
+                ActionLegalityResult itemLegality = BattleActionLegality.Item(slot, ActiveIndex(slot), ConditionSnapshot);
+                if (!itemLegality.Allowed)
+                    throw new ArgumentException($"{side} battle items are blocked by {itemLegality.Condition}.");
                 if (item.HealAmount <= 0)
                     throw new ArgumentException("Battle item heal amount must be positive.");
                 if (!_itemStock[(int)side].TryGetValue(item.Item, out int count) || count <= 0)
@@ -1139,11 +1202,13 @@ public sealed class BattleController
         BattleSide side = slot.Side;
         if (moveIndex < 0 || moveIndex >= c.Moves.Count)
             throw new ArgumentException($"{side} move index {moveIndex} out of range.");
-        if (!ItemsSuppressed && !c.IsCharging && !c.IsLocked
-            && c.ChoiceLockedMoveIndex is { } locked && moveIndex != locked)
-            throw new ArgumentException($"{side} is locked into move {locked}.");
-        if (!c.Moves[moveIndex].HasPp && !c.IsCharging && !c.IsLocked)
-            throw new ArgumentException($"{side} move {moveIndex} has no PP.");
+        if (!c.IsCharging && !c.IsLocked)
+        {
+            ActionLegalityResult result = BattleActionLegality.Move(c, moveIndex, slot, ActiveIndex(slot),
+                ConditionSnapshot, SourceCreature, ItemsSuppressed);
+            if (!result.Allowed)
+                throw new ArgumentException($"{side} move {moveIndex} is not legal: {result.Reason}.");
+        }
     }
 
     private void ApplySwitch(BattleSide side, BattleAction action)
@@ -1230,7 +1295,7 @@ public sealed class BattleController
             int moveIndex = EffectiveMoveIndex(submission.Source, submittedIndex);
             scheduled.Add(new BattleScheduledAction(
                 submission,
-                EffectivePriority(submission.Source, Active(submission.Source).Moves[moveIndex], 0),
+                EffectivePriority(submission.Source, MoveAt(submission.Source, moveIndex), 0),
                 Speed(submission.Source)));
         }
 
@@ -1254,6 +1319,7 @@ public sealed class BattleController
     {
         UseMove move => move.MoveIndex,
         ActivateForm form => form.MoveIndex,
+        UseFallback => -1,
         _ => null,
     };
 
@@ -1268,7 +1334,7 @@ public sealed class BattleController
             moveIndex is not null ? BattlePlannedActionKind.Move
                 : submission.Action is Switch ? BattlePlannedActionKind.Switch : BattlePlannedActionKind.Other,
             moveIndex is { } index
-                ? Active(submission.Source).Moves[EffectiveMoveIndex(submission.Source, index)].DamageClass
+                ? MoveAt(submission.Source, EffectiveMoveIndex(submission.Source, index)).DamageClass
                 : null);
     }
 
@@ -1618,6 +1684,18 @@ public sealed class BattleController
         return submitted;
     }
 
+    private BattleMove MoveAt(BattleSlot slot, int moveIndex) => moveIndex >= 0
+        ? Active(slot).Moves[moveIndex]
+        : BattleFallbackRules.Compile(Ruleset, Active(slot).Moves[0].Type);
+
+    private BattleCreature? SourceCreature(BattleConditionSource source)
+    {
+        if (source.Slot is not { } slot || source.PartyIndex is not { } partyIndex
+            || !Topology.Contains(slot) || partyIndex < 0 || partyIndex >= _parties[(int)slot.Side].Count)
+            return null;
+        return _parties[(int)slot.Side][partyIndex];
+    }
+
     private bool PrepareTimedMove(BattleCreature attacker, BattleSlot sourceSlot, BattleMove move,
         int moveIndex, int traceAction, BattleActionSubmission? submission = null)
     {
@@ -1638,7 +1716,8 @@ public sealed class BattleController
         {
             int eventStart = _log.Count;
             move.UsePp();
-            ApplyChoiceLock(attacker, moveIndex);
+            if (moveIndex >= 0)
+                ApplyChoiceLock(attacker, moveIndex);
             attacker.RecordMoveUse(move.Move);
             ChargeMoveEffect charge = move.Charge!;
             BattleIntent intent = _intentQueue.Enqueue(new BattleIntentRequest(
@@ -1680,7 +1759,7 @@ public sealed class BattleController
 
         if (!firing && (!continuingLock || move.MultiTurnLockProfile?.RepeatPaysPp == true))
             move.UsePp();
-        if (!continuingLock)
+        if (!continuingLock && moveIndex >= 0)
             ApplyChoiceLock(attacker, moveIndex);
         return true;
     }
@@ -1740,7 +1819,14 @@ public sealed class BattleController
         if (attacker.IsFainted)
             return;
 
-        BattleMove move = attacker.Moves[moveIndex];
+        BattleMove move = MoveAt(sourceSlot, moveIndex);
+        ActionLegalityResult lockedLegality = LockedMoveLegality(attacker, sourceSlot, moveIndex);
+        if (!lockedLegality.Allowed)
+        {
+            _log.Add(new ActionBlocked(sourceSlot, lockedLegality.Reason, lockedLegality.Condition!.Value));
+            EndMultiTurnLock(sourceSlot, attacker, MultiTurnLockEndReason.SelectionBlocked);
+            return;
+        }
         if (!move.HasPp && attacker.IsLocked && move.MultiTurnLockProfile?.RepeatPaysPp == true)
         {
             _log.Add(new ActionInvalidated(sourceSlot, ActionInvalidationReason.ResourceChanged));
@@ -1756,6 +1842,11 @@ public sealed class BattleController
             ResetFailedProtection(attacker, move);
             _actionHistory.Complete(attempt, BattleActionResult.Prevented);
             return; // frozen/asleep/fully-paralyzed — no PP spent, no move
+        }
+        if (!PassesActionFilterGate(sourceSlot, traceAction))
+        {
+            _actionHistory.Complete(attempt, BattleActionResult.Prevented);
+            return;
         }
 
         if (attacker.Flinched)
@@ -2149,6 +2240,8 @@ public sealed class BattleController
                 break;
             case SetSideConditionEffect side:
                 return ApplySideCondition(ctx, side);
+            case ApplyActionFilterEffect filter:
+                return ApplyActionFilter(ctx, filter);
             case RemoveSideConditionEffect { Timing: SideConditionTiming.AfterHit } remove:
                 RemoveSideConditions(ctx, remove);
                 break;
@@ -2177,6 +2270,21 @@ public sealed class BattleController
                 break;
         }
         return true;
+    }
+
+    private bool ApplyActionFilter(EffectContext ctx, ApplyActionFilterEffect effect)
+    {
+        BattleSlot owner = effect.Owner == SideConditionTarget.Source ? ctx.SourceSlot : ctx.TargetSlot;
+        try
+        {
+            ApplyActionFilterCondition(owner, ctx.SourceSlot, effect.Filter, effect.Duration, effect.MoveTag);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            ctx.Action.MarkFailed();
+            return false;
+        }
     }
 
     private bool ApplyConditionRemove(EffectContext ctx, RemoveConditionEffect effect)
@@ -4200,7 +4308,7 @@ public sealed class BattleController
         {
             BattleCreature creature = Active(submission.Source);
             ProtectionProfile? profile = MoveIndex(submission.Action) is { } moveIndex
-                ? creature.Moves[EffectiveMoveIndex(submission.Source, moveIndex)]
+                ? MoveAt(submission.Source, EffectiveMoveIndex(submission.Source, moveIndex))
                     .SecondaryEffects.OfType<ProtectEffect>().SingleOrDefault()?.Profile
                 : null;
             if (profile is null || !ProtectionConditions.UsesChain(profile, Ruleset))
@@ -4235,8 +4343,11 @@ public sealed class BattleController
                 ? terrainType : null;
         }
         BattleCreature source = Active(sourceSlot);
-        return BattleDamageQueries.Identity(move, MoveSlot(source, move), source,
-            EffectiveValues(sourceSlot), Environment, conditionType);
+        int slot = MoveSlot(source, move);
+        return slot >= 0
+            ? BattleDamageQueries.Identity(move, slot, source, EffectiveValues(sourceSlot), Environment, conditionType)
+            : new BattleMoveIdentityQueryResult(move.Type, conditionType ?? move.Type,
+                move.DamageClass, move.DamageClass, Environment.Natural, Environment.Effective);
     }
 
     private EntityId EffectiveMoveType(BattleSlot sourceSlot, BattleMove move, int traceAction) =>
@@ -4245,8 +4356,9 @@ public sealed class BattleController
     private DamageClass EffectiveDamageClass(BattleSlot sourceSlot, BattleMove move)
     {
         BattleCreature source = Active(sourceSlot);
-        return BattleDamageQueries.Identity(move, MoveSlot(source, move), source,
-            EffectiveValues(sourceSlot), Environment).EffectiveClass;
+        int slot = MoveSlot(source, move);
+        return slot >= 0 ? BattleDamageQueries.Identity(move, slot, source,
+            EffectiveValues(sourceSlot), Environment).EffectiveClass : move.DamageClass;
     }
 
     private BattleEffectiveValues EffectiveValues(BattleSlot slot) => PhysicalMetricFormulas.EffectiveValues(
@@ -4257,7 +4369,8 @@ public sealed class BattleController
         for (int index = 0; index < source.Moves.Count; index++)
             if (ReferenceEquals(source.Moves[index], move))
                 return index;
-        throw new InvalidOperationException("The resolved move is not owned by its source creature.");
+        return move.IsFallback ? -1
+            : throw new InvalidOperationException("The resolved move is not owned by its source creature.");
     }
 
     private MoveTarget EffectiveTarget(BattleSlot sourceSlot, BattleMove move) =>
@@ -4477,6 +4590,28 @@ public sealed class BattleController
         Enum.TryParse(value, ignoreCase: true, out T parsed)
             ? parsed
             : throw new ArgumentException($"Unknown {typeof(T).Name} '{value}'.");
+
+    private bool PassesActionFilterGate(BattleSlot slot, int traceAction)
+    {
+        BattleConditionInstance? condition = ConditionSnapshot.FirstOrDefault(instance =>
+            instance.Owner.Scope == BattleConditionScope.Creature
+            && instance.Owner.Side == slot.Side && instance.Owner.PartyIndex == ActiveIndex(slot)
+            && instance.Definition.ActionFilter?.Kind == ActionFilterKind.ActionBlockChance);
+        if (condition?.Definition.ActionFilter is not { } filter)
+            return true;
+        int draw = _rng.Next(100);
+        bool allowed = draw >= filter.BlockChance;
+        if (!allowed)
+            _log.Add(new ActionBlocked(slot, ActionLegalityReason.ActionChanceBlocked, condition.Definition.Id));
+        AddTrace(traceAction, slot, null, EffectTraceKind.MoveGate, true, draw, allowed ? 1 : 0,
+            _log.Count - (allowed ? 0 : 1), _log.Count, 100);
+        return allowed;
+    }
+
+    private ActionLegalityResult LockedMoveLegality(BattleCreature creature, BattleSlot slot, int moveIndex) =>
+        !creature.IsLocked ? new ActionLegalityResult(true)
+            : BattleActionLegality.Move(creature, moveIndex, slot, ActiveIndex(slot), ConditionSnapshot,
+                SourceCreature, ItemsSuppressed, ignorePp: true, ignoreChoice: true);
 
     private bool CanAct(BattleCreature c, BattleSlot sourceSlot, int traceAction)
     {

@@ -8,6 +8,7 @@ public enum BattleSide { Player, Enemy }
 /// Switch/item/run join in later battle layers.</summary>
 public abstract record BattleAction;
 public sealed record UseMove(int MoveIndex) : BattleAction;
+public sealed record UseFallback : BattleAction;
 public sealed record ActivateForm(string FormId, int MoveIndex) : BattleAction;
 public sealed record Switch(int PartyIndex) : BattleAction;
 public sealed record ThrowBall(double BallBonus, double StatusBonus) : BattleAction;
@@ -72,6 +73,8 @@ public sealed record MoveFailed(BattleSlot Slot, EntityId Move, MoveFailureReaso
     public MoveFailed(BattleSide side, EntityId move, MoveFailureReason reason) : this(new BattleSlot(side, 0), move, reason) { }
 }
 public sealed record ActionSkipped(BattleSlot Slot) : BattleEvent;
+public sealed record ActionBlocked(BattleSlot Slot, ActionLegalityReason Reason,
+    BattleConditionId Condition) : BattleEvent;
 public enum ActionInvalidationReason { ActorChanged, ActorFainted, MoveChanged, ResourceChanged, TargetStateChanged }
 public sealed record ActionInvalidated(BattleSlot Slot, ActionInvalidationReason Reason) : BattleEvent;
 public sealed record DamageDealt(BattleSlot Slot, int Amount, double Effectiveness, bool Crit) : BattleEvent
@@ -236,7 +239,7 @@ public sealed record Charging(BattleSlot Slot, EntityId Move) : BattleEvent
 }
 public sealed record ChargeReleased(BattleSlot Slot, EntityId Move) : BattleEvent;
 public sealed record ChargeCancelled(BattleSlot Slot, EntityId Move) : BattleEvent;
-public enum MultiTurnLockEndReason { Completed, Failed, NoPp, Switch, Faint }
+public enum MultiTurnLockEndReason { Completed, Failed, NoPp, SelectionBlocked, Switch, Faint }
 public sealed record MultiTurnLockStarted(BattleSlot Slot, EntityId Move, int Turns) : BattleEvent;
 public sealed record MultiTurnLockContinued(BattleSlot Slot, EntityId Move, int TurnsRemaining, int PowerStep) : BattleEvent;
 public sealed record MultiTurnLockEnded(BattleSlot Slot, EntityId Move, MultiTurnLockEndReason Reason) : BattleEvent;

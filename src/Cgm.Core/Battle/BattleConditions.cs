@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace Cgm.Core.Battle;
 
 public readonly record struct BattleConditionId
@@ -82,6 +84,7 @@ public sealed record BattleConditionDefinition
     public required BattleConditionFaintPolicy FaintPolicy { get; init; }
     public EntryHazardProfile? EntryHazard { get; init; }
     public ProtectionProfile? Protection { get; init; }
+    public ActionFilterProfile? ActionFilter { get; init; }
 }
 
 public sealed record BattleConditionOwner(
@@ -98,7 +101,8 @@ public sealed record BattleConditionApplication(
     BattleConditionSource Source,
     int Turn,
     int ActionSequence,
-    int? Duration = null);
+    int? Duration = null,
+    IReadOnlyDictionary<string, int>? Counters = null);
 
 public enum BattleConditionSourceTarget { Any, User, Target, Environment }
 
@@ -431,7 +435,16 @@ public sealed class BattleConditionStores
         if (_nextSequence == long.MaxValue)
             throw new OverflowException("Battle condition sequence is exhausted.");
         return new BattleConditionInstance(_nextSequence++, definition, application.Owner, application.Source,
-            application.Turn, application.ActionSequence, duration, definition.Tags, definition.InitialCounters, 1);
+            application.Turn, application.ActionSequence, duration, definition.Tags,
+            application.Counters is null ? definition.InitialCounters : CopyCounters(application.Counters), 1);
+    }
+
+    private static IReadOnlyDictionary<string, int> CopyCounters(IReadOnlyDictionary<string, int> counters)
+    {
+        var copy = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        foreach ((string key, int value) in counters)
+            copy.Add(key, value);
+        return new ReadOnlyDictionary<string, int>(copy);
     }
 
     private BattleConditionChangeSet Replace(List<BattleConditionInstance> store, BattleConditionInstance existing,
@@ -595,6 +608,9 @@ public sealed class BattleConditionStores
         int? duration = application.Duration ?? definition.DefaultDuration;
         if ((duration is not null) != (definition.DurationCheckpoint is not null))
             throw new ArgumentException("Condition application duration does not match its checkpoint contract.", nameof(application));
+        if (application.Counters is { } counters && counters.Any(counter =>
+                !BattleConditionId.ValidToken(counter.Key) || counter.Value < 0))
+            throw new ArgumentException("Condition application counters require lowercase keys and nonnegative values.", nameof(application));
     }
 
     private static void ValidateOwner(BattleConditionOwner owner, BattleConditionScope scope)
