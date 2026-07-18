@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 118/937 certified; next eligible package is 15D-5 multi-turn locks and forced execution** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 121/937 certified; next eligible package is 15D-6 selection lockouts and legal fallback** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -428,7 +428,7 @@ Current readiness ledger:
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
 | 15C-6 field/type/class/stat/effectiveness queries | SPEC READY | IMPLEMENTED | Shared exact identity/damage query result, overlays/conditions, selectors, STAB/effectiveness profiles, spread snapshots, resolver/AI parity, trace, and golden evidence |
 | 15C-7 accuracy/critical/priority/final-damage/healing queries | SPEC READY | IMPLEMENTED | Shared action-query helpers, strict ops, one-shot conditions, resolver/Smart-AI parity, traces, RNG matrix, doubles isolation, and golden evidence |
-| 15D timing/queue/lock families | 15D-1/2/3/4 SPEC READY; 15D-5 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, and AI legality use shared deterministic paths; apply 15D-5 through 15D-7 lifecycle defaults |
+| 15D timing/queue/lock families | 15D-1/2/3/4/5 SPEC READY; 15D-6 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4/5 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, multi-turn locks, and AI legality use shared deterministic paths; apply 15D-6 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
@@ -1420,12 +1420,39 @@ Ordered feature packages:
    row declares source-required; failure is eventful and never refunds original PP. Multiple entries
    on one slot resolve insertion order. **Acceptance:** source gone, target replacement/empty, same-slot
    multiples, immunity/heal-block at execution, stored-versus-live query proof, and delayed golden.
-5. **15D-5 — Multi-turn locks and forced execution (`PLANNED`; prerequisites 15D-1/2).** Lock duration
+5. **15D-5 — Multi-turn locks and forced execution (`IMPLEMENTED`; prerequisites 15D-1/2).** Lock duration
    draw timing/range, selected move/target ownership, ramp step/cap, forced-repeat legality,
    interruption, post-lock confusion, and cleanup. The first execution pays normal PP; each forced
    repeat pays PP only when its registry row says so; no legal repeat ends the lock visibly. Conditions
    cannot recursively force themselves in the same action. **Acceptance:** min/max duration, ramp/cap,
    miss/fail/disable/no-PP interruption, switch/faint cleanup, exact draws, and termination golden.
+
+Progress (2026-07-18): **15D-5 COMPLETE — focused review: GO.** `multiTurnLock` now compiles to one
+bounded typed profile covering inclusive duration, stored move/selection ownership, repeat-PP policy,
+connected-use power step/cap, failure policy, end effect, and optional keyed power boost. The existing
+turn scheduler replaces submissions with the stored action before admission; it emits typed start,
+continue, and closed-reason end events; uses action-history results for interruption; and cleans up on
+no PP, forced switch, or faint. Fixed five-use ramps compose ordinary `BasePower` query modifiers
+through 16x without duration RNG. `multiTurnPowerBoost` supplies the reusable switch-scoped defense-
+boost interaction. Smart AI exposes one zero-RNG `forcedRepeat` candidate. Seven generated vectors
+cover `move-0037`, `move-0080`, `move-0111`, `move-0200`, `move-0205`, `move-0301`, and `move-0833`;
+the three newly normalized rows advance strict certification to 121/937 with unchanged corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
+
+Files: `src/Cgm.Core/Battle/BattleCreature.cs`, `BattleController.cs`, `BattleEvents.cs`,
+`MoveCompiler.cs`, `MoveEffects.cs`, `SmartAi.cs`; `src/Cgm.Tools/MoveAudit/MoveConformanceNormalizer.cs`;
+`tests/Cgm.Core.Tests/Battle/BattleMultiTurnLockPackageTests.cs`, `BattleRampageTests.cs`, and
+`Goldens/multi-turn-lock-termination.golden`; `tests/Cgm.Tools.Tests/MultiTurnLockConformanceTests.cs`;
+the battle/effect/AI/testing/scope/plan contracts; and generated conformance decisions, definitions,
+and manifest. Schema/migration impact: none. Dependency impact: none. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --no-restore` passed 1,799 tests
+(1,530 Core, 104 Creator, 21 Runtime, 144 Tools). Focused multi-turn Core tests passed 31/31 and
+generated conformance passed 7/7. Repeated regeneration was byte-identical (`manifest`
+`c74a9afd895858a606651e883b4b0de9f374efa3e91fa9922e3239397cb8d5e9`, `definitions`
+`79fde2f69c99e313cd9129e87ca769f60e277ff1b95bb835545c44e614c86947`, decisions
+`d420cf0104b903808174e5111ee3d5522868aa7e56bb608cc4e2f453d2e47c21`). Next eligible package:
+**15D-6 selection lockouts and legal fallback**.
 6. **15D-6 — Selection lockouts and legal fallback (`PLANNED`; prerequisites 15D-2 and 15E-1
    condition store).** Implement Disable, Encore, Taunt, Torment, Imprison, heal/item/sound locks,
    infatuation and related action filters as data-defined conditions consumed by one legality service.
@@ -3151,9 +3178,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15D-5.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15D-6.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15D-5** through **15D-7**; **15F-2** through
+   **15D-6** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
 7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked

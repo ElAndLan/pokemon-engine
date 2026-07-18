@@ -351,6 +351,15 @@ composition; singles/doubles isolation; Smart-AI forced release and visible-stat
 replay identity; sanitized conformance vectors; and the checked-in `charge.golden`. The open effect
 payload and diagnostic queue state add no serialized schema migration vector.
 
+The 15D-5 exit covers default and fixed typed profiles; compiler rejection of chance, unknown,
+duplicate, malformed, non-damaging, and charge-composed locks; exact min/max duration draw counts;
+stored move/action/selected-slot ownership; first-use and row-controlled repeat PP; zero-PP visible
+termination; connected ramp steps through the 16x cap; miss/failure/prevention termination policy;
+forced switch and faint cleanup reasons; post-lock confusion order; keyed power-boost persistence and
+switch cleanup; doubles isolation; Smart-AI forced-candidate parity; `BasePower`/effect traces; the
+checked-in `multi-turn-lock-termination.golden`; and generated per-reference vectors for all seven
+affected rows. The corpus remains 937 entries and strict certification advances to 121/937.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle

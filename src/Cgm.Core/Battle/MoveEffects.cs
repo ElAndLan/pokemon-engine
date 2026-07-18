@@ -281,6 +281,7 @@ public sealed record SemiInvulnerableHitEffect(
     Fraction? PowerMultiplier = null) : MoveEffect;
 
 public sealed record ChargeStartStatEffect(StatKind Stat, int Delta) : MoveEffect;
+public sealed record MultiTurnPowerBoostEffect(string Key, Fraction Multiplier) : MoveEffect;
 
 public sealed record DelayedDamageEffect(
     int Turns,

@@ -1008,6 +1008,13 @@ Tags should be extensible data strings, but Creator validation should warn when 
 | `fake_out` | `condition_gate(first_turn_active)` + `deal_damage` + `apply_condition(flinch)`. |
 | `upper_hand_like` | priority/block preset filtered to priority attacks. |
 
+The implemented `lock_action` vocabulary is `multiTurnLock { minTurns, maxTurns, repeatPaysPp,
+powerNum, powerDen, maxPowerStep, endOnFailure, endEffect, powerBoostKey }`. Defaults normalize the
+2-3 turn confusion-ending rampage family; `{5,5,false,2,1,4,true,none,rollout}` normalizes the fixed
+five-use power-ramp family. `multiTurnPowerBoost { key, num, den }` sets the keyed switch-scoped
+multiplier consumed by matching lock profiles. Both ops reject chance, unknown params, invalid bounds,
+nonpositive fractions, duplicates, non-damaging locks, and charge/lock composition.
+
 ### 9.4 Battlefield Presets
 
 | Preset | Normalization |

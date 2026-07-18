@@ -26,7 +26,7 @@ public static class MoveCompiler
         bool fixedDamageLevel = false, ohko = false, selfDestruct = false, leechSeed = false;
         bool binds = false, forcesSwitch = false, bypassAccuracy = false;
         ChargeMoveEffect? charge = null;
-        bool multiTurnLock = false;
+        MultiTurnLockProfile? multiTurnLock = null;
         int critBoost = 0;
         Weather setsWeather = Weather.None;
         DamageClass? counterCategory = null;
@@ -607,8 +607,41 @@ public static class MoveCompiler
                         Bool(e, "pp")));
                     break;
 
-                case "multiTurnLock": // Thrash/Outrage rampage lock (catalog §9.3)
-                    multiTurnLock = true;
+                case "multiTurnLock":
+                    if (chance != 100)
+                        throw new ArgumentException("multiTurnLock does not support chance.");
+                    if (multiTurnLock is not null)
+                        throw new ArgumentException("A move may declare multiTurnLock only once.");
+                    CheckAllowedParams(e, "minTurns", "maxTurns", "repeatPaysPp", "powerNum", "powerDen",
+                        "maxPowerStep", "endOnFailure", "endEffect", "powerBoostKey");
+                    int minTurns = e.Params?.ContainsKey("minTurns") == true ? Int(e, "minTurns") : 2;
+                    int maxTurns = e.Params?.ContainsKey("maxTurns") == true ? Int(e, "maxTurns") : 3;
+                    int powerNum = e.Params?.ContainsKey("powerNum") == true ? Int(e, "powerNum") : 1;
+                    int powerDen = e.Params?.ContainsKey("powerDen") == true ? Int(e, "powerDen") : 1;
+                    int maxPowerStep = e.Params?.ContainsKey("maxPowerStep") == true ? Int(e, "maxPowerStep") : 0;
+                    if (minTurns < 1 || maxTurns < minTurns || maxTurns > 16)
+                        throw new ArgumentException("multiTurnLock requires 1 <= minTurns <= maxTurns <= 16.");
+                    if (powerNum < 1 || powerDen < 1 || maxPowerStep < 0 || maxPowerStep >= maxTurns)
+                        throw new ArgumentException("multiTurnLock power scaling must be positive and capped below maxTurns.");
+                    multiTurnLock = new MultiTurnLockProfile(minTurns, maxTurns,
+                        e.Params?.ContainsKey("repeatPaysPp") == true && Bool(e, "repeatPaysPp"),
+                        new Fraction(powerNum, powerDen), maxPowerStep,
+                        e.Params?.ContainsKey("endOnFailure") == true && Bool(e, "endOnFailure"),
+                        e.Params?.ContainsKey("endEffect") == true
+                            ? Parse<MultiTurnLockEndEffect>(Str(e, "endEffect"), "multi-turn end effect")
+                            : MultiTurnLockEndEffect.Confusion,
+                        e.Params?.ContainsKey("powerBoostKey") == true ? Str(e, "powerBoostKey") : null);
+                    break;
+
+                case "multiTurnPowerBoost":
+                    if (chance != 100)
+                        throw new ArgumentException("multiTurnPowerBoost does not support chance.");
+                    CheckAllowedParams(e, "key", "num", "den");
+                    string boostKey = Str(e, "key");
+                    Fraction boost = ReadFraction(e, 2, 1);
+                    if (string.IsNullOrWhiteSpace(boostKey) || boost.Num < 1 || boost.Den < 1)
+                        throw new ArgumentException("multiTurnPowerBoost requires a key and positive multiplier.");
+                    effects.Add(new MultiTurnPowerBoostEffect(boostKey, boost));
                     break;
 
                 case "moveGate":
@@ -1143,6 +1176,10 @@ public static class MoveCompiler
             throw new ArgumentException("chargeStartStat requires chargeTurn.");
         if (charge is not null && move.Target is (MoveTarget.FaintingPokemon or MoveTarget.SpecificMove))
             throw new ArgumentException("chargeTurn does not support party-member or move-reference targets.");
+        if (multiTurnLock is not null && (move.DamageClass == DamageClass.Status || move.Power is null))
+            throw new ArgumentException("multiTurnLock requires a damaging move with authored power.");
+        if (multiTurnLock is not null && charge is not null)
+            throw new ArgumentException("multiTurnLock cannot be combined with chargeTurn.");
         BattleDelayedMechanics.Validate(effects, move.DamageClass, move.Power, move.Target, selfDestruct,
             replacementPowerFormulas > 0);
         int replacementIndex = effects.FindIndex(effect => effect is ReplacementRestoreEffect);
@@ -1160,11 +1197,11 @@ public static class MoveCompiler
             drain, recoil, recoilOnMiss, heal, multiHitMin, multiHitMax,
             fixedDamage, fixedDamageLevel, ohko, critBoost, selfDestruct, leechSeed, setsWeather,
             binds, forcesSwitch, counterCategory, bypassAccuracy, charge is not null,
-            multiTurnLock, move.MakesContact, stageEffects: stageEffects, target: move.Target,
+            multiTurnLock is not null, move.MakesContact, stageEffects: stageEffects, target: move.Target,
             stageAllEffect: stageAllEffect, secondaryEffects: effects,
             offensiveStatOverride: offensiveStatOverride, defensiveStatOverride: defensiveStatOverride,
             targetHpThresholdPower: targetHpThresholdPower, hpRatioPower: hpRatioPower,
-            hpBandPower: hpBandPower, charge: charge);
+            hpBandPower: hpBandPower, charge: charge, multiTurnLockProfile: multiTurnLock);
     }
 
     /// <summary>Reads a <c>{ num, den }</c> fraction, defaulting either component when absent.</summary>

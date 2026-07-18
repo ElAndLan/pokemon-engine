@@ -211,10 +211,10 @@ public sealed class BattleController
         int start = _log.Count;
         _traceActionSequence = 0;
         BattleIntentPreview intentPreview = _intentQueue.Preview(Turn, BattleIntentCheckpoint.PreAction);
-        BattleActionSubmission resolvedPlayer = PreviewQueuedSubmission(
-            new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), playerAction), intentPreview);
-        BattleActionSubmission resolvedEnemy = PreviewQueuedSubmission(
-            new BattleActionSubmission(new BattleSlot(BattleSide.Enemy, 0), enemyAction), intentPreview);
+        BattleActionSubmission resolvedPlayer = PreviewQueuedSubmission(EffectiveLockedSubmission(
+            new BattleActionSubmission(new BattleSlot(BattleSide.Player, 0), playerAction)), intentPreview);
+        BattleActionSubmission resolvedEnemy = PreviewQueuedSubmission(EffectiveLockedSubmission(
+            new BattleActionSubmission(new BattleSlot(BattleSide.Enemy, 0), enemyAction)), intentPreview);
         BattleAction resolvedPlayerAction = resolvedPlayer.Action;
         BattleAction resolvedEnemyAction = resolvedEnemy.Action;
         Validate(BattleSide.Player, resolvedPlayerAction);
@@ -348,7 +348,7 @@ public sealed class BattleController
         var admitted = new List<AdmittedAction>(submitted.Actions.Count);
         foreach (BattleActionSubmission submission in submitted.Actions)
         {
-            BattleActionSubmission effective = PreviewQueuedSubmission(submission, intentPreview);
+            BattleActionSubmission effective = PreviewQueuedSubmission(EffectiveLockedSubmission(submission), intentPreview);
             Validate(effective.Source, effective.Action, effective.Selection);
             BattleCreature actor = Active(submission.Source);
             EntityId? moveId = MoveIndex(effective.Action) is { } moveIndex
@@ -390,6 +390,7 @@ public sealed class BattleController
                 continue;
             int start = _log.Count;
             _log.Add(new ActionSkipped(slot));
+            AdvanceMultiTurnLock(slot, BattleActionResult.Prevented, null);
             eventRanges.Add(slot, (start, _log.Count));
         }
 
@@ -425,6 +426,19 @@ public sealed class BattleController
             Selection = selection,
             TargetPartySnapshot = releaseIntent.Target.SnapshotPartyIndex,
         };
+    }
+
+    private BattleActionSubmission EffectiveLockedSubmission(BattleActionSubmission submitted)
+    {
+        BattleCreature creature = Active(submitted.Source);
+        return creature.IsLocked
+            ? submitted with
+            {
+                Action = new UseMove(creature.LockedMoveIndex),
+                Selection = creature.LockedSelection,
+                TargetPartySnapshot = null,
+            }
+            : submitted;
     }
 
     private void ResolveSwitchPhase(IReadOnlyList<AdmittedAction> actions)
@@ -531,9 +545,11 @@ public sealed class BattleController
             int moveIndex = EffectiveMoveIndex(action.Submission.Source, MoveIndex(action.Submission.Action)!.Value);
             BattleCreature attacker = Active(action.Submission.Source);
             BattleMove move = attacker.Moves[moveIndex];
-            if (!move.HasPp && !attacker.IsCharging && !attacker.IsLocked)
+            if (!move.HasPp && !attacker.IsCharging
+                && (!attacker.IsLocked || move.MultiTurnLockProfile?.RepeatPaysPp == true))
             {
                 _log.Add(new ActionInvalidated(action.Submission.Source, ActionInvalidationReason.ResourceChanged));
+                EndMultiTurnLock(action.Submission.Source, attacker, MultiTurnLockEndReason.NoPp);
                 continue;
             }
 
@@ -545,7 +561,7 @@ public sealed class BattleController
                 CancelCharge(action.Submission.Source, attacker);
                 ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Prevented);
-                TickRampageLock(action.Submission.Source, traceAction);
+                AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Prevented, traceAction);
                 continue;
             }
             if (attacker.Flinched)
@@ -557,7 +573,7 @@ public sealed class BattleController
                 AddTrace(traceAction, action.Submission.Source, null, EffectTraceKind.FlinchGate, false, null, 0,
                     start, _log.Count);
                 _actionHistory.Complete(attempt, BattleActionResult.Prevented);
-                TickRampageLock(action.Submission.Source, traceAction);
+                AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Prevented, traceAction);
                 continue;
             }
             AddTrace(traceAction, action.Submission.Source, null, EffectTraceKind.FlinchGate, false, null, 1,
@@ -567,7 +583,7 @@ public sealed class BattleController
                 CancelCharge(action.Submission.Source, attacker);
                 ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Prevented);
-                TickRampageLock(action.Submission.Source, traceAction);
+                AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Prevented, traceAction);
                 continue;
             }
             BattleSlot? gateTarget = GateTarget(action.Submission.Source, move,
@@ -578,7 +594,7 @@ public sealed class BattleController
                 CancelCharge(action.Submission.Source, attacker);
                 ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Failed);
-                TickRampageLock(action.Submission.Source, traceAction);
+                AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Failed, traceAction);
                 continue;
             }
 
@@ -597,7 +613,7 @@ public sealed class BattleController
                 attacker.RecordMoveUse(move.Move);
                 ResetFailedProtection(attacker, move);
                 _actionHistory.Complete(attempt, BattleActionResult.Failed);
-                TickRampageLock(action.Submission.Source, traceAction);
+                AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Failed, traceAction);
                 continue;
             }
             attacker.RecordMoveUse(move.Move);
@@ -621,7 +637,7 @@ public sealed class BattleController
             }
             _actionHistory.Complete(attempt, result, targetOwners);
 
-            TickRampageLock(action.Submission.Source, traceAction);
+            AdvanceMultiTurnLock(action.Submission.Source, result, traceAction);
 
             if (CheckEnd())
                 break;
@@ -1179,6 +1195,7 @@ public sealed class BattleController
             new BattleHistoryOwner(slot.Side, index, slot));
         BattleCreature outgoing = Active(slot);
         CancelCharge(slot, outgoing);
+        EndMultiTurnLock(slot, outgoing, MultiTurnLockEndReason.Switch);
         outgoing.ResetStages();
         outgoing.ClearVolatiles();
         TraceCleanup(_intentQueue.OwnerSwitched(slot.Side, outgoingPartyIndex, null));
@@ -1223,7 +1240,11 @@ public sealed class BattleController
             BattleSlot source = scheduledAction.Submission.Source;
             int traceBefore = _traceActionSequence;
             ResolveMove(source, EffectiveMoveIndex(source, submittedIndex), scheduledAction.Submission);
-            TickRampageLock(source, _traceActionSequence > traceBefore ? _traceActionSequence : null);
+            int? traceAction = _traceActionSequence > traceBefore ? _traceActionSequence : null;
+            BattleActionResult result = traceAction is { } actionSequence
+                ? _actionHistory.Snapshot().Last(attempt => attempt.Id.ActionSequence == actionSequence).Result
+                : BattleActionResult.Failed;
+            AdvanceMultiTurnLock(source, result, traceAction);
             if (CheckEnd())
                 break;
         }
@@ -1254,24 +1275,51 @@ public sealed class BattleController
     private BattleHistoryOwner HistoryOwner(BattleSlot slot) =>
         new(slot.Side, ActiveIndex(slot), slot);
 
-    /// <summary>Counts a rampage (Thrash/Outrage) down after its move resolved — whether it hit, missed,
-    /// or was blocked. When the lock ends, the user confuses itself.</summary>
-    private void TickRampageLock(BattleSlot slot, int? traceAction)
+    /// <summary>Applies the compiled lock's success/failure policy after one forced execution.</summary>
+    private void AdvanceMultiTurnLock(BattleSlot slot, BattleActionResult result, int? traceAction)
     {
         BattleCreature c = Active(slot);
         if (!c.IsLocked)
             return;
-        c.TickLock();
-        if (!c.IsLocked && !c.IsFainted && !c.IsConfused)
+        BattleMove move = c.Moves[c.LockedMoveIndex];
+        MultiTurnLockProfile profile = move.MultiTurnLockProfile!;
+        if (profile.EndOnFailure && result != BattleActionResult.Connected)
         {
-            int eventStart = _log.Count;
-            int duration = VolatileEffects.ConfusionDuration(_rng, out int draw);
-            c.SetConfusion(duration);
-            _log.Add(new Confused(slot));
-            if (traceAction is { } action)
-                AddTrace(action, slot, null, EffectTraceKind.ConfusionDuration, true, draw, duration,
-                    eventStart, _log.Count, 5, 1);
+            EndMultiTurnLock(slot, c, MultiTurnLockEndReason.Failed);
+            return;
         }
+        c.AdvanceLock(result == BattleActionResult.Connected && c.LockPowerStep < profile.MaxPowerStep);
+        if (c.IsLocked)
+        {
+            _log.Add(new MultiTurnLockContinued(slot, move.Move, c.LockTurns, c.LockPowerStep));
+            return;
+        }
+        c.EndLock();
+        _log.Add(new MultiTurnLockEnded(slot, move.Move, MultiTurnLockEndReason.Completed));
+        ApplyMultiTurnEndEffect(slot, c, profile, traceAction);
+    }
+
+    private void EndMultiTurnLock(BattleSlot slot, BattleCreature creature, MultiTurnLockEndReason reason)
+    {
+        if (!creature.IsLocked)
+            return;
+        EntityId move = creature.Moves[creature.LockedMoveIndex].Move;
+        creature.EndLock();
+        _log.Add(new MultiTurnLockEnded(slot, move, reason));
+    }
+
+    private void ApplyMultiTurnEndEffect(BattleSlot slot, BattleCreature creature,
+        MultiTurnLockProfile profile, int? traceAction)
+    {
+        if (profile.EndEffect != MultiTurnLockEndEffect.Confusion || creature.IsFainted || creature.IsConfused)
+            return;
+        int eventStart = _log.Count;
+        int duration = VolatileEffects.ConfusionDuration(_rng, out int draw);
+        creature.SetConfusion(duration);
+        _log.Add(new Confused(slot));
+        if (traceAction is { } action)
+            AddTrace(action, slot, null, EffectTraceKind.ConfusionDuration, true, draw, duration,
+                eventStart, _log.Count, 5, 1);
     }
 
     private int Speed(BattleSide side)
@@ -1619,15 +1667,18 @@ public sealed class BattleController
         }
 
         bool continuingLock = attacker.IsLocked;
-        if (move.MultiTurnLock && !continuingLock)
+        if (move.MultiTurnLockProfile is { } lockProfile && !continuingLock)
         {
-            int duration = _rng.Next(2, 4);
-            attacker.StartLock(moveIndex, duration);
-            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.LockDuration, true, duration, duration,
-                _log.Count, _log.Count, 4, 2);
+            bool drawsDuration = lockProfile.MinTurns != lockProfile.MaxTurns;
+            int duration = drawsDuration ? _rng.Next(lockProfile.MinTurns, lockProfile.MaxTurns + 1) : lockProfile.MinTurns;
+            attacker.StartLock(moveIndex, duration, submission?.Selection);
+            _log.Add(new MultiTurnLockStarted(sourceSlot, move.Move, duration));
+            AddTrace(traceAction, sourceSlot, null, EffectTraceKind.LockDuration, drawsDuration,
+                drawsDuration ? duration : null, duration, _log.Count - 1, _log.Count,
+                drawsDuration ? lockProfile.MaxTurns + 1 : null, lockProfile.MinTurns);
         }
 
-        if (!firing && !continuingLock)
+        if (!firing && (!continuingLock || move.MultiTurnLockProfile?.RepeatPaysPp == true))
             move.UsePp();
         if (!continuingLock)
             ApplyChoiceLock(attacker, moveIndex);
@@ -1689,8 +1740,14 @@ public sealed class BattleController
         if (attacker.IsFainted)
             return;
 
-        int traceAction = ++_traceActionSequence;
         BattleMove move = attacker.Moves[moveIndex];
+        if (!move.HasPp && attacker.IsLocked && move.MultiTurnLockProfile?.RepeatPaysPp == true)
+        {
+            _log.Add(new ActionInvalidated(sourceSlot, ActionInvalidationReason.ResourceChanged));
+            EndMultiTurnLock(sourceSlot, attacker, MultiTurnLockEndReason.NoPp);
+            return;
+        }
+        int traceAction = ++_traceActionSequence;
         BattleHistoryOwner sourceOwner = HistoryOwner(sourceSlot);
         BattleActionAttemptId attempt = _actionHistory.BeginMove(traceAction, sourceOwner, move.Move);
         if (!CanAct(attacker, sourceSlot, traceAction))
@@ -2068,6 +2125,9 @@ public sealed class BattleController
             case CritBoostEffect cb:
                 ctx.Source.RaiseCrit(cb.Stages);
                 _log.Add(new CritBoosted(ctx.SourceSlot));
+                break;
+            case MultiTurnPowerBoostEffect boost:
+                ctx.Source.SetMultiTurnPowerBoost(boost.Key, boost.Multiplier);
                 break;
             case SelfDestructEffect when !ctx.Source.IsFainted:
                 ctx.Source.TakeDamage(ctx.Source.MaxHp);
@@ -3676,6 +3736,8 @@ public sealed class BattleController
     private void RecordFaint(BattleSlot slot)
     {
         CancelCharge(slot, Active(slot));
+        EndMultiTurnLock(slot, Active(slot), MultiTurnLockEndReason.Faint);
+        Active(slot).ClearMultiTurnPowerBoost();
         TraceCancelled(_intentQueue.OwnerFainted(slot.Side, ActiveIndex(slot)));
         _log.Add(new Fainted(slot));
         _actionHistory.RecordFaint(HistoryOwner(slot));
@@ -3780,6 +3842,23 @@ public sealed class BattleController
         HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, target, physicalInputs,
             actionInputs, resourceInputs, IsPersonallyProtected(sourceSlot), IsPersonallyProtected(targetSlot));
         var powerModifiers = powerQuery.Modifiers.ToList();
+        if (attacker.IsLocked && attacker.Moves[attacker.LockedMoveIndex].Move == move.Move
+            && move.MultiTurnLockProfile is { MaxPowerStep: > 0 } lockProfile
+            && attacker.LockPowerStep > 0)
+        {
+            Fraction multiplier = MultiTurnPowerMultiplier(lockProfile, attacker.LockPowerStep);
+            powerModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
+                BattleQueryOperation.Multiply, new BattleQueryValue(multiplier.Num, multiplier.Den),
+                InsertionOrder: powerModifiers.Count));
+        }
+        if (move.MultiTurnLockProfile?.PowerBoostKey is { } boostKey
+            && attacker.MultiTurnPowerBoostKey == boostKey)
+        {
+            Fraction boost = attacker.MultiTurnPowerBoost;
+            powerModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
+                BattleQueryOperation.Multiply, new BattleQueryValue(boost.Num, boost.Den),
+                InsertionOrder: powerModifiers.Count));
+        }
         if (move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is { } weatherEffect)
         {
             BattleHookDispatchSnapshot weather = WeatherConditions.CollectBasePowerHooks(
@@ -3904,6 +3983,19 @@ public sealed class BattleController
             queryContext);
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction, sourceSlot, targetSlot, damageResult));
         return (damageResult.FinalValue.ToInt32(), crit, eff);
+    }
+
+    private static Fraction MultiTurnPowerMultiplier(MultiTurnLockProfile profile, int step)
+    {
+        Fraction perStep = profile.EffectivePowerStep;
+        int numerator = 1;
+        int denominator = 1;
+        for (int i = 0; i < Math.Min(step, profile.MaxPowerStep); i++)
+        {
+            numerator = checked(numerator * perStep.Num);
+            denominator = checked(denominator * perStep.Den);
+        }
+        return new Fraction(numerator, denominator);
     }
 
     private static int StatValue(Stats stats, StatKind stat) => stat switch

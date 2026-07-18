@@ -1,0 +1,8 @@
+lock:start:move:rampage:turns=2
+move:move:rampage
+lock:continue:move:rampage:remaining=1:step=0
+move:move:rampage
+lock:end:move:rampage:reason=Completed
+confused
+trace:LockDuration:performed=True:draw=2:value=2:bound=4:min=2
+trace:ConfusionDuration:performed=True:draw=1:value=1:bound=5:min=1

@@ -40,7 +40,9 @@ Starting baseline:
   resolver/Smart-AI parity. The complete 15D-2 action-gate/recharge registry, 15D-3 typed
   charge/release, semi-invulnerability, target-policy, and Smart-AI integration are green, including
   28 combined generated conformance vectors, and 15D-4 delayed damage/heal/status/replacement
-  actions add six certified vectors. The next eligible work is 15D-5 multi-turn locks. Pair
+  actions add six certified vectors. The complete 15D-5 multi-turn lock/forced execution family adds
+  three certified vectors (121/937 total), including fixed power ramps and their keyed switch-scoped
+  boost interaction. The next eligible work is 15D-6 selection lockouts and legal fallback. Pair
   recognition/combined execution stays with 15D-7. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.

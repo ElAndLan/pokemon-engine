@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 819
+      "count": 816
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 118
+      "count": 121
     },
     {
       "status": "blockedReference",
@@ -587,7 +587,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "48a28c3b1acab7952b6407754874743d7d3d1a222362e791974e7389a943d477",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0037)"
+        "TargetTopologyConformanceTests.Certified(move-0037)",
+        "MultiTurnLockConformanceTests.Certified(move-0037)"
       ]
     },
     {
@@ -1253,7 +1254,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "21d177c284f06165f7edb04450e1395e28214dee11f3b3e1a852684c10e5b789",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0080)"
+        "TargetTopologyConformanceTests.Certified(move-0080)",
+        "MultiTurnLockConformanceTests.Certified(move-0080)"
       ]
     },
     {
@@ -1709,12 +1711,17 @@
       "payloadContentHash": "4eccd7a2312414d6fd7fc4010d3f867a1f27f03210f3aad1a86ef495e19e563c",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "statStage"
+        "multiTurnPowerBoost",
+        "statStage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "b7112a5801df47587a26b1dfb9fa8aec1c66a39cdb253637a6258a9c3653c8ff",
+      "testIds": [
+        "MultiTurnLockConformanceTests.Certified(move-0111)"
+      ]
     },
     {
       "referenceKey": "move-0112",
@@ -3065,7 +3072,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "484bf8ca4532b4729afd5fc76d9909a118bc7f0b442ad577c794ac3e38ad735e",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0200)"
+        "TargetTopologyConformanceTests.Certified(move-0200)",
+        "MultiTurnLockConformanceTests.Certified(move-0200)"
       ]
     },
     {
@@ -3132,12 +3140,17 @@
       "payloadContentHash": "cd41afbdddde7d8bc0d3c207c46f667132a0e7e079417af8d63fc1191af57f16",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "multiTurnLock",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "77876b1d47737b4879df1036a152eae00aba880dfe1c204593a58d609008c17c",
+      "testIds": [
+        "MultiTurnLockConformanceTests.Certified(move-0205)"
+      ]
     },
     {
       "referenceKey": "move-0206",
@@ -4580,12 +4593,17 @@
       "payloadContentHash": "5806596eca1c496f87f55269992dc7a4611e663297bc1b65a87c010ae85c5783",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "standardDamage"
+        "multiTurnLock",
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "84189c39c86546d22f86931e3a4e945cc474b3151403ea06217619996c4b43a1",
+      "testIds": [
+        "MultiTurnLockConformanceTests.Certified(move-0301)"
+      ]
     },
     {
       "referenceKey": "move-0302",
@@ -12542,7 +12560,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "a0e88d31ba253c1a1daa7959ddcb9783d491a407c7afc41f04c7780388c67338",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0833)"
+        "TargetTopologyConformanceTests.Certified(move-0833)",
+        "MultiTurnLockConformanceTests.Certified(move-0833)"
       ]
     },
     {

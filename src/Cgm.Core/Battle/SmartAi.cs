@@ -91,6 +91,12 @@ public static class SmartAi
                 [new("chargeRelease", 0)]);
             return new SmartAiDecision(release.Action, [release]);
         }
+        if (active.IsLocked)
+        {
+            var repeat = new AiCandidateScore(new UseMove(active.LockedMoveIndex), 0,
+                [new("forcedRepeat", 0)]);
+            return new SmartAiDecision(repeat.Action, [repeat]);
+        }
         var scores = new List<AiCandidateScore>();
         bool previousActionFailed = context.ActionHistory?.PreviousActionFailed(
             new BattleHistoryOwner(BattleSide.Enemy, context.EnemyActive,

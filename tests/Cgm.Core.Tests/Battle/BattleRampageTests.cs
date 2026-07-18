@@ -64,7 +64,7 @@ public sealed class BattleRampageTests
     }
 
     [Fact]
-    public void Thrash_LockedCreatureCannotSwitch()
+    public void Thrash_ReplacesSubmittedSwitchWithForcedMove()
     {
         var player = Fast(300, Thrash());
         var playerB = Fast(300, Inert());
@@ -72,7 +72,12 @@ public sealed class BattleRampageTests
         var battle = new BattleController([player, playerB], [enemy], Chart(), new Rng(1));
 
         battle.ResolveTurn(new UseMove(0), new UseMove(0));
-        Assert.Throws<ArgumentException>(() => battle.ResolveTurn(new Switch(1), new UseMove(0)));
+        int before = enemy.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Switch(1), new UseMove(0));
+
+        Assert.True(enemy.CurrentHp < before);
+        Assert.Same(player, battle.Active(BattleSide.Player));
+        Assert.Contains(events, e => e is MoveUsed { Move: var move } && move == player.Moves[0].Move);
     }
 
     [Fact]

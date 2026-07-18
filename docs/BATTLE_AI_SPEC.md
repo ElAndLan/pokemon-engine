@@ -242,6 +242,10 @@ Capabilities beyond Beginner:
   `delayedStatus`. `replacementRestore` reads only the AI's own living reserves and selected HP,
   status, and PP resources before the ordinary `selfKoRisk` applies. AI never reads either side's
   queued delayed intents, predicts a future occupant, or consumes extra RNG for these components.
+- Phase 15D-5 exposes an active multi-turn lock as exactly one `forcedRepeat` candidate using the
+  stored move index. It does not rescore alternatives, switch, use an item, inspect the opponent's
+  submitted action, or consume AI RNG; the resolver remains the sole owner of lock-step and keyed
+  power-boost application.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

@@ -186,6 +186,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"ChargeConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => IsDelayedAction(effect.Op)))
             testIds.Add($"DelayedActionConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "multiTurnLock" or "multiTurnPowerBoost"))
+            testIds.Add($"MultiTurnLockConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

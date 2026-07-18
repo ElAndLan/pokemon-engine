@@ -236,6 +236,10 @@ public sealed record Charging(BattleSlot Slot, EntityId Move) : BattleEvent
 }
 public sealed record ChargeReleased(BattleSlot Slot, EntityId Move) : BattleEvent;
 public sealed record ChargeCancelled(BattleSlot Slot, EntityId Move) : BattleEvent;
+public enum MultiTurnLockEndReason { Completed, Failed, NoPp, Switch, Faint }
+public sealed record MultiTurnLockStarted(BattleSlot Slot, EntityId Move, int Turns) : BattleEvent;
+public sealed record MultiTurnLockContinued(BattleSlot Slot, EntityId Move, int TurnsRemaining, int PowerStep) : BattleEvent;
+public sealed record MultiTurnLockEnded(BattleSlot Slot, EntityId Move, MultiTurnLockEndReason Reason) : BattleEvent;
 public sealed record SemiInvulnerableAvoided(BattleSlot Source, BattleSlot Target,
     SemiInvulnerableState State) : BattleEvent;
 public enum DelayedActionFailureReason

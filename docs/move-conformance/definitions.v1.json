@@ -154,7 +154,8 @@
       },
       "normalizedDefinitionHash": "48a28c3b1acab7952b6407754874743d7d3d1a222362e791974e7389a943d477",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0037)"
+        "TargetTopologyConformanceTests.Certified(move-0037)",
+        "MultiTurnLockConformanceTests.Certified(move-0037)"
       ]
     },
     {
@@ -488,7 +489,8 @@
       },
       "normalizedDefinitionHash": "21d177c284f06165f7edb04450e1395e28214dee11f3b3e1a852684c10e5b789",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0080)"
+        "TargetTopologyConformanceTests.Certified(move-0080)",
+        "MultiTurnLockConformanceTests.Certified(move-0080)"
       ]
     },
     {
@@ -604,6 +606,50 @@
       "normalizedDefinitionHash": "0161fc412a280d7fb504958c84dfb523daafde152481885cba4f61c5787c5964",
       "testIds": [
         "ChargeConformanceTests.Certified(move-0091)"
+      ]
+    },
+    {
+      "referenceKey": "move-0111",
+      "sourceFileHash": "f615eb80de89253da9428214ff20c75a8544b47a72a3c99ff97adf72f06cbf92",
+      "payloadContentHash": "4eccd7a2312414d6fd7fc4010d3f867a1f27f03210f3aad1a86ef495e19e563c",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "multiTurnPowerBoost",
+        "statStage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 40,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "statStage",
+            "chance": 100,
+            "params": {
+              "stat": "def",
+              "delta": 1,
+              "onSelf": true
+            }
+          },
+          {
+            "op": "multiTurnPowerBoost",
+            "params": {
+              "key": "rollout",
+              "num": 2,
+              "den": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "b7112a5801df47587a26b1dfb9fa8aec1c66a39cdb253637a6258a9c3653c8ff",
+      "testIds": [
+        "MultiTurnLockConformanceTests.Certified(move-0111)"
       ]
     },
     {
@@ -1171,7 +1217,53 @@
       },
       "normalizedDefinitionHash": "484bf8ca4532b4729afd5fc76d9909a118bc7f0b442ad577c794ac3e38ad735e",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0200)"
+        "TargetTopologyConformanceTests.Certified(move-0200)",
+        "MultiTurnLockConformanceTests.Certified(move-0200)"
+      ]
+    },
+    {
+      "referenceKey": "move-0205",
+      "sourceFileHash": "5f93b58a0c2fc7c1b05d758d65a17b680b275d735156135d61298640e4b4b432",
+      "payloadContentHash": "cd41afbdddde7d8bc0d3c207c46f667132a0e7e079417af8d63fc1191af57f16",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "multiTurnLock",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_06",
+        "damageClass": "physical",
+        "power": 30,
+        "accuracy": 90,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "multiTurnLock",
+            "params": {
+              "minTurns": 5,
+              "maxTurns": 5,
+              "powerNum": 2,
+              "powerDen": 1,
+              "maxPowerStep": 4,
+              "endOnFailure": true,
+              "endEffect": "none",
+              "powerBoostKey": "rollout"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "77876b1d47737b4879df1036a152eae00aba880dfe1c204593a58d609008c17c",
+      "testIds": [
+        "MultiTurnLockConformanceTests.Certified(move-0205)"
       ]
     },
     {
@@ -1780,6 +1872,51 @@
       "normalizedDefinitionHash": "faea0f51e462d747c4f2940fe7e2ed5807bdc601fd9cd7e1e367a0497bcbcbf0",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0298)"
+      ]
+    },
+    {
+      "referenceKey": "move-0301",
+      "sourceFileHash": "88831c0d50d6752852636282551ac6875b57cd117bb8db9318f693795fca9438",
+      "payloadContentHash": "5806596eca1c496f87f55269992dc7a4611e663297bc1b65a87c010ae85c5783",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "multiTurnLock",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_15",
+        "damageClass": "physical",
+        "power": 30,
+        "accuracy": 90,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "multiTurnLock",
+            "params": {
+              "minTurns": 5,
+              "maxTurns": 5,
+              "powerNum": 2,
+              "powerDen": 1,
+              "maxPowerStep": 4,
+              "endOnFailure": true,
+              "endEffect": "none",
+              "powerBoostKey": "rollout"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "84189c39c86546d22f86931e3a4e945cc474b3151403ea06217619996c4b43a1",
+      "testIds": [
+        "MultiTurnLockConformanceTests.Certified(move-0301)"
       ]
     },
     {
@@ -4465,7 +4602,8 @@
       },
       "normalizedDefinitionHash": "a0e88d31ba253c1a1daa7959ddcb9783d491a407c7afc41f04c7780388c67338",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0833)"
+        "TargetTopologyConformanceTests.Certified(move-0833)",
+        "MultiTurnLockConformanceTests.Certified(move-0833)"
       ]
     },
     {

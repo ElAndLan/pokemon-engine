@@ -11,6 +11,22 @@ public sealed record StageAllEffect(int Delta, bool OnSelf, int Chance);
 /// <summary>A rational fraction (num/den) for drain/recoil/heal effect amounts.</summary>
 public readonly record struct Fraction(int Num, int Den);
 
+public enum MultiTurnLockEndEffect { None, Confusion }
+
+/// <summary>Reusable forced-repeat contract for rampage and consecutive-power move families.</summary>
+public sealed record MultiTurnLockProfile(
+    int MinTurns = 2,
+    int MaxTurns = 3,
+    bool RepeatPaysPp = false,
+    Fraction PowerStep = default,
+    int MaxPowerStep = 0,
+    bool EndOnFailure = false,
+    MultiTurnLockEndEffect EndEffect = MultiTurnLockEndEffect.Confusion,
+    string? PowerBoostKey = null)
+{
+    public Fraction EffectivePowerStep => PowerStep == default ? new Fraction(1, 1) : PowerStep;
+}
+
 public sealed record TargetHpThresholdPower(Fraction Threshold, Fraction Multiplier, bool Inclusive = true);
 public enum HpRatioPowerSource { User, Target }
 public enum HpRatioPowerBasis { Current, Missing }
@@ -38,7 +54,8 @@ public sealed class BattleMove
         IReadOnlyList<MoveEffect>? secondaryEffects = null,
         StatKind? offensiveStatOverride = null, StatKind? defensiveStatOverride = null,
         TargetHpThresholdPower? targetHpThresholdPower = null, HpRatioPower? hpRatioPower = null,
-        HpBandPower? hpBandPower = null, ChargeMoveEffect? charge = null)
+        HpBandPower? hpBandPower = null, ChargeMoveEffect? charge = null,
+        MultiTurnLockProfile? multiTurnLockProfile = null)
     {
         Move = move;
         Type = type;
@@ -73,7 +90,7 @@ public sealed class BattleMove
         CounterCategory = counterCategory;
         BypassAccuracy = bypassAccuracy;
         Charge = charge ?? (chargeTurn ? new ChargeMoveEffect() : null);
-        MultiTurnLock = multiTurnLock;
+        MultiTurnLockProfile = multiTurnLockProfile ?? (multiTurnLock ? new MultiTurnLockProfile() : null);
         MakesContact = makesContact;
         Target = target;
         OffensiveStatOverride = offensiveStatOverride;
@@ -83,8 +100,41 @@ public sealed class BattleMove
         HpBandPower = hpBandPower;
         SecondaryEffects = secondaryEffects ?? BuildSecondaryEffects();
         BattleChargeMechanics.Validate(Charge, SecondaryEffects);
+        ValidateMultiTurnLock(MultiTurnLockProfile, DamageClass, Power, Charge);
         BattleDelayedMechanics.Validate(SecondaryEffects, DamageClass, Power, Target, SelfDestruct,
             TargetHpThresholdPower is not null || HpRatioPower is not null || HpBandPower is not null);
+    }
+
+    private static void ValidateMultiTurnLock(MultiTurnLockProfile? profile, DamageClass damageClass,
+        int? power, ChargeMoveEffect? charge)
+    {
+        if (profile is null)
+            return;
+        Fraction step = profile.EffectivePowerStep;
+        if (damageClass == DamageClass.Status || power is null)
+            throw new ArgumentException("Multi-turn locks require a damaging move with authored power.");
+        if (charge is not null)
+            throw new ArgumentException("Multi-turn locks cannot be combined with charge.");
+        if (profile.MinTurns < 1 || profile.MaxTurns < profile.MinTurns || profile.MaxTurns > 16
+            || step.Num < 1 || step.Den < 1 || profile.MaxPowerStep < 0
+            || profile.MaxPowerStep >= profile.MaxTurns || !Enum.IsDefined(profile.EndEffect))
+            throw new ArgumentException("Multi-turn lock profile is outside its bounded vocabulary.");
+        if (profile.PowerBoostKey is not null && string.IsNullOrWhiteSpace(profile.PowerBoostKey))
+            throw new ArgumentException("Multi-turn lock power boost keys cannot be blank.");
+        try
+        {
+            int numerator = 1;
+            int denominator = 1;
+            for (int i = 0; i < profile.MaxPowerStep; i++)
+            {
+                numerator = checked(numerator * step.Num);
+                denominator = checked(denominator * step.Den);
+            }
+        }
+        catch (OverflowException ex)
+        {
+            throw new ArgumentException("Multi-turn lock power scaling exceeds bounded integer arithmetic.", ex);
+        }
     }
 
     private BattleMove(BattleMove source, int pp, int maxPp)
@@ -123,7 +173,7 @@ public sealed class BattleMove
         CounterCategory = source.CounterCategory;
         BypassAccuracy = source.BypassAccuracy;
         Charge = source.Charge;
-        MultiTurnLock = source.MultiTurnLock;
+        MultiTurnLockProfile = source.MultiTurnLockProfile;
         MakesContact = source.MakesContact;
         Target = source.Target;
         OffensiveStatOverride = source.OffensiveStatOverride;
@@ -240,8 +290,9 @@ public sealed class BattleMove
     public ChargeMoveEffect? Charge { get; }
     public bool ChargeTurn => Charge is not null;
 
-    /// <summary>Thrash/Outrage — locks the user into this move for 2–3 turns, then self-confuses (catalog §9.3).</summary>
-    public bool MultiTurnLock { get; }
+    /// <summary>Data-defined forced-repeat profile; null means the move does not start a lock.</summary>
+    public MultiTurnLockProfile? MultiTurnLockProfile { get; }
+    public bool MultiTurnLock => MultiTurnLockProfile is not null;
     public bool MakesContact { get; }
     public MoveTarget Target { get; }
     public StatKind? OffensiveStatOverride { get; }
@@ -356,9 +407,13 @@ public sealed class BattleCreature
     public bool IsCharging => ChargingMoveIndex is not null;
     public SemiInvulnerableState? SemiInvulnerableState { get; private set; }
 
-    /// <summary>Thrash/Outrage rampage lock (catalog §9.3 outrage_family): forced move + turns left.</summary>
+    /// <summary>Data-defined multi-turn lock: forced move, stored selection, ramp step, and turns left.</summary>
     public int LockedMoveIndex { get; private set; }
     public int LockTurns { get; private set; }
+    public int LockPowerStep { get; private set; }
+    public BattleActionSelection? LockedSelection { get; private set; }
+    public string? MultiTurnPowerBoostKey { get; private set; }
+    public Fraction MultiTurnPowerBoost { get; private set; } = new(1, 1);
     public bool IsLocked => LockTurns > 0;
     public int? ChoiceLockedMoveIndex { get; private set; }
     public int ActionsSinceSwitch { get; private set; }
@@ -634,9 +689,42 @@ public sealed class BattleCreature
         SemiInvulnerableState = null;
     }
 
-    public void StartLock(int moveIndex, int turns) { LockedMoveIndex = moveIndex; LockTurns = Math.Max(0, turns); }
-    /// <summary>Counts down the rampage lock (0 = the rampage ends this turn → self-confusion).</summary>
-    public void TickLock() { if (LockTurns > 0) LockTurns--; }
+    public void StartLock(int moveIndex, int turns, BattleActionSelection? selection = null)
+    {
+        if (moveIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(moveIndex));
+        LockedMoveIndex = moveIndex;
+        LockTurns = Math.Max(0, turns);
+        LockPowerStep = 0;
+        LockedSelection = selection;
+    }
+    /// <summary>Consumes one stored turn and advances the connected-use power step when requested.</summary>
+    public void AdvanceLock(bool advancePower)
+    {
+        if (LockTurns > 0)
+            LockTurns--;
+        if (advancePower && LockTurns > 0)
+            LockPowerStep++;
+    }
+    public void EndLock()
+    {
+        LockTurns = 0;
+        LockPowerStep = 0;
+        LockedSelection = null;
+    }
+    public void SetMultiTurnPowerBoost(string key, Fraction multiplier)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (multiplier.Num < 1 || multiplier.Den < 1)
+            throw new ArgumentOutOfRangeException(nameof(multiplier));
+        MultiTurnPowerBoostKey = key;
+        MultiTurnPowerBoost = multiplier;
+    }
+    public void ClearMultiTurnPowerBoost()
+    {
+        MultiTurnPowerBoostKey = null;
+        MultiTurnPowerBoost = new Fraction(1, 1);
+    }
     public void SetChoiceLock(int moveIndex) => ChoiceLockedMoveIndex ??= moveIndex;
     public void RecordMoveUse(EntityId move) { ActionsSinceSwitch++; LastMoveUsed = move; }
 
@@ -650,7 +738,8 @@ public sealed class BattleCreature
         TrapTurns = 0;
         ProtectChain = 0;
         StopCharging();
-        LockTurns = 0;
+        EndLock();
+        ClearMultiTurnPowerBoost();
         ChoiceLockedMoveIndex = null;
         ActionsSinceSwitch = 0;
         LastMoveUsed = null;

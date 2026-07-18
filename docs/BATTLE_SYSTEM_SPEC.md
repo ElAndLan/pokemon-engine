@@ -871,9 +871,10 @@ overrides a policy. An implementation package must not choose a different behavi
   in topology order; then validate collective conflicts. If any effective action is invalid, reject
   the entire turn before state, PP, stock, queues, events, or RNG change. After successful admission,
   phase 1 consumes exactly the queue entries that were previewed and emits their skip events.
-- A charging or rampage-locked actor's stored move index replaces the submitted move index for
+- A charging actor's stored move, or a multi-turn-locked actor's stored move and typed target
+  selection, replaces the submitted action for
   admission, target-selection validation, captured move identity, scheduling, and execution. The
-  stored move may continue at zero PP because its PP was paid when the timed sequence began. A
+  stored move may continue at zero PP when its profile says repeats do not pay PP. A
   submitted different move never changes which move or target shape is validated or resolved.
 - Each admitted action captures `(sourceSlot, actorPartyIndex)`. A later creature never inherits an
   action merely because it occupies the same slot. Immediately before an action phase and again
@@ -884,7 +885,8 @@ overrides a policy. An implementation package must not choose a different behavi
 Collective validation rejects all of the following before mutation:
 
 - two allied switches selecting the same reserve, any destination already active at selection, a
-  switch to an invalid/fainted destination, or a switch submitted by a trapped/locked source;
+  switch to an invalid/fainted destination, or a switch submitted by a trapped source; a multi-turn
+  lock has already replaced its submitted action before this collective check;
 - more than one temporary once-per-battle form activation for one side in the same turn;
 - aggregate item requests exceeding the side's stock; and
 - capture in a doubles topology. Capture remains a wild-singles action until a later explicit
@@ -980,15 +982,38 @@ context and are never multiplied by the number of active slots.
 The exact resolver order is:
 
 1. Revalidate actor identity, effective move index, timed lock state, and PP; a continuing charge or
-   rampage is legal at zero PP. Then run the existing source action-gate and status/volatile action
+   multi-turn repeat is legal at zero PP only when its profile says repeats do not pay PP. Then run
+   the existing source action-gate and status/volatile action
    checks in their specified order. Their source-level RNG draws occur here. A blocked actor stops
-   without PP, target, accuracy, hit-count, or effect draws. A rampage lock still consumes one of its
-   stored turns after the blocked action and self-confuses when that final stored turn ends.
+   without PP, target, accuracy, hit-count, or effect draws. A count-on-failure lock still consumes
+   one stored turn after the blocked action; an end-on-failure lock terminates visibly.
 2. Apply the shared timed-move lifecycle once for the source action. An ordinary move spends one PP.
    A charge sequence spends one PP and emits `Charging` on its first turn without `MoveUsed` or target
-   work; its forced firing turn spends no PP. A rampage sequence draws its 2–3-turn duration and spends
-   one PP on its first use; forced continuation turns spend no PP. Every resolving use then emits one
+   work; its forced firing turn spends no PP. A multi-turn sequence resolves its authored duration,
+   spends one PP on its first use, and applies its authored repeat-PP policy. Every resolving use emits one
    slot-aware `MoveUsed`. Singles and doubles use this same lifecycle before target materialization.
+
+#### Multi-turn lock profile and lifecycle
+
+`multiTurnLock` compiles to one bounded profile: inclusive `minTurns/maxTurns` (1-16),
+`repeatPaysPp`, rational `powerNum/powerDen`, zero-based `maxPowerStep`, `endOnFailure`, closed
+`endEffect`, and optional `powerBoostKey`. The default profile is a 2-3 turn, no-repeat-PP,
+count-on-failure lock followed by confusion. The fixed power-ramp profile is five turns, doubles
+base power after each connected execution through step four (16x cap), ends on prevention/failure/
+miss/no effect, and has no end effect. Scaling is an ordinary `BasePower` query multiplier and draws
+no RNG.
+
+Starting a lock stores the move index and typed selection on the source creature, emits
+`MultiTurnLockStarted`, and draws duration exactly once only for a variable range. Forced turns
+replace every submitted action and selection before admission; they never recursively create a new
+lock. Each surviving turn emits `MultiTurnLockContinued`. Completion, failed continuation, repeat-PP
+exhaustion, switch, or faint emits `MultiTurnLockEnded` with a closed reason. Switch/faint clears the
+lock and keyed boost. Post-lock confusion draws only after the completed lock-end event.
+
+`multiTurnPowerBoost { key, num, den }` records a keyed positive rational volatile on the source until
+switch/faint cleanup. A lock whose `powerBoostKey` matches composes that multiplier with its current
+ramp step. This is the reusable defense-boost interaction for reference rows `move-0111`,
+`move-0205`, and `move-0301`; no move identity participates in resolution.
 3. Materialize live targets and redirection. Random targeting draws here. Zero targets emits the
    target failure and stops.
    A side or field scope materializes exactly one non-creature context, with no accuracy check; it
