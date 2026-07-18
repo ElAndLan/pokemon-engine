@@ -2349,6 +2349,42 @@ Acceptance vectors: `ability-mutation-compile-validation`, `ability-operation-ma
 `ability-ai-parity`, `ability-event-trace-order`, `ability-definition-immutable`, and
 `ability-mutation-golden`.
 
+### Creature type mutation (Phase 15F-4)
+
+Creature types mutate only through the battle-owned `BattleCreatureTypeState`, which writes one
+permanent-instance `CreatureTypesOverlay` to `BattleOverlayStore`; `Species`, forms, and saved
+creatures stay immutable. The engine reads the recipient's current effective creature-type list,
+computes the resulting list for the operation, deduplicates preserving first occurrence, and admits
+the full replacement atomically. Grounded, STAB, effectiveness, immunity, and type-derived item/field
+queries already consume the same effective list, so no consumer special-cases mutated types.
+
+The closed operations are `replace`, `add`, `remove`, and `copy`. `replace` sets the recipient's
+effective types to the authored type list; `add` appends the authored types after the current
+effective types; `remove` drops every authored type from the current effective types; `copy` sets the
+recipient's effective types to a distinct source creature's current effective types. The recipient is
+the mutation subject; `copy` also names a source creature that must be a different creature than the
+subject. `replace`/`add`/`remove` carry a nonempty authored list of unique valid type IDs and no
+source; `copy` carries a source and no authored list.
+
+Every operation validates its full pre-state before writing. A fainted subject, or a fainted source
+for `copy`, fails with `Fainted` and writes nothing. After deduplication the result must be nonempty:
+an empty result uses the engine's configured empty-type fallback when one is set and otherwise fails
+with `WouldEmptyTypes`. A result longer than the engine's configured maximum effective type count
+fails with `ExceedsMax`. A result identical to the current effective list fails with `NoChange`
+(removing an absent type, adding only present types, replacing with the current list, or copying an
+identical list). Any failure leaves overlays, events, and traces untouched.
+
+Successful mutations write a single permanent-instance `CreatureTypesOverlay` cleared on switch,
+faint, or battle end, returning the current and resulting lists. Cleared overlays restore the
+immutable base creature types. The engine draws no RNG and emits no presentation events; the owning
+controller emits one owner-addressed `CreatureTypesMutated` event and one no-RNG effect trace per
+attempt.
+
+Acceptance vectors: `type-mutation-operations`, `type-mutation-dedupe-first`,
+`type-mutation-empty-fallback`, `type-mutation-max-count`, `type-mutation-no-change`,
+`type-mutation-fainted`, `type-mutation-copy-source`, `type-mutation-switch-faint-end-reversion`,
+`type-mutation-definition-immutable`, and `type-mutation-stab-effectiveness`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

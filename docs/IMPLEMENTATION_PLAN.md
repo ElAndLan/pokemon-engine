@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 152/937 certified; next eligible package is 15F-4 creature and move type overlays** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 152/937 certified; 15F-4 IN PROGRESS (creature-type mutation engine landed; op/controller/AI/conformance remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2517,6 +2517,25 @@ the focused ability/validation package passed 15 tests, focused ability plus rec
 passed 18 tests, the full Battle filter passed **1,291/1,291**, and the full solution passed
 **1,881/1,881** (1,577 Core, 104 Creator, 21 Runtime, 179 Tools). Next eligible package:
 **15F-4 creature and move type overlays**.
+
+Progress (2026-07-18): **15F-4 IN PROGRESS — creature-type mutation engine landed.** The battle spec
+now locks the closed `replace`/`add`/`remove`/`copy` creature-type operations over the shared
+effective-value overlay path. `BattleCreatureTypeState` reads the subject's current effective type
+list, computes the result, deduplicates preserving first occurrence, and admits one permanent-instance
+`CreatureTypesOverlay` atomically; `Species`, forms, and saved creatures stay immutable. It preflights
+fainted subject/copy-source, enforces a configured maximum effective type count (`ExceedsMax`), applies
+a configured empty-type fallback or fails `WouldEmptyTypes`, rejects no-op results (`NoChange`), and
+requires a distinct source for `copy` and a unique nonempty valid type list for the list operations.
+Cleared overlays restore base types on switch, faint, or battle end; existing grounded/STAB/
+effectiveness/immunity consumers already read the same effective list, so no consumer special-cases
+mutated types. The engine draws no RNG and emits no events; the owning controller will emit the
+`CreatureTypesMutated` event and effect trace. Schema/migration/RNG impact: none; no move cohort newly
+certified (shared engine). Verification: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx
+--no-restore` passed with 0 warnings/errors; the new `BattleCreatureTypeMutationTests` passed 11
+tests, the full Battle filter passed 1,302, and the full solution passed **1,892/1,892** (1,588 Core,
+104 Creator, 21 Runtime, 179 Tools). Remaining for 15F-4: `typeMutation` move-op compile/validation,
+`BattleController` dispatch + `CreatureTypesMutated` event/trace, Smart AI parity, move-type override
+precedence, and generated conformance vectors.
 
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
