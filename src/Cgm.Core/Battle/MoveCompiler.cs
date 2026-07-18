@@ -559,6 +559,54 @@ public static class MoveCompiler
                     effects.Add(new ChargeStartStatEffect(chargeStat, chargeDelta));
                     break;
 
+                case "delayedDamage":
+                    if (chance != 100)
+                        throw new ArgumentException("delayedDamage does not support chance.");
+                    CheckAllowedParams(e, "turns", "sourceRequired", "uniquePerSlot");
+                    effects.Add(new DelayedDamageEffect(Int(e, "turns"),
+                        Bool(e, "sourceRequired"), Bool(e, "uniquePerSlot")));
+                    break;
+
+                case "delayedHeal":
+                    if (chance != 100)
+                        throw new ArgumentException("delayedHeal does not support chance.");
+                    CheckAllowedParams(e, "turns", "num", "den", "basis", "targetPolicy",
+                        "sourceRequired");
+                    effects.Add(new DelayedHealEffect(
+                        Int(e, "turns"),
+                        new Fraction(Int(e, "num"), Int(e, "den")),
+                        e.Params?.ContainsKey("basis") == true
+                            ? Parse<DelayedHealBasis>(Str(e, "basis"), "delayed-heal basis")
+                            : DelayedHealBasis.SourceMaxHp,
+                        e.Params?.ContainsKey("targetPolicy") == true
+                            ? Parse<BattleIntentTargetPolicy>(Str(e, "targetPolicy"), "delayed-heal target policy")
+                            : BattleIntentTargetPolicy.LiveSlot,
+                        Bool(e, "sourceRequired")));
+                    break;
+
+                case "delayedStatus":
+                    if (chance != 100)
+                        throw new ArgumentException("delayedStatus does not support chance.");
+                    CheckAllowedParams(e, "turns", "status", "targetPolicy", "sourceRequired");
+                    effects.Add(new DelayedStatusEffect(
+                        Int(e, "turns"),
+                        Parse<PersistentStatus>(Str(e, "status"), "delayed status"),
+                        e.Params?.ContainsKey("targetPolicy") == true
+                            ? Parse<BattleIntentTargetPolicy>(Str(e, "targetPolicy"), "delayed-status target policy")
+                            : BattleIntentTargetPolicy.SnapshotSlot,
+                        Bool(e, "sourceRequired")));
+                    break;
+
+                case "replacementRestore":
+                    if (chance != 100)
+                        throw new ArgumentException("replacementRestore does not support chance.");
+                    CheckAllowedParams(e, "hp", "status", "pp");
+                    effects.Add(new ReplacementRestoreEffect(
+                        e.Params?.ContainsKey("hp") != true || Bool(e, "hp"),
+                        e.Params?.ContainsKey("status") != true || Bool(e, "status"),
+                        Bool(e, "pp")));
+                    break;
+
                 case "multiTurnLock": // Thrash/Outrage rampage lock (catalog §9.3)
                     multiTurnLock = true;
                     break;
@@ -1071,7 +1119,7 @@ public static class MoveCompiler
             throw new ArgumentException("Critical-chance and final-damage query modifiers require a damaging move.");
         if (effects.OfType<MoveQueryModifierEffect>().Any(effect => effect.Query == BattleQueryId.Healing)
             && !effects.Any(effect => effect is DrainEffect or HealEffect
-                or HpFractionEffect { Operation: HpFractionOperation.Heal }))
+                or HpFractionEffect { Operation: HpFractionOperation.Heal } or DelayedHealEffect))
             throw new ArgumentException("Healing query modifiers require move-originated healing.");
         if (effects.OfType<OneShotQueryEffect>().SingleOrDefault() is { } oneShot)
         {
@@ -1095,6 +1143,12 @@ public static class MoveCompiler
             throw new ArgumentException("chargeStartStat requires chargeTurn.");
         if (charge is not null && move.Target is (MoveTarget.FaintingPokemon or MoveTarget.SpecificMove))
             throw new ArgumentException("chargeTurn does not support party-member or move-reference targets.");
+        BattleDelayedMechanics.Validate(effects, move.DamageClass, move.Power, move.Target, selfDestruct,
+            replacementPowerFormulas > 0);
+        int replacementIndex = effects.FindIndex(effect => effect is ReplacementRestoreEffect);
+        int selfDestructIndex = effects.FindIndex(effect => effect is SelfDestructEffect);
+        if (replacementIndex >= 0 && replacementIndex > selfDestructIndex)
+            throw new ArgumentException("replacementRestore must execute before selfDestruct.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
             && fixedDamage is null && !fixedDamageLevel && !ohko && counterCategory is null
             && !effects.OfType<HpFractionEffect>().Any(effect => effect.Operation == HpFractionOperation.Damage)

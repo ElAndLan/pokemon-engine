@@ -1205,6 +1205,58 @@ the opponent's current submitted action or hidden future RNG. Acceptance vectors
 `semi-state-miss-no-rng`, `semi-hit-accuracy-power-order`, `charge-doubles-isolation`,
 `charge-ai-parity`, `charge-conformance`, and `charge-golden`.
 
+#### Delayed slot-action registry (Phase 15D-4)
+
+All delayed work extends `BattleIntentQueue`; no move or condition owns a private timer. The closed
+ops are:
+
+- `delayedDamage { turns, sourceRequired?, uniquePerSlot? }` on one selected fixed-power damaging move;
+- `delayedHeal { turns, num, den, basis?: sourceMaxHp|targetMaxHp,
+  targetPolicy?: liveSlot|snapshotSlot, sourceRequired? }`;
+- `delayedStatus { turns, status, targetPolicy?: snapshotSlot|liveSlot, sourceRequired? }`; and
+- `replacementRestore { hp?, status?, pp? }` before an authored `selfDestruct` row.
+
+Every op is unique and chance-free. `turns` is bounded to 1..16 complete turns after the use
+turn and queues a `TurnEnd` intent for `currentTurn + turns`. Fractions are positive. Replacement
+restore requires at least one enabled resource, a self target, and `selfDestruct`; it fails before
+self-destruction when no healthy reserve exists. These are effect params inside the existing open
+payload, so they do not alter serialized project shape.
+
+Delayed damage performs ordinary selection, protection, and accuracy at use time, pays PP once,
+then queues instead of dealing immediate damage. The payload snapshots source level, resolved base
+power, resolved offensive stat, effective move type/class, STAB, burn penalty, source groundedness,
+move final-damage modifiers, source identity, and ruleset. It never rolls a critical hit. At
+execution it materializes the live destination slot, reads the replacement's live effective types,
+defensive stat/stage and current weather/terrain/side hooks, draws the one ordinary 85..100 damage
+roll, and applies standard damage/faint/history/event/query paths. Protection and Endure-like
+personal guards are use-time gates, not execution-time gates. Immunity is evaluated at execution and
+skips the damage roll. `uniquePerSlot` rejects another pending delayed-damage row for that slot.
+
+Delayed healing snapshots its amount and authored `Healing` modifiers at use time, then evaluates
+that query against the execution-time target and field context; a zero result is an eventful blocked
+resolution. Later condition-owned heal locks must enter this same query rather than adding a delayed-
+move branch. Delayed status re-runs live status vacancy, type immunity, terrain and side guards at
+execution and adds no RNG. `snapshotSlot` fails if the captured occupant changed; `liveSlot` applies
+to the current living replacement. Source switch/faint is irrelevant unless `sourceRequired=true`,
+which is checked visibly at execution rather than silently deleting the intent.
+
+`replacementRestore` is a slot-owned `SwitchIn` intent. Entry hooks and hazards run first. A fainted
+or currently ineligible full/healthy replacement defers the same bounded intent for a later switch;
+the first living replacement needing any selected resource receives full HP, major-status cure, and
+optional full PP through ordinary events, then consumes it. Multiple due intents for one slot resolve
+by queue insertion sequence. Turn-end batches likewise consume their entry snapshot in due-turn,
+checkpoint, sequence order; same-checkpoint insertions defer to the next checkpoint pass.
+
+Every enqueue emits `DelayedActionQueued`; execution emits `DelayedActionResolved` or a typed
+`DelayedActionFailed`, plus ordinary `DamageDealt`, `Fainted`, `Healed`, `StatusApplied`,
+`StatusCured`, and `PpRestored` events as applicable. Intent and `DelayedAction` traces preserve
+sequence, payload kind, target, result, and event range. Smart AI may score only visible authored
+delayed effects and current party state; it never reads pending opponent intents or submitted
+actions. Acceptance vectors are `delayed-compile-validation`, `delayed-source-snapshot`,
+`delayed-live-snapshot-target`, `delayed-source-gone`, `delayed-immunity-heal-block`,
+`delayed-status-guards`, `delayed-replacement-hazard`, `delayed-sequence-order`,
+`delayed-doubles-isolation`, `delayed-ai-parity`, `delayed-conformance`, and `delayed-golden`.
+
 #### Typed intent queue lifecycle (Phase 15D-1)
 
 All future battle work uses one `BattleIntentQueue`; no condition or move owns a private delayed-work
@@ -1223,8 +1275,8 @@ Every intent record contains:
   creature's party index when creature identity applies;
 - target policy (`snapshotSlot`, `liveSlot`, `source`, `side`, `field`) plus the exact slot/side and
   snapshotted party index required by that policy;
-- one typed payload; `skipAction` and 15D-3 `releaseMove` are implemented, while later 15D packages
-  extend the union with delayed damage/heal/condition and called-move payloads before using them;
+- one typed payload; `skipAction`, `releaseMove`, delayed damage/heal/status, and replacement restore
+  are implemented, while later 15D packages extend the union with called-move payloads before use;
 - source move ID, source action sequence, nonblank ruleset profile, switch policy
   (`cancel`, `followOwner`, `staySlot`), and faint policy (`cancel`, `persist`).
 

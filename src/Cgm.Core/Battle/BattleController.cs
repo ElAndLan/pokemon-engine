@@ -780,6 +780,14 @@ public sealed class BattleController
             return sideProtected || priorityBlocked ? BattleActionResult.Failed : BattleActionResult.Missed;
         }
 
+        if (move.SecondaryEffects.OfType<DelayedDamageEffect>().SingleOrDefault() is { } delayedDamage)
+        {
+            bool queued = true;
+            foreach (BattleTargetContext target in accurateTargets)
+                queued &= QueueDelayedDamage(actionContext, target, delayedDamage);
+            return queued ? BattleActionResult.Succeeded : BattleActionResult.Failed;
+        }
+
         if (move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel)
         {
             foreach (BattleTargetContext targetContext in accurateTargets)
@@ -1183,6 +1191,7 @@ public sealed class BattleController
         _overlays.OwnerSwitched(slot.Side, index, slot, Turn, _traceActionSequence);
         _log.Add(new SwitchedIn(slot, index));
         OnSwitchIn(slot);
+        ResolveSwitchInIntents(slot);
     }
 
     private void ResolveMoves(BattleTurnActions actions)
@@ -1811,6 +1820,14 @@ public sealed class BattleController
             return;
         }
 
+        if (move.SecondaryEffects.OfType<DelayedDamageEffect>().SingleOrDefault() is { } delayedDamage)
+        {
+            bool queued = QueueDelayedDamage(actionContext, targetContext, delayedDamage);
+            _actionHistory.Complete(attempt,
+                queued ? BattleActionResult.Succeeded : BattleActionResult.Failed, [targetOwner]);
+            return;
+        }
+
         ApplyBeforeDamageSideRemovals(actionContext, [targetContext]);
         int? randomPower = SelectRandomPower(sourceSlot, move, traceAction);
 
@@ -2036,6 +2053,14 @@ public sealed class BattleController
             case OneShotQueryEffect query:
                 ApplyOneShotQuery(ctx, query);
                 break;
+            case DelayedDamageEffect:
+                break; // queued before the ordinary damage pipeline.
+            case DelayedHealEffect delayedHeal:
+                return QueueDelayedHeal(ctx, delayedHeal);
+            case DelayedStatusEffect delayedStatus:
+                return QueueDelayedStatus(ctx, delayedStatus);
+            case ReplacementRestoreEffect replacement:
+                return QueueReplacementRestore(ctx, replacement);
             case RecoilEffect r when ctx.ActionDamageDealt > 0:
                 Sap(ctx.Source, ctx.SourceSlot, EffectMath.RecoilDamage(ctx.ActionDamageDealt, r.Fraction.Num, r.Fraction.Den),
                     amt => new Recoiled(ctx.SourceSlot, amt));
@@ -2522,6 +2547,446 @@ public sealed class BattleController
             Ruleset));
         AddIntentTrace(intent, EffectTraceKind.IntentEnqueued, true, _log.Count, _log.Count);
     }
+
+    private bool QueueDelayedDamage(BattleActionContext action, BattleTargetContext target,
+        DelayedDamageEffect effect)
+    {
+        if (effect.UniquePerSlot && IntentQueueSnapshot.Any(intent =>
+                intent.Payload == BattleIntentPayloadKind.DelayedDamage
+                && intent.TargetSlot == target.TargetSlot))
+        {
+            _log.Add(new DelayedActionFailed(target.TargetSlot, action.Move.Move,
+                BattleIntentPayloadKind.DelayedDamage, DelayedActionFailureReason.SlotOccupied));
+            action.MarkFailed();
+            return false;
+        }
+
+        DelayedDamageSnapshot snapshot = SnapshotDelayedDamage(action, target);
+        BattleIntent intent = EnqueueDelayed(action, target.TargetSlot, effect.Turns,
+            BattleIntentTargetPolicy.LiveSlot,
+            new DelayedDamageIntent(snapshot, action.SourceSlot, ActiveIndex(action.SourceSlot),
+                effect.SourceRequired));
+        RecordDelayedEnqueue(intent, action.SourceSlot, target.TargetSlot);
+        return true;
+    }
+
+    private DelayedDamageSnapshot SnapshotDelayedDamage(BattleActionContext action,
+        BattleTargetContext target)
+    {
+        BattleMove move = action.Move;
+        BattleMoveIdentityQueryResult identity = EffectiveMoveIdentity(action.SourceSlot, move,
+            action.TraceAction);
+        BattleEffectiveValues sourceValues = EffectiveValues(action.SourceSlot);
+        StatKind offensiveStat = identity.EffectiveClass == DamageClass.Physical
+            ? StatKind.Atk : StatKind.Spa;
+        var context = new BattleQueryContext(action.SourceSlot, action.Source,
+            target.TargetSlot, target.Target, CurrentWeather, Ruleset, CurrentTerrain);
+        BattleQueryResult offensive = BattleQuery.Evaluate(BattleQueryId.OffensiveStat,
+            new BattleQueryValue(StatValue(sourceValues.Stats, offensiveStat)),
+            [
+                new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                    BattleQuery.StatStageMultiplier(action.Source.Stage(offensiveStat)), InsertionOrder: 0),
+                .. StatHookModifiers(action.SourceSlot, target.TargetSlot, action.SourceSlot,
+                    offensiveStat, BattleQueryId.OffensiveStat),
+            ], context);
+        _queryTrace.Add(new BattleQueryTraceEntry(Turn, action.TraceAction,
+            action.SourceSlot, target.TargetSlot, offensive));
+
+        BattleHookDispatchSnapshot field = FieldConditions.CollectBasePowerHooks(
+            ConditionSnapshot, identity.EffectiveType.Slug, Ruleset, action.TraceAction);
+        _hookTrace.AddRange(field.Trace);
+        BattleQueryResult power = BattleQuery.Evaluate(BattleQueryId.BasePower,
+            new BattleQueryValue(move.Power!.Value), field.QueryModifiers(BattleQueryId.BasePower), context);
+        _queryTrace.Add(new BattleQueryTraceEntry(Turn, action.TraceAction,
+            action.SourceSlot, target.TargetSlot, power));
+
+        return new DelayedDamageSnapshot(action.Source.Level, power.FinalValue.ToInt32(),
+            offensive.FinalValue.ToInt32(), identity.EffectiveType, identity.EffectiveClass,
+            sourceValues.CreatureTypes.Contains(identity.EffectiveType),
+            action.Source.Status == PersistentStatus.Burn && identity.EffectiveClass == DamageClass.Physical,
+            IsGrounded(action.SourceSlot), BattleActionQueries.MoveModifiers(move, BattleQueryId.FinalDamage));
+    }
+
+    private bool QueueDelayedHeal(EffectContext ctx, DelayedHealEffect effect)
+    {
+        int basis = effect.Basis == DelayedHealBasis.SourceMaxHp ? ctx.Source.MaxHp : ctx.Target.MaxHp;
+        int amount = EffectMath.HealAmount(basis, effect.Fraction.Num, effect.Fraction.Den);
+        BattleIntent intent = EnqueueDelayed(ctx.Action, ctx.TargetSlot, effect.Turns,
+            effect.TargetPolicy, new DelayedHealIntent(amount, ctx.SourceSlot,
+                ActiveIndex(ctx.SourceSlot), effect.SourceRequired,
+                BattleActionQueries.MoveModifiers(ctx.Move, BattleQueryId.Healing)));
+        RecordDelayedEnqueue(intent, ctx.SourceSlot, ctx.TargetSlot);
+        return true;
+    }
+
+    private bool QueueDelayedStatus(EffectContext ctx, DelayedStatusEffect effect)
+    {
+        BattleIntent intent = EnqueueDelayed(ctx.Action, ctx.TargetSlot, effect.Turns,
+            effect.TargetPolicy, new DelayedStatusIntent(effect.Status, ctx.SourceSlot,
+                ActiveIndex(ctx.SourceSlot), effect.SourceRequired));
+        RecordDelayedEnqueue(intent, ctx.SourceSlot, ctx.TargetSlot);
+        return true;
+    }
+
+    private bool QueueReplacementRestore(EffectContext ctx, ReplacementRestoreEffect effect)
+    {
+        bool hasReserve = _parties[(int)ctx.SourceSide]
+            .Select((creature, index) => (creature, index))
+            .Any(candidate => !candidate.creature.IsFainted
+                && !_activeSlots.IsActive(ctx.SourceSide, candidate.index));
+        if (!hasReserve)
+        {
+            _log.Add(new DelayedActionFailed(ctx.SourceSlot, ctx.Move.Move,
+                BattleIntentPayloadKind.ReplacementRestore, DelayedActionFailureReason.NoReserve));
+            ctx.Action.MarkFailed();
+            return false;
+        }
+
+        BattleIntent intent = _intentQueue.Enqueue(new BattleIntentRequest(
+            Turn,
+            BattleIntentCheckpoint.SwitchIn,
+            new BattleIntentOwner(BattleIntentOwnerScope.Slot, ctx.SourceSide, ctx.SourceSlot,
+                null, BattleIntentSwitchPolicy.StaySlot, BattleIntentFaintPolicy.Persist),
+            new BattleIntentTarget(BattleIntentTargetPolicy.LiveSlot, ctx.SourceSlot,
+                Side: ctx.SourceSide),
+            new ReplacementRestoreIntent(effect.RestoreHp, effect.CureStatus, effect.RestorePp),
+            ctx.Move.Move,
+            ctx.TraceAction,
+            Ruleset));
+        RecordDelayedEnqueue(intent, ctx.SourceSlot, ctx.SourceSlot);
+        return true;
+    }
+
+    private BattleIntent EnqueueDelayed(BattleActionContext action, BattleSlot targetSlot, int turns,
+        BattleIntentTargetPolicy policy, BattleIntentPayload payload)
+    {
+        BattleIntentTarget target = policy == BattleIntentTargetPolicy.SnapshotSlot
+            ? new BattleIntentTarget(policy, targetSlot, ActiveIndex(targetSlot), targetSlot.Side)
+            : new BattleIntentTarget(policy, targetSlot, Side: targetSlot.Side);
+        return _intentQueue.Enqueue(new BattleIntentRequest(
+            Turn + turns,
+            BattleIntentCheckpoint.TurnEnd,
+            new BattleIntentOwner(BattleIntentOwnerScope.Field, action.SourceSide),
+            target,
+            payload,
+            action.Move.Move,
+            action.TraceAction,
+            Ruleset));
+    }
+
+    private void RecordDelayedEnqueue(BattleIntent intent, BattleSlot source, BattleSlot target)
+    {
+        int start = _log.Count;
+        _log.Add(new DelayedActionQueued(source, target, intent.SourceMove,
+            intent.Payload.Kind, intent.DueTurn));
+        AddIntentTrace(intent, EffectTraceKind.IntentEnqueued, true, start, _log.Count);
+        AddTrace(intent.SourceActionSequence, source, target, EffectTraceKind.DelayedAction,
+            false, null, 1, start, _log.Count);
+    }
+
+    private void ResolveTurnEndIntents()
+    {
+        BattleIntentPreview preview = _intentQueue.Preview(Turn, BattleIntentCheckpoint.TurnEnd);
+        IReadOnlyList<BattleIntent> consumed = _intentQueue.Consume(preview);
+        foreach (BattleIntent intent in consumed)
+        {
+            int start = _log.Count;
+            int traceAction = ++_traceActionSequence;
+            switch (intent.Payload)
+            {
+                case DelayedDamageIntent damage:
+                    ResolveDelayedDamage(intent, damage, traceAction);
+                    break;
+                case DelayedHealIntent heal:
+                    ResolveDelayedHeal(intent, heal, traceAction);
+                    break;
+                case DelayedStatusIntent status:
+                    ResolveDelayedStatus(intent, status, traceAction);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Payload '{intent.Payload.Kind}' cannot run at TurnEnd.");
+            }
+            AddIntentTrace(intent, EffectTraceKind.IntentConsumed, true, start, _log.Count);
+            AddTrace(traceAction, intent.Owner.LastKnownSlot ?? new BattleSlot(intent.Owner.Side, 0),
+                intent.Target.Slot, EffectTraceKind.DelayedAction, false, null, 1, start, _log.Count);
+        }
+        foreach (BattleIntent intent in _intentQueue.Complete(preview))
+            AddIntentTrace(intent, EffectTraceKind.IntentDeferred, false, _log.Count, _log.Count);
+    }
+
+    private void ResolveDelayedDamage(BattleIntent intent, DelayedDamageIntent payload,
+        int traceAction)
+    {
+        BattleIntentResolvedTarget? resolved = ResolveIntentTarget(intent);
+        if (resolved?.Slot is not { } targetSlot)
+        {
+            DelayedFailure(intent, null, DelayedActionFailureReason.TargetUnavailable);
+            return;
+        }
+        if (!SourceAvailable(payload.SourceSlot, payload.SourcePartyIndex, payload.SourceRequired))
+        {
+            DelayedFailure(intent, targetSlot, DelayedActionFailureReason.SourceUnavailable);
+            return;
+        }
+
+        BattleCreature target = Active(targetSlot);
+        DelayedDamageSnapshot snapshot = payload.Snapshot;
+        var context = new BattleQueryContext(payload.SourceSlot, null, targetSlot, target,
+            CurrentWeather, intent.Ruleset, CurrentTerrain);
+        BattleQueryValue authoredEffectiveness = new(1);
+        foreach (EntityId targetType in EffectiveTypes(targetSlot))
+            authoredEffectiveness = TypeChart.Multiply(authoredEffectiveness,
+                _chart.SingleValue(snapshot.MoveType, targetType));
+        BattleQueryResult effectivenessResult = BattleQuery.Evaluate(BattleQueryId.Effectiveness,
+            authoredEffectiveness, null, context);
+        _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction,
+            payload.SourceSlot, targetSlot, effectivenessResult));
+        double effectiveness = TypeChart.ToDouble(effectivenessResult.FinalValue);
+        BattleHistoryOwner sourceOwner = new(payload.SourceSlot.Side, payload.SourcePartyIndex,
+            payload.SourceSlot);
+        BattleHistoryOwner targetOwner = HistoryOwner(targetSlot);
+        BattleActionAttemptId attempt = _actionHistory.BeginMove(traceAction, sourceOwner,
+            intent.SourceMove);
+        _actionHistory.MarkStarted(attempt);
+        if (effectiveness <= 0)
+        {
+            DamageApplication immune = DealMoveDamage(target, targetSlot, 0, effectiveness,
+                crit: false, applySurvival: false);
+            RecordDelayedDamage(intent, attempt, sourceOwner, targetOwner, payload,
+                0, immune, BattleDamageFailure.Immune);
+            _actionHistory.Complete(attempt, BattleActionResult.Failed, [targetOwner]);
+            DelayedFailure(intent, targetSlot, DelayedActionFailureReason.Immune);
+            return;
+        }
+
+        StatKind defensiveStat = snapshot.DamageClass == DamageClass.Physical
+            ? StatKind.Def : StatKind.Spd;
+        defensiveStat = FieldConditions.DefensiveStat(ConditionSnapshot, defensiveStat);
+        BattleEffectiveValues targetValues = EffectiveValues(targetSlot);
+        BattleQueryResult defense = BattleQuery.Evaluate(BattleQueryId.DefensiveStat,
+            new BattleQueryValue(StatValue(targetValues.Stats, defensiveStat)),
+            [
+                new(BattleQueryStage.SourceTargetState, BattleQueryOperation.Multiply,
+                    BattleQuery.StatStageMultiplier(target.Stage(defensiveStat)), InsertionOrder: 0),
+                .. StatHookModifiers(payload.SourceSlot, targetSlot, targetSlot,
+                    defensiveStat, BattleQueryId.DefensiveStat),
+            ], context);
+        _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction,
+            payload.SourceSlot, targetSlot, defense));
+        int roll = BattleRolls.DamageRoll(_rng, out int damageRollDraw);
+        AddTrace(traceAction, payload.SourceSlot, targetSlot, EffectTraceKind.DamageRoll,
+            true, damageRollDraw, roll, _log.Count, _log.Count, 16);
+        int calculated = DamageCalc.Compute(snapshot.Level, snapshot.Power, snapshot.OffensiveStat,
+            defense.FinalValue.ToInt32(), effectiveness, snapshot.Stab ? 1.5 : 1,
+            crit: false, roll, snapshot.Burn);
+        IReadOnlyList<BattleQueryModifier> hooks = DelayedDamageModifiers(snapshot, targetSlot,
+            traceAction);
+        BattleQueryResult finalDamage = BattleQuery.Evaluate(BattleQueryId.FinalDamage,
+            new BattleQueryValue(calculated), [.. snapshot.FinalDamageModifiers, .. hooks], context);
+        _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction,
+            payload.SourceSlot, targetSlot, finalDamage));
+        calculated = finalDamage.FinalValue.ToInt32();
+        DamageApplication applied = DealMoveDamage(target, targetSlot, calculated, effectiveness,
+            crit: false, applySurvival: false);
+        target.RecordDamageTaken(snapshot.DamageClass, applied.ActualHpRemoved);
+        RecordDelayedDamage(intent, attempt, sourceOwner, targetOwner, payload, calculated,
+            applied, applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage);
+        _actionHistory.Complete(attempt, applied.ActualHpRemoved > 0
+            ? BattleActionResult.Connected : BattleActionResult.Failed, [targetOwner]);
+        _log.Add(new DelayedActionResolved(targetSlot, intent.SourceMove, intent.Payload.Kind));
+    }
+
+    private IReadOnlyList<BattleQueryModifier> DelayedDamageModifiers(
+        DelayedDamageSnapshot snapshot, BattleSlot targetSlot, int traceAction)
+    {
+        var modifiers = new List<BattleQueryModifier>();
+        BattleHookDispatchSnapshot weather = WeatherConditions.CollectDamageHooks(
+            ConditionSnapshot, snapshot.MoveType.Slug, traceAction);
+        _hookTrace.AddRange(weather.Trace);
+        Append(weather.QueryModifiers(BattleQueryId.FinalDamage));
+        BattleHookDispatchSnapshot terrain = TerrainConditions.CollectDamageHooks(
+            ConditionSnapshot, snapshot.MoveType.Slug, snapshot.SourceGrounded,
+            IsGrounded(targetSlot), traceAction);
+        _hookTrace.AddRange(terrain.Trace);
+        Append(terrain.QueryModifiers(BattleQueryId.FinalDamage));
+        BattleHookDispatchSnapshot side = SideConditions.CollectDamageHooks(ConditionSnapshot,
+            targetSlot.Side, snapshot.DamageClass, Topology.ActiveSlotsPerSide, critical: false,
+            bypass: false, traceAction);
+        _hookTrace.AddRange(side.Trace);
+        Append(side.QueryModifiers(BattleQueryId.FinalDamage));
+        return modifiers;
+
+        void Append(IEnumerable<BattleQueryModifier> incoming)
+        {
+            foreach (BattleQueryModifier modifier in incoming)
+                modifiers.Add(modifier with { InsertionOrder = modifiers.Count });
+        }
+    }
+
+    private void RecordDelayedDamage(BattleIntent intent, BattleActionAttemptId attempt,
+        BattleHistoryOwner source, BattleHistoryOwner target, DelayedDamageIntent payload,
+        int calculated, DamageApplication damage, BattleDamageFailure failure)
+    {
+        bool connected = damage.ActualHpRemoved > 0;
+        _actionHistory.RecordDamage(new BattleDamageRecord(
+            attempt, source, target, intent.SourceMove,
+            payload.Snapshot.DamageClass, payload.Snapshot.MoveType, BattleDamageCause.Standard,
+            1, true, connected, failure, calculated, damage.AppliedDamage, damage.ActualHpRemoved,
+            false, false, false, connected && Active(target.Slot).IsFainted));
+    }
+
+    private void ResolveDelayedHeal(BattleIntent intent, DelayedHealIntent payload, int traceAction)
+    {
+        BattleIntentResolvedTarget? resolved = ResolveIntentTarget(intent);
+        if (resolved?.Slot is not { } targetSlot)
+        {
+            DelayedFailure(intent, null, DelayedActionFailureReason.TargetUnavailable);
+            return;
+        }
+        if (!SourceAvailable(payload.SourceSlot, payload.SourcePartyIndex, payload.SourceRequired))
+        {
+            DelayedFailure(intent, targetSlot, DelayedActionFailureReason.SourceUnavailable);
+            return;
+        }
+
+        BattleCreature target = Active(targetSlot);
+        var context = new BattleQueryContext(payload.SourceSlot, null, targetSlot, target,
+            CurrentWeather, intent.Ruleset, CurrentTerrain);
+        BattleQueryResult healing = BattleQuery.Evaluate(BattleQueryId.Healing,
+            new BattleQueryValue(payload.Amount), payload.Modifiers, context);
+        _queryTrace.Add(new BattleQueryTraceEntry(Turn, traceAction,
+            payload.SourceSlot, targetSlot, healing));
+        int amount = healing.FinalValue.ToInt32();
+        if (amount <= 0)
+        {
+            DelayedFailure(intent, targetSlot, DelayedActionFailureReason.HealingBlocked);
+            return;
+        }
+        int before = target.CurrentHp;
+        target.Heal(amount);
+        if (target.CurrentHp > before)
+            _log.Add(new Healed(targetSlot, target.CurrentHp - before));
+        _log.Add(new DelayedActionResolved(targetSlot, intent.SourceMove, intent.Payload.Kind));
+    }
+
+    private void ResolveDelayedStatus(BattleIntent intent, DelayedStatusIntent payload,
+        int traceAction)
+    {
+        BattleIntentResolvedTarget? resolved = ResolveIntentTarget(intent);
+        if (resolved?.Slot is not { } targetSlot)
+        {
+            DelayedFailure(intent, null, DelayedActionFailureReason.TargetUnavailable);
+            return;
+        }
+        if (!SourceAvailable(payload.SourceSlot, payload.SourcePartyIndex, payload.SourceRequired))
+        {
+            DelayedFailure(intent, targetSlot, DelayedActionFailureReason.SourceUnavailable);
+            return;
+        }
+
+        BattleCreature target = Active(targetSlot);
+        bool eligible = StatusEffects.CanApplyStatus(target.Status)
+            && !StatusEffects.TypeImmuneToStatus(payload.Status, EffectiveTypes(targetSlot))
+            && !BlocksStatus(targetSlot, payload.Status);
+        if (eligible)
+        {
+            BattleHookDispatchSnapshot weather = WeatherConditions.CollectStatusHooks(
+                ConditionSnapshot, payload.Status, traceAction);
+            _hookTrace.AddRange(weather.Trace);
+            eligible = !weather.Filters().Any(filter => filter is
+                { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
+        }
+        if (eligible)
+        {
+            BattleHookDispatchSnapshot terrain = TerrainConditions.CollectStatusHooks(
+                ConditionSnapshot, payload.Status, IsGrounded(targetSlot), traceAction);
+            _hookTrace.AddRange(terrain.Trace);
+            eligible = !terrain.Filters().Any(filter => filter is
+                { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
+        }
+        if (eligible)
+            eligible = AllowsSideStatus(payload.SourceSlot, targetSlot, null,
+                confusion: false, traceAction);
+        if (!eligible)
+        {
+            DelayedFailure(intent, targetSlot, DelayedActionFailureReason.StatusBlocked);
+            return;
+        }
+        target.SetStatus(payload.Status);
+        _log.Add(new StatusApplied(targetSlot, payload.Status));
+        _log.Add(new DelayedActionResolved(targetSlot, intent.SourceMove, intent.Payload.Kind));
+    }
+
+    private void ResolveSwitchInIntents(BattleSlot slot)
+    {
+        BattleIntentPreview preview = _intentQueue.PreviewTarget(Turn,
+            BattleIntentCheckpoint.SwitchIn, slot);
+        var consumedSequences = new HashSet<long>();
+        var eventRanges = new Dictionary<long, (int Start, int End)>();
+        foreach (BattleIntent intent in preview.Entries)
+        {
+            if (intent.Payload is not ReplacementRestoreIntent restore)
+                throw new InvalidOperationException($"Payload '{intent.Payload.Kind}' cannot run at SwitchIn.");
+            BattleCreature target = Active(slot);
+            bool needsRestore = !target.IsFainted
+                && (restore.RestoreHp && target.CurrentHp < target.MaxHp
+                    || restore.CureStatus && target.Status is not null
+                    || restore.RestorePp && target.Moves.Any(move => move.Pp < move.MaxPp));
+            if (!needsRestore)
+            {
+                AddIntentTrace(intent, EffectTraceKind.IntentDeferred, false, _log.Count, _log.Count);
+                continue;
+            }
+
+            int start = _log.Count;
+            if (restore.RestoreHp && target.CurrentHp < target.MaxHp)
+            {
+                int before = target.CurrentHp;
+                target.Heal(target.MaxHp);
+                _log.Add(new Healed(slot, target.CurrentHp - before));
+            }
+            if (restore.CureStatus && target.Status is { } status)
+            {
+                target.ClearStatus();
+                _log.Add(new StatusCured(slot, status));
+            }
+            if (restore.RestorePp)
+            {
+                int restored = target.Moves.Sum(move => move.RestorePp());
+                if (restored > 0)
+                    _log.Add(new PpRestored(slot, restored));
+            }
+            _log.Add(new DelayedActionResolved(slot, intent.SourceMove, intent.Payload.Kind));
+            consumedSequences.Add(intent.Sequence);
+            eventRanges.Add(intent.Sequence, (start, _log.Count));
+        }
+
+        foreach (BattleIntent intent in _intentQueue.Consume(preview, consumedSequences))
+        {
+            (int Start, int End) range = eventRanges[intent.Sequence];
+            AddIntentTrace(intent, EffectTraceKind.IntentConsumed, true, range.Start, range.End);
+            AddTrace(++_traceActionSequence, slot, slot, EffectTraceKind.DelayedAction,
+                false, null, 1, range.Start, range.End);
+        }
+        foreach (BattleIntent intent in _intentQueue.Complete(preview))
+            AddIntentTrace(intent, EffectTraceKind.IntentDeferred, false, _log.Count, _log.Count);
+    }
+
+    private BattleIntentResolvedTarget? ResolveIntentTarget(BattleIntent intent) =>
+        _intentQueue.ResolveTarget(intent,
+            slot => Topology.Contains(slot) && !Active(slot).IsFainted ? ActiveIndex(slot) : null,
+            (side, partyIndex) => Topology.SlotsFor(side)
+                .Where(slot => ActiveIndex(slot) == partyIndex && !Active(slot).IsFainted)
+                .Select(slot => (BattleSlot?)slot)
+                .FirstOrDefault());
+
+    private bool SourceAvailable(BattleSlot sourceSlot, int sourcePartyIndex, bool required) =>
+        !required || Topology.SlotsFor(sourceSlot.Side)
+            .Any(slot => ActiveIndex(slot) == sourcePartyIndex && !Active(slot).IsFainted);
+
+    private void DelayedFailure(BattleIntent intent, BattleSlot? target,
+        DelayedActionFailureReason reason) =>
+        _log.Add(new DelayedActionFailed(target, intent.SourceMove, intent.Payload.Kind, reason));
 
     /// <summary>Runs permanent side-owned entry hazards in condition sequence after ordinary switch-in hooks.
     /// The batch draws no RNG; a faint stops later hazards for that creature but does not interrupt another slot.</summary>
@@ -3158,10 +3623,11 @@ public sealed class BattleController
     /// crit's stat-stage ignore rule and burn. Returned <c>eff</c> feeds the DamageDealt event.</summary>
     private DamageApplication DealMoveDamage(BattleCreature target, BattleSlot targetSlot, int amount,
         double effectiveness, bool crit,
-        int hpFloor = 0)
+        int hpFloor = 0, bool applySurvival = true)
     {
         int before = target.CurrentHp;
-        amount = ApplySurviveFromFull(target, targetSlot, amount);
+        if (applySurvival)
+            amount = ApplySurviveFromFull(target, targetSlot, amount);
         if (hpFloor > 0)
             amount = Math.Min(amount, Math.Max(0, target.CurrentHp - hpFloor));
         target.TakeDamage(amount);
@@ -3999,6 +4465,8 @@ public sealed class BattleController
 
     private void EndOfTurn()
     {
+        ResolveTurnEndIntents();
+
         foreach (BattleSlot slot in Topology.Slots)
         {
             BattleSide side = slot.Side;

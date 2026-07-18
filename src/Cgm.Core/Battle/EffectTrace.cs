@@ -23,6 +23,7 @@ public enum EffectTraceKind
     LockDuration,
     Charge,
     SemiInvulnerability,
+    DelayedAction,
     TrapDuration,
     ConfusionDuration,
     Protect,

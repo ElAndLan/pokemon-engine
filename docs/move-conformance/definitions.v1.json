@@ -1363,6 +1363,45 @@
       ]
     },
     {
+      "referenceKey": "move-0248",
+      "sourceFileHash": "1c5959a5643d50f5b0cbf1571076e4b1dfb3d71a94eef0b05a5b5d75c7cd602e",
+      "payloadContentHash": "640103a9ec42dbaf0eb8f6b9f0bba3f2eee7c5c8213196b73ed93aebb81de08c",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "delayedDamage",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "special",
+        "power": 120,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "delayedDamage",
+            "params": {
+              "turns": 2,
+              "uniquePerSlot": true
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "37b74c1b17916c9c9d0601ce10f34894e5a307503d724c9cfeacca6a887256c7",
+      "testIds": [
+        "DelayedActionConformanceTests.Certified(move-0248)"
+      ]
+    },
+    {
       "referenceKey": "move-0252",
       "sourceFileHash": "9f2235d144b5a92697a05eb396705c98c05c10bdbc524d3b4f6a6aa1b6407290",
       "payloadContentHash": "ee08fc99ee44547725519097035eed548459abd72d51bffa3a2208466df5581f",
@@ -1524,6 +1563,76 @@
       "normalizedDefinitionHash": "3bb2040596d5ed434e1fedffcc336e30515c16be592b868279de80478795eb66",
       "testIds": [
         "ActionGateConformanceTests.Certified(move-0264)"
+      ]
+    },
+    {
+      "referenceKey": "move-0273",
+      "sourceFileHash": "8a346004c6f0dfc61066da11fe3a52469e2fea9491a290ac72a69be37a736a96",
+      "payloadContentHash": "c588bafc336c0fc89023aa3dca47cc427232cc04dbdaa6c81725ab4c6188ff82",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "delayedHeal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "delayedHeal",
+            "params": {
+              "turns": 1,
+              "num": 1,
+              "den": 2,
+              "basis": "sourceMaxHp",
+              "targetPolicy": "liveSlot"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "727db24781452bc024bcc6c007c7a17d11c46e58477259c63c0adcc47c48d816",
+      "testIds": [
+        "DelayedActionConformanceTests.Certified(move-0273)"
+      ]
+    },
+    {
+      "referenceKey": "move-0281",
+      "sourceFileHash": "92f4e257da5765d39b68abd9b6bd97a52cff7aca5534c2ee5f92c0f2ccd46f88",
+      "payloadContentHash": "ec3080c7934fba08270f9284acd835add53729e73ef7c3cf278849f19a1bec16",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "delayedStatus",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "delayedStatus",
+            "params": {
+              "turns": 1,
+              "status": "sleep",
+              "targetPolicy": "snapshotSlot"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "fca827bc3c874871203ffde2884c780f8ff8ce1c58223e77f68622cb1c1e4804",
+      "testIds": [
+        "DelayedActionConformanceTests.Certified(move-0281)"
       ]
     },
     {
@@ -2047,6 +2156,45 @@
       ]
     },
     {
+      "referenceKey": "move-0353",
+      "sourceFileHash": "522c6596ba8acd70af0f795f407fe48f8c2be2eec7d65527474af8665f8b1968",
+      "payloadContentHash": "4ecf3481efa999ebfb895d6dc879e9ebd819c86c802eb3824ed18a8b0ad7bf20",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "delayedDamage",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_09",
+        "damageClass": "special",
+        "power": 140,
+        "accuracy": 100,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "delayedDamage",
+            "params": {
+              "turns": 2,
+              "uniquePerSlot": true
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "cd7277250c0c86d91e381c21fba0fcdb0756138a2e1a8710480a4130329e7106",
+      "testIds": [
+        "DelayedActionConformanceTests.Certified(move-0353)"
+      ]
+    },
+    {
       "referenceKey": "move-0360",
       "sourceFileHash": "5dba0aeff8ae1c9cd7070271d3774382e603032ae165198562d550bf6ea6c600",
       "payloadContentHash": "5d0ba087a9c757aa319dff78fdd45c7b7be0ca9440881b03b0c454598cde7541",
@@ -2084,6 +2232,44 @@
       "normalizedDefinitionHash": "1b7200f3aad2e3c9b9859997575f43b9f87da2bc4dc8c1c0db25a2f971017c0b",
       "testIds": [
         "PhysicalMetricFormulaConformanceTests.Certified(move-0360)"
+      ]
+    },
+    {
+      "referenceKey": "move-0361",
+      "sourceFileHash": "538b542841a7efc8acf1152f942c83fd45821e22ddd08ce9727b474aac07ea17",
+      "payloadContentHash": "4977e75fb94c851152fb9b8ff8bd8ebcb5e959e064f062463438c9de6b38b04f",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "replacementRestore",
+        "selfDestruct",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "replacementRestore",
+            "params": {
+              "hp": true,
+              "status": true,
+              "pp": false
+            }
+          },
+          {
+            "op": "selfDestruct"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "2ced05335e0e777c16cb82942a845633f1df1efcbead3cbabb7075547da7ffd4",
+      "testIds": [
+        "DelayedActionConformanceTests.Certified(move-0361)"
       ]
     },
     {
@@ -2438,6 +2624,44 @@
       "normalizedDefinitionHash": "41ebac38e97b8b132792ae502864d719e88c859b751a5a6e113f8c206576798d",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0436)"
+      ]
+    },
+    {
+      "referenceKey": "move-0461",
+      "sourceFileHash": "237c9a061deb29da5d99b63acfeaf0563269b087f51d56423b61ab5fcd9c4e2a",
+      "payloadContentHash": "b52f2404a5b9faf5b4a77e14a95aed3227a28ecb621e8d67021ca9b68a0791a3",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "replacementRestore",
+        "selfDestruct",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "replacementRestore",
+            "params": {
+              "hp": true,
+              "status": true,
+              "pp": true
+            }
+          },
+          {
+            "op": "selfDestruct"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "75c50c4953caeb2f776d873d6c377ea7e04624c92eb33c6d3577e7a3cf155a68",
+      "testIds": [
+        "DelayedActionConformanceTests.Certified(move-0461)"
       ]
     },
     {

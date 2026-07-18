@@ -129,8 +129,9 @@ Roadmap baseline commit: `b69bcb2` (`Lock Phase 15 doubles execution roadmap`).
 - PokeAPI move corpus: 937 JSON files in `docs/pokeapi-results/move/`.
 - Existing expressibility audit: 468 PASS / 469 FAIL. PASS means “current generic operations appear
   capable of expressing this move”; it does **not** yet mean end-to-end certification.
-- Certified Phase 15 move coverage: **112/937** from the generated 15B target/topology, 15C-2/3/4/5
-  formula, 15D-2 action-gate/recharge, and 15D-3 charge/semi-invulnerability cohorts; the earlier
+- Certified Phase 15 move coverage: **118/937** from the generated 15B target/topology, 15C-2/3/4/5
+  formula, 15D-2 action-gate/recharge, 15D-3 charge/semi-invulnerability, and 15D-4 delayed-action
+  cohorts; the earlier
   0/937 value remains the locked Phase
   15A baseline.
 
@@ -162,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 112/937 certified; next eligible package is 15D-4 delayed slot actions** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 118/937 certified; next eligible package is 15D-5 multi-turn locks and forced execution** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -427,7 +428,7 @@ Current readiness ledger:
 | 15C-5 party/resource formula families | SPEC READY | IMPLEMENTED | Exact filters/PP/stages/friendship/item/random tables, resolver/AI parity, trace/RNG evidence, and 6 generated certifications |
 | 15C-6 field/type/class/stat/effectiveness queries | SPEC READY | IMPLEMENTED | Shared exact identity/damage query result, overlays/conditions, selectors, STAB/effectiveness profiles, spread snapshots, resolver/AI parity, trace, and golden evidence |
 | 15C-7 accuracy/critical/priority/final-damage/healing queries | SPEC READY | IMPLEMENTED | Shared action-query helpers, strict ops, one-shot conditions, resolver/Smart-AI parity, traces, RNG matrix, doubles isolation, and golden evidence |
-| 15D timing/queue/lock families | 15D-1/2/3 SPEC READY; 15D-4 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, and AI legality use shared deterministic paths; apply 15D-4 through 15D-7 lifecycle defaults |
+| 15D timing/queue/lock families | 15D-1/2/3/4 SPEC READY; 15D-5 through 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, and AI legality use shared deterministic paths; apply 15D-5 through 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
 | 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
@@ -1412,7 +1413,7 @@ Ordered feature packages:
    data tags with optional power modifiers, evaluated in accuracy then damage query order. Switch,
    faint, forced action, and battle end clear the state. **Acceptance:** normal/skip/cancel/release,
    target replacement, each hit/bypass tag, PP and RNG counts, and charge golden.
-4. **15D-4 — Delayed slot actions (`PLANNED`; prerequisites 15D-1 and 15B-6).** Lock delayed damage,
+4. **15D-4 — Delayed slot actions (`IMPLEMENTED`; prerequisites 15D-1 and 15B-6).** Lock delayed damage,
    healing, status, and replacement payloads with stored source level/stats/type/class/ruleset where
    calculation requires a snapshot and live destination slot where replacement should receive it.
    Delayed work resolves at its timing checkpoint even if the source switched or fainted unless its
@@ -1508,6 +1509,30 @@ Schema/migration impact: none. Dependency impact: none. Verification:
 `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --no-restore` passed 1,751 tests
 (1,495 Core, 104 Creator, 21 Runtime, 131 Tools); the full Battle suite passed 1,211/1,211 and the
 focused charge package passed 23/23. Next eligible package: **15D-4 delayed slot actions**.
+
+Progress (2026-07-17): **15D-4 COMPLETE — focused review: GO.** The shared typed intent queue now
+owns delayed fixed-power damage, delayed healing, delayed persistent status, and switch-in
+replacement restoration. Damage snapshots source calculation inputs but re-evaluates the live slot,
+defense, immunity, and field/side damage hooks; healing/status revalidate their execution-time
+target; source-required, empty/replaced target, slot uniqueness, insertion order, hazard-first
+replacement, no-reserve, and deferred replacement failures are eventful and deterministic. The
+closed compiler vocabulary, diagnostic payload snapshot, ordinary damage/history/heal/status/PP
+events, effect traces, seeded golden, and Smart-AI named components use existing shared paths with no
+private scheduler or move-ID branch. Review found and fixed mutable healing modifier input,
+nondeterministic modifier insertion numbering, overflow-prone healing multiplication, and silent
+acceptance of unsupported dynamic/effectiveness power formulas. The generated catalog adds six
+complete rows (`move-0248`, `move-0273`, `move-0281`, `move-0353`, `move-0361`, and `move-0461`) for
+937 inventoried / 118 certified with unchanged corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; repeated regeneration was
+byte-identical (`manifest` `744fbc9c56ae200e7e12ce16ec064cdb45f2ceb5e29931d8a9c4e8c8484907a5`,
+`definitions` `e13f649c771403a7801c4babb744ee6b2eeebd11b755dc245a032e33c7dae914`,
+`decisions` `6428acd90e915588eb28a843cbf38e7ec4ec3774f81e7bde77cbebc21b9134ee`).
+Schema/migration impact: none. Dependency impact: none. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build --no-restore` passed 1,778 tests
+(1,516 Core, 104 Creator, 21 Runtime, 137 Tools); the full Battle suite passed 1,230/1,230, focused
+delayed Core tests passed 18/18, and generated delayed conformance passed 6/6. Next eligible package:
+**15D-5 multi-turn locks and forced execution**.
 
 Required evidence: queue ordering and serialization/debug snapshots; seeded RNG-order tests; every
 gate proves no unintended PP/RNG spend; switch/faint cancellation matrix; delayed-action and charge
@@ -3126,9 +3151,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15D-4.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15D-5.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15D-4** through **15D-7**; **15F-2** through
+   **15D-5** through **15D-7**; **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
 7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked

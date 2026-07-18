@@ -2,10 +2,18 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Battle;
 
-public enum BattleIntentCheckpoint { TurnStart, PreAction, BeforeMove, AfterMove, TurnEnd }
+public enum BattleIntentCheckpoint { TurnStart, PreAction, BeforeMove, AfterMove, SwitchIn, TurnEnd }
 public enum BattleIntentOwnerScope { Creature, Slot, Side, Field }
 public enum BattleIntentTargetPolicy { SnapshotSlot, LiveSlot, Source, Side, Field }
-public enum BattleIntentPayloadKind { SkipAction, ReleaseMove }
+public enum BattleIntentPayloadKind
+{
+    SkipAction,
+    ReleaseMove,
+    DelayedDamage,
+    DelayedHeal,
+    DelayedStatus,
+    ReplacementRestore,
+}
 public enum BattleIntentSwitchPolicy { Cancel, FollowOwner, StaySlot }
 public enum BattleIntentFaintPolicy { Cancel, Persist }
 
@@ -37,6 +45,84 @@ public sealed record SkipActionIntent : BattleIntentPayload
 public sealed record ReleaseMoveIntent(int MoveIndex, SemiInvulnerableState? State) : BattleIntentPayload
 {
     public override BattleIntentPayloadKind Kind => BattleIntentPayloadKind.ReleaseMove;
+}
+
+public sealed record DelayedDamageSnapshot
+{
+    public DelayedDamageSnapshot(int level, int power, int offensiveStat, EntityId moveType,
+        DamageClass damageClass, bool stab, bool burn, bool sourceGrounded,
+        IReadOnlyList<BattleQueryModifier>? finalDamageModifiers = null)
+    {
+        if (level <= 0 || power <= 0 || offensiveStat <= 0
+            || moveType.Category != EntityCategory.Type || !EntityId.IsValidSlug(moveType.Slug)
+            || damageClass == DamageClass.Status)
+            throw new ArgumentException("Delayed damage snapshot requires positive source inputs and a damaging type/class.");
+        Level = level;
+        Power = power;
+        OffensiveStat = offensiveStat;
+        MoveType = moveType;
+        DamageClass = damageClass;
+        Stab = stab;
+        Burn = burn;
+        SourceGrounded = sourceGrounded;
+        FinalDamageModifiers = Array.AsReadOnly((finalDamageModifiers ?? []).ToArray());
+    }
+
+    public int Level { get; }
+    public int Power { get; }
+    public int OffensiveStat { get; }
+    public EntityId MoveType { get; }
+    public DamageClass DamageClass { get; }
+    public bool Stab { get; }
+    public bool Burn { get; }
+    public bool SourceGrounded { get; }
+    public IReadOnlyList<BattleQueryModifier> FinalDamageModifiers { get; }
+}
+
+public sealed record DelayedDamageIntent(
+    DelayedDamageSnapshot Snapshot,
+    BattleSlot SourceSlot,
+    int SourcePartyIndex,
+    bool SourceRequired) : BattleIntentPayload
+{
+    public override BattleIntentPayloadKind Kind => BattleIntentPayloadKind.DelayedDamage;
+}
+
+public sealed record DelayedHealIntent : BattleIntentPayload
+{
+    public DelayedHealIntent(int amount, BattleSlot sourceSlot, int sourcePartyIndex,
+        bool sourceRequired, IReadOnlyList<BattleQueryModifier> modifiers)
+    {
+        Amount = amount;
+        SourceSlot = sourceSlot;
+        SourcePartyIndex = sourcePartyIndex;
+        SourceRequired = sourceRequired;
+        Modifiers = Array.AsReadOnly((modifiers ?? []).ToArray());
+    }
+
+    public int Amount { get; }
+    public BattleSlot SourceSlot { get; }
+    public int SourcePartyIndex { get; }
+    public bool SourceRequired { get; }
+    public IReadOnlyList<BattleQueryModifier> Modifiers { get; }
+    public override BattleIntentPayloadKind Kind => BattleIntentPayloadKind.DelayedHeal;
+}
+
+public sealed record DelayedStatusIntent(
+    PersistentStatus Status,
+    BattleSlot SourceSlot,
+    int SourcePartyIndex,
+    bool SourceRequired) : BattleIntentPayload
+{
+    public override BattleIntentPayloadKind Kind => BattleIntentPayloadKind.DelayedStatus;
+}
+
+public sealed record ReplacementRestoreIntent(
+    bool RestoreHp,
+    bool CureStatus,
+    bool RestorePp) : BattleIntentPayload
+{
+    public override BattleIntentPayloadKind Kind => BattleIntentPayloadKind.ReplacementRestore;
 }
 
 public sealed record BattleIntentRequest(
@@ -85,6 +171,11 @@ public sealed record BattleIntentDebugEntry(
     BattleIntentPayloadKind Payload,
     int? PayloadMoveIndex,
     SemiInvulnerableState? PayloadSemiInvulnerableState,
+    DelayedDamageSnapshot? PayloadDamageSnapshot,
+    int? PayloadHealAmount,
+    PersistentStatus? PayloadStatus,
+    bool? PayloadSourceRequired,
+    bool? PayloadRestorePp,
     EntityId SourceMove,
     int SourceActionSequence,
     string Ruleset);
@@ -144,6 +235,14 @@ public sealed class BattleIntentQueue
     }
 
     public BattleIntentPreview Preview(int turn, BattleIntentCheckpoint checkpoint)
+        => Preview(turn, checkpoint, null);
+
+    public BattleIntentPreview PreviewTarget(int turn, BattleIntentCheckpoint checkpoint,
+        BattleSlot targetSlot) => Preview(turn, checkpoint,
+            intent => intent.Target.Slot == targetSlot);
+
+    private BattleIntentPreview Preview(int turn, BattleIntentCheckpoint checkpoint,
+        Func<BattleIntent, bool>? predicate)
     {
         if (turn < 0)
             throw new ArgumentOutOfRangeException(nameof(turn), "Preview turn cannot be negative.");
@@ -152,23 +251,31 @@ public sealed class BattleIntentQueue
 
         long boundary = _nextSequence;
         BattleIntent[] entries = InOrder(_entries
-            .Where(intent => intent.Sequence < boundary && intent.DueTurn <= turn && intent.Checkpoint == checkpoint))
+            .Where(intent => intent.Sequence < boundary && intent.DueTurn <= turn
+                && intent.Checkpoint == checkpoint && (predicate is null || predicate(intent))))
             .ToArray();
         return new BattleIntentPreview(this, turn, checkpoint, boundary, entries);
     }
 
     public IReadOnlyList<BattleIntent> Consume(BattleIntentPreview preview)
+        => Consume(preview, preview.Entries.Select(intent => intent.Sequence).ToHashSet());
+
+    public IReadOnlyList<BattleIntent> Consume(BattleIntentPreview preview,
+        IReadOnlySet<long> selectedSequences)
     {
         ArgumentNullException.ThrowIfNull(preview);
+        ArgumentNullException.ThrowIfNull(selectedSequences);
         if (!ReferenceEquals(preview.Owner, this) || preview.Consumed)
             throw new ArgumentException("Intent preview is stale, foreign, or already consumed.", nameof(preview));
         if (preview.Entries.Any(previewed => !_entries.Contains(previewed)))
             throw new ArgumentException("Intent preview no longer matches the queue.", nameof(preview));
 
+        if (selectedSequences.Any(sequence => preview.Entries.All(intent => intent.Sequence != sequence)))
+            throw new ArgumentException("Selected intent was not part of the preview.", nameof(selectedSequences));
         preview.Consumed = true;
-        var sequences = preview.Entries.Select(intent => intent.Sequence).ToHashSet();
+        var sequences = selectedSequences.ToHashSet();
         _entries.RemoveAll(intent => sequences.Contains(intent.Sequence));
-        return preview.Entries;
+        return preview.Entries.Where(intent => sequences.Contains(intent.Sequence)).ToArray();
     }
 
     public IReadOnlyList<BattleIntent> Complete(BattleIntentPreview preview)
@@ -262,6 +369,17 @@ public sealed class BattleIntentQueue
             intent.Target.Policy, intent.Target.Slot, intent.Target.SnapshotPartyIndex, intent.Target.Side,
             intent.Payload.Kind, (intent.Payload as ReleaseMoveIntent)?.MoveIndex,
             (intent.Payload as ReleaseMoveIntent)?.State,
+            (intent.Payload as DelayedDamageIntent)?.Snapshot,
+            (intent.Payload as DelayedHealIntent)?.Amount,
+            (intent.Payload as DelayedStatusIntent)?.Status,
+            intent.Payload switch
+            {
+                DelayedDamageIntent payload => payload.SourceRequired,
+                DelayedHealIntent payload => payload.SourceRequired,
+                DelayedStatusIntent payload => payload.SourceRequired,
+                _ => null,
+            },
+            (intent.Payload as ReplacementRestoreIntent)?.RestorePp,
             intent.SourceMove, intent.SourceActionSequence, intent.Ruleset))
         .ToArray();
 
@@ -298,8 +416,31 @@ public sealed class BattleIntentQueue
             if (release.MoveIndex < 0 || release.State is { } state && !Enum.IsDefined(state))
                 throw new ArgumentException("Release-move payload requires a valid move index and state.", nameof(request));
         }
+        ValidateDelayedPayload(request.Payload);
         ValidateOwner(request.Owner);
         ValidateTarget(request.Target);
+    }
+
+    private static void ValidateDelayedPayload(BattleIntentPayload payload)
+    {
+        static bool ValidSource(BattleSlot slot, int partyIndex) => Enum.IsDefined(slot.Side)
+            && slot.Position >= 0 && partyIndex >= 0;
+
+        switch (payload)
+        {
+            case DelayedDamageIntent damage when damage.Snapshot is null
+                || !ValidSource(damage.SourceSlot, damage.SourcePartyIndex):
+                throw new ArgumentException("Delayed damage payload requires a snapshot and source identity.", nameof(payload));
+            case DelayedHealIntent heal when heal.Amount <= 0
+                || !ValidSource(heal.SourceSlot, heal.SourcePartyIndex) || heal.Modifiers is null:
+                throw new ArgumentException("Delayed heal payload requires a positive amount, modifiers, and source identity.", nameof(payload));
+            case DelayedStatusIntent status when !Enum.IsDefined(status.Status)
+                || !ValidSource(status.SourceSlot, status.SourcePartyIndex):
+                throw new ArgumentException("Delayed status payload requires a valid status and source identity.", nameof(payload));
+            case ReplacementRestoreIntent replacement when !replacement.RestoreHp
+                && !replacement.CureStatus && !replacement.RestorePp:
+                throw new ArgumentException("Replacement restore payload must select at least one resource.", nameof(payload));
+        }
     }
 
     private static void ValidateOwner(BattleIntentOwner owner)

@@ -183,6 +183,8 @@ public static class SmartAi
                 ActiveTerrain(context)));
         double accuracy = accuracyQuery.Bypass ? 1 : accuracyQuery.Query.FinalValue.ToInt32() / 100.0;
         c.Add(new("damage", damage * accuracy));
+        if (move.SecondaryEffects.OfType<DelayedDamageEffect>().Any())
+            c.Add(new("delayedTempo", -damage * accuracy / 10));
         if (damage >= defender.CurrentHp && damage > 0)
             c.Add(new("ko", weights.KoBonus * accuracy));
 
@@ -200,6 +202,12 @@ public static class SmartAi
                 : SecondaryChance(context, move, effect, attacker, defender);
             c.Add(new("status", weights.StatusValue * HpFraction(defender) * chance / 100.0));
         }
+        if (move.SecondaryEffects.OfType<DelayedStatusEffect>().SingleOrDefault() is { } delayedStatus
+            && StatusEffects.CanApplyStatus(defender.Status)
+            && !StatusEffects.TypeImmuneToStatus(delayedStatus.Status, defender.Types)
+            && WeatherAllowsStatus(context, delayedStatus.Status)
+            && TerrainAllowsStatus(context, delayedStatus.Status, defender))
+            c.Add(new("delayedStatus", weights.StatusValue * HpFraction(defender) * 0.9));
 
         if (move.StageEffect is { OnSelf: true, Delta: > 0 } setup
             && !ThreatensKo(defender, attacker, context.Chart, context))
@@ -231,6 +239,30 @@ public static class SmartAi
                     new BattleSlot(BattleSide.Enemy, 0), attacker, ActiveWeather(context),
                     context.Ruleset, ActiveTerrain(context))).FinalValue.ToInt32();
             c.Add(new("recovery", Math.Min(recovery, attacker.MaxHp - attacker.CurrentHp)));
+        }
+        if (move.SecondaryEffects.OfType<DelayedHealEffect>().SingleOrDefault() is { } delayedHeal
+            && (move.Target == MoveTarget.User ? attacker.CurrentHp < attacker.MaxHp
+                : defender.CurrentHp < defender.MaxHp))
+        {
+            BattleCreature recipient = move.Target == MoveTarget.User ? attacker : defender;
+            int basis = delayedHeal.Basis == DelayedHealBasis.SourceMaxHp
+                ? attacker.MaxHp : recipient.MaxHp;
+            int recovery = EffectMath.HealAmount(basis, delayedHeal.Fraction.Num, delayedHeal.Fraction.Den);
+            c.Add(new("delayedRecovery", Math.Min(recovery,
+                recipient.MaxHp - recipient.CurrentHp) * 0.9));
+        }
+
+        if (move.SecondaryEffects.OfType<ReplacementRestoreEffect>().SingleOrDefault() is { } restore)
+        {
+            double value = context.EnemyParty
+                .Where((creature, index) => index != context.EnemyActive && !creature.IsFainted)
+                .Select(creature => (restore.RestoreHp ? creature.MaxHp - creature.CurrentHp : 0)
+                    + (restore.CureStatus && creature.Status is not null ? weights.StatusValue : 0)
+                    + (restore.RestorePp ? creature.Moves.Sum(slot => slot.MaxPp - slot.Pp) : 0))
+                .DefaultIfEmpty(0)
+                .Max();
+            if (value > 0)
+                c.Add(new("replacementRestore", value));
         }
 
         if (move.Recoil is { } recoil && damage > 0)

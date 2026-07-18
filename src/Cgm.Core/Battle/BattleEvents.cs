@@ -238,6 +238,23 @@ public sealed record ChargeReleased(BattleSlot Slot, EntityId Move) : BattleEven
 public sealed record ChargeCancelled(BattleSlot Slot, EntityId Move) : BattleEvent;
 public sealed record SemiInvulnerableAvoided(BattleSlot Source, BattleSlot Target,
     SemiInvulnerableState State) : BattleEvent;
+public enum DelayedActionFailureReason
+{
+    TargetUnavailable,
+    SourceUnavailable,
+    Immune,
+    HealingBlocked,
+    StatusBlocked,
+    SlotOccupied,
+    NoReserve,
+}
+public sealed record DelayedActionQueued(BattleSlot Source, BattleSlot Target, EntityId Move,
+    BattleIntentPayloadKind Payload, int DueTurn) : BattleEvent;
+public sealed record DelayedActionResolved(BattleSlot Target, EntityId Move,
+    BattleIntentPayloadKind Payload) : BattleEvent;
+public sealed record DelayedActionFailed(BattleSlot? Target, EntityId Move,
+    BattleIntentPayloadKind Payload, DelayedActionFailureReason Reason) : BattleEvent;
+public sealed record PpRestored(BattleSlot Slot, int Amount) : BattleEvent;
 public sealed record FullyParalyzed(BattleSlot Slot) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

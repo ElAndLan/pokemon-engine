@@ -182,6 +182,45 @@ public sealed class BattleIntentQueueTests
         Assert.DoesNotContain("DisplayName", first);
     }
 
+    [Fact]
+    public void DelayedPayloads_AreValidatedAndExposeDeterministicDebugFields()
+    {
+        var queue = new BattleIntentQueue();
+        var snapshot = new DelayedDamageSnapshot(50, 80, 120, EntityId.Parse("type:neutral"),
+            DamageClass.Special, true, false, true, []);
+        queue.Enqueue(Request(2, BattleIntentCheckpoint.TurnEnd) with
+        {
+            Payload = new DelayedDamageIntent(snapshot, Player0, 0, false),
+        });
+        queue.Enqueue(Request(1, BattleIntentCheckpoint.TurnEnd) with
+        {
+            Payload = new DelayedHealIntent(50, Player0, 0, true, []),
+        });
+        queue.Enqueue(Request(1, BattleIntentCheckpoint.TurnEnd) with
+        {
+            Payload = new DelayedStatusIntent(PersistentStatus.Sleep, Player0, 0, false),
+        });
+        queue.Enqueue(Request(0, BattleIntentCheckpoint.SwitchIn) with
+        {
+            Payload = new ReplacementRestoreIntent(true, true, true),
+        });
+
+        IReadOnlyList<BattleIntentDebugEntry> debug = queue.DebugSnapshot();
+        string json = JsonSerializer.Serialize(debug);
+
+        Assert.Equal([
+            BattleIntentPayloadKind.ReplacementRestore,
+            BattleIntentPayloadKind.DelayedHeal,
+            BattleIntentPayloadKind.DelayedStatus,
+            BattleIntentPayloadKind.DelayedDamage,
+        ], debug.Select(entry => entry.Payload));
+        Assert.Contains("RestorePp", json);
+        Assert.Throws<ArgumentException>(() => queue.Enqueue(Request(1) with
+        {
+            Payload = new DelayedHealIntent(0, Player0, 0, false, []),
+        }));
+    }
+
     private static BattleIntentRequest Request(int dueTurn,
         BattleIntentCheckpoint checkpoint = BattleIntentCheckpoint.PreAction,
         BattleIntentOwner? owner = null,

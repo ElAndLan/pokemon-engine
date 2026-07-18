@@ -1,0 +1,10 @@
+event:DelayedActionQueued
+event:DamageDealt
+event:DelayedActionResolved
+trace:IntentEnqueued:DelayedDamage:1
+trace:DelayedAction:-:1
+trace:DamageRoll:-:86
+trace:IntentConsumed:DelayedDamage:1
+trace:DelayedAction:-:1
+pp:9
+targetHp:954

@@ -201,6 +201,13 @@ reference cohort. `semiInvulnerableHit` is the only move-authored state exceptio
 one positive base-power fraction after the ordinary accuracy gate. Missing exceptions skip accuracy
 RNG and fail visibly. These ops contain no move IDs, new dependency, or serialized model field.
 
+Phase 15D-4 adds `delayedDamage`, `delayedHeal`, `delayedStatus`, and `replacementRestore` as closed
+typed ops over the shared intent queue. Damage snapshots source-side calculation inputs but reads the
+destination occupant and defense/type/field state live; heal snapshots its authored amount and reads
+the live Healing query; status revalidates live immunity/guards; replacement restore waits on the
+source slot through entry hazards. All are deterministic, insertion-ordered, eventful on failure,
+and data-defined without move identifiers.
+
 ### 3.3 Damage, Accuracy, Hit Count, And Criticals
 
 | Primitive | What It Does | Covers |

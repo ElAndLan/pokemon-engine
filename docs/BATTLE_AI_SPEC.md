@@ -237,6 +237,11 @@ Capabilities beyond Beginner:
   semi-invulnerable state, candidates without a matching `semiInvulnerableHit` row receive the named
   `semiInvulnerableMiss` rejection. Matching rows continue through ordinary accuracy/power preview.
   The AI never reads the opponent's selected action to predict entry or release this turn.
+- Phase 15D-4 scores fixed-power delayed damage through the ordinary expected-damage path plus the
+  named `delayedTempo` cost; visible delayed healing/status contribute `delayedRecovery` and
+  `delayedStatus`. `replacementRestore` reads only the AI's own living reserves and selected HP,
+  status, and PP resources before the ordinary `selfKoRisk` applies. AI never reads either side's
+  queued delayed intents, predicts a future occupant, or consumes extra RNG for these components.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

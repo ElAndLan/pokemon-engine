@@ -61,6 +61,7 @@ public enum MoveGateTargetClass { AnyMove, DamagingMove, StatusMove }
 public enum MoveGateDamageMode { Require, Forbid }
 public enum QueueActionGateOwner { Slot, Creature }
 public enum SemiInvulnerableState { Air, Underground, Underwater, Vanished }
+public enum DelayedHealBasis { SourceMaxHp, TargetMaxHp }
 public enum HpFractionRecipient { Self, Target }
 public enum HpFractionOperation { Heal, Damage }
 public enum HpFractionBasis { MaxHp, CurrentHp }
@@ -281,6 +282,29 @@ public sealed record SemiInvulnerableHitEffect(
 
 public sealed record ChargeStartStatEffect(StatKind Stat, int Delta) : MoveEffect;
 
+public sealed record DelayedDamageEffect(
+    int Turns,
+    bool SourceRequired = false,
+    bool UniquePerSlot = false) : MoveEffect;
+
+public sealed record DelayedHealEffect(
+    int Turns,
+    Fraction Fraction,
+    DelayedHealBasis Basis = DelayedHealBasis.SourceMaxHp,
+    BattleIntentTargetPolicy TargetPolicy = BattleIntentTargetPolicy.LiveSlot,
+    bool SourceRequired = false) : MoveEffect;
+
+public sealed record DelayedStatusEffect(
+    int Turns,
+    PersistentStatus Status,
+    BattleIntentTargetPolicy TargetPolicy = BattleIntentTargetPolicy.SnapshotSlot,
+    bool SourceRequired = false) : MoveEffect;
+
+public sealed record ReplacementRestoreEffect(
+    bool RestoreHp = true,
+    bool CureStatus = true,
+    bool RestorePp = false) : MoveEffect;
+
 public static class BattleChargeMechanics
 {
     public static void Validate(ChargeMoveEffect? charge, IReadOnlyList<MoveEffect> effects)
@@ -306,4 +330,56 @@ public static class BattleChargeMechanics
             || effect.PowerMultiplier is { Num: <= 0 } or { Den: <= 0 }))
             throw new ArgumentException("Semi-invulnerable hit rows require unique defined states and positive power.");
     }
+}
+
+public static class BattleDelayedMechanics
+{
+    public const int MaxTurns = 16;
+
+    public static void Validate(IReadOnlyList<MoveEffect> effects, DamageClass damageClass,
+        int? power, MoveTarget target, bool selfDestruct, bool hasLegacyPowerFormula = false)
+    {
+        ArgumentNullException.ThrowIfNull(effects);
+        DelayedDamageEffect[] damage = effects.OfType<DelayedDamageEffect>().ToArray();
+        DelayedHealEffect[] healing = effects.OfType<DelayedHealEffect>().ToArray();
+        DelayedStatusEffect[] statuses = effects.OfType<DelayedStatusEffect>().ToArray();
+        ReplacementRestoreEffect[] replacements = effects.OfType<ReplacementRestoreEffect>().ToArray();
+        if (damage.Length > 1 || healing.Length > 1 || statuses.Length > 1 || replacements.Length > 1)
+            throw new ArgumentException("Each delayed effect op may appear at most once.");
+        if (damage.Length + healing.Length + statuses.Length + replacements.Length > 1)
+            throw new ArgumentException("A move may author only one delayed payload family.");
+
+        if (damage.SingleOrDefault() is { } delayedDamage
+            && (damageClass == DamageClass.Status || power is not > 0 || target is not (MoveTarget.Selected
+                or MoveTarget.SelectedPokemonMeFirst) || !ValidTurns(delayedDamage.Turns)
+                || hasLegacyPowerFormula || effects.Any(IsUnsupportedDelayedPowerEffect)))
+            throw new ArgumentException("Delayed damage requires a selected fixed-power damaging move and 1..16 turns.");
+        if (healing.SingleOrDefault() is { } delayedHeal
+            && (!ValidTurns(delayedHeal.Turns) || delayedHeal.Fraction.Num <= 0
+                || delayedHeal.Fraction.Den <= 0 || !Enum.IsDefined(delayedHeal.Basis)
+                || delayedHeal.TargetPolicy is not (BattleIntentTargetPolicy.LiveSlot
+                    or BattleIntentTargetPolicy.SnapshotSlot)
+                || target is not (MoveTarget.User or MoveTarget.Selected)))
+            throw new ArgumentException("Delayed healing requires a valid fraction, slot policy, target, and 1..16 turns.");
+        if (statuses.SingleOrDefault() is { } delayedStatus
+            && (!ValidTurns(delayedStatus.Turns) || !Enum.IsDefined(delayedStatus.Status)
+                || delayedStatus.TargetPolicy is not (BattleIntentTargetPolicy.LiveSlot
+                    or BattleIntentTargetPolicy.SnapshotSlot)
+                || target is not (MoveTarget.User or MoveTarget.Selected)))
+            throw new ArgumentException("Delayed status requires a valid status, slot policy, target, and 1..16 turns.");
+        if (replacements.SingleOrDefault() is { } replacement
+            && (!selfDestruct || target != MoveTarget.User
+                || !replacement.RestoreHp && !replacement.CureStatus && !replacement.RestorePp))
+            throw new ArgumentException("Replacement restore requires self-destruction, a self target, and a selected resource.");
+    }
+
+    private static bool ValidTurns(int turns) => turns is >= 1 and <= MaxTurns;
+
+    private static bool IsUnsupportedDelayedPowerEffect(MoveEffect effect) => effect is
+        StatusPowerEffect or StatusCountPowerEffect or SpeedRatioPowerEffect
+        or MetricBandPowerEffect or MetricRatioPowerEffect
+        or ConsecutivePowerEffect or HistoryPowerEffect or PartyCountPowerEffect or FriendshipPowerEffect
+        or PpPowerEffect or PositiveStagePowerEffect or ItemDataPowerEffect or RandomTablePowerEffect
+        or WeatherMoveEffect or TerrainMoveEffect or EffectivenessQueryEffect
+        || effect is MoveQueryModifierEffect { Query: BattleQueryId.BasePower };
 }

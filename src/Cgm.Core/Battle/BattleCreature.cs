@@ -83,6 +83,8 @@ public sealed class BattleMove
         HpBandPower = hpBandPower;
         SecondaryEffects = secondaryEffects ?? BuildSecondaryEffects();
         BattleChargeMechanics.Validate(Charge, SecondaryEffects);
+        BattleDelayedMechanics.Validate(SecondaryEffects, DamageClass, Power, Target, SelfDestruct,
+            TargetHpThresholdPower is not null || HpRatioPower is not null || HpBandPower is not null);
     }
 
     private BattleMove(BattleMove source, int pp, int maxPp)
@@ -250,6 +252,12 @@ public sealed class BattleMove
 
     public bool HasPp => Pp > 0;
     public void UsePp() => Pp = Math.Max(0, Pp - 1);
+    public int RestorePp()
+    {
+        int restored = MaxPp - Pp;
+        Pp = MaxPp;
+        return restored;
+    }
     public BattleMove WithPpPool(int pp, int maxPp) => new(this, pp, maxPp);
 }
 

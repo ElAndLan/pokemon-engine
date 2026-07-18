@@ -512,6 +512,51 @@ public sealed class SmartAiTests
     }
 
     [Fact]
+    public void DelayedFamilies_ExposeNamedTempoRecoveryAndStatusComponents()
+    {
+        BattleMove delayedDamage = new(EntityId.Parse("move:delayed_damage"), Normal,
+            DamageClass.Physical, 80, 100, 10, 0, 0,
+            secondaryEffects: [new DelayedDamageEffect(2)]);
+        BattleMove delayedHeal = new(EntityId.Parse("move:delayed_heal"), Normal,
+            DamageClass.Status, null, null, 10, 0, 0, target: MoveTarget.User,
+            secondaryEffects: [new DelayedHealEffect(1, new Fraction(1, 2))]);
+        BattleMove delayedStatus = new(EntityId.Parse("move:delayed_status"), Normal,
+            DamageClass.Status, null, null, 10, 0, 0,
+            secondaryEffects: [new DelayedStatusEffect(1, PersistentStatus.Sleep)]);
+        BattleCreature attacker = Attacker(delayedDamage, delayedHeal, delayedStatus);
+        attacker.TakeDamage(60);
+
+        SmartAiDecision decision = SmartAi.ChooseAction(Ctx([attacker], [Defender(Normal)]));
+
+        Assert.Contains(decision.Scores.Single(score => score.Action == new UseMove(0)).Components,
+            component => component.Name == "delayedTempo" && component.Value < 0);
+        Assert.Contains(decision.Scores.Single(score => score.Action == new UseMove(1)).Components,
+            component => component.Name == "delayedRecovery" && component.Value > 0);
+        Assert.Contains(decision.Scores.Single(score => score.Action == new UseMove(2)).Components,
+            component => component.Name == "delayedStatus" && component.Value > 0);
+    }
+
+    [Fact]
+    public void ReplacementRestore_IsValuedOnlyForAReserveThatNeedsSelectedResources()
+    {
+        BattleMove restore = new(EntityId.Parse("move:replacement_restore"), Normal,
+            DamageClass.Status, null, null, 10, 0, 0, selfDestruct: true,
+            target: MoveTarget.User,
+            secondaryEffects: [new ReplacementRestoreEffect(), new SelfDestructEffect()]);
+        BattleCreature active = Attacker(restore, Damage(Normal, 5));
+        BattleCreature reserve = Attacker(Damage(Normal, 5));
+        reserve.TakeDamage(50);
+
+        SmartAiDecision useful = SmartAi.ChooseAction(Ctx([active, reserve], [Defender(Normal)]));
+        SmartAiDecision unnecessary = SmartAi.ChooseAction(Ctx([active], [Defender(Normal)]));
+
+        Assert.Contains(useful.Scores.Single(score => score.Action == new UseMove(0)).Components,
+            component => component.Name == "replacementRestore" && component.Value == 50);
+        Assert.DoesNotContain(unnecessary.Scores.Single(score => score.Action == new UseMove(0)).Components,
+            component => component.Name == "replacementRestore");
+    }
+
+    [Fact]
     public void ValuesHazards_OnlyWhenReservesRemain()
     {
         var atk = Attacker(Damage(Normal, 5), LayeredHazard());

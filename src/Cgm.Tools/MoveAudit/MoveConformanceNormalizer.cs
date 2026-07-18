@@ -184,6 +184,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"ActionGateConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => IsCharge(effect.Op)))
             testIds.Add($"ChargeConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => IsDelayedAction(effect.Op)))
+            testIds.Add($"DelayedActionConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
@@ -201,7 +203,7 @@ public static class MoveConformanceNormalizer
     private static void AddAilment(JsonElement meta, List<Effect> effects, string path)
     {
         string ailment = ReferenceName(meta, "ailment", path);
-        if (ailment == "none")
+        if (ailment is "none" or "yawn")
             return;
         string normalized = ailment switch
         {
@@ -306,6 +308,9 @@ public static class MoveConformanceNormalizer
 
     private static bool IsCharge(string op) => op is "chargeTurn" or "chargeStartStat"
         or "semiInvulnerableHit";
+
+    private static bool IsDelayedAction(string op) => op is "delayedDamage" or "delayedHeal"
+        or "delayedStatus" or "replacementRestore";
 
     private static MoveTarget ParseTarget(string value, string path) => value switch
     {
