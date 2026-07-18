@@ -41,6 +41,7 @@ public sealed class BattleController
     private readonly BattleIntentQueue _intentQueue = new();
     private readonly BattleOverlayStore _overlays = new();
     private readonly BattleItemState _items;
+    private readonly BattleAbilityState _abilities;
     private readonly BattleActionHistory _actionHistory = new();
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
@@ -64,12 +65,13 @@ public sealed class BattleController
 
     public BattleController(BattleCreature player, BattleCreature enemy, TypeChart chart, IRng rng,
         bool isWild = false, IEnumerable<Item>? itemData = null, BattleFieldInputs? fieldInputs = null,
-        IEnumerable<BattleMove>? moveData = null)
-        : this([player], [enemy], chart, rng, isWild, itemData, fieldInputs, moveData) { }
+        IEnumerable<BattleMove>? moveData = null, IEnumerable<Ability>? abilityData = null)
+        : this([player], [enemy], chart, rng, isWild, itemData, fieldInputs, moveData, abilityData) { }
 
     public BattleController(IReadOnlyList<BattleCreature> playerParty, IReadOnlyList<BattleCreature> enemyParty,
         TypeChart chart, IRng rng, bool isWild = false, IEnumerable<Item>? itemData = null,
-        BattleFieldInputs? fieldInputs = null, IEnumerable<BattleMove>? moveData = null)
+        BattleFieldInputs? fieldInputs = null, IEnumerable<BattleMove>? moveData = null,
+        IEnumerable<Ability>? abilityData = null)
     {
         _parties = [[.. playerParty], [.. enemyParty]];
         _activeSlots = new BattleActiveSlots(BattleTopology.Singles);
@@ -79,6 +81,7 @@ public sealed class BattleController
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _items = new BattleItemState(_overlays, _itemData);
+        _abilities = new BattleAbilityState(_overlays, (abilityData ?? []).ToDictionary(ability => ability.Id));
         _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
         TriggerInitialTerrainSeeds();
@@ -97,7 +100,8 @@ public sealed class BattleController
         bool isWild = false,
         IEnumerable<Item>? itemData = null,
         BattleFieldInputs? fieldInputs = null,
-        IEnumerable<BattleMove>? moveData = null)
+        IEnumerable<BattleMove>? moveData = null,
+        IEnumerable<Ability>? abilityData = null)
     {
         ArgumentNullException.ThrowIfNull(topology);
         ArgumentNullException.ThrowIfNull(playerParty);
@@ -118,6 +122,7 @@ public sealed class BattleController
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _items = new BattleItemState(_overlays, _itemData);
+        _abilities = new BattleAbilityState(_overlays, (abilityData ?? []).ToDictionary(ability => ability.Id));
         _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
         TriggerInitialTerrainSeeds();
@@ -136,6 +141,7 @@ public sealed class BattleController
     public IReadOnlyList<BattleSlot> PendingReplacementSlots => _pendingReplacementSlots;
     public BattleOverlayStore Overlays => _overlays;
     public BattleItemState Items => _items;
+    public BattleAbilityState Abilities => _abilities;
     public BattleActionHistory ActionHistory => _actionHistory;
     public IReadOnlyList<BattleConditionInstance> ConditionSnapshot => _conditions.Snapshot();
     public IReadOnlyList<BattleConditionTraceEntry> ConditionTrace => _conditionTrace;
@@ -185,7 +191,8 @@ public sealed class BattleController
             new BattleConditionOwner(BattleConditionScope.Creature, slot.Side, slot, ActiveIndex(slot)),
             ConditionSnapshot,
             new BattleQueryContext(slot, creature, Weather: CurrentWeather, Ruleset: Ruleset,
-                Terrain: CurrentTerrain), suppressHeldItems: ItemsSuppressed);
+                Terrain: CurrentTerrain), suppressHeldItems: ItemsSuppressed,
+            abilityHooks: AbilityHooks(slot));
         _queryTrace.Add(new BattleQueryTraceEntry(Turn, _traceActionSequence, slot, slot, result));
         return result.FinalValue.ToInt32() == 1;
     }
@@ -2554,6 +2561,8 @@ public sealed class BattleController
                 break; // evaluated before PP and accuracy in PassesMoveGates.
             case ItemMutationEffect item:
                 return ApplyItemMutation(ctx, item);
+            case AbilityMutationEffect ability:
+                return ApplyAbilityMutation(ctx, ability);
             case RedirectEffect redirect: _redirects.Add(new RedirectCondition(ctx.SourceSlot, redirect.Priority,
                 redirect.AcceptedClasses, redirect.BypassClasses, redirect.AcceptedTags, redirect.BypassTags)); break;
             case DrainEffect d when ctx.ActionDamageDealt > 0:
@@ -2716,11 +2725,45 @@ public sealed class BattleController
 
     private bool StickyItemProtection(BattleOverlayOwner owner, BattleItemOperation operation)
     {
-        BattleCreature creature = _parties[(int)owner.Side][owner.PartyIndex];
-        return creature.AbilityHooks.SelectMany(hook => hook.Effects)
+        return AbilityHooks(owner).SelectMany(hook => hook.Effects)
             .Any(effect => effect.Op == "itemMutationGuard"
                 && BattleItemState.Operations(effect).Contains(operation));
     }
+
+    private bool ApplyAbilityMutation(EffectContext ctx, AbilityMutationEffect effect)
+    {
+        BattleOverlayOwner user = OverlayOwner(ctx.SourceSlot);
+        BattleOverlayOwner target = OverlayOwner(ctx.TargetSlot);
+        var allies = Topology.Slots.Where(slot => slot.Side == ctx.SourceSlot.Side && slot != ctx.SourceSlot
+                && IsLive(slot))
+            .Select(slot =>
+            {
+                BattleCreature creature = Active(slot);
+                return (OverlayOwner(slot), PhysicalMetricFormulas.BaseEffectiveValues(creature), creature.IsFainted);
+            }).ToArray();
+        int start = _log.Count;
+        BattleAbilityMutationResult result = _abilities.Mutate(effect.Operation, effect.Subject, effect.Source,
+            effect.Ability, user, PhysicalMetricFormulas.BaseEffectiveValues(ctx.Source), ctx.Source.IsFainted,
+            target, PhysicalMetricFormulas.BaseEffectiveValues(ctx.Target), ctx.Target.IsFainted, allies,
+            Turn, ctx.TraceAction);
+        if (result.Succeeded)
+            foreach ((BattleOverlayOwner owner, EntityId? before, EntityId? after) in result.Changes)
+                _log.Add(new AbilityMutated(owner.Side, owner.PartyIndex, before, after, effect.Operation));
+        else
+            ctx.Action.MarkFailed();
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
+            EffectTraceKind.AbilityMutation, result.Succeeded, null,
+            result.Succeeded ? result.Changes.Count : -(int)result.Failure, start, _log.Count));
+        return result.Succeeded;
+    }
+
+    private IReadOnlyList<AbilityHook> AbilityHooks(BattleOverlayOwner owner)
+    {
+        BattleCreature creature = _parties[(int)owner.Side][owner.PartyIndex];
+        return _abilities.Hooks(owner, PhysicalMetricFormulas.BaseEffectiveValues(creature), creature.AbilityHooks);
+    }
+
+    private IReadOnlyList<AbilityHook> AbilityHooks(BattleSlot slot) => AbilityHooks(OverlayOwner(slot));
 
     private BattleOverlayOwner OverlayOwner(BattleSlot slot) =>
         new(slot.Side, ActiveIndex(slot), slot);
@@ -4582,9 +4625,10 @@ public sealed class BattleController
         foreach (BattleSlot slot in Topology.Slots)
         {
             BattleCreature c = Active(slot);
-            foreach (AbilityHook hook in c.AbilityHooks)
+            foreach (AbilityHook hook in AbilityHooks(slot))
             {
-                Effect[] effects = hook.Effects.Where(effect => effect.Op != "itemMutationGuard").ToArray();
+                Effect[] effects = hook.Effects.Where(effect => effect.Op is not
+                    ("itemMutationGuard" or "abilityMutationGuard")).ToArray();
                 if (effects.Length > 0)
                     yield return new BattleHookSource(slot, BattleHookSourceKind.Ability, hook.Hook, effects);
             }
@@ -4766,13 +4810,13 @@ public sealed class BattleController
                 (effect.Tag == tag || tag == "screen" && effect.Tag == "barrier")
                 && effect.Side == SideConditionTarget.Target
                 && effect.Timing == SideConditionTiming.BeforeDamage) == true
-        || Active(sourceSlot).AbilityHooks.SelectMany(hook => hook.Effects).Any(effect =>
+        || AbilityHooks(sourceSlot).SelectMany(hook => hook.Effects).Any(effect =>
             effect.Op == "sideConditionBypass"
             && string.Equals(Str(effect, "tag"), tag, StringComparison.Ordinal));
 
     private bool BypassesProtection(BattleSlot sourceSlot, BattleMove move) =>
         move.SecondaryEffects.OfType<ProtectionBypassEffect>().Any()
-        || Active(sourceSlot).AbilityHooks.SelectMany(hook => hook.Effects)
+        || AbilityHooks(sourceSlot).SelectMany(hook => hook.Effects)
             .Any(effect => effect.Op == "protectionBypass");
 
     private bool IsPersonallyProtected(BattleSlot slot) => ProtectionConditions.Active(

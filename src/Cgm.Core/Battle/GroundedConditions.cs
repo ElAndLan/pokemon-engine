@@ -33,7 +33,8 @@ public static class GroundedConditions
 
     public static BattleQueryResult Query(BattleCreature creature, IReadOnlyList<EntityId> effectiveTypes,
         BattleConditionOwner owner, IEnumerable<BattleConditionInstance>? conditions = null,
-        BattleQueryContext? context = null, bool suppressHeldItems = false)
+        BattleQueryContext? context = null, bool suppressHeldItems = false,
+        IReadOnlyList<AbilityHook>? abilityHooks = null)
     {
         ArgumentNullException.ThrowIfNull(creature);
         ArgumentNullException.ThrowIfNull(effectiveTypes);
@@ -52,7 +53,7 @@ public static class GroundedConditions
                 ref insertion);
         }
 
-        foreach (Effect effect in creature.AbilityHooks
+        foreach (Effect effect in (abilityHooks ?? creature.AbilityHooks)
             .Where(hook => hook.Hook == AbilityHookPoint.OnGroundedQuery)
             .SelectMany(hook => hook.Effects)
             .Concat(suppressHeldItems ? [] : creature.HeldItemBattleEffects)

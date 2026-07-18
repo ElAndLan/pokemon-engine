@@ -183,7 +183,7 @@ internal static class Phase15EffectRules
     {
         "statModify", "typeDamageModify", "statusImmunity", "weatherSummon", "terrainSummon",
         "contactChanceEffect", "residualHeal", "residualDamage", "groundedModify",
-        "sideConditionBypass", "protectionBypass", "itemMutationGuard",
+        "sideConditionBypass", "protectionBypass", "itemMutationGuard", "abilityMutationGuard",
     };
 
     public static readonly IReadOnlySet<string> HeldItemOps = new HashSet<string>
@@ -454,6 +454,28 @@ internal static class Phase15EffectRules
             if (effect.Chance is not null)
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     "Effect op 'itemMutationGuard' does not support chance.");
+        }
+
+        if (effect.Op == "abilityMutationGuard")
+        {
+            if (!HasString(effect, "operations"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'abilityMutationGuard' requires string param 'operations'.");
+            else
+            {
+                string[] operations = Str(effect, "operations").Split(',',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (operations.Length == 0 || operations.Distinct(StringComparer.Ordinal).Count() != operations.Length
+                    || operations.Any(value => !Enum.TryParse<BattleAbilityOperation>(value, true, out _)))
+                    yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                        "Effect op 'abilityMutationGuard' requires unique ability mutation operations.");
+            }
+            foreach (string key in effect.Params?.Keys.Where(key => key != "operations") ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'abilityMutationGuard' has unknown param '{key}'.");
+            if (effect.Chance is not null)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'abilityMutationGuard' does not support chance.");
         }
     }
 

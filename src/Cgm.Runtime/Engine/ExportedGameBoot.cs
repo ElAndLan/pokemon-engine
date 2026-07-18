@@ -64,7 +64,7 @@ public static class ExportedGameBoot
         IReadOnlyDictionary<EntityId, BattleMove> moveData = db.All<Move>()
             .Select(MoveCompiler.ToBattleMove).ToDictionary(move => move.Move);
         var battle = new BattleController(players, enemies, chart, new Rng(1), itemData: itemData.Values,
-            moveData: moveData.Values);
+            moveData: moveData.Values, abilityData: db.All<Ability>());
         AddTemporaryFormTrainerItems(db, battle, players.Select(p => p.Species));
 
         var aiRng = new Rng(2);
@@ -86,7 +86,8 @@ public static class ExportedGameBoot
                 Ruleset: b.Ruleset,
                 MoveData: moveData,
                 Overlays: b.Overlays,
-                ItemState: b.Items));
+                ItemState: b.Items,
+                AbilityState: b.Abilities));
         }
 
         return new BattleScene(battle, EnemyAction, FormChoices(db, players.Select(p => p.Species)), id => NameOf(db, id));

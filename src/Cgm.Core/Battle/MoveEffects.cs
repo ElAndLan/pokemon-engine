@@ -77,6 +77,11 @@ public sealed record ItemMutationEffect(
     BattleItemSubject Subject = BattleItemSubject.User,
     int? Duration = null,
     string Cause = "move") : MoveEffect;
+public sealed record AbilityMutationEffect(
+    BattleAbilityOperation Operation,
+    BattleAbilitySubject Source = BattleAbilitySubject.Target,
+    BattleAbilitySubject Subject = BattleAbilitySubject.User,
+    EntityId? Ability = null) : MoveEffect;
 public sealed record FormulaPowerBand(int MinInclusive, int Power);
 public sealed record StatusChanceFormula(
     StatusPowerSubject Subject,

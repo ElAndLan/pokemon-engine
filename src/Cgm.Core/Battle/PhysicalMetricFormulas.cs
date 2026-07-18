@@ -110,7 +110,7 @@ public static class PhysicalMetricFormulas
 
     public static BattleEffectiveValues BaseEffectiveValues(BattleCreature creature) => new(
             creature.HeldItem,
-            null,
+            creature.Ability,
             creature.Types,
             creature.Stats,
             creature.Moves.Select(BattleEffectiveMove.FromBase).ToArray(),

@@ -61,7 +61,8 @@ public sealed record SmartAiContext(
     int ActiveSlotsPerSide = 1,
     int SnapshottedLiveTargets = 1,
     IReadOnlyDictionary<EntityId, BattleMove>? MoveData = null,
-    BattleItemState? ItemState = null)
+    BattleItemState? ItemState = null,
+    BattleAbilityState? AbilityState = null)
 {
     public BattleEnvironmentState Environment => BattleEnvironmentState.Resolve(NaturalEnvironment, Conditions);
 }
@@ -158,6 +159,8 @@ public static class SmartAi
             c.Add(new("pairedActionPending", 0));
         if (authoredMove.SecondaryEffects.OfType<ItemMutationEffect>().Any())
             c.Add(new("itemMutation", 0));
+        if (authoredMove.SecondaryEffects.OfType<AbilityMutationEffect>().Any())
+            c.Add(new("abilityMutation", 0));
         if (KnownItemRequirementFails(authoredMove, attacker, context))
         {
             c.Add(new("itemRequirement", -1_000_000));
@@ -639,7 +642,7 @@ public static class SmartAi
                     .QueryModifiers(BattleQueryId.FinalDamage));
                 finalModifiers.AddRange(SideConditions.CollectDamageHooks(conditions, targetSide,
                     identity.EffectiveClass, context?.ActiveSlotsPerSide ?? 1, critical,
-                    BypassesSideConditions(attacker, move, "screen"), actionSequence: 0)
+                    BypassesSideConditions(attacker, move, "screen", context), actionSequence: 0)
                     .QueryModifiers(BattleQueryId.FinalDamage));
             }
             return BattleActionQueries.FinalDamage(move,
@@ -659,14 +662,15 @@ public static class SmartAi
         return floor > 0 ? Math.Min(total, Math.Max(0, defender.CurrentHp - floor)) : total;
     }
 
-    private static bool BypassesSideConditions(BattleCreature attacker, BattleMove move, string tag) =>
+    private static bool BypassesSideConditions(BattleCreature attacker, BattleMove move, string tag,
+        SmartAiContext? context) =>
         move.SecondaryEffects.OfType<SideConditionBypassEffect>().Any(effect => effect.Tag == tag)
         || (tag is "screen" or "side_protection")
             && move.SecondaryEffects.OfType<RemoveSideConditionEffect>().Any(effect =>
                 (effect.Tag == tag || tag == "screen" && effect.Tag == "barrier")
                 && effect.Side == SideConditionTarget.Target
                 && effect.Timing == SideConditionTiming.BeforeDamage)
-        || attacker.AbilityHooks.SelectMany(hook => hook.Effects).Any(effect =>
+        || AbilityHooks(attacker, context).SelectMany(hook => hook.Effects).Any(effect =>
             effect.Op == "sideConditionBypass"
             && effect.Params?.TryGetValue("tag", out var tagValue) == true
             && tagValue.GetString() == tag);
@@ -735,7 +739,7 @@ public static class SmartAi
     private static bool SideAllowsStatus(SmartAiContext context, BattleCreature source, BattleMove move) =>
         context.Conditions is null
         || !SideConditions.CollectStatusHooks(context.Conditions, BattleSide.Enemy, BattleSide.Player,
-            BypassesSideConditions(source, move, "status_guard"), 0).Filters().Any(filter => filter is
+            BypassesSideConditions(source, move, "status_guard", context), 0).Filters().Any(filter => filter is
                 { Filter.Value: "status_attempt", Decision: BattleHookFilterDecision.Deny });
 
     private static bool SideAllowsHit(SmartAiContext context, BattleCreature source,
@@ -748,7 +752,7 @@ public static class SmartAi
         BattleHookDispatchSnapshot protection = SideConditions.CollectProtectionHooks(
             context.Conditions, new BattleSlot(sourceSide, 0), new BattleSlot(targetSide, 0), move,
             EffectivePriority(context.Conditions, move, source, context), context.Ruleset,
-            BypassesSideConditions(source, move, "side_protection"), 0);
+            BypassesSideConditions(source, move, "side_protection", context), 0);
         return !protection.Filters().Any(filter => filter is
             { Filter.Value: "side_protection", Decision: BattleHookFilterDecision.Deny });
     }
@@ -799,7 +803,8 @@ public static class SmartAi
             : creature.Types;
         return GroundedConditions.Query(creature, types,
             new BattleConditionOwner(BattleConditionScope.Creature, side, slot, partyIndex),
-            context.Conditions, suppressHeldItems: ItemsSuppressed(context)).FinalValue.ToInt32() == 1;
+            context.Conditions, suppressHeldItems: ItemsSuppressed(context),
+            abilityHooks: AbilityHooks(creature, context)).FinalValue.ToInt32() == 1;
     }
 
     private static bool TryOwner(BattleCreature creature, SmartAiContext context,
@@ -822,6 +827,17 @@ public static class SmartAi
         side = default;
         partyIndex = -1;
         return false;
+    }
+
+    private static IReadOnlyList<AbilityHook> AbilityHooks(BattleCreature creature, SmartAiContext? context)
+    {
+        if (context?.AbilityState is null
+            || !TryOwner(creature, context, out BattleSide side, out int partyIndex))
+            return creature.AbilityHooks;
+        int activeIndex = side == BattleSide.Enemy ? context.EnemyActive : context.PlayerActive;
+        BattleSlot? slot = partyIndex == activeIndex ? new BattleSlot(side, 0) : null;
+        return context.AbilityState.Hooks(new BattleOverlayOwner(side, partyIndex, slot),
+            PhysicalMetricFormulas.BaseEffectiveValues(creature), creature.AbilityHooks);
     }
 
     private static BattleConditionOwner CreatureOwner(BattleSide side, int partyIndex) =>

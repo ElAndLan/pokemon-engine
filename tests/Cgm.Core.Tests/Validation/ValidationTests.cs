@@ -521,6 +521,69 @@ public sealed class ValidationTests
     }
 
     [Fact]
+    public void AbilityMutationGuardRequiresUniqueKnownOperations()
+    {
+        var invalid = new Ability
+        {
+            Id = EntityId.Parse("ability:guarded"),
+            Name = "Guarded",
+            Hooks = [new AbilityHook
+            {
+                Hook = AbilityHookPoint.OnModifyOutgoingDamage,
+                Effects = [new Effect
+                {
+                    Op = "abilityMutationGuard",
+                    Chance = 50,
+                    Params = Params(("operations", "copy,copy,unknown"), ("extra", true)),
+                }],
+            }],
+        };
+
+        ValidationIssue[] issues = Run(new AbilityHookRule(), Project(invalid)).ToArray();
+        Assert.Contains(issues, issue => issue.Message.Contains("unique ability mutation operations"));
+        Assert.Contains(issues, issue => issue.Message.Contains("unknown param 'extra'"));
+        Assert.Contains(issues, issue => issue.Message.Contains("does not support chance"));
+
+        Ability valid = invalid with
+        {
+            Hooks = [new AbilityHook
+            {
+                Hook = AbilityHookPoint.OnModifyOutgoingDamage,
+                Effects = [new Effect
+                {
+                    Op = "abilityMutationGuard",
+                    Params = Params(("operations", "copy,swap,replace,suppress")),
+                }],
+            }],
+        };
+        Assert.Empty(Run(new AbilityHookRule(), Project(valid)));
+    }
+
+    [Fact]
+    public void AbilityMutationReplacementMustReferenceExistingAbility()
+    {
+        EntityId replacement = EntityId.Parse("ability:replacement");
+        var move = new Move
+        {
+            Id = EntityId.Parse("move:ability_replace"),
+            Name = "Ability replace",
+            Type = EntityId.Parse("type:normal"),
+            DamageClass = DamageClass.Status,
+            Pp = 10,
+            Target = MoveTarget.Selected,
+            Effects = [new Effect
+            {
+                Op = "abilityMutation",
+                Params = Params(("operation", "replace"), ("ability", replacement.ToString())),
+            }],
+        };
+
+        Assert.Contains(Run(new MoveRule(), Project(move)), issue => issue.Message.Contains(replacement.ToString()));
+        Assert.Empty(Run(new MoveRule(), Project(move,
+            new Ability { Id = replacement, Name = "Replacement" })));
+    }
+
+    [Fact]
     public void Forms_FlagShapeAndActivationInvariants()
     {
         Form badTimed = ValidForm("timed") with

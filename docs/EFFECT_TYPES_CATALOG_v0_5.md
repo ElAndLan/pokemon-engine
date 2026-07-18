@@ -472,6 +472,15 @@ then the shared hook/query path. Overlay payloads are typed for item, ability, c
 move class/list and PP owner, stats/metrics, form, and decoy state. Concrete mutation primitives and
 their presentation events remain in 15F-2 through 15F-6.
 
+Phase 15F-3 realizes `modify_ability_state` as the closed authored op
+`abilityMutation { operation:copy|swap|replace|suppress, source?, subject?, ability? }`. Copy may
+address `userAndAllies`; replace names a catalog `ability:*` ID; suppression is an on-field overlay.
+`BattleAbilityState` preflights the complete participant set and writes only through
+`BattleOverlayStore`. `abilityMutationGuard { operations }` is the non-executing definition marker
+for uncopyable/unswappable/unreplaceable/unsuppressible abilities. Ignore is deliberately a typed
+effective-query option over a known suppression sequence, not a state mutation or blanket hook
+bypass. The primitive draws no RNG and emits ordered `AbilityMutated` events plus one resolver trace.
+
 ### 4.8 Move Tag And Filter Helpers
 
 | Helper | Purpose |

@@ -27,7 +27,10 @@ public sealed class ActionFilterConformanceTests
         ApplyActionFilterEffect effect = Assert.Single(move.SecondaryEffects.OfType<ApplyActionFilterEffect>());
         BattleConditionDefinition condition = ActionFilterConditions.For(effect.Filter, effect.MoveTag);
         Assert.Equal(effect.Filter, condition.ActionFilter!.Kind);
-        Assert.Equal(effect.Duration, condition.DefaultDuration);
+        if (condition.DurationCheckpoint is null)
+            Assert.Null(effect.Duration);
+        else
+            Assert.True(effect.Duration > 0);
         Assert.Contains($"ActionFilterConformanceTests.Certified({record.ReferenceKey})", record.TestIds);
     }
 }

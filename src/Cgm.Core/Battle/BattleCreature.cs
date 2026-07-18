@@ -337,13 +337,15 @@ public sealed class BattleCreature
         int? HpMultiplierPercent,
         Stats Stats,
         IReadOnlyList<EntityId> Types,
+        EntityId? Ability,
         IReadOnlyList<AbilityHook> AbilityHooks,
         IReadOnlyDictionary<EntityId, BattleMove> MoveRemap);
 
     public BattleCreature(EntityId species, string name, int level,
         IReadOnlyList<EntityId> types, Stats stats, IReadOnlyList<BattleMove> moves, int catchRate = 45,
         IReadOnlyList<AbilityHook>? abilityHooks = null, IReadOnlyList<Effect>? heldItemBattleEffects = null,
-        EntityId? heldItem = null, int weightHectograms = 1, int heightDecimeters = 1, int friendship = 70)
+        EntityId? heldItem = null, int weightHectograms = 1, int heightDecimeters = 1, int friendship = 70,
+        EntityId? ability = null)
     {
         if (weightHectograms <= 0)
             throw new ArgumentOutOfRangeException(nameof(weightHectograms), "Battle weight must be positive.");
@@ -360,6 +362,7 @@ public sealed class BattleCreature
         CurrentHp = stats.Hp;
         Moves = moves;
         CatchRate = catchRate;
+        Ability = ability;
         AbilityHooks = abilityHooks ?? [];
         HeldItemBattleEffects = heldItemBattleEffects ?? [];
         HeldItem = heldItem;
@@ -368,6 +371,7 @@ public sealed class BattleCreature
         Friendship = friendship;
         _baseStats = stats;
         _baseTypes = types;
+        _baseAbility = ability;
         _baseAbilityHooks = AbilityHooks;
         _baseMoves = moves;
     }
@@ -381,6 +385,7 @@ public sealed class BattleCreature
     public int CurrentHp { get; private set; }
     public int CatchRate { get; }
     public IReadOnlyList<BattleMove> Moves { get; private set; }
+    public EntityId? Ability { get; private set; }
     public IReadOnlyList<AbilityHook> AbilityHooks { get; private set; }
     public IReadOnlyList<Effect> HeldItemBattleEffects { get; }
     public EntityId? HeldItem { get; }
@@ -434,6 +439,7 @@ public sealed class BattleCreature
     private readonly HashSet<string> _consumedHeldEffects = [];
     private readonly Stats _baseStats;
     private readonly IReadOnlyList<EntityId> _baseTypes;
+    private readonly EntityId? _baseAbility;
     private readonly IReadOnlyList<AbilityHook> _baseAbilityHooks;
     private readonly IReadOnlyList<BattleMove> _baseMoves;
     private IReadOnlyList<BattleFormRuntime> _forms = [];
@@ -470,8 +476,8 @@ public sealed class BattleCreature
         Stats stats = StatCalc.Compute(form?.StatOverrides ?? species.BaseStats, instance.Ivs, instance.Evs, instance.Nature, instance.Level);
         var creature = new BattleCreature(instance.Species, instance.Nickname ?? species.Name, instance.Level,
             form?.TypeOverrides ?? species.Types, stats, moves, species.CatchRate, ability?.Hooks, held?.BattleEffects,
-            instance.HeldItem, species.WeightHectograms, species.HeightDecimeters, instance.Happiness);
-        creature._forms = BuildRuntimeForms(species, instance, db, ability?.Hooks ?? []);
+            instance.HeldItem, species.WeightHectograms, species.HeightDecimeters, instance.Happiness, abilityId);
+        creature._forms = BuildRuntimeForms(species, instance, db, abilityId, ability?.Hooks ?? []);
         creature.TakeDamage(stats.Hp - Math.Clamp(instance.CurHp, 0, stats.Hp));
         if (instance.Status is { } status)
             creature.SetStatus(status, instance.StatusCounter);
@@ -569,6 +575,7 @@ public sealed class BattleCreature
 
         Stats = stats;
         Types = form?.Types ?? _baseTypes;
+        Ability = form?.Ability ?? _baseAbility;
         AbilityHooks = form?.AbilityHooks ?? _baseAbilityHooks;
         ApplyMoveRemap(form);
         MaxHp = Stats.Hp;
@@ -611,7 +618,8 @@ public sealed class BattleCreature
     }
 
     private static IReadOnlyList<BattleFormRuntime> BuildRuntimeForms(
-        Species species, CreatureInstance instance, GameDb db, IReadOnlyList<AbilityHook> baseHooks)
+        Species species, CreatureInstance instance, GameDb db, EntityId? baseAbility,
+        IReadOnlyList<AbilityHook> baseHooks)
     {
         return species.Forms
             .Where(f => f.Activation is FormActivation.Condition or FormActivation.BattleTemporary or FormActivation.BattleTimed)
@@ -628,6 +636,7 @@ public sealed class BattleCreature
                     f.HpMultiplierPercent,
                     StatCalc.Compute(f.StatOverrides ?? species.BaseStats, instance.Ivs, instance.Evs, instance.Nature, instance.Level),
                     f.TypeOverrides ?? species.Types,
+                    f.AbilityOverride ?? baseAbility,
                     ability?.Hooks ?? baseHooks,
                     BuildMoveRemap(f.MoveRemap, db));
             })

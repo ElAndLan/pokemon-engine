@@ -120,6 +120,8 @@ public static class MoveConformanceNormalizer
 
         DamageClass damageClass = ParseDamageClass(ReferenceName(payload, "damage_class", path), path);
         int? power = OptionalInt(payload, "power");
+        if (damageClass == DamageClass.Status && power == 0)
+            power = null;
         int? accuracy = OptionalInt(payload, "accuracy");
         int pp = RequiredInt(payload, "pp", path);
         int priority = RequiredInt(payload, "priority", path);
@@ -196,6 +198,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"MoveReferenceConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op is "itemRequire" or "itemMutation"))
             testIds.Add($"ItemMutationConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op == "abilityMutation"))
+            testIds.Add($"AbilityMutationConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

@@ -2314,6 +2314,41 @@ Acceptance vectors: `item-mutation-compile-validation`, `item-require-pre-pp`,
 `item-conservation-cleanup`, `item-mutation-event-trace-order`, `item-mutation-no-rng`, and
 `item-mutation-golden`.
 
+### Ability mutation (Phase 15F-3)
+
+Abilities mutate only through battle-owned effective-value overlays; `Ability`, `Species`, and saved
+creature definitions remain immutable. The closed move op is
+`abilityMutation { operation, source?, subject?, ability? }`. Operations are `copy`, `swap`,
+`replace`, and `suppress`. `source` is `user` or `target`; `subject` is `user`, `target`, or
+`userAndAllies`. Copy writes the source's effective ability to every subject, swap atomically
+exchanges user and target, replace writes the authored catalog ability, and suppress adds an
+on-field suppression overlay. Copy defaults to target-to-user, while the other parameters are
+required exactly when their operation consumes them.
+
+Every operation validates its complete participant set before writing: required creatures are live,
+every current/source/replacement ability exists in the battle catalog, source and destination are
+distinct where applicable, and the result changes every subject. An ability may carry the marker
+effect `abilityMutationGuard { operations }`; its unique comma-separated operation names protect it
+from those operations. Marker effects never execute as hooks. Any failed participant makes the
+whole operation fail without overlays, events, traces, or partial doubles changes.
+
+Copy, swap, and replace use permanent-instance overlays cleared on switch, faint, or battle end;
+suppress uses the suppression layer with the same cleanup. Effective-ability queries may explicitly
+ignore identified suppression sequences without removing them. This is a query-only bypass:
+ordinary hook lookup still sees no ability while suppressed. Hook dispatchers enumerate a captured
+source snapshot, so newly effective hooks begin at the next dispatcher checkpoint and never join an
+enumeration already in progress. Hook lookup, mutation guards, passive bypass checks, and Smart AI
+read the same effective ability/catalog path, with direct runtime hooks retained only for creatures
+constructed without an ability ID.
+
+Each success emits one `AbilityMutated` event per changed owner in stable side/party order. Each
+attempt records one `AbilityMutation` effect trace with the exact event range and no RNG draw.
+Acceptance vectors: `ability-mutation-compile-validation`, `ability-operation-matrix`,
+`ability-protected-identical-missing`, `ability-swap-copy-atomic`, `ability-hook-checkpoint`,
+`ability-suppress-ignore`, `ability-switch-faint-end-reversion`, `ability-doubles-identity`,
+`ability-ai-parity`, `ability-event-trace-order`, `ability-definition-immutable`, and
+`ability-mutation-golden`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

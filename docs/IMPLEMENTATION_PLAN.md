@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2, and 15G-2 complete; 937 inventoried, 144/937 certified; next eligible package is 15F-3 ability mutation** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 152/937 certified; next eligible package is 15F-4 creature and move type overlays** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2398,7 +2398,7 @@ Ordered feature packages:
    and cause; restore consumes that history only on success. Hook lookup changes at checkpoint tail.
    **Acceptance:** every success/failure pair, protected/empty/full, atomic swap, history aging,
    item-derived type/power/effect, hook refresh, events, conservation, and cleanup.
-3. **15F-3 — Ability mutation (`PLANNED`; prerequisites 15F-1 and 15E hooks).** Lock copy, swap,
+3. **15F-3 — Ability mutation (`COMPLETE`; prerequisites 15F-1 and 15E hooks).** Lock copy, swap,
    replace, suppress, ignore-for-query, and protect operations over effective abilities. Immutable base
    ability returns after temporary overlays clear. Validate unchangeable/protected tags and identical/
    missing ability behavior before atomic mutation. Newly effective hooks start at the next safe
@@ -2487,6 +2487,36 @@ remaining blocking scope, determinism, schema, dependency, IP, or architecture i
 the item package passed 10 tests, generated item conformance passed 7 tests, the full Battle filter
 passed 1,278 tests, and the full solution passed **1,857/1,857** (1,562 Core, 104 Creator, 21 Runtime,
 170 Tools). Next eligible package: **15F-3 ability mutation**.
+
+Progress (2026-07-18): **15F-3 COMPLETE — focused review: GO.** The battle spec and effect catalog
+now lock closed, data-defined `abilityMutation` copy/swap/replace/suppress operations over the shared
+effective-value overlay path. `BattleAbilityState` preflights live participant identity, catalog
+existence, missing/identical values, definition guard markers, replacement references, and complete
+doubles recipient sets before any write. Copy supports target-to-user, user-to-target, and atomic
+user-plus-allies projection while skipping already-equal recipients; swap is two-owner atomic;
+replace names a validated catalog ability; suppression remains query-bypassable only by its exact
+overlay sequence. All mutation overlays clear on switch, faint, or battle end without changing
+`Ability`, `Species`, saved creature, or form definitions. Effective hook lookup now drives ordinary
+dispatch, mutation guards, protection/side-condition bypass, grounded queries, and Smart AI; an
+already-captured dispatcher snapshot remains unchanged and the next checkpoint sees the new hooks.
+Success emits stable owner-ordered `AbilityMutated` events and one no-RNG `AbilityMutation` trace.
+The historical eight-row audit group resolved to seven true ability mutations plus one incorrectly
+classified two-turn healing lock, which is now certified through the existing action-filter family.
+Strict certification rose from 144 to **152/937** with 785 inventory-only and zero normalized,
+compiled, blocked, or invalid rows. Repeated generation was byte-identical: definitions SHA-256
+`ffe851f9b076ea04c023fc74b6e5ced504b0dc78cada1bc09040f5ea9c474257`, manifest SHA-256
+`f5caa9b979b2513715222d6f1dd51f20ed054bf1b87d9cb0d603b4d469ebaeb9`, and corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
+Schema/migration impact: none (existing open effect params and runtime-only battle identity).
+Dependency impact: none. RNG impact: none. Golden impact: one new neutral
+`ability-mutation.golden`; no existing golden changed. Focused review fixed effective grounded-hook
+lookup and mixed unchanged/changed group-copy handling, then found no remaining blocking scope,
+determinism, schema, dependency, IP, AI-fairness, or architecture issue. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+the focused ability/validation package passed 15 tests, focused ability plus reclassified conformance
+passed 18 tests, the full Battle filter passed **1,291/1,291**, and the full solution passed
+**1,881/1,881** (1,577 Core, 104 Creator, 21 Runtime, 179 Tools). Next eligible package:
+**15F-4 creature and move type overlays**.
 
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
@@ -3255,9 +3285,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2, and 15G-2. ACTIVE — 15F-3.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2. ACTIVE — 15F-4.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15F-3** through **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
+   **15F-4** through **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
 7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked
    references, regenerate normalized definitions, route newly exposed capabilities, and certify every

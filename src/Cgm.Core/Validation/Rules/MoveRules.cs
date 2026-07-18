@@ -62,6 +62,12 @@ public sealed class MoveRule : IValidationRule
             if (missingType is { } type && type != default)
                 return new ValidationIssue(Id, ValidationSeverity.Error, move.Id,
                     $"A field-sensitive move references '{type}', which does not exist.");
+            EntityId? missingAbility = compiled.SecondaryEffects.OfType<AbilityMutationEffect>()
+                .Select(effect => effect.Ability).FirstOrDefault(ability => ability is { } id
+                    && project.Find<Ability>(id) is null);
+            if (missingAbility is { } ability)
+                return new ValidationIssue(Id, ValidationSeverity.Error, move.Id,
+                    $"An ability mutation references '{ability}', which does not exist.");
             return null;
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException)

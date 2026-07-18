@@ -1,0 +1,4 @@
+used:Player:move:ability_swap_replay
+ability:Player:0:ability:first:ability:second:Swap
+ability:Enemy:0:ability:second:ability:first:Swap
+trace:0:1:Player:Enemy:True:2:1-3

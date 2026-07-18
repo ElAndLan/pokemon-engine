@@ -207,6 +207,36 @@ public static class MoveCompiler
                     effects.Add(new ItemMutationEffect(itemOperation, itemSubject, itemDuration, itemCause));
                     break;
 
+                case "abilityMutation":
+                    if (chance != 100)
+                        throw new ArgumentException("abilityMutation does not support chance.");
+                    CheckAllowedParams(e, "operation", "source", "subject", "ability");
+                    BattleAbilityOperation abilityOperation = ParseNamed<BattleAbilityOperation>(
+                        Str(e, "operation"), "ability mutation operation");
+                    BattleAbilitySubject abilitySource = e.Params?.ContainsKey("source") == true
+                        ? ParseNamed<BattleAbilitySubject>(Str(e, "source"), "ability mutation source")
+                        : BattleAbilitySubject.Target;
+                    BattleAbilitySubject abilitySubject = e.Params?.ContainsKey("subject") == true
+                        ? ParseNamed<BattleAbilitySubject>(Str(e, "subject"), "ability mutation subject")
+                        : abilityOperation is BattleAbilityOperation.Replace or BattleAbilityOperation.Suppress
+                            ? BattleAbilitySubject.Target : BattleAbilitySubject.User;
+                    EntityId? replacementAbility = e.Params?.ContainsKey("ability") == true
+                        ? EntityId.Parse(Str(e, "ability")) : null;
+                    if (abilitySource == BattleAbilitySubject.UserAndAllies
+                        || !IsActiveCreatureTarget(move.Target) || move.Target == MoveTarget.User
+                        || abilityOperation == BattleAbilityOperation.Copy && abilitySource == abilitySubject
+                        || abilityOperation == BattleAbilityOperation.Swap
+                            && (e.Params?.ContainsKey("source") == true || e.Params?.ContainsKey("subject") == true)
+                        || abilityOperation == BattleAbilityOperation.Replace != replacementAbility.HasValue
+                        || abilityOperation is BattleAbilityOperation.Replace or BattleAbilityOperation.Suppress
+                            && e.Params?.ContainsKey("source") == true)
+                        throw new ArgumentException("abilityMutation parameters do not match the operation or move target.");
+                    if (effects.OfType<AbilityMutationEffect>().Any())
+                        throw new ArgumentException("A move can declare only one abilityMutation effect.");
+                    effects.Add(new AbilityMutationEffect(abilityOperation, abilitySource, abilitySubject,
+                        replacementAbility));
+                    break;
+
                 case "drain":
                     drain = ReadFraction(e, 1, 2);
                     effects.Add(new DrainEffect(drain.Value));

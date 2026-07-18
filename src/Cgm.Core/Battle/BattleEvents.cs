@@ -168,6 +168,12 @@ public sealed record HeldItemMutated(
     EntityId? After,
     BattleItemOperation Operation,
     string Cause) : BattleEvent;
+public sealed record AbilityMutated(
+    BattleSide Side,
+    int PartyIndex,
+    EntityId? Before,
+    EntityId? After,
+    BattleAbilityOperation Operation) : BattleEvent;
 public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

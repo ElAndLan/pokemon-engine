@@ -39,6 +39,7 @@ public enum EffectTraceKind
     TurnOrderIntent,
     PairedAction,
     HeldItemMutation,
+    AbilityMutation,
     EntryHazard,
     IntentEnqueued,
     IntentConsumed,
