@@ -71,6 +71,12 @@ public enum TerrainMoveSubject { Field, User, Target }
 public enum SideConditionTarget { Source, Target }
 public enum SideConditionTiming { BeforeDamage, AfterHit }
 public enum BattleVolatileStatus { Confusion, Flinch, Bound, Seeded, Protected }
+public sealed record ItemRequireEffect(BattleItemSubject Subject, BattleItemRequirement Requirement) : MoveEffect;
+public sealed record ItemMutationEffect(
+    BattleItemOperation Operation,
+    BattleItemSubject Subject = BattleItemSubject.User,
+    int? Duration = null,
+    string Cause = "move") : MoveEffect;
 public sealed record FormulaPowerBand(int MinInclusive, int Power);
 public sealed record StatusChanceFormula(
     StatusPowerSubject Subject,

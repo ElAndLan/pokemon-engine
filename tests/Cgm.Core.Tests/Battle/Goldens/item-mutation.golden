@@ -1,0 +1,4 @@
+used:Player:move:swap_replay
+item:Player:0:item:first_charm:item:second_charm:Swap:move
+item:Enemy:0:item:second_charm:item:first_charm:Swap:move
+trace:0:1:Player:Enemy:True:2:1-3

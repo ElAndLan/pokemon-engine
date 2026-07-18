@@ -683,6 +683,7 @@ public sealed class BattleCreature
 
     public bool HasConsumedHeldEffect(string op) => _consumedHeldEffects.Contains(op);
     public bool ConsumeHeldEffect(string op) => _consumedHeldEffects.Add(op);
+    public void ResetConsumedHeldEffects() => _consumedHeldEffects.Clear();
 
     public void StartCharging(int moveIndex, SemiInvulnerableState? state = null)
     {

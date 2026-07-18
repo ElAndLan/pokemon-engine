@@ -18,7 +18,7 @@ Starting baseline:
 - Legacy expressibility audit: 468 PASS / 469 FAIL.
 - Phase 15A manifest: 937/937 inventory-only, corpus digest
   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
-- Strict end-to-end conformance certification: 130/937. Phase 15A, the complete 15B target/topology
+- Strict end-to-end conformance certification: 144/937. Phase 15A, the complete 15B target/topology
   workstream, and 15C-2/3/4/5/6 HP/status/speed/action-history/party-resource/damage-query formulas are complete. Their generated normalized
   definitions and
   per-reference formula/doubles vectors are green; the 15B cumulative golden and focused exit review
@@ -43,9 +43,9 @@ Starting baseline:
   actions add six certified vectors. The complete 15D-5 multi-turn lock/forced execution family adds
   three certified vectors (121/937 total), including fixed power ramps and their keyed switch-scoped
   boost interaction. The complete 15D-6 selection-lock/action-filter family adds nine certified
-  vectors (130/937 total), including shared controller/AI legality and ruleset fallback. The next
-  eligible work is 15D-7 move references and turn-order intents. Pair
-  recognition/combined execution stays with 15D-7. Deferred
+  vectors (130/937 total), including shared controller/AI legality and ruleset fallback. The complete
+  15D-7 move-reference/order package and 15F-2 held-item mutation package raise the generated total
+  to 144/937. The next eligible work is 15F-3 ability mutation. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

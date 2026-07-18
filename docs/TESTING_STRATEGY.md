@@ -311,6 +311,15 @@ enumeration; zero RNG; Smart-AI snapshot visibility without speculative scoring;
 and the checked-in `condition-mutation.golden`. The existing open effect payload adds only closed op
 params, so no schema migration vector changes.
 
+The 15F-2 exit covers strict `itemRequire`/`itemMutation` compilation; require/consume/give/steal/
+swap/remove/destroy/restore/suppress success and failure; catalog holdability, capacity, key/item and
+sticky-ability protection; atomic two-item preflight; latest-consumption aging and successful-restore
+spend; switch identity, faint/switch/end cleanup, timed suppression, conservation, effective item
+power and held-hook refresh, legacy consume-marker reset, owner-addressed events, exact effect trace
+ranges, Smart-AI known-own versus hidden-target parity, zero mutation RNG, deterministic regeneration,
+six per-reference transfer/restore vectors, and the checked-in `item-mutation.golden`. The existing
+open effect payload adds only closed params, so no schema migration vector changes.
+
 The 15C-6 exit covers strict compilation for extended `damageStatOverride`, `damageClassQuery`, and
 `effectivenessQuery` rows plus every missing, duplicate, mistyped, unknown, non-type, nonpositive,
 and incompatible sibling; standard single/dual tables; immunity and override precedence; inverse and

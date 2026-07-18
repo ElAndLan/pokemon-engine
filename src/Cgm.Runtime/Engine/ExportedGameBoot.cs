@@ -84,7 +84,9 @@ public static class ExportedGameBoot
                 ItemData: itemData,
                 Conditions: b.ConditionSnapshot,
                 Ruleset: b.Ruleset,
-                MoveData: moveData));
+                MoveData: moveData,
+                Overlays: b.Overlays,
+                ItemState: b.Items));
         }
 
         return new BattleScene(battle, EnemyAction, FormChoices(db, players.Select(p => p.Species)), id => NameOf(db, id));

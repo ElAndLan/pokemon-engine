@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2 complete; 937 inventoried, 130/937 certified; next eligible package is 15D-7 move references and turn-order intents** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2, and 15G-2 complete; 937 inventoried, 144/937 certified; next eligible package is 15F-3 ability mutation** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2463,6 +2463,31 @@ warnings/errors; `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` p
 overlay/form/hook/query/AI filter passed 112 tests, and the Battle filter passed 712 tests;
 regeneration and `git diff --check` passed. Next eligible package: **15C-2**.
 
+Progress (2026-07-18): **15F-2 COMPLETE — focused review: GO.** The battle spec and effect catalog
+now lock closed `itemRequire` and `itemMutation` ops over the existing effective-value overlay path.
+`BattleItemState` atomically covers require, consume, give, steal, swap, remove, destroy,
+restore-last-consumed, and timed suppression with catalog holdability, one-item capacity, key/item
+guards, active-ability sticky guards, faint-state checks, and complete preflight before any write.
+Consumption history is creature-identity-owned, ages to the latest consumed item, survives switching,
+is spent only by successful restore, and clears at battle end. Effective item power and held-effect
+lookup use the new overlay immediately after the current dispatcher snapshot; transferred/restored
+items clear legacy consume-once markers, while Magic Room and timed suppression preserve ownership.
+Successful mutations emit owner-addressed `HeldItemMutated` events plus compatibility consumption
+events and one deterministic no-RNG effect trace. Smart AI rejects only known failing own-item
+requirements, keeps hidden target-item requirements neutral, and records item mutation as a neutral
+named component. The generated reference cohort adds six fully closed give/steal/swap/restore rows,
+raising strict certification from 138 to **144/937** with 793 inventory-only and zero normalized,
+compiled, blocked, or invalid rows; repeated regeneration was byte-identical with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
+Schema/migration impact: none (existing open effect params). Dependency impact: none. RNG impact:
+none. Golden impact: one new neutral `item-mutation.golden`; no existing golden changed. Focused
+review fixed swap's second-item preflight and restored-item consume-marker cleanup, then found no
+remaining blocking scope, determinism, schema, dependency, IP, or architecture issue. Verification:
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+the item package passed 10 tests, generated item conformance passed 7 tests, the full Battle filter
+passed 1,278 tests, and the full solution passed **1,857/1,857** (1,562 Core, 104 Creator, 21 Runtime,
+170 Tools). Next eligible package: **15F-3 ability mutation**.
+
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
 substitute interception matrix; Transform/PP/form goldens; deterministic move-pool selection.
@@ -3230,10 +3255,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15F-2.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2, and 15G-2. ACTIVE — 15F-3.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15F-2** through
-   **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
+   **15F-3** through **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
 7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked
    references, regenerate normalized definitions, route newly exposed capabilities, and certify every

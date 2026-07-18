@@ -2274,6 +2274,46 @@ Neutral acceptance vectors: `overlay-each-value`, `overlay-precedence`, `overlay
 `overlay-suppress-ignore`, `overlay-stable-order`, `overlay-definition-immutable`,
 `overlay-duration-cleanup`, `overlay-resolver-ai-parity`, `overlay-validation`, and `overlay-replay`.
 
+### Held-item mutation (Phase 15F-2)
+
+Held items mutate only through the battle-owned `BattleItemState`, which writes permanent-instance
+or suppression rows to `BattleOverlayStore`; saved creatures and `Item` definitions remain immutable.
+The closed move ops are `itemRequire { subject, state }` and
+`itemMutation { operation, subject?, duration?, cause? }`. `subject` is `user` or `target`.
+Requirements are `held`, `empty`, or `consumed`; they are evaluated before PP, accuracy, or effect
+RNG and fail with `ItemRequirementNotMet`. Mutations are `consume`, `give`, `steal`, `swap`, `remove`,
+`destroy`, `restore`, and `suppress`. Give transfers user to target, steal transfers target to user,
+swap exchanges the two values, restore returns the subject's most recently consumed item, and
+suppress adds a positive-duration switch/faint/battle-end suppression overlay.
+
+Every operation validates its complete pre-state before writing: active source/target are not
+fainted; catalog items exist and are holdable; each creature has one-item capacity; give/steal need
+one occupied origin and empty destination; swap needs two distinct occupied items; consume/remove/
+destroy need an item; restore needs an empty holder plus unspent history. Key items and items carrying
+`itemMutationGuard` for the requested operation are unremovable. An active ability effect named
+`itemMutationGuard` protects its holder from incoming steal/swap/remove/destroy operations. These
+marker effects accept `operations` as unique lowercase comma-separated operation names and never
+execute as ordinary hooks. Failed operations change no overlay, history, event, trace, or hook state.
+
+Consumption records item ID, exact side/party owner, turn, and lowercase cause. A later consumption
+replaces the restorable record for that creature. Restore consumes the record only after its item is
+successfully admitted; failed restore leaves it intact. Successful transfer conserves one item,
+consume/destroy remove one, restore adds only the recorded removed item, and suppress changes no
+ownership. History clears at battle end and follows creature identity across switching.
+
+Each success emits one `HeldItemMutated` per changed owner in owner order; consume also retains the
+compatibility `HeldItemConsumed` event. Each attempt records one `HeldItemMutation` effect trace with
+the exact event range and no RNG draw. Effective item queries, item-derived power, and held-effect
+lookup read the post-operation overlay. Hook enumeration already in progress uses its captured
+snapshot; the new held item's hooks become visible only to the next dispatcher checkpoint. Magic
+Room suppression composes after the mutation overlay and does not erase ownership or history.
+
+Acceptance vectors: `item-mutation-compile-validation`, `item-require-pre-pp`,
+`item-mutation-success-failure`, `item-mutation-protected-capacity`, `item-swap-atomic`,
+`item-consumption-history-aging`, `item-restore-success-only`, `item-query-hook-refresh`,
+`item-conservation-cleanup`, `item-mutation-event-trace-order`, `item-mutation-no-rng`, and
+`item-mutation-golden`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

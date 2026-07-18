@@ -163,6 +163,50 @@ public static class MoveCompiler
                         pairMode, pairOptions, pairPower)));
                     break;
 
+                case "itemRequire":
+                    if (chance != 100)
+                        throw new ArgumentException("itemRequire does not support chance.");
+                    CheckAllowedParams(e, "subject", "state");
+                    BattleItemSubject requireSubject = ParseNamed<BattleItemSubject>(
+                        Str(e, "subject"), "item requirement subject");
+                    BattleItemRequirement requirement = ParseNamed<BattleItemRequirement>(
+                        Str(e, "state"), "item requirement state");
+                    if (requireSubject == BattleItemSubject.Target && !IsActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("Target item requirements need an active-creature target.");
+                    if (effects.OfType<ItemRequireEffect>().Any(effect => effect.Subject == requireSubject))
+                        throw new ArgumentException("A move can declare only one item requirement per subject.");
+                    effects.Add(new ItemRequireEffect(requireSubject, requirement));
+                    break;
+
+                case "itemMutation":
+                    if (chance != 100)
+                        throw new ArgumentException("itemMutation does not support chance.");
+                    CheckAllowedParams(e, "operation", "subject", "duration", "cause");
+                    BattleItemOperation itemOperation = ParseNamed<BattleItemOperation>(
+                        Str(e, "operation"), "item mutation operation");
+                    BattleItemSubject itemSubject = e.Params?.ContainsKey("subject") == true
+                        ? ParseNamed<BattleItemSubject>(Str(e, "subject"), "item mutation subject")
+                        : itemOperation is BattleItemOperation.Steal or BattleItemOperation.Remove
+                            or BattleItemOperation.Destroy ? BattleItemSubject.Target : BattleItemSubject.User;
+                    int? itemDuration = e.Params?.ContainsKey("duration") == true ? Int(e, "duration") : null;
+                    string itemCause = e.Params?.ContainsKey("cause") == true
+                        ? LowercaseToken(Str(e, "cause"), "item mutation cause") : "move";
+                    bool needsTarget = itemSubject == BattleItemSubject.Target || itemOperation is
+                        BattleItemOperation.Give or BattleItemOperation.Steal or BattleItemOperation.Swap;
+                    bool transfers = itemOperation is BattleItemOperation.Give or BattleItemOperation.Steal
+                        or BattleItemOperation.Swap;
+                    if (transfers && (move.Target != MoveTarget.Selected
+                            || e.Params?.ContainsKey("subject") == true)
+                        || !transfers && needsTarget && !IsActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("This item mutation requires an active-creature target.");
+                    if ((itemOperation == BattleItemOperation.Suppress) != itemDuration.HasValue
+                        || itemDuration is <= 0 or > 16)
+                        throw new ArgumentException("Only item suppression requires duration 1..16.");
+                    if (effects.OfType<ItemMutationEffect>().Any())
+                        throw new ArgumentException("A move can declare only one itemMutation effect.");
+                    effects.Add(new ItemMutationEffect(itemOperation, itemSubject, itemDuration, itemCause));
+                    break;
+
                 case "drain":
                     drain = ReadFraction(e, 1, 2);
                     effects.Add(new DrainEffect(drain.Value));

@@ -183,7 +183,7 @@ internal static class Phase15EffectRules
     {
         "statModify", "typeDamageModify", "statusImmunity", "weatherSummon", "terrainSummon",
         "contactChanceEffect", "residualHeal", "residualDamage", "groundedModify",
-        "sideConditionBypass", "protectionBypass",
+        "sideConditionBypass", "protectionBypass", "itemMutationGuard",
     };
 
     public static readonly IReadOnlySet<string> HeldItemOps = new HashSet<string>
@@ -191,7 +191,7 @@ internal static class Phase15EffectRules
         "thresholdHeal", "statusCure", "typeDamageBoost", "choiceLock",
         "residualHeal", "surviveFromFull", "weatherDurationExtend", "terrainDurationExtend", "groundedModify",
         "terrainSeed",
-        "sideConditionDurationExtend",
+        "sideConditionDurationExtend", "itemMutationGuard",
     };
 
     public static IEnumerable<ValidationIssue> Check(
@@ -432,6 +432,28 @@ internal static class Phase15EffectRules
             if (effect.Chance is not null)
                 yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
                     "Effect op 'groundedModify' does not support chance.");
+        }
+
+        if (effect.Op == "itemMutationGuard")
+        {
+            if (!HasString(effect, "operations"))
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'itemMutationGuard' requires string param 'operations'.");
+            else
+            {
+                string[] operations = Str(effect, "operations").Split(',',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (operations.Length == 0 || operations.Distinct(StringComparer.Ordinal).Count() != operations.Length
+                    || operations.Any(value => !Enum.TryParse<BattleItemOperation>(value, true, out _)))
+                    yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                        "Effect op 'itemMutationGuard' requires unique held-item mutation operations.");
+            }
+            foreach (string key in effect.Params?.Keys.Where(key => key != "operations") ?? [])
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    $"Effect op 'itemMutationGuard' has unknown param '{key}'.");
+            if (effect.Chance is not null)
+                yield return new ValidationIssue(ruleId, ValidationSeverity.Error, owner,
+                    "Effect op 'itemMutationGuard' does not support chance.");
         }
     }
 

@@ -259,6 +259,12 @@ Capabilities beyond Beginner:
   `turnOrderIntent` and `pairedAction` add neutral named components because Smart AI is not given
   another actor's submitted current-turn record. The resolver alone reads and mutates the schedule;
   AI never infers the player's or an ally's hidden selection.
+- Phase 15F-2 evaluates the AI holder's `itemRequire` rows from the same effective overlay and
+  consumption history as resolution. A known failure receives the named `itemRequirement`
+  rejection; target-item requirements remain neutral unless later reveal/open-sheet rules expose
+  that item. `itemMutation` adds only a zero-value `itemMutation` evidence component: AI does not
+  speculate about hidden opposing item identity or future hook value. Preview is read-only and
+  consumes no RNG.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

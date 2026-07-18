@@ -194,6 +194,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"ActionFilterConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op is "callMove" or "turnOrderIntent" or "pairedAction"))
             testIds.Add($"MoveReferenceConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "itemRequire" or "itemMutation"))
+            testIds.Add($"ItemMutationConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

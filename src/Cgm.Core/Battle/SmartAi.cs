@@ -60,7 +60,8 @@ public sealed record SmartAiContext(
     BattleEnvironment NaturalEnvironment = BattleEnvironment.Building,
     int ActiveSlotsPerSide = 1,
     int SnapshottedLiveTargets = 1,
-    IReadOnlyDictionary<EntityId, BattleMove>? MoveData = null)
+    IReadOnlyDictionary<EntityId, BattleMove>? MoveData = null,
+    BattleItemState? ItemState = null)
 {
     public BattleEnvironmentState Environment => BattleEnvironmentState.Resolve(NaturalEnvironment, Conditions);
 }
@@ -155,6 +156,13 @@ public static class SmartAi
             c.Add(new("turnOrderIntent", 0));
         if (authoredMove.SecondaryEffects.OfType<PairedActionEffect>().Any())
             c.Add(new("pairedActionPending", 0));
+        if (authoredMove.SecondaryEffects.OfType<ItemMutationEffect>().Any())
+            c.Add(new("itemMutation", 0));
+        if (KnownItemRequirementFails(authoredMove, attacker, context))
+        {
+            c.Add(new("itemRequirement", -1_000_000));
+            return new AiCandidateScore(action, c.Sum(component => component.Value), c);
+        }
         if (defender.SemiInvulnerableState is { } state
             && !move.SecondaryEffects.OfType<SemiInvulnerableHitEffect>()
                 .Any(effect => effect.States.Contains(state)))
@@ -305,6 +313,28 @@ public static class SmartAi
 
         c.Add(new("noise", c.Sum(x => x.Value) * ((rng.NextDouble() * 2 - 1) * weights.NoiseFraction)));
         return new AiCandidateScore(action, c.Sum(x => x.Value), c);
+    }
+
+    private static bool KnownItemRequirementFails(BattleMove move, BattleCreature attacker,
+        SmartAiContext context)
+    {
+        ItemRequireEffect[] requirements = move.SecondaryEffects.OfType<ItemRequireEffect>()
+            .Where(requirement => requirement.Subject == BattleItemSubject.User).ToArray();
+        if (requirements.Length == 0)
+            return false;
+        var owner = new BattleOverlayOwner(BattleSide.Enemy, context.EnemyActive,
+            new BattleSlot(BattleSide.Enemy, 0));
+        BattleEffectiveValues values = context.Overlays is null
+            ? PhysicalMetricFormulas.BaseEffectiveValues(attacker)
+            : PhysicalMetricFormulas.EffectiveValues(attacker, context.Overlays, owner);
+        return requirements.Any(requirement => requirement.Requirement switch
+        {
+            BattleItemRequirement.Held => values.HeldItem is null,
+            BattleItemRequirement.Empty => values.HeldItem is not null,
+            BattleItemRequirement.Consumed => context.ItemState is not null
+                && context.ItemState.LastConsumed(owner) is null,
+            _ => false,
+        });
     }
 
     private static BattleMove? PreviewCalledMove(BattleMove authored, BattleCreature attacker,

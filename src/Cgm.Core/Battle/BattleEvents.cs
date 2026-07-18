@@ -75,6 +75,7 @@ public enum MoveFailureReason
     FieldConditionBlocked,
     ConditionRequirementNotMet,
     ConditionAlreadyActive,
+    ItemRequirementNotMet,
 }
 public sealed record MoveFailed(BattleSlot Slot, EntityId Move, MoveFailureReason Reason) : BattleEvent
 {
@@ -160,6 +161,13 @@ public sealed record HeldItemConsumed(BattleSlot Slot, string Op) : BattleEvent
     public BattleSide Side => Slot.Side;
     public HeldItemConsumed(BattleSide side, string op) : this(new BattleSlot(side, 0), op) { }
 }
+public sealed record HeldItemMutated(
+    BattleSide Side,
+    int PartyIndex,
+    EntityId? Before,
+    EntityId? After,
+    BattleItemOperation Operation,
+    string Cause) : BattleEvent;
 public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

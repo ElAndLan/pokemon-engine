@@ -1065,10 +1065,10 @@ than mapping the behavior to a named move or an ordinary move slot.
 | `conversion` / `camouflage` / `reflect_type` | `modify_type_state(formula/environment/target types)`. |
 | `electrify` / `ion_deluge` | `modify_type_state(move_type_override:electric)`. |
 | `skill_swap` / `entrainment` / `worry_seed` / `simple_beam` / `gastro_acid` / `trace` | `modify_ability_state`. |
-| `knock_off` | damage plus `modify_item_state(remove_or_disable_item)`. |
-| `trick` / `switcheroo` / `bestow` | `modify_item_state(swap/give)`. |
-| `fling` | `modify_item_state(consume)` + item-derived damage/effect preset. |
-| `natural_gift` | `modify_item_state(consume)` + item-derived type/power damage. |
+| `knock_off` | damage plus `itemMutation { operation: remove, subject: target }`. |
+| `trick` / `switcheroo` / `bestow` | `itemMutation { operation: swap/give }`. |
+| `fling` | `itemRequire { subject: user, state: held }` + item-derived damage + `itemMutation { operation: consume, subject: user }`. |
+| `natural_gift` | the same held-item requirement/consumption path plus item-derived type/power data. |
 | `recycle` | `restore_resource(consumed_item)`. |
 | `mega_like` | `transform_form(battle_temporary)` + ruleset once flag. |
 | `gmax_like` | `transform_form(battle_timed)` + move remap + HP policy. |
