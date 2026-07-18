@@ -59,7 +59,8 @@ public sealed record SmartAiContext(
     string Ruleset = BattleRulesets.Gen4Like,
     BattleEnvironment NaturalEnvironment = BattleEnvironment.Building,
     int ActiveSlotsPerSide = 1,
-    int SnapshottedLiveTargets = 1)
+    int SnapshottedLiveTargets = 1,
+    IReadOnlyDictionary<EntityId, BattleMove>? MoveData = null)
 {
     public BattleEnvironmentState Environment => BattleEnvironmentState.Resolve(NaturalEnvironment, Conditions);
 }
@@ -144,8 +145,16 @@ public static class SmartAi
     private static AiCandidateScore ScoreMove(UseMove action, BattleCreature attacker, BattleCreature defender,
         SmartAiContext context, SmartAiWeights weights, IRng rng)
     {
-        BattleMove move = attacker.Moves[action.MoveIndex];
+        BattleMove authoredMove = attacker.Moves[action.MoveIndex];
+        BattleMove? calledPreview = PreviewCalledMove(authoredMove, attacker, defender, context);
+        BattleMove move = calledPreview ?? authoredMove;
         var c = new List<AiScoreComponent>();
+        if (authoredMove.SecondaryEffects.OfType<CallMoveEffect>().Any())
+            c.Add(new(calledPreview is null ? "calledMoveUnknown" : "calledMovePreview", 0));
+        if (authoredMove.SecondaryEffects.OfType<TurnOrderIntentEffect>().Any())
+            c.Add(new("turnOrderIntent", 0));
+        if (authoredMove.SecondaryEffects.OfType<PairedActionEffect>().Any())
+            c.Add(new("pairedActionPending", 0));
         if (defender.SemiInvulnerableState is { } state
             && !move.SecondaryEffects.OfType<SemiInvulnerableHitEffect>()
                 .Any(effect => effect.States.Contains(state)))
@@ -296,6 +305,44 @@ public static class SmartAi
 
         c.Add(new("noise", c.Sum(x => x.Value) * ((rng.NextDouble() * 2 - 1) * weights.NoiseFraction)));
         return new AiCandidateScore(action, c.Sum(x => x.Value), c);
+    }
+
+    private static BattleMove? PreviewCalledMove(BattleMove authored, BattleCreature attacker,
+        BattleCreature defender, SmartAiContext context)
+    {
+        BattleMove current = authored;
+        for (int depth = 0; depth < MoveReferenceResolver.MaximumDepth; depth++)
+        {
+            CallMoveEffect? call = current.SecondaryEffects.OfType<CallMoveEffect>().SingleOrDefault();
+            if (call is null)
+                return current == authored ? null : current;
+            IEnumerable<BattleMove> all = context.EnemyParty.Concat(context.PlayerParty)
+                .SelectMany(creature => creature.Moves)
+                .Concat(context.MoveData?.Values ?? []);
+            IEnumerable<BattleMove> candidates = call.Profile.Selector switch
+            {
+                MoveReferenceSelector.UserKnown => attacker.Moves,
+                MoveReferenceSelector.TargetKnown => defender.Moves,
+                MoveReferenceSelector.UserLastUsed => attacker.Moves.Where(move => move.Move == attacker.LastMoveUsed),
+                MoveReferenceSelector.TargetLastUsed => defender.Moves.Where(move => move.Move == defender.LastMoveUsed),
+                MoveReferenceSelector.PartyKnown => context.EnemyParty
+                    .Where((_, partyIndex) => partyIndex != context.EnemyActive)
+                    .SelectMany(creature => creature.Moves),
+                MoveReferenceSelector.AuthoredPool => call.Profile.AuthoredPool.SelectMany(id =>
+                    all.Where(move => move.Move == id).Take(1)),
+                MoveReferenceSelector.EnvironmentPool when call.Profile.EnvironmentPool.TryGetValue(
+                    context.Environment.Effective, out EntityId id) => all.Where(move => move.Move == id).Take(1),
+                _ => [],
+            };
+            BattleMove[] eligible = candidates.Where(candidate =>
+                    (call.Profile.PpOwner != CalledMovePpOwner.Called || candidate.HasPp)
+                    && !candidate.Tags.Any(call.Profile.ExcludedTags.Contains))
+                .DistinctBy(candidate => candidate.Move).ToArray();
+            if (eligible.Length != 1)
+                return null;
+            current = eligible[0];
+        }
+        return current.SecondaryEffects.OfType<CallMoveEffect>().Any() ? null : current;
     }
 
     private static IEnumerable<AiCandidateScore> ScoreSwitches(SmartAiContext context, SmartAiWeights weights, double bestMove)

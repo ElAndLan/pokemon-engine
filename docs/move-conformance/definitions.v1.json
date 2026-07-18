@@ -1790,6 +1790,39 @@
       ]
     },
     {
+      "referenceKey": "move-0267",
+      "sourceFileHash": "08d2ffc2fb35c04469dfbd30bee4ea1256d7e9a0f400f433720a6cfdfe42a5a1",
+      "payloadContentHash": "cbabe0927f0672e021a0eaddbc1a00ff8b37666a11e45da6c022070eb0a874bf",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "callMove",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "callMove",
+            "params": {
+              "selector": "environmentPool",
+              "environment": "building=move:move_0161,cave=move:move_0157,deepWater=move:move_0056,desert=move:move_0089,grass=move:move_0402,mountain=move:move_0157,ocean=move:move_0056,pond=move:move_0056,road=move:move_0089,shallowWater=move:move_0056,snow=move:move_0059,tallGrass=move:move_0402,electricTerrain=move:move_0085,grassyTerrain=move:move_0412,mistyTerrain=move:move_0585,psychicTerrain=move:move_0094"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "45c7803134ade1f33974a162277afac907632a191ac5c17c5c73bf18a76fd945",
+      "testIds": [
+        "MoveReferenceConformanceTests.Certified(move-0267)"
+      ]
+    },
+    {
       "referenceKey": "move-0269",
       "sourceFileHash": "3503392feb3134840758d01faa099ce70eddfd5083b520c416e599d7c3aa315f",
       "payloadContentHash": "19039ebfbb28c35fb61b8596a8a1f9f6c96b12bd42bc4fb0c69d9b2de5543393",
@@ -1820,6 +1853,41 @@
       "normalizedDefinitionHash": "e77832e2c89a00e74e3dfeecb9a4bc1cb4140049233b00c074bddf50aa1ac75e",
       "testIds": [
         "ActionFilterConformanceTests.Certified(move-0269)"
+      ]
+    },
+    {
+      "referenceKey": "move-0270",
+      "sourceFileHash": "01c4343ebc123eec1f42aea405209477958a99839d1705d3874a5c7183728a88",
+      "payloadContentHash": "b468bcada927639599805844cd45fa7f9db356c15beb5ca2e9396167dc1b2211",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "doubles",
+      "mechanicFamilies": [
+        "targetTopology",
+        "turnOrderIntent"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 20,
+        "priority": 5,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "ally",
+        "effects": [
+          {
+            "op": "turnOrderIntent",
+            "params": {
+              "kind": "boostPower",
+              "num": 3,
+              "den": 2
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "30134d5b92578d30bb1802aaea402186121391150b4d8f8a1b41cb934f517058",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0270)",
+        "MoveReferenceConformanceTests.Certified(move-0270)"
       ]
     },
     {
@@ -3302,6 +3370,81 @@
       ]
     },
     {
+      "referenceKey": "move-0495",
+      "sourceFileHash": "7bcf38e622d28ba66734dec5138f7ff6204ea7cf4a7b5df47a55390da5bfebb6",
+      "payloadContentHash": "f206b116858d3c8f50671714af38920b36200b4e340b5d58d1b509b87f835cbd",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "targetTopology",
+        "turnOrderIntent"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "turnOrderIntent",
+            "params": {
+              "kind": "actNext"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "5230d366e39e57a0081b257c74b0025be6d7073c87412a572e8d3c4be6e67194",
+      "testIds": [
+        "MoveReferenceConformanceTests.Certified(move-0495)"
+      ]
+    },
+    {
+      "referenceKey": "move-0496",
+      "sourceFileHash": "cf596ea52433b1a22109648321c0246778e417d5691f6831517b5a1e466c11e6",
+      "payloadContentHash": "7ba766278b65b2ab2838215941080ce56bda4744fa8cb14f020c6cf68269a1d3",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "doubles",
+      "mechanicFamilies": [
+        "pairedAction",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "special",
+        "power": 60,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "pairedAction",
+            "params": {
+              "key": "chorus",
+              "member": "chorus",
+              "mode": "followUp",
+              "pairs": "chorus:none:none",
+              "num": 2,
+              "den": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "98a2da58575d81eec480dc8be1a4328911b42f4c86c56643703f78a6b52ebed6",
+      "testIds": [
+        "MoveReferenceConformanceTests.Certified(move-0496)"
+      ]
+    },
+    {
       "referenceKey": "move-0500",
       "sourceFileHash": "782d304dafd56c67b3a76187baf66a0c6f1fe7c219fe2d4d50a33fca52c3cac9",
       "payloadContentHash": "a06dae2fafb8dcfb28a1f20ad789154622b0bced41e96f4c90f8482a5a3836e7",
@@ -3384,6 +3527,39 @@
       ]
     },
     {
+      "referenceKey": "move-0511",
+      "sourceFileHash": "11f39d1511a871f53b35d71f976863bf2d6288557b3b970b655b558eec76d07f",
+      "payloadContentHash": "1243f07a0406269bc487f7b7d3425a8c728554385641b86497af8b528fe079f9",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "targetTopology",
+        "turnOrderIntent"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "status",
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "turnOrderIntent",
+            "params": {
+              "kind": "actLast"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "dfe32d4b2715df5b7f8dddaca25fc7c45316be94907760ebc6e4284f4dbcb6e8",
+      "testIds": [
+        "MoveReferenceConformanceTests.Certified(move-0511)"
+      ]
+    },
+    {
       "referenceKey": "move-0514",
       "sourceFileHash": "a54d77a2649f18a752b160b1f3b68baee0e9928c550895664415101a0f330544",
       "payloadContentHash": "068b0bbc38508b14f9ec094912606d4402d1e277710d3f47703d83bbf550f2d4",
@@ -3421,6 +3597,135 @@
       "normalizedDefinitionHash": "c45148bd0192bd8e2665029a3f4a0d0f85e1d9284379d3ec4c441c6fa8818fe9",
       "testIds": [
         "ActionHistoryFormulaConformanceTests.Certified(move-0514)"
+      ]
+    },
+    {
+      "referenceKey": "move-0518",
+      "sourceFileHash": "c7fc9e3c9d2184288d7c3d993efa9c25bafa065494cd1c27a36e81a249252896",
+      "payloadContentHash": "7f41b7be6b5bc9365d30741b6232e15cee0bd61929b87ca4831bec767b19f618",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "doubles",
+      "mechanicFamilies": [
+        "pairedAction",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_11",
+        "damageClass": "special",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "pairedAction",
+            "params": {
+              "key": "elemental_pair",
+              "member": "water",
+              "mode": "combine",
+              "pairs": "grass:reference_12:speedReduction,fire:reference_10:secondaryChanceBoost",
+              "num": 2,
+              "den": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "08fd22b06a367ec0ef58d636b4d53c4ae067d3380e0337611cf165ffa876c7a6",
+      "testIds": [
+        "MoveReferenceConformanceTests.Certified(move-0518)"
+      ]
+    },
+    {
+      "referenceKey": "move-0519",
+      "sourceFileHash": "edfae8d9850142798e5731de144d0f56d2b0499f6ea493a2d3844d901bb1399a",
+      "payloadContentHash": "5bd16f21b0595ced56b2e05a8fa104b07d3343455bf28ce79f0acb841997fe94",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "doubles",
+      "mechanicFamilies": [
+        "pairedAction",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_10",
+        "damageClass": "special",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "pairedAction",
+            "params": {
+              "key": "elemental_pair",
+              "member": "fire",
+              "mode": "combine",
+              "pairs": "water:reference_11:secondaryChanceBoost,grass:reference_12:residualDamage",
+              "num": 2,
+              "den": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "d09d18816a59024d32be9f28c5cb8941423974447d7b5ff07f23269f93266858",
+      "testIds": [
+        "MoveReferenceConformanceTests.Certified(move-0519)"
+      ]
+    },
+    {
+      "referenceKey": "move-0520",
+      "sourceFileHash": "ecd9f7783bbb6cb63f88454b70c55e0ee02cdce47741b5b868e094e877a28444",
+      "payloadContentHash": "cfcb27ffa4dbd52d24757a6aaea463d4bca0265ccffb7272fc15b29589fb0eb5",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "doubles",
+      "mechanicFamilies": [
+        "pairedAction",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_12",
+        "damageClass": "special",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "pairedAction",
+            "params": {
+              "key": "elemental_pair",
+              "member": "grass",
+              "mode": "combine",
+              "pairs": "water:reference_11:speedReduction,fire:reference_10:residualDamage",
+              "num": 2,
+              "den": 1
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "c85c48a607e9b0662f36f6c4bde2d32aaeae967df764a31d30b4c92ecb7af9ce",
+      "testIds": [
+        "MoveReferenceConformanceTests.Certified(move-0520)"
       ]
     },
     {

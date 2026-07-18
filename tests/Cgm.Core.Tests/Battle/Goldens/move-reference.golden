@@ -1,0 +1,6 @@
+event:MoveUsed:move:golden_caller
+event:MoveCalled:move:golden_caller>move:golden_second:1
+event:MoveUsed:move:golden_second
+trace:MoveSelection:1:2:-1
+pp:9,20,20
+rng:1

@@ -156,6 +156,16 @@ public sealed class BattleActionHistory
             _sideStreaks[key] = streak with { Count = Increment(streak.Count), LastTurn = _currentTurn };
     }
 
+    public void ReplacePendingMove(BattleActionAttemptId id, EntityId move)
+    {
+        Pending pending = FindPending(id);
+        if (pending.Started)
+            throw new InvalidOperationException("A started action attempt cannot replace its move.");
+        if (move.Category != EntityCategory.Move)
+            throw new ArgumentException("Action attempts require a move EntityId.", nameof(move));
+        _pending[id] = pending with { Move = move };
+    }
+
     public void Complete(BattleActionAttemptId id, BattleActionResult result,
         IEnumerable<BattleHistoryOwner>? targets = null)
     {

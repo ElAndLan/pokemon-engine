@@ -252,6 +252,13 @@ Capabilities beyond Beginner:
   candidate alongside any legal item/switch candidates. Infatuation remains execution RNG and is
   not predicted or scored. An active multi-turn repeat is still the sole forced candidate; the
   resolver performs its condition-filter recheck and visible termination.
+- Phase 15D-7 previews a called move only when the shared visible selector produces exactly one
+  eligible candidate at every depth; that candidate uses the ordinary damage/status scoring path
+  and adds the zero-value `calledMovePreview` evidence component. Empty, multiple, explicit, or
+  over-depth results remain neutral `calledMoveUnknown` candidates and consume no selector RNG.
+  `turnOrderIntent` and `pairedAction` add neutral named components because Smart AI is not given
+  another actor's submitted current-turn record. The resolver alone reads and mutates the schedule;
+  AI never infers the player's or an ally's hidden selection.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

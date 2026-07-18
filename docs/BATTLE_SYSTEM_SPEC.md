@@ -464,6 +464,49 @@ faints, AI fairness, checked overflow, stable snapshots, and base-power query tr
 
 Rounding is floor throughout (matches Gen III/IV integer math and BATTLE_DAMAGE_CALC).
 
+### Move references and current-turn order intents (Battle v6, Phase 15D-7)
+
+`callMove` is the only move-execution indirection. Its closed selectors are `userKnown`,
+`targetKnown`, `userLastUsed`, `targetLastUsed`, `partyKnown`, `authoredPool`, `environmentPool`,
+and `explicitReference`. Party-known excludes the acting creature. Authored and environment pools
+contain move EntityIds; the effective environment comes from `BattleEnvironmentState`. Candidates
+retain authored/party/move-slot order, deduplicate by move ID, remove authored exclusion tags, and,
+when the called move owns PP, remove zero-PP candidates. Empty and singleton pools consume no RNG;
+larger pools consume exactly one `IRng.Next(candidateCount)` draw. Battle construction receives the
+compiled project move catalog so authored/environment pools do not require any battler to know the
+called move; battle-owned copies prevent PP state from mutating project definitions.
+
+The caller passes ordinary action gates before selection. The selected move is revalidated against
+its own target shape and the live topology. The outer profile selects either caller or called PP
+ownership. Events retain both identities: the caller emits `MoveUsed`, each edge emits `MoveCalled`
+with depth, and the final move emits `MoveUsed`; action/damage history records the final executed
+move. Empty pools, invalid revalidated targets, and a ninth nested call fail through
+`MoveCallFailed`; the maximum executed call-chain depth is eight. No move ID is interpreted by the
+resolver.
+
+`turnOrderIntent` has four typed mutations of the current move schedule: `actNext`, `actLast`,
+`boostPower`, and `repeatPending`. It can affect only a still-pending target action. Act-next/last
+move that record to the corresponding end of the remaining list; later successful mutations win.
+Boost-power attaches one positive fraction to that pending action's ordinary BasePower query.
+Repeat-pending inserts one copy immediately after the target's original pending record and can be
+registered once per slot. An already executed or absent target fails with
+`TurnOrderIntentFailed`; no intent reads or changes a future turn.
+
+`pairedAction` recognizes compatible reciprocal `{ key, member, options }` profiles on one pending
+ally without move-ID branches. `followUp` executes the first action normally, moves the partner to
+the front, and attaches the authored power multiplier. `combine` spends and records the first
+action without damage, then executes the reprioritized partner once with the authored power and
+type overrides. A connected combined action applies its typed existing side result
+(`speedReduction`, `residualDamage`, or `secondaryChanceBoost`) through `SideConditions`; it creates
+no private timer. Missing, nonreciprocal, prevented, or already executed partners leave the move
+ordinary. Pair recognition and every schedule mutation draw no RNG.
+
+Acceptance vectors are `move-reference-selector-matrix`, `move-reference-empty-single-multiple`,
+`move-reference-exclusion-pp-owner`, `move-reference-target-revalidation`,
+`move-reference-depth-eight`, `turn-order-next-last-conflict`, `turn-order-boost-repeat`,
+`turn-order-executed-rejection`, `paired-follow-up-combine`, `paired-type-power-side-result`,
+`move-reference-ai-fairness`, and `move-reference-event-rng-golden`.
+
 ### Party, resource, stage, item, and random-table formulas (Battle v6, Phase 15C-5)
 
 These replacement-power ops extend the single `BattleQuery.BasePower` path. They draw no RNG except

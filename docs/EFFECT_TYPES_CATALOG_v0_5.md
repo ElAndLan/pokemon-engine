@@ -852,6 +852,16 @@ move effects are not secondary chances. One side instance serves both doubles sl
 coexist and add no RNG. Pair detection, combined execution/type/power, and row selection remain the
 15D-7 action package; generic cleanup/transfer remains 15E-7.
 
+Phase 15D-7 supplies those consumers with three closed ops. `callMove` accepts
+`{ selector, ppOwner?:caller|called, pool?, environment?, excludeTags? }`; pool and environment
+tables are legal only for their matching selector. `turnOrderIntent` accepts
+`{ kind:actNext|actLast|boostPower|repeatPending, num?, den? }`; only boost-power accepts a positive
+fraction. `pairedAction` accepts
+`{ key, member, mode:followUp|combine, pairs:"partner:type-or-none:sideEffect,...", num?, den? }`.
+Pair keys/members are lowercase behavior tokens, options are unique and reciprocal, combine rows
+require a type and one of the three existing paired side effects, and all three ops reject chance.
+Call and turn-order moves are status moves; paired actions are selected-target damaging moves.
+
 ### 7.7g Side-Wide Protection
 
 `sideCondition` admits the one-checkpoint behavior rows `priorityProtection`,

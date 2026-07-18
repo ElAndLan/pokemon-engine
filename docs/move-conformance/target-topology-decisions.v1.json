@@ -134,6 +134,14 @@
     { "referenceKey": "move-0286", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockKnownBySource", "owner": "source" } }] },
     { "referenceKey": "move-0373", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockItems" } }] },
     { "referenceKey": "move-0377", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockMoveTag", "tag": "healing" } }] },
-    { "referenceKey": "move-0675", "makesContact": true, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockMoveTag", "tag": "sound" } }] }
+    { "referenceKey": "move-0675", "makesContact": true, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockMoveTag", "tag": "sound" } }] },
+    { "referenceKey": "move-0267", "makesContact": false, "additionalEffects": [{ "op": "callMove", "params": { "selector": "environmentPool", "environment": "building=move:move_0161,cave=move:move_0157,deepWater=move:move_0056,desert=move:move_0089,grass=move:move_0402,mountain=move:move_0157,ocean=move:move_0056,pond=move:move_0056,road=move:move_0089,shallowWater=move:move_0056,snow=move:move_0059,tallGrass=move:move_0402,electricTerrain=move:move_0085,grassyTerrain=move:move_0412,mistyTerrain=move:move_0585,psychicTerrain=move:move_0094" } }] },
+    { "referenceKey": "move-0270", "makesContact": false, "additionalEffects": [{ "op": "turnOrderIntent", "params": { "kind": "boostPower", "num": 3, "den": 2 } }] },
+    { "referenceKey": "move-0495", "makesContact": false, "additionalEffects": [{ "op": "turnOrderIntent", "params": { "kind": "actNext" } }] },
+    { "referenceKey": "move-0496", "makesContact": false, "additionalEffects": [{ "op": "pairedAction", "params": { "key": "chorus", "member": "chorus", "mode": "followUp", "pairs": "chorus:none:none", "num": 2, "den": 1 } }] },
+    { "referenceKey": "move-0511", "makesContact": false, "additionalEffects": [{ "op": "turnOrderIntent", "params": { "kind": "actLast" } }] },
+    { "referenceKey": "move-0518", "makesContact": false, "additionalEffects": [{ "op": "pairedAction", "params": { "key": "elemental_pair", "member": "water", "mode": "combine", "pairs": "grass:reference_12:speedReduction,fire:reference_10:secondaryChanceBoost", "num": 2, "den": 1 } }] },
+    { "referenceKey": "move-0519", "makesContact": false, "additionalEffects": [{ "op": "pairedAction", "params": { "key": "elemental_pair", "member": "fire", "mode": "combine", "pairs": "water:reference_11:secondaryChanceBoost,grass:reference_12:residualDamage", "num": 2, "den": 1 } }] },
+    { "referenceKey": "move-0520", "makesContact": false, "additionalEffects": [{ "op": "pairedAction", "params": { "key": "elemental_pair", "member": "grass", "mode": "combine", "pairs": "water:reference_11:speedReduction,fire:reference_10:residualDamage", "num": 2, "den": 1 } }] }
   ]
 }

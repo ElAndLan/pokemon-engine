@@ -46,6 +46,15 @@ public sealed record MoveUsed(BattleSlot Slot, EntityId Move) : BattleEvent
     public BattleSide Side => Slot.Side;
     public MoveUsed(BattleSide side, EntityId move) : this(new BattleSlot(side, 0), move) { }
 }
+public sealed record MoveCalled(BattleSlot Slot, EntityId Caller, EntityId Called, int Depth) : BattleEvent;
+public enum MoveCallFailureReason { EmptyPool, DepthExceeded, TargetUnavailable }
+public sealed record MoveCallFailed(BattleSlot Slot, EntityId Caller, MoveCallFailureReason Reason) : BattleEvent;
+public sealed record TurnOrderIntentApplied(BattleSlot Source, BattleSlot Target,
+    TurnOrderIntentKind Kind) : BattleEvent;
+public sealed record TurnOrderIntentFailed(BattleSlot Source, BattleSlot Target,
+    TurnOrderIntentKind Kind) : BattleEvent;
+public sealed record PairedActionPrepared(BattleSlot Source, BattleSlot Partner,
+    string Key, string SourceMember, string PartnerMember, PairedActionMode Mode) : BattleEvent;
 public sealed record MoveMissed(BattleSlot Slot, EntityId Move, BattleSlot? TargetSlot = null) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

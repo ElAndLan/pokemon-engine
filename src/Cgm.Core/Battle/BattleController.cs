@@ -20,6 +20,9 @@ public sealed record BattleFieldInputs(
 public sealed class BattleController
 {
     private sealed record AdmittedAction(BattleActionSubmission Submission, int ActorPartyIndex, EntityId? MoveId);
+    private sealed record MoveInvocation(BattleMove Caller, BattleMove Executed, BattleMove PpOwner,
+        BattleActionSubmission Submission, IReadOnlyList<(EntityId Caller, EntityId Called)> Chain,
+        MoveCallFailureReason? Failure);
     private readonly record struct DamageApplication(int AppliedDamage, int ActualHpRemoved);
 
     private readonly List<BattleCreature>[] _parties;
@@ -29,6 +32,7 @@ public sealed class BattleController
     private readonly TypeChart _chart;
     private readonly IRng _rng;
     private readonly IReadOnlyDictionary<EntityId, Item> _itemData;
+    private readonly IReadOnlyDictionary<EntityId, BattleMove> _moveCatalog;
     private readonly List<BattleEvent> _log = [];
     private readonly List<EffectTraceEntry> _trace = [];
     private readonly List<BattleQueryTraceEntry> _queryTrace = [];
@@ -44,6 +48,13 @@ public sealed class BattleController
     private readonly List<BattleConditionTraceEntry> _conditionTrace = [];
     private readonly List<BattleHookTraceEntry> _hookTrace = [];
     private readonly List<BattleSlot> _pendingReplacementSlots = [];
+    private List<BattleScheduledAction>? _pendingMoveSchedule;
+    private readonly HashSet<BattleSlot> _executedMoveSlots = [];
+    private readonly Dictionary<BattleSlot, Fraction> _scheduledPowerBoosts = [];
+    private readonly HashSet<BattleSlot> _repeatPendingSlots = [];
+    private (BattleSlot Slot, Fraction Boost)? _currentPowerBoost;
+    private readonly Dictionary<BattleSlot, (EntityId? Type, PairedActionSideEffect Effect)> _scheduledPairs = [];
+    private (BattleSlot Slot, EntityId? Type, PairedActionSideEffect Effect)? _currentPair;
     private bool _dispatchingWeatherChange;
     private bool _dispatchingTerrainChange;
     private int _traceActionSequence;
@@ -51,12 +62,13 @@ public sealed class BattleController
     private BattleEnvironment _naturalEnvironment;
 
     public BattleController(BattleCreature player, BattleCreature enemy, TypeChart chart, IRng rng,
-        bool isWild = false, IEnumerable<Item>? itemData = null, BattleFieldInputs? fieldInputs = null)
-        : this([player], [enemy], chart, rng, isWild, itemData, fieldInputs) { }
+        bool isWild = false, IEnumerable<Item>? itemData = null, BattleFieldInputs? fieldInputs = null,
+        IEnumerable<BattleMove>? moveData = null)
+        : this([player], [enemy], chart, rng, isWild, itemData, fieldInputs, moveData) { }
 
     public BattleController(IReadOnlyList<BattleCreature> playerParty, IReadOnlyList<BattleCreature> enemyParty,
         TypeChart chart, IRng rng, bool isWild = false, IEnumerable<Item>? itemData = null,
-        BattleFieldInputs? fieldInputs = null)
+        BattleFieldInputs? fieldInputs = null, IEnumerable<BattleMove>? moveData = null)
     {
         _parties = [[.. playerParty], [.. enemyParty]];
         _activeSlots = new BattleActiveSlots(BattleTopology.Singles);
@@ -65,6 +77,7 @@ public sealed class BattleController
         _chart = chart;
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
+        _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
         TriggerInitialTerrainSeeds();
         IsWild = isWild;
@@ -81,7 +94,8 @@ public sealed class BattleController
         IRng rng,
         bool isWild = false,
         IEnumerable<Item>? itemData = null,
-        BattleFieldInputs? fieldInputs = null)
+        BattleFieldInputs? fieldInputs = null,
+        IEnumerable<BattleMove>? moveData = null)
     {
         ArgumentNullException.ThrowIfNull(topology);
         ArgumentNullException.ThrowIfNull(playerParty);
@@ -101,6 +115,7 @@ public sealed class BattleController
         _chart = chart;
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
+        _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
         TriggerInitialTerrainSeeds();
         IsWild = isWild;
@@ -131,6 +146,16 @@ public sealed class BattleController
     public BattleEnvironment NaturalEnvironment => Environment.Natural;
     public BattleEnvironment EffectiveEnvironment => Environment.Effective;
     public string Ruleset => _ruleset;
+
+    private IReadOnlyDictionary<EntityId, BattleMove> BuildMoveCatalog(IEnumerable<BattleMove>? moveData)
+    {
+        Dictionary<EntityId, BattleMove> catalog = (moveData ?? [])
+            .Select(move => move.WithPpPool(move.MaxPp, move.MaxPp))
+            .ToDictionary(move => move.Move);
+        foreach (BattleMove move in _parties.SelectMany(party => party).SelectMany(creature => creature.Moves))
+            catalog.TryAdd(move.Move, move);
+        return catalog;
+    }
 
     public BattleTopology Topology => _activeSlots.Topology;
     public BattleCreature Active(BattleSide side)
@@ -570,8 +595,12 @@ public sealed class BattleController
                 EffectivePriority(action.Submission.Source, MoveAt(action.Submission.Source, effective), 0),
                 Speed(action.Submission.Source)));
         }
-        foreach (BattleScheduledAction scheduledAction in OrderActions(scheduled))
+        BeginMoveSchedule(scheduled);
+        while (_pendingMoveSchedule!.Count > 0)
         {
+            BattleScheduledAction scheduledAction = _pendingMoveSchedule[0];
+            _pendingMoveSchedule.RemoveAt(0);
+            BeginScheduledAction(scheduledAction.Submission.Source);
             AdmittedAction action = actions.Single(candidate => candidate.Submission == scheduledAction.Submission);
             if (!ActorIsCurrent(action))
             {
@@ -637,8 +666,28 @@ public sealed class BattleController
                 AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Prevented, traceAction);
                 continue;
             }
+            MoveInvocation invocation = ResolveMoveInvocation(action.Submission.Source, move,
+                action.Submission, traceAction);
+            if (invocation.Failure is { } callFailure)
+            {
+                _actionHistory.MarkStarted(attempt);
+                invocation.PpOwner.UsePp();
+                ApplyChoiceLock(attacker, moveIndex);
+                _log.Add(new MoveUsed(action.Submission.Source, invocation.Caller.Move));
+                foreach (((EntityId caller, EntityId called), int depth) in invocation.Chain.Select((edge, index) => (edge, index + 1)))
+                    _log.Add(new MoveCalled(action.Submission.Source, caller, called, depth));
+                _log.Add(new MoveCallFailed(action.Submission.Source, invocation.Caller.Move, callFailure));
+                attacker.RecordMoveUse(invocation.Caller.Move);
+                _actionHistory.Complete(attempt, BattleActionResult.Failed);
+                AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Failed, traceAction);
+                continue;
+            }
+            move = invocation.Executed;
+            if (move.Move != invocation.Caller.Move)
+                _actionHistory.ReplacePendingMove(attempt, move.Move);
+            BattleActionSubmission effectiveSubmission = invocation.Submission;
             BattleSlot? gateTarget = GateTarget(action.Submission.Source, move,
-                action.Submission.Selection);
+                effectiveSubmission.Selection);
             if (!PassesMoveGates(attacker, action.Submission.Source, move, traceAction,
                     MoveGateTiming.BeforeMove, gateTarget))
             {
@@ -648,14 +697,26 @@ public sealed class BattleController
                 AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Failed, traceAction);
                 continue;
             }
+            if (TryPreparePairedAction(action.Submission.Source, attacker, moveIndex, move,
+                    invocation, traceAction, attempt))
+            {
+                AdvanceMultiTurnLock(action.Submission.Source, BattleActionResult.Succeeded, traceAction);
+                continue;
+            }
 
             _actionHistory.MarkStarted(attempt);
-            int ppBeforeSpend = move.Pp;
+            int ppBeforeSpend = invocation.PpOwner.Pp;
             if (!PrepareTimedMove(attacker, action.Submission.Source, move, moveIndex, traceAction,
-                    action.Submission))
+                    effectiveSubmission, invocation.PpOwner))
             {
                 _actionHistory.Complete(attempt, BattleActionResult.Succeeded);
                 continue;
+            }
+            if (invocation.Chain.Count > 0)
+            {
+                _log.Add(new MoveUsed(action.Submission.Source, invocation.Caller.Move));
+                foreach (((EntityId caller, EntityId called), int depth) in invocation.Chain.Select((edge, index) => (edge, index + 1)))
+                    _log.Add(new MoveCalled(action.Submission.Source, caller, called, depth));
             }
             _log.Add(new MoveUsed(action.Submission.Source, move.Move));
             if (!PassesMoveGates(attacker, action.Submission.Source, move, traceAction,
@@ -668,7 +729,7 @@ public sealed class BattleController
                 continue;
             }
             attacker.RecordMoveUse(move.Move);
-            IReadOnlyList<BattleSlot>? targets = MaterializeLiveTargets(action.Submission, move, traceAction,
+            IReadOnlyList<BattleSlot>? targets = MaterializeLiveTargets(effectiveSubmission, move, traceAction,
                 out BattleTargetScopeKind scopeKind, out BattleSide? scopeSide);
             BattleActionResult result;
             BattleHistoryOwner[] targetOwners = targets?.Select(HistoryOwner).ToArray() ?? [];
@@ -686,13 +747,17 @@ public sealed class BattleController
             {
                 result = BattleActionResult.Failed;
             }
+            if (result == BattleActionResult.Connected && _currentPair is { } pair
+                && pair.Slot == action.Submission.Source
+                && pair.Effect != PairedActionSideEffect.None)
+                ApplyPairedSideEffect(action.Submission.Source, pair.Effect, traceAction);
             _actionHistory.Complete(attempt, result, targetOwners);
 
             AdvanceMultiTurnLock(action.Submission.Source, result, traceAction);
-
             if (CheckEnd())
                 break;
         }
+        EndMoveSchedule();
     }
 
     private IReadOnlyList<BattleSlot>? MaterializeLiveTargets(BattleActionSubmission submission, BattleMove move, int traceAction,
@@ -967,7 +1032,8 @@ public sealed class BattleController
 
     private static bool IsTargetScoped(MoveEffect effect) => effect switch
     {
-        AilmentEffect or ConfusionEffect or FlinchEffect or LeechSeedEffect or BindEffect or ForceSwitchEffect or PositionSwapEffect => true,
+        AilmentEffect or ConfusionEffect or FlinchEffect or LeechSeedEffect or BindEffect or ForceSwitchEffect
+            or PositionSwapEffect or TurnOrderIntentEffect => true,
         StatChangeEffect { OnSelf: false } or StatChangeAllEffect { OnSelf: false } or StatInvertEffect { OnSelf: false } => true,
         StatResetEffect { Scope: not StageEffectScope.Self } => true,
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
@@ -1299,8 +1365,12 @@ public sealed class BattleController
                 Speed(submission.Source)));
         }
 
-        foreach (BattleScheduledAction scheduledAction in OrderActions(scheduled))
+        BeginMoveSchedule(scheduled);
+        while (_pendingMoveSchedule!.Count > 0)
         {
+            BattleScheduledAction scheduledAction = _pendingMoveSchedule[0];
+            _pendingMoveSchedule.RemoveAt(0);
+            BeginScheduledAction(scheduledAction.Submission.Source);
             int submittedIndex = MoveIndex(scheduledAction.Submission.Action)!.Value;
             BattleSlot source = scheduledAction.Submission.Source;
             int traceBefore = _traceActionSequence;
@@ -1313,6 +1383,38 @@ public sealed class BattleController
             if (CheckEnd())
                 break;
         }
+        EndMoveSchedule();
+    }
+
+    private void BeginMoveSchedule(IReadOnlyList<BattleScheduledAction> scheduled)
+    {
+        _pendingMoveSchedule = [.. OrderActions(scheduled)];
+        _executedMoveSlots.Clear();
+        _scheduledPowerBoosts.Clear();
+        _repeatPendingSlots.Clear();
+        _scheduledPairs.Clear();
+        _currentPowerBoost = null;
+        _currentPair = null;
+    }
+
+    private void BeginScheduledAction(BattleSlot source)
+    {
+        _executedMoveSlots.Add(source);
+        _currentPowerBoost = _scheduledPowerBoosts.Remove(source, out Fraction boost)
+            ? (source, boost) : null;
+        _currentPair = _scheduledPairs.Remove(source, out var pair)
+            ? (source, pair.Type, pair.Effect) : null;
+    }
+
+    private void EndMoveSchedule()
+    {
+        _pendingMoveSchedule = null;
+        _executedMoveSlots.Clear();
+        _scheduledPowerBoosts.Clear();
+        _repeatPendingSlots.Clear();
+        _scheduledPairs.Clear();
+        _currentPowerBoost = null;
+        _currentPair = null;
     }
 
     private static int? MoveIndex(BattleAction action) => action switch
@@ -1688,6 +1790,125 @@ public sealed class BattleController
         ? Active(slot).Moves[moveIndex]
         : BattleFallbackRules.Compile(Ruleset, Active(slot).Moves[0].Type);
 
+    private void LogMoveCallChain(BattleSlot source,
+        IReadOnlyList<(EntityId Caller, EntityId Called)> chain)
+    {
+        foreach (((EntityId caller, EntityId called), int depth) in
+                 chain.Select((edge, index) => (edge, index + 1)))
+            _log.Add(new MoveCalled(source, caller, called, depth));
+    }
+
+    private bool ApplyTurnOrderIntent(EffectContext context, TurnOrderIntentProfile profile)
+    {
+        int eventStart = _log.Count;
+        BattleSlot target = context.TargetSlot;
+        int pendingIndex = _pendingMoveSchedule?.FindIndex(action => action.Submission.Source == target) ?? -1;
+        bool applied = pendingIndex >= 0 && !_executedMoveSlots.Contains(target);
+        if (applied)
+        {
+            BattleScheduledAction pending = _pendingMoveSchedule![pendingIndex];
+            switch (profile.Kind)
+            {
+                case TurnOrderIntentKind.ActNext:
+                    _pendingMoveSchedule.RemoveAt(pendingIndex);
+                    _pendingMoveSchedule.Insert(0, pending);
+                    break;
+                case TurnOrderIntentKind.ActLast:
+                    _pendingMoveSchedule.RemoveAt(pendingIndex);
+                    _pendingMoveSchedule.Add(pending);
+                    break;
+                case TurnOrderIntentKind.BoostPower:
+                    _scheduledPowerBoosts[target] = profile.EffectivePowerMultiplier;
+                    break;
+                case TurnOrderIntentKind.RepeatPending:
+                    if (!_repeatPendingSlots.Add(target))
+                        applied = false;
+                    else
+                        _pendingMoveSchedule.Insert(pendingIndex + 1, pending);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(profile), profile.Kind,
+                        "Unknown turn-order intent.");
+            }
+        }
+        _log.Add(applied
+            ? new TurnOrderIntentApplied(context.SourceSlot, target, profile.Kind)
+            : new TurnOrderIntentFailed(context.SourceSlot, target, profile.Kind));
+        AddTrace(context.TraceAction, context.SourceSlot, target, EffectTraceKind.TurnOrderIntent,
+            applied, null, applied ? 1 : 0, eventStart, _log.Count);
+        return applied;
+    }
+
+    private bool TryPreparePairedAction(BattleSlot source, BattleCreature attacker, int moveIndex,
+        BattleMove move, MoveInvocation invocation, int traceAction, BattleActionAttemptId attempt)
+    {
+        PairedActionProfile? profile = move.SecondaryEffects.OfType<PairedActionEffect>()
+            .SingleOrDefault()?.Profile;
+        if (profile is null || _pendingMoveSchedule is null)
+            return false;
+        int partnerIndex = _pendingMoveSchedule.FindIndex(candidate =>
+            candidate.Submission.Source.Side == source.Side && candidate.Submission.Source != source
+            && MoveIndex(candidate.Submission.Action) is not null);
+        if (partnerIndex < 0)
+            return false;
+        BattleScheduledAction scheduledPartner = _pendingMoveSchedule[partnerIndex];
+        BattleSlot partnerSlot = scheduledPartner.Submission.Source;
+        int partnerMoveIndex = EffectiveMoveIndex(partnerSlot, MoveIndex(scheduledPartner.Submission.Action)!.Value);
+        BattleMove partnerMove = MoveAt(partnerSlot, partnerMoveIndex);
+        PairedActionProfile? partnerProfile = partnerMove.SecondaryEffects.OfType<PairedActionEffect>()
+            .SingleOrDefault()?.Profile;
+        PairedActionOption? option = profile.Options.SingleOrDefault(candidate =>
+            candidate.Partner == partnerProfile?.Member);
+        bool reciprocal = partnerProfile is not null && partnerProfile.Key == profile.Key
+            && partnerProfile.Mode == profile.Mode
+            && partnerProfile.Options.Any(candidate => candidate.Partner == profile.Member);
+        if (option is null || !reciprocal)
+            return false;
+
+        _pendingMoveSchedule.RemoveAt(partnerIndex);
+        _pendingMoveSchedule.Insert(0, scheduledPartner);
+        _scheduledPowerBoosts[partnerSlot] = profile.PowerMultiplier;
+        _scheduledPairs[partnerSlot] = (option.Type, option.SideEffect);
+        int eventStart = _log.Count;
+        _log.Add(new PairedActionPrepared(source, partnerSlot, profile.Key, profile.Member,
+            partnerProfile!.Member, profile.Mode));
+        AddTrace(traceAction, source, partnerSlot, EffectTraceKind.PairedAction, true, null,
+            (int)profile.Mode + 1, eventStart, _log.Count);
+        if (profile.Mode == PairedActionMode.FollowUp)
+            return false;
+
+        _actionHistory.MarkStarted(attempt);
+        invocation.PpOwner.UsePp();
+        ApplyChoiceLock(attacker, moveIndex);
+        if (invocation.Chain.Count > 0)
+        {
+            _log.Add(new MoveUsed(source, invocation.Caller.Move));
+            LogMoveCallChain(source, invocation.Chain);
+        }
+        _log.Add(new MoveUsed(source, move.Move));
+        attacker.RecordMoveUse(move.Move);
+        _actionHistory.Complete(attempt, BattleActionResult.Succeeded);
+        return true;
+    }
+
+    private void ApplyPairedSideEffect(BattleSlot source, PairedActionSideEffect effect, int traceAction)
+    {
+        BattleSideCondition condition = effect switch
+        {
+            PairedActionSideEffect.SpeedReduction => BattleSideCondition.SpeedReduction,
+            PairedActionSideEffect.ResidualDamage => BattleSideCondition.ResidualDamage,
+            PairedActionSideEffect.SecondaryChanceBoost => BattleSideCondition.SecondaryChanceBoost,
+            _ => throw new ArgumentOutOfRangeException(nameof(effect), effect, "Unknown paired side effect."),
+        };
+        BattleSide owner = effect == PairedActionSideEffect.SecondaryChanceBoost
+            ? source.Side : Opponent(source.Side);
+        BattleConditionDefinition definition = SideConditions.For(condition);
+        RecordConditionChanges(_conditions.Apply(new BattleConditionApplication(
+            definition.Id, SideConditions.Owner(owner),
+            new BattleConditionSource(source, ActiveIndex(source)), Turn, traceAction,
+            definition.DefaultDuration)));
+    }
+
     private BattleCreature? SourceCreature(BattleConditionSource source)
     {
         if (source.Slot is not { } slot || source.PartyIndex is not { } partyIndex
@@ -1696,8 +1917,134 @@ public sealed class BattleController
         return _parties[(int)slot.Side][partyIndex];
     }
 
+    private MoveInvocation ResolveMoveInvocation(BattleSlot sourceSlot, BattleMove caller,
+        BattleActionSubmission submission, int traceAction)
+    {
+        BattleMove current = caller;
+        BattleMove ppOwner = caller;
+        var chain = new List<(EntityId Caller, EntityId Called)>();
+        for (int depth = 1; depth <= MoveReferenceResolver.MaximumDepth; depth++)
+        {
+            CallMoveEffect? call = current.SecondaryEffects.OfType<CallMoveEffect>().SingleOrDefault();
+            if (call is null)
+            {
+                if (chain.Count == 0)
+                    return new MoveInvocation(caller, current, ppOwner, submission, chain, null);
+                BattleActionSubmission revalidated = RevalidateCalledSelection(submission, current);
+                return new MoveInvocation(caller, current, ppOwner, revalidated, chain,
+                    CalledTargetUnavailable(current, revalidated) ? MoveCallFailureReason.TargetUnavailable : null);
+            }
+            MoveReferenceCandidate[] candidates = MoveReferenceCandidates(sourceSlot, submission, call.Profile).ToArray();
+            MoveReferenceCandidate? selected = MoveReferenceResolver.Select(candidates,
+                call.Profile.ExcludedTags, call.Profile.PpOwner == CalledMovePpOwner.Called,
+                _rng, out int? draw, out int count);
+            AddTrace(traceAction, sourceSlot, selected?.OwnerSlot, EffectTraceKind.MoveSelection,
+                draw is not null, draw, selected?.MoveIndex, _log.Count, _log.Count,
+                draw is not null ? count : null);
+            if (selected is null)
+                return new MoveInvocation(caller, current, ppOwner, submission, chain,
+                    MoveCallFailureReason.EmptyPool);
+            if (chain.Count == 0 && call.Profile.PpOwner == CalledMovePpOwner.Called)
+                ppOwner = selected.Move;
+            chain.Add((current.Move, selected.Move.Move));
+            current = selected.Move;
+        }
+        if (current.SecondaryEffects.OfType<CallMoveEffect>().Any())
+            return new MoveInvocation(caller, current, ppOwner, submission, chain,
+                MoveCallFailureReason.DepthExceeded);
+        BattleActionSubmission finalSubmission = RevalidateCalledSelection(submission, current);
+        return new MoveInvocation(caller, current, ppOwner, finalSubmission, chain,
+            CalledTargetUnavailable(current, finalSubmission) ? MoveCallFailureReason.TargetUnavailable : null);
+    }
+
+    private bool CalledTargetUnavailable(BattleMove move, BattleActionSubmission submission) =>
+        Topology.ActiveSlotsPerSide > 1
+        && move.Target is (MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst
+            or MoveTarget.Ally or MoveTarget.UserOrAlly)
+        && submission.Selection is not ActiveSlotSelection;
+
+    private IEnumerable<MoveReferenceCandidate> MoveReferenceCandidates(BattleSlot sourceSlot,
+        BattleActionSubmission submission, CallMoveProfile profile)
+    {
+        BattleCreature source = Active(sourceSlot);
+        BattleSlot? targetSlot = ReferenceTarget(sourceSlot, submission.Selection);
+        BattleCreature? target = targetSlot is { } slot ? Active(slot) : null;
+        IEnumerable<MoveReferenceCandidate> Known(BattleCreature creature, BattleSlot? ownerSlot, int partyIndex) =>
+            creature.Moves.Select((move, index) => new MoveReferenceCandidate(move, ownerSlot, partyIndex, index));
+        return profile.Selector switch
+        {
+            MoveReferenceSelector.UserKnown => Known(source, sourceSlot, ActiveIndex(sourceSlot)),
+            MoveReferenceSelector.TargetKnown when target is not null =>
+                Known(target, targetSlot, ActiveIndex(targetSlot!.Value)),
+            MoveReferenceSelector.UserLastUsed => Known(source, sourceSlot, ActiveIndex(sourceSlot))
+                .Where(candidate => candidate.Move.Move == source.LastMoveUsed),
+            MoveReferenceSelector.TargetLastUsed when target is not null =>
+                Known(target, targetSlot, ActiveIndex(targetSlot!.Value))
+                    .Where(candidate => candidate.Move.Move == target.LastMoveUsed),
+            MoveReferenceSelector.PartyKnown => _parties[(int)sourceSlot.Side]
+                .SelectMany((creature, partyIndex) => partyIndex == ActiveIndex(sourceSlot)
+                    ? [] : Known(creature, ActiveSlotForParty(sourceSlot.Side, partyIndex), partyIndex)),
+            MoveReferenceSelector.AuthoredPool => profile.AuthoredPool
+                .Where(_moveCatalog.ContainsKey)
+                .Select(id => new MoveReferenceCandidate(_moveCatalog[id], null, -1, -1)),
+            MoveReferenceSelector.EnvironmentPool when profile.EnvironmentPool.TryGetValue(
+                Environment.Effective, out EntityId selected) =>
+                _moveCatalog.TryGetValue(selected, out BattleMove? environmentMove)
+                    ? [new MoveReferenceCandidate(environmentMove, null, -1, -1)] : [],
+            MoveReferenceSelector.ExplicitReference when submission.Selection is MoveReferenceSelection reference =>
+                [new MoveReferenceCandidate(Active(reference.Slot).Moves[reference.MoveIndex], reference.Slot,
+                    ActiveIndex(reference.Slot), reference.MoveIndex)],
+            _ => [],
+        };
+    }
+
+    private BattleSlot? ReferenceTarget(BattleSlot source, BattleActionSelection? selection)
+    {
+        if (selection is ActiveSlotSelection active && Topology.Contains(active.Slot) && IsLive(active.Slot))
+            return active.Slot;
+        return Topology.SlotsFor(Opponent(source.Side)).Where(IsLive)
+            .Select(slot => (BattleSlot?)slot).FirstOrDefault();
+    }
+
+    private BattleSlot? ActiveSlotForParty(BattleSide side, int partyIndex) => Topology.SlotsFor(side)
+        .Where(slot => ActiveIndex(slot) == partyIndex).Select(slot => (BattleSlot?)slot).FirstOrDefault();
+
+    private BattleActionSubmission RevalidateCalledSelection(BattleActionSubmission submission, BattleMove move)
+    {
+        if (Topology.ActiveSlotsPerSide == 1)
+            return submission with { Selection = null, TargetPartySnapshot = null };
+        BattleSlot source = submission.Source;
+        BattleSlot? selected = (submission.Selection as ActiveSlotSelection)?.Slot;
+        bool valid = selected is { } slot && Topology.Contains(slot) && IsLive(slot) && move.Target switch
+        {
+            MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst => slot.Side != source.Side,
+            MoveTarget.Ally => slot.Side == source.Side && slot != source,
+            MoveTarget.UserOrAlly => slot.Side == source.Side,
+            _ => false,
+        };
+        if (!valid)
+        {
+            selected = move.Target switch
+            {
+                MoveTarget.Selected or MoveTarget.SelectedPokemonMeFirst =>
+                    Topology.SlotsFor(Opponent(source.Side)).Where(IsLive)
+                        .Select(slot => (BattleSlot?)slot).FirstOrDefault(),
+                MoveTarget.Ally => Topology.SlotsFor(source.Side).Where(slot => slot != source && IsLive(slot))
+                    .Select(slot => (BattleSlot?)slot).FirstOrDefault(),
+                MoveTarget.UserOrAlly => source,
+                _ => null,
+            };
+        }
+        return submission with
+        {
+            Selection = selected is { } target ? new ActiveSlotSelection(target) : null,
+            TargetPartySnapshot = null,
+        };
+    }
+
     private bool PrepareTimedMove(BattleCreature attacker, BattleSlot sourceSlot, BattleMove move,
-        int moveIndex, int traceAction, BattleActionSubmission? submission = null)
+        int moveIndex, int traceAction, BattleActionSubmission? submission = null,
+        BattleMove? ppOwner = null)
     {
         bool firing = attacker.IsCharging;
         bool requiresCharge = move.Charge is not null;
@@ -1715,7 +2062,7 @@ public sealed class BattleController
         if (requiresCharge && !firing)
         {
             int eventStart = _log.Count;
-            move.UsePp();
+            (ppOwner ?? move).UsePp();
             if (moveIndex >= 0)
                 ApplyChoiceLock(attacker, moveIndex);
             attacker.RecordMoveUse(move.Move);
@@ -1758,7 +2105,7 @@ public sealed class BattleController
         }
 
         if (!firing && (!continuingLock || move.MultiTurnLockProfile?.RepeatPaysPp == true))
-            move.UsePp();
+            (ppOwner ?? move).UsePp();
         if (!continuingLock && moveIndex >= 0)
             ApplyChoiceLock(attacker, moveIndex);
         return true;
@@ -1869,7 +2216,25 @@ public sealed class BattleController
             return; // hurt itself in confusion — no PP, no move
         }
 
-        BattleSlot? gateTarget = GateTarget(sourceSlot, move, null);
+        BattleActionSubmission submitted = submission!;
+        MoveInvocation invocation = ResolveMoveInvocation(sourceSlot, move, submitted, traceAction);
+        if (invocation.Failure is { } callFailure)
+        {
+            _actionHistory.MarkStarted(attempt);
+            invocation.PpOwner.UsePp();
+            ApplyChoiceLock(attacker, moveIndex);
+            _log.Add(new MoveUsed(sourceSlot, invocation.Caller.Move));
+            LogMoveCallChain(sourceSlot, invocation.Chain);
+            _log.Add(new MoveCallFailed(sourceSlot, invocation.Caller.Move, callFailure));
+            attacker.RecordMoveUse(invocation.Caller.Move);
+            _actionHistory.Complete(attempt, BattleActionResult.Failed);
+            return;
+        }
+        move = invocation.Executed;
+        if (move.Move != invocation.Caller.Move)
+            _actionHistory.ReplacePendingMove(attempt, move.Move);
+        BattleActionSubmission effectiveSubmission = invocation.Submission;
+        BattleSlot? gateTarget = GateTarget(sourceSlot, move, effectiveSubmission.Selection);
         if (!PassesMoveGates(attacker, sourceSlot, move, traceAction,
                 MoveGateTiming.BeforeMove, gateTarget))
         {
@@ -1883,12 +2248,13 @@ public sealed class BattleController
             : Opponent(side);
         BattleSlot targetSlot = new(targetSide, 0);
         BattleCreature target = Active(targetSlot);
-        bool snapshotUnavailable = submission?.TargetPartySnapshot is { } snapshot
+        bool snapshotUnavailable = effectiveSubmission.TargetPartySnapshot is { } snapshot
             && ActiveIndex(targetSlot) != snapshot;
         if (target.IsFainted || snapshotUnavailable)
         {
             if (attacker.IsCharging)
-                PrepareTimedMove(attacker, sourceSlot, move, moveIndex, traceAction, submission);
+                PrepareTimedMove(attacker, sourceSlot, move, moveIndex, traceAction,
+                    effectiveSubmission, invocation.PpOwner);
             if (snapshotUnavailable)
                 _log.Add(new MoveFailed(sourceSlot, move.Move, MoveFailureReason.TargetUnavailable));
             _actionHistory.Complete(attempt, BattleActionResult.Failed);
@@ -1898,13 +2264,19 @@ public sealed class BattleController
 
         // Two-turn move: turn 1 charges (PP spent now, no damage); turn 2 fires as a normal hit.
         _actionHistory.MarkStarted(attempt);
-        int ppBeforeSpend = move.Pp;
-        if (!PrepareTimedMove(attacker, sourceSlot, move, moveIndex, traceAction, submission))
+        int ppBeforeSpend = invocation.PpOwner.Pp;
+        if (!PrepareTimedMove(attacker, sourceSlot, move, moveIndex, traceAction,
+                effectiveSubmission, invocation.PpOwner))
         {
             _actionHistory.Complete(attempt, BattleActionResult.Succeeded, [targetOwner]);
             return;
         }
 
+        if (invocation.Chain.Count > 0)
+        {
+            _log.Add(new MoveUsed(sourceSlot, invocation.Caller.Move));
+            LogMoveCallChain(sourceSlot, invocation.Chain);
+        }
         _log.Add(new MoveUsed(sourceSlot, move.Move));
         if (!PassesMoveGates(attacker, sourceSlot, move, traceAction,
                 MoveGateTiming.AfterMoveUsed, gateTarget))
@@ -2165,6 +2537,12 @@ public sealed class BattleController
                 return ApplyProtection(ctx, protect.Profile);
             case ForceSwitchEffect: ForceSwitch(ctx); break;
             case PositionSwapEffect: SwapPositions(ctx); break;
+            case CallMoveEffect:
+                break; // consumed before ordinary effect resolution.
+            case PairedActionEffect:
+                break; // consumed by current-turn scheduling.
+            case TurnOrderIntentEffect order:
+                return ApplyTurnOrderIntent(ctx, order.Profile);
             case RedirectEffect redirect: _redirects.Add(new RedirectCondition(ctx.SourceSlot, redirect.Priority,
                 redirect.AcceptedClasses, redirect.BypassClasses, redirect.AcceptedTags, redirect.BypassTags)); break;
             case DrainEffect d when ctx.ActionDamageDealt > 0:
@@ -3950,6 +4328,13 @@ public sealed class BattleController
         HpStatusPowerQuery powerQuery = HpStatusFormulas.PowerQuery(move, attacker, target, physicalInputs,
             actionInputs, resourceInputs, IsPersonallyProtected(sourceSlot), IsPersonallyProtected(targetSlot));
         var powerModifiers = powerQuery.Modifiers.ToList();
+        if (_currentPowerBoost is { } scheduledBoost && scheduledBoost.Slot == sourceSlot)
+        {
+            powerModifiers.Add(new BattleQueryModifier(BattleQueryStage.SourceTargetState,
+                BattleQueryOperation.Multiply,
+                new BattleQueryValue(scheduledBoost.Boost.Num, scheduledBoost.Boost.Den),
+                InsertionOrder: powerModifiers.Count));
+        }
         if (attacker.IsLocked && attacker.Moves[attacker.LockedMoveIndex].Move == move.Move
             && move.MultiTurnLockProfile is { MaxPowerStep: > 0 } lockProfile
             && attacker.LockPowerStep > 0)
@@ -4342,8 +4727,10 @@ public sealed class BattleController
             conditionType = terrain.MoveTypes().SingleOrDefault() is { } terrainType && terrainType != default
                 ? terrainType : null;
         }
+        if (_currentPair is { } pair && pair.Slot == sourceSlot && pair.Type is { } pairedType)
+            conditionType = pairedType;
         BattleCreature source = Active(sourceSlot);
-        int slot = MoveSlot(source, move);
+        int slot = MoveSlot(source, move, allowUnowned: true);
         return slot >= 0
             ? BattleDamageQueries.Identity(move, slot, source, EffectiveValues(sourceSlot), Environment, conditionType)
             : new BattleMoveIdentityQueryResult(move.Type, conditionType ?? move.Type,
@@ -4356,7 +4743,7 @@ public sealed class BattleController
     private DamageClass EffectiveDamageClass(BattleSlot sourceSlot, BattleMove move)
     {
         BattleCreature source = Active(sourceSlot);
-        int slot = MoveSlot(source, move);
+        int slot = MoveSlot(source, move, allowUnowned: true);
         return slot >= 0 ? BattleDamageQueries.Identity(move, slot, source,
             EffectiveValues(sourceSlot), Environment).EffectiveClass : move.DamageClass;
     }
@@ -4364,12 +4751,12 @@ public sealed class BattleController
     private BattleEffectiveValues EffectiveValues(BattleSlot slot) => PhysicalMetricFormulas.EffectiveValues(
         Active(slot), _overlays, new BattleOverlayOwner(slot.Side, ActiveIndex(slot), slot));
 
-    private static int MoveSlot(BattleCreature source, BattleMove move)
+    private static int MoveSlot(BattleCreature source, BattleMove move, bool allowUnowned = false)
     {
         for (int index = 0; index < source.Moves.Count; index++)
             if (ReferenceEquals(source.Moves[index], move))
                 return index;
-        return move.IsFallback ? -1
+        return move.IsFallback || allowUnowned ? -1
             : throw new InvalidOperationException("The resolved move is not owned by its source creature.");
     }
 

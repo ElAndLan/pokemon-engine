@@ -389,7 +389,7 @@ names, prose, assets, URLs, or raw reference JSON.
 
 - Tool unit tests pass without the local corpus.
 - The Phase 15A baseline command (without a decision catalog) reports exactly 937 entries and 0
-   certified; the current Phase 15 command with its decision catalog reports 118 certified.
+   certified; the current Phase 15 command with its decision catalog reports 138 certified.
 - Regenerating the manifest from unchanged files is byte-identical.
 - Generated output contains no payload names or source filenames.
 - Full solution build/tests remain green.

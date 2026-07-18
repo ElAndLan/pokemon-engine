@@ -1487,7 +1487,7 @@ conformance passed 9/9. Repeated regeneration was byte-identical (`manifest`
 `a2f78c585e0fa17b81c7cfc5d11d9fd013020d7dee26986a39bd96cdc7fd824d`). Focused scope,
 architecture, determinism, schema, compiler/resolver/event/AI, and generated-artifact review is GO.
 Next eligible package: **15D-7 move references and turn-order intents**.
-7. **15D-7 — Move references and turn-order intents (`PLANNED`; prerequisites 15B-4, 15C-7, 15D-1).**
+7. **15D-7 — Move references and turn-order intents (`IMPLEMENTED`; prerequisites 15B-4, 15C-7, 15D-1).**
    Lock selectors for known, target-known, last-used, party-known, random pool, environment pool, and
    explicit move reference; exclusion tags; authored-order candidate list; one draw only for multiple
    candidates; source versus called move PP ownership; target revalidation; event attribution; and a
@@ -1495,6 +1495,31 @@ Next eligible package: **15D-7 move references and turn-order intents**.
    current scheduled-action record through typed priority/order flags; executed actions cannot be
    scheduled again. **Acceptance:** empty/single/multiple pool, exclusion, PP/event ownership, target
    invalidation, depth/loop termination, doubles order conflicts, and exact RNG/event golden.
+
+Progress (2026-07-18): **15D-7 COMPLETE — focused review: GO.** `callMove` now resolves the closed
+known/target/last/party/authored/environment/explicit selector vocabulary through one stable
+candidate path, a battle-owned compiled move catalog, exclusion tags, caller/called PP policy,
+live target revalidation, attributed call edges, final-move history, and an eight-edge execution
+ceiling. Empty/single pools draw zero times and multi-candidate pools draw once. `turnOrderIntent`
+mutates only pending current-turn records for act-next, act-last, power boost, or one repeat; an
+executed/absent target fails explicitly. Generic reciprocal `pairedAction` profiles implement
+follow-up and combined ally actions, shared power/type overrides, and the existing three paired
+side-condition results without move-ID branches or private timers. Smart AI previews only a unique
+visible called candidate and otherwise records neutral named evidence without reading submitted
+actions. Runtime supplies the compiled project move catalog to both resolver and AI. Focused review
+found and fixed ordinary-move target revalidation leaking into charge/delayed snapshots, external
+called moves being treated as source-owned slots, catalog-definition PP mutation risk, pairing
+before move gates, and active-user leakage from the party-known selector. The generated catalog adds
+8 complete rows (`move-0267`, `move-0270`, `move-0495`, `move-0496`, `move-0511`, `move-0518`,
+`move-0519`, and `move-0520`) for 937 inventoried / 138 certified with unchanged corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`; repeated regeneration was
+byte-identical (manifest `9f1ddc3e529ca3b1fef44e358c8c8adae5e46385c51db61df21bc6621ccea787`,
+definitions `55719c1a6496a47286e2724b9d6e761a429b707c49da136fae6e08916d7c21b7`, decisions
+`6e47845ffeb398b64be3ccc243296111dd9e74393c55d09252bd6304e8c5b77a`). Schema/migration impact:
+none. Dependency impact: none. Verification: full solution build passed with 0 warnings/errors;
+focused package tests passed 14/14, generated conformance passed 8/8, and the final full solution
+passed 1,840 tests (1,552 Core, 104 Creator, 21 Runtime, 163 Tools). Next eligible package:
+**15F-2 held-item mutation**.
 
 Progress (2026-07-14): **15D-1 COMPLETE — focused review: GO.** The battle spec and effect catalog
 now lock the typed queue record, stable sequence and checkpoint order, owner/target policies,
@@ -3205,9 +3230,9 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15D-7.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1, and 15G-2. ACTIVE — 15F-2.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15D-7**; **15F-2** through
+   **15F-2** through
    **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
 7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked

@@ -61,7 +61,10 @@ public static class ExportedGameBoot
         IReadOnlyList<BattleCreature> enemies = trainer.Party.Select(p => BuildCreature(db, p)).ToList();
         var chart = new TypeChart(db.All<TypeDef>());
         IReadOnlyDictionary<EntityId, Item> itemData = db.All<Item>().ToDictionary(item => item.Id);
-        var battle = new BattleController(players, enemies, chart, new Rng(1), itemData: itemData.Values);
+        IReadOnlyDictionary<EntityId, BattleMove> moveData = db.All<Move>()
+            .Select(MoveCompiler.ToBattleMove).ToDictionary(move => move.Move);
+        var battle = new BattleController(players, enemies, chart, new Rng(1), itemData: itemData.Values,
+            moveData: moveData.Values);
         AddTemporaryFormTrainerItems(db, battle, players.Select(p => p.Species));
 
         var aiRng = new Rng(2);
@@ -80,7 +83,8 @@ public static class ExportedGameBoot
                 Memory: memory,
                 ItemData: itemData,
                 Conditions: b.ConditionSnapshot,
-                Ruleset: b.Ruleset));
+                Ruleset: b.Ruleset,
+                MoveData: moveData));
         }
 
         return new BattleScene(battle, EnemyAction, FormChoices(db, players.Select(p => p.Species)), id => NameOf(db, id));

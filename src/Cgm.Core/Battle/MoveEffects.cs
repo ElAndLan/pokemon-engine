@@ -227,6 +227,9 @@ public sealed record ApplyActionFilterEffect(
     SideConditionTarget Owner,
     int? Duration = null,
     string? MoveTag = null) : MoveEffect;
+public sealed record CallMoveEffect(CallMoveProfile Profile) : MoveEffect;
+public sealed record TurnOrderIntentEffect(TurnOrderIntentProfile Profile) : MoveEffect;
+public sealed record PairedActionEffect(PairedActionProfile Profile) : MoveEffect;
 public sealed record SideConditionBypassEffect(string Tag) : MoveEffect;
 public sealed record RemoveSideConditionEffect(
     string Tag, SideConditionTarget Side, SideConditionTiming Timing) : MoveEffect;

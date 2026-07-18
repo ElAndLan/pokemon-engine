@@ -84,6 +84,85 @@ public static class MoveCompiler
                     effects.Add(new ApplyActionFilterEffect(filter, filterOwner, filterDuration, filterTag));
                     break;
 
+                case "callMove":
+                    if (chance != 100)
+                        throw new ArgumentException("callMove does not support chance.");
+                    CheckAllowedParams(e, "selector", "ppOwner", "pool", "environment", "excludeTags");
+                    if (move.DamageClass != DamageClass.Status)
+                        throw new ArgumentException("callMove requires a status move.");
+                    MoveReferenceSelector selector = ParseNamed<MoveReferenceSelector>(
+                        Str(e, "selector"), "move-reference selector");
+                    CalledMovePpOwner ppOwner = e.Params?.ContainsKey("ppOwner") == true
+                        ? ParseNamed<CalledMovePpOwner>(Str(e, "ppOwner"), "called-move PP owner")
+                        : CalledMovePpOwner.Caller;
+                    IReadOnlyList<EntityId> pool = e.Params?.ContainsKey("pool") == true
+                        ? ParseMoveIds(Str(e, "pool"), "callMove pool") : [];
+                    IReadOnlyDictionary<BattleEnvironment, EntityId> environment =
+                        e.Params?.ContainsKey("environment") == true
+                            ? ParseEnvironmentMoves(Str(e, "environment"))
+                            : new Dictionary<BattleEnvironment, EntityId>();
+                    IReadOnlySet<string> excluded = e.Params?.ContainsKey("excludeTags") == true
+                        ? ParseLowercaseTokens(Str(e, "excludeTags"), "callMove excludeTags")
+                        : MoveReferenceResolver.DefaultExcludedTags;
+                    if ((selector == MoveReferenceSelector.AuthoredPool) != (pool.Count > 0)
+                        || (selector == MoveReferenceSelector.EnvironmentPool) != (environment.Count > 0))
+                        throw new ArgumentException("callMove pool parameters must match their selector.");
+                    if (selector == MoveReferenceSelector.ExplicitReference
+                        && move.Target != MoveTarget.SpecificMove)
+                        throw new ArgumentException("Explicit callMove requires the specific-move target.");
+                    if (selector is MoveReferenceSelector.TargetKnown or MoveReferenceSelector.TargetLastUsed
+                        && !IsActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("Target move selectors require an active-creature target.");
+                    if (effects.OfType<CallMoveEffect>().Any())
+                        throw new ArgumentException("A move can declare only one callMove effect.");
+                    effects.Add(new CallMoveEffect(new CallMoveProfile(selector, ppOwner, pool,
+                        environment, excluded)));
+                    break;
+
+                case "turnOrderIntent":
+                    if (chance != 100)
+                        throw new ArgumentException("turnOrderIntent does not support chance.");
+                    CheckAllowedParams(e, "kind", "num", "den");
+                    if (move.DamageClass != DamageClass.Status || !IsSingleActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("turnOrderIntent requires a status move with one active-creature target.");
+                    TurnOrderIntentKind orderKind = ParseNamed<TurnOrderIntentKind>(
+                        Str(e, "kind"), "turn-order intent");
+                    Fraction orderPower = orderKind == TurnOrderIntentKind.BoostPower
+                        ? ReadFraction(e, 3, 2) : default;
+                    if (orderKind != TurnOrderIntentKind.BoostPower
+                        && e.Params?.Keys.Any(key => key is "num" or "den") == true
+                        || orderPower != default && (orderPower.Num <= 0 || orderPower.Den <= 0))
+                        throw new ArgumentException("turnOrderIntent power fraction is invalid for its kind.");
+                    if (effects.OfType<TurnOrderIntentEffect>().Any())
+                        throw new ArgumentException("A move can declare only one turnOrderIntent effect.");
+                    effects.Add(new TurnOrderIntentEffect(new TurnOrderIntentProfile(orderKind, orderPower)));
+                    break;
+
+                case "pairedAction":
+                    if (chance != 100)
+                        throw new ArgumentException("pairedAction does not support chance.");
+                    CheckAllowedParams(e, "key", "member", "mode", "pairs", "num", "den");
+                    if (move.DamageClass == DamageClass.Status || move.Power is not > 0
+                        || move.Target is not MoveTarget.Selected)
+                        throw new ArgumentException("pairedAction requires a damaging selected-target move.");
+                    string pairKey = LowercaseToken(Str(e, "key"), "pairedAction key");
+                    string pairMember = LowercaseToken(Str(e, "member"), "pairedAction member");
+                    PairedActionMode pairMode = ParseNamed<PairedActionMode>(Str(e, "mode"), "paired-action mode");
+                    IReadOnlyList<PairedActionOption> pairOptions = ParsePairedOptions(Str(e, "pairs"));
+                    Fraction pairPower = ReadFraction(e, 2, 1);
+                    if (pairPower.Num <= 0 || pairPower.Den <= 0
+                        || pairOptions.Select(option => option.Partner).Distinct(StringComparer.Ordinal).Count()
+                            != pairOptions.Count
+                        || pairMode == PairedActionMode.Combine
+                            && pairOptions.Any(option => option.Type is null
+                                || option.SideEffect == PairedActionSideEffect.None))
+                        throw new ArgumentException("pairedAction profile is incomplete or invalid.");
+                    if (effects.OfType<PairedActionEffect>().Any())
+                        throw new ArgumentException("A move can declare only one pairedAction effect.");
+                    effects.Add(new PairedActionEffect(new PairedActionProfile(pairKey, pairMember,
+                        pairMode, pairOptions, pairPower)));
+                    break;
+
                 case "drain":
                     drain = ReadFraction(e, 1, 2);
                     effects.Add(new DrainEffect(drain.Value));
@@ -1520,6 +1599,63 @@ public static class MoveCompiler
                 : throw new ArgumentException($"{label} must use comma-separated num/den rows."))
             .ToArray();
         return fractions.Length > 0 ? fractions : throw new ArgumentException($"{label} cannot be empty.");
+    }
+
+    private static IReadOnlyList<EntityId> ParseMoveIds(string value, string label)
+    {
+        EntityId[] ids = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => EntityId.TryParse(token, out EntityId id) && id.Category == EntityCategory.Move
+                ? id : throw new ArgumentException($"{label} requires comma-separated move EntityIds."))
+            .ToArray();
+        if (ids.Length == 0 || ids.Distinct().Count() != ids.Length)
+            throw new ArgumentException($"{label} requires at least one unique move EntityId.");
+        return Array.AsReadOnly(ids);
+    }
+
+    private static IReadOnlyDictionary<BattleEnvironment, EntityId> ParseEnvironmentMoves(string value)
+    {
+        var rows = new Dictionary<BattleEnvironment, EntityId>();
+        foreach (string row in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string[] parts = row.Split('=', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2
+                || !Enum.TryParse(parts[0], true, out BattleEnvironment environment)
+                || !Enum.IsDefined(environment)
+                || !EntityId.TryParse(parts[1], out EntityId move) || move.Category != EntityCategory.Move
+                || !rows.TryAdd(environment, move))
+                throw new ArgumentException("callMove environment requires unique environment=move:id rows.");
+        }
+        return rows.Count > 0 ? rows
+            : throw new ArgumentException("callMove environment cannot be empty.");
+    }
+
+    private static IReadOnlySet<string> ParseLowercaseTokens(string value, string label)
+    {
+        string[] tokens = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0 || tokens.Any(token => !BattleConditionId.ValidToken(token))
+            || tokens.Distinct(StringComparer.Ordinal).Count() != tokens.Length)
+            throw new ArgumentException($"{label} requires unique lowercase tokens.");
+        return new HashSet<string>(tokens, StringComparer.Ordinal);
+    }
+
+    private static string LowercaseToken(string value, string label) => BattleConditionId.ValidToken(value)
+        ? value : throw new ArgumentException($"{label} requires one lowercase token.");
+
+    private static IReadOnlyList<PairedActionOption> ParsePairedOptions(string value)
+    {
+        var options = new List<PairedActionOption>();
+        foreach (string row in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string[] parts = row.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length != 3 || !BattleConditionId.ValidToken(parts[0])
+                || !Enum.TryParse(parts[2], true, out PairedActionSideEffect sideEffect)
+                || !Enum.IsDefined(sideEffect))
+                throw new ArgumentException("pairedAction pairs require partner:type-or-none:side-effect rows.");
+            EntityId? type = parts[1] == "none" ? null : ParseTypeId(parts[1], "pairedAction type");
+            options.Add(new PairedActionOption(parts[0], type, sideEffect));
+        }
+        return options.Count > 0 ? options
+            : throw new ArgumentException("pairedAction pairs cannot be empty.");
     }
 
     private static EntityId ParseTypeId(string value, string label) => BattleConditionId.ValidToken(value)

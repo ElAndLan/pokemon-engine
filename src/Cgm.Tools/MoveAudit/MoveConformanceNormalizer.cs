@@ -168,7 +168,9 @@ public static class MoveConformanceNormalizer
 
         MoveCompiler.ToBattleMove(mechanics.ToMove(referenceKey));
         string definitionHash = Hash(Encoding.UTF8.GetBytes(CgmJson.Serialize(mechanics)));
-        string topology = RequiresDoubles(target) ? "doubles" : "singles-or-doubles";
+        bool requiresDoubles = RequiresDoubles(target)
+            || mechanics.Effects.Any(effect => effect.Op == "pairedAction");
+        string topology = requiresDoubles ? "doubles" : "singles-or-doubles";
         var testIds = new List<string>();
         if (RequiresDoubles(target))
             testIds.Add($"TargetTopologyConformanceTests.Certified({referenceKey})");
@@ -190,6 +192,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"MultiTurnLockConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op == "actionFilter"))
             testIds.Add($"ActionFilterConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "callMove" or "turnOrderIntent" or "pairedAction"))
+            testIds.Add($"MoveReferenceConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
