@@ -48,7 +48,8 @@ Starting baseline:
   to 144/937. The complete 15F-3 ability mutation and 15F-4 creature/move-type mutation packages raise
   it to 159/937. The complete 15F-5 stage/derived-stat mutation and 15F-6 decoy/Transform/Mimic snapshot
   packages raise it to 166/937. The complete 15F-7 unified move selector/executor closes the 15F
-  workstream; the next eligible work is 15G-1 unified switch intents. Deferred
+  workstream, and the complete 15G-1 unified switch-intent package (Baton Pass/pivot/trap) raises the
+  count to 170/937. The next eligible work is 15G-3 counter/revenge/stored-release consumers. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

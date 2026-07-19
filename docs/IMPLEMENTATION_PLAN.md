@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, and 15G-2 complete; 937 inventoried, 170/937 certified; 15G-1 IN PROGRESS (Baton Pass/pivot self-switch + trap gate + conformance; multi-reserve selection remains)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 170/937 certified; next eligible package is 15G-3 counter/revenge/stored-release consumers** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -431,7 +431,7 @@ Current readiness ledger:
 | 15D timing/queue/lock families | 15D-1/2/3/4/5/6 SPEC READY; 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4/5/6 IMPLEMENTED; 15D-7 NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, multi-turn locks, condition-backed selection legality, ruleset fallback, and AI parity use shared deterministic paths; apply 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
 | 15F mutation/snapshots | 15F-1/2/3/4/5/6/7 SPEC LOCKED | 15F-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete: overlays, item/ability/creature-type/stat mutation, decoy/Transform/Mimic snapshots, and the unified move selector/executor over effective move lists |
-| 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
+| 15G switch/recovery/memory/non-battle | 15G-1/2 SPEC LOCKED; 15G-3+ PLANNED — SPEC LOCK AUTHORIZED | 15G-1/2 IMPLEMENTED; 15G-3+ NOT ACTIVE | Unified switch intents (Baton Pass/pivot/trap, ADR-012) and bounded action/damage memory are complete; counter/revenge consumers land in 15G-3 |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
 | 15I AI awareness | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15I-1 through 15I-5 legality/scoring/tuning defaults after mechanics stabilize |
 | 15J certification/closeout | PROCESS READY | NOT COMPLETE | Generated manifest, registered tests, scans, fuzz/soak, and GO review |
@@ -2898,7 +2898,7 @@ non-battle/post-battle effects (4).
 
 Ordered feature packages:
 
-1. **15G-1 — Unified switch intents (`IN PROGRESS`; prerequisites 15B-6 and 15E condition cleanup).**
+1. **15G-1 — Unified switch intents (`COMPLETE`; prerequisites 15B-6 and 15E condition cleanup).**
    Lock voluntary, forced-target, random-forced, pivot-after-hit, self-switch, escape, and replacement
    intent payloads; source/target slot; candidate filter/order; trap/bypass; success checkpoint;
    failure; and transfer policy. Candidate lists use party index order; random selection draws once
@@ -2963,6 +2963,19 @@ Ordered feature packages:
    Core, 104 Creator, 21 Runtime, 202 Tools). 15G-1 now covers Baton Pass (stages + passable volatiles),
    pivot-after-hit, trap gating, multi-reserve self-switch, and certified conformance; a
    `cgm-review-pass` is the remaining step to close it and advance to 15G-3.
+
+   Progress (2026-07-19): **15G-1 COMPLETE — focused review: GO.** The passable-state whitelist
+   (`CapturePassedState`) captures and applies only stat stages, confusion, Leech Seed, and the crit-stage
+   boost — identity, persistent status, HP, item, ability, trap, and other volatiles never transfer.
+   Self-switch is deterministic (party-index-first reserve, ADR-012; no RNG), draws none of its own, and
+   honors the trap gate; the transfer refactor left every switch golden byte-unchanged (full suite green).
+   No blocking scope, determinism, schema, dependency, IP, or architecture issue. 15G-1 delivers the
+   forced/voluntary/replacement flows (pre-existing) plus Baton Pass (stages + passable volatiles),
+   pivot-after-hit (U-turn/Volt Switch/Flip Turn), trap gating, and multi-reserve self-switch, with four
+   certified corpus vectors. The interactive player pick for a self-switch is a documented Runtime/Phase-16
+   concern (ADR-012). Schema/migration/RNG impact: none. Full solution **1,969/1,969** (1,642 Core, 104
+   Creator, 21 Runtime, 202 Tools). Next eligible package: **15G-3 counter/revenge/stored-release
+   consumers** over 15G-2's damage memory.
 2. **15G-2 — Bounded action and damage memory (`IMPLEMENTED`; prerequisite 15B-4).** Extend the minimal
    history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
    sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,
@@ -3702,7 +3715,7 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, and 15G-2. ACTIVE — 15G-1.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2. ACTIVE — 15G-3.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
    **15F-4** through **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
