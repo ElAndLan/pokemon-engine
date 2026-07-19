@@ -59,6 +59,65 @@ public sealed class BattleDecoyOpTests
         Assert.Single(battle.Overlays.Snapshot(), o => o.Payload is DecoyOverlay);
     }
 
+    [Fact]
+    public void DecoyAbsorbsAStandardHitAndTheOwnerTakesNothing()
+    {
+        BattleMove strike = new(EntityId.Parse("move:strike"), Normal, DamageClass.Physical, 40, 100, 10, 0, 0);
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 120, 100, 100, 100, 1), [strike]); // slower, so the defender subs first
+
+        var battle = new BattleController(defender, attacker, Chart(),
+            new FakeRng(ints: [0, 100], doubles: [0.99]));
+        battle.ResolveTurn(new UseMove(0), new Pass());     // defender makes a substitute (200 -> 150)
+        int hpBefore = defender.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new UseMove(0)); // attacker hits the sub
+
+        Assert.Contains(events, e => e is DecoyHit { Side: BattleSide.Player });
+        Assert.DoesNotContain(events, e => e is DamageDealt { Target: BattleSide.Player });
+        Assert.Equal(hpBefore, defender.CurrentHp); // owner untouched
+    }
+
+    [Fact]
+    public void OverkillBreaksTheDecoyWithNoOverflowToTheOwner()
+    {
+        BattleMove nuke = new(EntityId.Parse("move:nuke"), Normal, DamageClass.Physical, 250, 100, 10, 0, 0);
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 200, 100, 100, 100, 1), [nuke]);
+
+        var battle = new BattleController(defender, attacker, Chart(),
+            new FakeRng(ints: [0, 100], doubles: [0.99]));
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        int hpBefore = defender.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new UseMove(0));
+
+        Assert.Contains(events, e => e is DecoyBroke { Side: BattleSide.Player });
+        Assert.Equal(hpBefore, defender.CurrentHp); // no overflow
+        // The break writes a cleared decoy overlay that wins resolution over the original.
+        Assert.Contains(battle.Overlays.Snapshot(), o => o.Payload is DecoyOverlay { Decoy: null });
+    }
+
+    [Fact]
+    public void SoundMovesBypassTheDecoyAndHitTheOwner()
+    {
+        BattleMove screech = new(EntityId.Parse("move:sonic"), Normal, DamageClass.Physical, 40, 100, 10, 0, 0,
+            tags: ["sound"]);
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 120, 100, 100, 100, 1), [screech]);
+
+        var battle = new BattleController(defender, attacker, Chart(),
+            new FakeRng(ints: [0, 100], doubles: [0.99]));
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        int hpBefore = defender.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new UseMove(0));
+
+        Assert.DoesNotContain(events, e => e is DecoyHit);
+        Assert.Contains(events, e => e is DamageDealt { Target: BattleSide.Player });
+        Assert.True(defender.CurrentHp < hpBefore); // owner took the hit
+    }
+
     private static BattleMove Compile(string slug, Effect effect) =>
         MoveCompiler.ToBattleMove(new Move
         {

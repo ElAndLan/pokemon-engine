@@ -999,16 +999,19 @@ public sealed class BattleController
                     AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.DamageRoll, true,
                         damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
                 }
-                DamageApplication applied = DealMoveDamage(targetContext.Target, targetContext.TargetSlot, damage,
-                    effectiveness, crit,
-                    HpStatusFormulas.CannotKoFloor(move));
+                DamageApplication? intercepted = InterceptWithDecoy(targetContext.TargetSlot, move, damage,
+                    effectiveness, traceAction);
+                DamageApplication applied = intercepted ?? DealMoveDamage(targetContext.Target,
+                    targetContext.TargetSlot, damage, effectiveness, crit, HpStatusFormulas.CannotKoFloor(move));
                 targetContext.Target.RecordDamageTaken(moveIdentity.EffectiveClass, applied.ActualHpRemoved);
                 targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
                 RecordDamage(attempt, sourceOwner, HistoryOwner(targetContext.TargetSlot), move,
-                    BattleDamageCause.Standard, hit + 1, attempted: true, effectiveness <= 0
-                        ? BattleDamageFailure.Immune
+                    BattleDamageCause.Standard, hit + 1, attempted: true, intercepted is not null
+                        ? BattleDamageFailure.Substitute
+                        : effectiveness <= 0 ? BattleDamageFailure.Immune
                         : applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
-                    damage, applied, crit, effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
+                    damage, applied, crit, substitute: intercepted is not null,
+                    effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Damage, false, null,
                     applied.ActualHpRemoved,
                     _log.Count - 1, _log.Count);
@@ -2447,14 +2450,17 @@ public sealed class BattleController
                     AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.DamageRoll, true,
                         damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
                 }
-                DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, eff, crit,
+                DamageApplication? intercepted = InterceptWithDecoy(targetSlot, move, dmg, eff, traceAction);
+                DamageApplication applied = intercepted ?? DealMoveDamage(target, targetSlot, dmg, eff, crit,
                     HpStatusFormulas.CannotKoFloor(move));
                 target.RecordDamageTaken(moveIdentity.EffectiveClass, applied.ActualHpRemoved); // for Counter/Mirror Coat
                 targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
                 RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Standard, h + 1, true,
-                    eff <= 0 ? BattleDamageFailure.Immune
+                    intercepted is not null ? BattleDamageFailure.Substitute
+                        : eff <= 0 ? BattleDamageFailure.Immune
                         : applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
-                    dmg, applied, crit, effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
+                    dmg, applied, crit, substitute: intercepted is not null,
+                    effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
                 AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Damage, false, null,
                     applied.ActualHpRemoved,
                     _log.Count - 1, _log.Count);
@@ -4487,6 +4493,31 @@ public sealed class BattleController
         Sap(victim, victimSlot, amount, amt => new LeechSapped(victimSlot, amt));
         Heal(beneficiary, beneficiarySlot, amount);
     }
+
+    /// <summary>If the target has an effective decoy (Substitute) and the move does not bypass it, the
+    /// decoy absorbs the hit (owner takes nothing) and the overlay is reduced or cleared; returns the
+    /// owner-facing zero application, or null when the hit should proceed to the owner. Only fires when a
+    /// decoy is present, so decoy-free battles are unaffected. Interception beyond this standard-damage
+    /// path (fixed/OHKO, HP-formula, counter, delayed) is not yet routed here.</summary>
+    private DamageApplication? InterceptWithDecoy(BattleSlot targetSlot, BattleMove move, int damage,
+        double effectiveness, int actionSequence)
+    {
+        if (effectiveness <= 0)
+            return null; // an immune hit never touches the decoy
+        BattleDecoyState? decoy = EffectiveValues(targetSlot).Decoy;
+        if (decoy is null || BypassesDecoy(move))
+            return null;
+        BattleDecoyInterception hit = BattleDecoy.Intercept(decoy, damage);
+        _overlays.Apply(new BattleOverlayApplication(OverlayOwner(targetSlot), new BattleOverlaySource(),
+            BattleOverlayLayer.FormOrSnapshot, new DecoyOverlay(hit.Remaining), Turn, actionSequence,
+            Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+        _log.Add(new DecoyHit(targetSlot, hit.Absorbed));
+        if (hit.Broke)
+            _log.Add(new DecoyBroke(targetSlot));
+        return new DamageApplication(0, 0);
+    }
+
+    private static bool BypassesDecoy(BattleMove move) => move.Tags.Contains(ActionFilterConditions.SoundTag);
 
     /// <summary>One hit of a damaging move — draws crit then damage roll (fixed order), applies
     /// crit's stat-stage ignore rule and burn. Returned <c>eff</c> feeds the DamageDealt event.</summary>

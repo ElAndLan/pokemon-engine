@@ -190,6 +190,14 @@ public sealed record DecoyCreated(BattleSlot Slot, int Hp) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
 }
+public sealed record DecoyHit(BattleSlot Slot, int Absorbed) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+}
+public sealed record DecoyBroke(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+}
 public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

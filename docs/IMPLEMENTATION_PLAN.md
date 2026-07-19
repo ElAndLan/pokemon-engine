@@ -2524,11 +2524,21 @@ Ordered feature packages:
    the action failed and change nothing. Proven end-to-end: Substitute deducts 1/4 max HP and persists a
    `(cost, cost)` decoy overlay; it fails without paying HP when current HP is not above the cost, and a
    second cast fails while one is present. Schema/migration/RNG impact: none. Full solution passed
-   **1,934/1,934** (1,616 Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: decoy damage/
-   status **interception** in the damage path (route eligible hits through `BattleDecoy.Intercept`,
-   `DecoyHit`/`DecoyBroke` events, the bypass matrix, and the `substitute` damage-record flag); then
-   Transform snapshots + copied-move PP, form HP-ratio/once-per-battle ownership, and temporary move
-   replacement.
+   **1,934/1,934** (1,616 Core, 104 Creator, 21 Runtime, 193 Tools).
+
+   Progress (2026-07-19): **15F-6 decoy damage interception wired into the standard-hit paths.** Added
+   `InterceptWithDecoy` and the `BypassesDecoy` predicate (sound-tag moves bypass), routed into both the
+   singles `ResolveMove` and doubles `ResolveDoublesMove` standard-damage hit sites: when the target has
+   an effective `DecoyOverlay` and the move does not bypass, `BattleDecoy.Intercept` absorbs the hit, the
+   overlay is reduced or cleared, `DecoyHit`/`DecoyBroke` fire, the owner takes nothing (no overflow), and
+   the damage record is flagged `Substitute`. Interception fires only when a decoy is present, so every
+   decoy-free golden is byte-unchanged (full suite stayed green). Proven end-to-end: a Substitute absorbs
+   a standard hit with the owner untouched, an overkill breaks it with no overflow, and a sound move
+   bypasses it to hit the owner. Schema/migration/RNG impact: none. Full solution passed **1,937/1,937**
+   (1,619 Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: extend interception to the
+   fixed/OHKO, HP-formula, counter, and delayed damage paths; block move-inflicted status/stat-drops on a
+   decoy'd owner; add an infiltrator-style bypass when that ability lands; then Transform snapshots +
+   copied-move PP, form HP-ratio/once-per-battle ownership, and temporary move replacement.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and
