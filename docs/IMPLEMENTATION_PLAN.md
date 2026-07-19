@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6, and 15G-2 complete; 937 inventoried, 166/937 certified; next eligible package is 15F-7 unified move selector/executor** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, and 15G-2 complete; 937 inventoried, 166/937 certified; next eligible package is 15G-1 unified switch intents** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -430,7 +430,7 @@ Current readiness ledger:
 | 15C-7 accuracy/critical/priority/final-damage/healing queries | SPEC READY | IMPLEMENTED | Shared action-query helpers, strict ops, one-shot conditions, resolver/Smart-AI parity, traces, RNG matrix, doubles isolation, and golden evidence |
 | 15D timing/queue/lock families | 15D-1/2/3/4/5/6 SPEC READY; 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4/5/6 IMPLEMENTED; 15D-7 NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, multi-turn locks, condition-backed selection legality, ruleset fallback, and AI parity use shared deterministic paths; apply 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
-| 15F mutation/snapshots | 15F-1/2/3/4/5/6 SPEC LOCKED; 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1/2/3/4/5/6 IMPLEMENTED; 15F-7 NOT ACTIVE | Overlays, item/ability/creature-type/stat mutation, and decoy/Transform/Mimic snapshots are complete; apply 15F-7 selector/executor defaults after its prerequisites |
+| 15F mutation/snapshots | 15F-1/2/3/4/5/6/7 SPEC LOCKED | 15F-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete: overlays, item/ability/creature-type/stat mutation, decoy/Transform/Mimic snapshots, and the unified move selector/executor over effective move lists |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
 | 15I AI awareness | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15I-1 through 15I-5 legality/scoring/tuning defaults after mechanics stabilize |
@@ -2637,7 +2637,7 @@ Ordered feature packages:
    ability is not built) are deferred follow-ons. Schema/migration/RNG impact: none. Full solution
    passed **1,955/1,955** (1,633 Core, 104 Creator, 21 Runtime, 197 Tools). Next eligible package:
    **15F-7 unified move selector/executor**.
-7. **15F-7 — Unified move selector/executor (`IN PROGRESS`; prerequisite 15D-7).** Finish selectors for
+7. **15F-7 — Unified move selector/executor (`COMPLETE`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and
    temporary/permanent replacement cleanup. This is the only entry to called/copied move execution;
@@ -2660,6 +2660,24 @@ Ordered feature packages:
    none. Full solution passed **1,956/1,956** (1,634 Core, 104 Creator, 21 Runtime, 197 Tools). Remaining
    for 15F-7: a `cgm-review-pass` to confirm the acceptance matrix (already covered by the 15D-7
    move-reference package tests plus the new integration test) and close the package.
+
+   Progress (2026-07-19): **15F-7 COMPLETE — focused review: GO. 15F workstream closed.** The acceptance
+   matrix is fully covered by `BattleMoveReferencePackageTests`: pool ordering/exclusion + multi-candidate
+   single draw (`Selector_PreservesAuthoredOrderFiltersAndUsesOnlyRequiredDraw`), PP/event attribution
+   (`CalledMove_UsesDeclaredPpOwnerAndAttributesCallAndDamage`), target invalidation
+   (`CalledMove_RevalidatesItsDifferentTargetShape`, `CalledMove_FailsWhenItsRevalidatedTargetDisappears`),
+   depth-8 recursion and RNG goldens (`CallLoop_StopsAtDepthEightWithoutAnUnneededDraw`,
+   `MoveReferenceSelection_MatchesExactRngAndEventGolden`), environment/party selectors
+   (`EnvironmentAndPartySelectors_UseSharedBattleStateInStableOrder`), and effective-list selection
+   (`UserKnownSelector_ReadsTheEffectiveOverriddenMoveList`); replacement reversion is covered by the
+   Transform/Mimic `OverrideMoves`/`RestoreMoves` suites. The review found no blocking scope, determinism,
+   schema, dependency, IP, or architecture issue — the selector/executor draws RNG only on a genuine
+   multi-candidate choice, never re-enters `BattleController` recursively (typed `ResolveMoveInvocation`
+   chain, depth 8), and reads the effective move list so temporarily replaced/copied moves behave
+   natively. This closes Phase **15F** (overlays → item/ability/creature-type/stat mutation →
+   decoy/Transform/Mimic snapshots → unified selector). Schema/migration/RNG impact: none. Full solution
+   **1,956/1,956** (1,634 Core, 104 Creator, 21 Runtime, 197 Tools). Next eligible package: **15G-1
+   unified switch intents** (which owns the Baton Pass stage-carry deferred from 15F-5).
 
 Progress (2026-07-14): **15F-1 COMPLETE — focused review: GO.** The battle spec and effect catalog
 now lock one runtime-only effective-value path with immutable captured base values and typed overlays
@@ -3628,7 +3646,7 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6, and 15G-2. ACTIVE — 15F-7.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, and 15G-2. ACTIVE — 15G-1.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
    **15F-4** through **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
