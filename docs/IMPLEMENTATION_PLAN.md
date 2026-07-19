@@ -2943,6 +2943,17 @@ Ordered feature packages:
    `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f` and was byte-identical. Added
    `SwitchIntentConformanceTests` (per-row + Baton-Pass/pivot coverage). Full solution passed
    **1,967/1,967** (1,640 Core, 104 Creator, 21 Runtime, 202 Tools).
+
+   Progress (2026-07-19): **15G-1 Baton Pass passable-volatile transfer.** Generalized the transfer from a
+   stage dictionary to a `BattlePassedState` (stat stages + the passable creature volatiles: Leech Seed,
+   confusion, and crit-stage boost); `SwitchTo` applies the whole snapshot to the incoming creature.
+   Identity/status/HP/item/ability and non-passable volatiles still never transfer. Proven: Baton Pass
+   carries Leech Seed and a +2 crit boost to the reserve (alongside the already-tested stage carry). Pivot
+   still passes nothing. Schema/migration/RNG impact: none. Full solution passed **1,968/1,968** (1,641
+   Core, 104 Creator, 21 Runtime, 202 Tools). Remaining for 15G-1: multi-reserve self-switch **selection**,
+   which the current one-shot `ResolveTurn` turn model can't express (a mid-turn pause for the player's
+   replacement pick) — this needs an ADR (mid-turn suspend/resume vs. deferred end-of-turn replacement)
+   before implementation, so it is the next decision point for closing 15G-1.
 2. **15G-2 — Bounded action and damage memory (`IMPLEMENTED`; prerequisite 15B-4).** Extend the minimal
    history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
    sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,

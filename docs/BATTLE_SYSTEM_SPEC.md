@@ -2493,8 +2493,8 @@ self-switch/pivot family and Baton-style state transfer, and unifies the intent 
 forced-target, random-forced, pivot-after-hit, self-switch, escape, replacement) with source/target
 slot, candidate filter/order, trap/bypass, success checkpoint, and failure.
 
-Passable state is an explicit whitelist: only the seven stat stages and registry-tagged passable
-creature conditions transfer to the incoming creature. Identity, persistent status, HP, held item,
+Passable state is an explicit whitelist: only the seven stat stages and the passable creature volatiles
+(currently Leech Seed, confusion, and the crit-stage boost) transfer to the incoming creature. Identity, persistent status, HP, held item,
 ability, non-passable volatiles, queued intents, and slot/side conditions never transfer. On a
 state-passing switch, `SwitchTo` captures the outgoing creature's stage snapshot **before** its
 switch-out reset and applies it to the incoming creature after it materializes but before entry hooks,

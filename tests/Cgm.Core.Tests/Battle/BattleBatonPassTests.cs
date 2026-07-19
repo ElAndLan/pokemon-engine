@@ -27,6 +27,21 @@ public sealed class BattleBatonPassTests
     }
 
     [Fact]
+    public void BatonPassCarriesPassableVolatilesToTheIncomingReserve()
+    {
+        BattleCreature user = Creature("user", BatonPass());
+        BattleCreature reserve = Creature("reserve", Inert());
+        user.SetSeeded(true);   // Leech Seed
+        user.RaiseCrit(2);      // Focus Energy crit boost
+
+        var battle = new BattleController([user, reserve], [Creature("enemy", Inert())], Chart(), new FakeRng());
+        battle.ResolveTurn(new UseMove(0), new Pass());
+
+        Assert.True(reserve.Seeded);
+        Assert.Equal(2, reserve.CritStageBonus);
+    }
+
+    [Fact]
     public void VoluntarySwitchDoesNotCarryStages()
     {
         BattleCreature user = Creature("user", Inert());

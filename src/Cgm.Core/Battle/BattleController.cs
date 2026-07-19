@@ -1354,20 +1354,19 @@ public sealed class BattleController
     private void SwitchTo(BattleSide side, int index)
         => SwitchTo(new BattleSlot(side, 0), index);
 
-    // Baton Pass (15G-1): switch the user out carrying its stat stages; fails if there is no reserve.
+    // Baton Pass (15G-1): switch the user out carrying its whitelisted state; fails if there is no reserve.
     private bool ApplyBatonPass(EffectContext ctx)
     {
-        IReadOnlyDictionary<StatKind, int> passed = AllStageSlots.ToDictionary(stat => stat, ctx.Source.Stage);
-        if (SelfSwitch(ctx.SourceSlot, passed))
+        if (SelfSwitch(ctx.SourceSlot, CapturePassedState(ctx.Source)))
             return true;
         ctx.Action.MarkFailed();
         return false;
     }
 
     // 15G-1 self-switch: switch the source out to its sole healthy reserve (multi-reserve selection is the
-    // remaining 15G-1 work), optionally passing a stage snapshot to the incoming creature. Returns whether
+    // remaining 15G-1 work), optionally passing whitelisted state to the incoming creature. Returns whether
     // a switch occurred.
-    private bool SelfSwitch(BattleSlot slot, IReadOnlyDictionary<StatKind, int>? passStages)
+    private bool SelfSwitch(BattleSlot slot, BattlePassedState? passed)
     {
         if (Active(slot).IsTrapped) // a trapped creature cannot switch itself out (matches voluntary switch)
             return false;
@@ -1376,13 +1375,22 @@ public sealed class BattleController
             .ToArray();
         if (reserves.Length != 1)
             return false;
-        if (passStages is not null)
+        if (passed is not null)
             _log.Add(new StatePassed(slot));
-        SwitchTo(slot, reserves[0], passStages);
+        SwitchTo(slot, reserves[0], passed);
         return true;
     }
 
-    private void SwitchTo(BattleSlot slot, int index, IReadOnlyDictionary<StatKind, int>? passStages = null)
+    // Baton-passable state (15G-1 whitelist): stat stages plus the passable creature volatiles. Identity,
+    // status, HP, item, ability, and non-passable volatiles are never captured.
+    private sealed record BattlePassedState(IReadOnlyDictionary<StatKind, int> Stages, int ConfusionTurns,
+        bool Seeded, int CritBoost);
+
+    private BattlePassedState CapturePassedState(BattleCreature creature) => new(
+        AllStageSlots.ToDictionary(stat => stat, creature.Stage),
+        creature.ConfusionCounter, creature.Seeded, creature.CritStageBonus);
+
+    private void SwitchTo(BattleSlot slot, int index, BattlePassedState? passed = null)
     {
         int outgoingPartyIndex = ActiveIndex(slot);
         _actionHistory.RecordSwitch(
@@ -1402,9 +1410,15 @@ public sealed class BattleController
         _activeSlots.Assign(slot, index);
         _overlays.OwnerSwitched(slot.Side, index, slot, Turn, _traceActionSequence);
         _log.Add(new SwitchedIn(slot, index));
-        if (passStages is not null)
-            foreach ((StatKind stat, int value) in passStages)
-                Active(slot).SetStage(stat, value); // carry the passed stages onto the incoming creature
+        if (passed is not null)
+        {
+            BattleCreature incoming = Active(slot); // carry the whitelisted state onto the incoming creature
+            foreach ((StatKind stat, int value) in passed.Stages)
+                incoming.SetStage(stat, value);
+            incoming.SetConfusion(passed.ConfusionTurns);
+            incoming.SetSeeded(passed.Seeded);
+            incoming.RaiseCrit(passed.CritBoost);
+        }
         OnSwitchIn(slot);
         ResolveSwitchInIntents(slot);
     }
