@@ -156,6 +156,11 @@
     { "referenceKey": "move-0493", "makesContact": false, "additionalEffects": [{ "op": "abilityMutation", "params": { "operation": "replace", "ability": "ability:reference_simple" } }] },
     { "referenceKey": "move-0494", "makesContact": false, "additionalEffects": [{ "op": "abilityMutation", "params": { "operation": "copy", "source": "user", "subject": "target" } }] },
     { "referenceKey": "move-0867", "makesContact": false, "additionalEffects": [{ "op": "abilityMutation", "params": { "operation": "copy", "subject": "userAndAllies" } }] },
-    { "referenceKey": "move-0917", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockMoveTag", "tag": "healing", "duration": 2 } }] }
+    { "referenceKey": "move-0917", "makesContact": false, "additionalEffects": [{ "op": "actionFilter", "params": { "filter": "blockMoveTag", "tag": "healing", "duration": 2 } }] },
+    { "referenceKey": "move-0487", "makesContact": false, "additionalEffects": [{ "op": "typeMutation", "params": { "operation": "replace", "subject": "target", "types": "type:reference_11" } }] },
+    { "referenceKey": "move-0750", "makesContact": false, "additionalEffects": [{ "op": "typeMutation", "params": { "operation": "replace", "subject": "target", "types": "type:reference_14" } }] },
+    { "referenceKey": "move-0513", "makesContact": false, "additionalEffects": [{ "op": "typeMutation", "params": { "operation": "copy" } }] },
+    { "referenceKey": "move-0567", "makesContact": false, "additionalEffects": [{ "op": "typeMutation", "params": { "operation": "add", "subject": "target", "types": "type:reference_08" } }] },
+    { "referenceKey": "move-0571", "makesContact": false, "additionalEffects": [{ "op": "typeMutation", "params": { "operation": "add", "subject": "target", "types": "type:reference_12" } }] }
   ]
 }

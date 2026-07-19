@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 785
+      "count": 780
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 152
+      "count": 157
     },
     {
       "status": "blockedReference",
@@ -7498,12 +7498,16 @@
       "payloadContentHash": "8e24ad052b5eed619ab94df807ccccd29a03e95078530b4b42db769e5fc199b6",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "targetTopology",
+        "typeMutation"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "64e8f1df7786ff8c3968289d87ea206fcf56da76789889b7cce3f49d02eb4fe4",
+      "testIds": [
+        "TypeMutationConformanceTests.Certified(move-0487)"
+      ]
     },
     {
       "referenceKey": "move-0488",
@@ -7897,12 +7901,16 @@
       "payloadContentHash": "aa15da8d11913cd6a23c9463b8a4af9bdc027b6c99b252fd1c90c979601d43aa",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "targetTopology",
+        "typeMutation"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "2ec59bb0701b22ed48b66163f976409922c6e824ae701b1ecef638f40102a70d",
+      "testIds": [
+        "TypeMutationConformanceTests.Certified(move-0513)"
+      ]
     },
     {
       "referenceKey": "move-0514",
@@ -8748,12 +8756,16 @@
       "payloadContentHash": "2c9d938ec52cbbeecf29daf2a8e3e094e5f98cea55dfa2a97420c2ad487c1951",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "targetTopology",
+        "typeMutation"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "fc11ca9c4bb56f35f6ae352a42e429f717f32de1d431a6aa1f8d6d848f76d0c2",
+      "testIds": [
+        "TypeMutationConformanceTests.Certified(move-0567)"
+      ]
     },
     {
       "referenceKey": "move-0568",
@@ -8809,12 +8821,16 @@
       "payloadContentHash": "4f696cb17ee2308133b2d185d5e43976c545c1259324750ae27d1af7de6ed56f",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "targetTopology",
+        "typeMutation"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "fb77368f25f37ad549dccae5336c1c532551d3266efd1a75c30df6cd397bcb9d",
+      "testIds": [
+        "TypeMutationConformanceTests.Certified(move-0571)"
+      ]
     },
     {
       "referenceKey": "move-0572",
@@ -11456,12 +11472,16 @@
       "payloadContentHash": "cb28b753e3aaf56aa97a5b7fbf2fc686a1aefc3978f44d5eeb1be187f8416472",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "targetTopology",
+        "typeMutation"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "9c64683e69a99ad84cd5f43cf33aa3a4b4e94a83e0d32e035a2b705f757d05bb",
+      "testIds": [
+        "TypeMutationConformanceTests.Certified(move-0750)"
+      ]
     },
     {
       "referenceKey": "move-0751",

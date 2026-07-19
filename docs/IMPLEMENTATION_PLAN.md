@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 152/937 certified; 15F-4 IN PROGRESS (creature-type mutation engine + `typeMutation` move op wired; move-type override + conformance vectors remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 157/937 certified; 15F-4 IN PROGRESS (creature-type mutation engine + `typeMutation` move op wired, non-emptying corpus cohort certified; remove/empty-type fallback cohort remains)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2591,6 +2591,19 @@ from this worktree, so authoring the neutral `typeMutation` decisions in
 `definitions.v1.json`/`manifest.v1.json` against the local corpus is the next slice (which advances
 the certified count past 152/937). Full solution passed **1,900/1,900** (1,595 Core, 104 Creator, 21
 Runtime, 180 Tools).
+
+Progress (2026-07-19): **15F-4 non-emptying type-mutation corpus cohort certified (152 → 157/937).**
+Authored five neutral `typeMutation` decisions in `target-topology-decisions.v1.json` covering the
+replace/add/copy operations (Soak/Magic-Powder replace onto the target, Trick-or-Treat/Forest's-Curse
+add onto the target, Reflect-Type copy target→user), each keyed to a genuine status corpus move with no
+competing mechanics, using sanitized `type:reference_NN` IDs. Regenerated `definitions.v1.json` and
+`manifest.v1.json` from the local corpus: certified rose from 152 to **157/937**, the corpus digest
+stayed `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, and a second run was
+byte-identical. Added `TypeMutationConformanceTests` (per-row certification theory + an
+operation-coverage fact asserting replace/add/copy). Full solution passed **1,906/1,906** (1,595 Core,
+104 Creator, 21 Runtime, 186 Tools). Remaining for 15F-4: the `remove` operation and the empty-type
+fallback ruleset decision (Burn Up / Double Shock leave a mono-typed user typeless), which certifies the
+last type-mutation cohort and lets 15F-4 close.
 
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
