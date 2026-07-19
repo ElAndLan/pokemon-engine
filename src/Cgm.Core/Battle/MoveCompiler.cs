@@ -1321,6 +1321,17 @@ public static class MoveCompiler
                     effects.Add(new TransformEffect());
                     break;
 
+                case "replaceMove":
+                    if (chance != 100)
+                        throw new ArgumentException("replaceMove does not support chance.");
+                    CheckAllowedParams(e);
+                    if (!IsActiveCreatureTarget(move.Target) || move.Target == MoveTarget.User)
+                        throw new ArgumentException("replaceMove requires an active-creature target.");
+                    if (effects.OfType<MoveReplaceEffect>().Any())
+                        throw new ArgumentException("A move can declare only one replaceMove effect.");
+                    effects.Add(new MoveReplaceEffect());
+                    break;
+
                 case "statStageReset":
                     CheckAllowedParams(e, "scope");
                     AddChanceEffect(effects, new StatResetEffect(Parse<StageEffectScope>(Str(e, "scope"), "scope")), chance);

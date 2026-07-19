@@ -2604,9 +2604,20 @@ Ordered feature packages:
    staying green. Proven: a transformed creature carries the target's moves at 5 PP each, spends the
    copied PP independently of its originals, and the override round-trips through `RestoreMoves`/
    `ClearVolatiles`. Schema/migration/RNG impact: none. Full solution passed **1,949/1,949** (1,631 Core,
-   104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: temporary single-slot move replacement
-   (Mimic/Sketch, reusing the ADR-011 override with a duration); form changes (HP-ratio/ownership); an
-   infiltrator-style decoy bypass; then a review to close and advance to 15F-7.
+   104 Creator, 21 Runtime, 193 Tools).
+
+   Progress (2026-07-19): **15F-6 temporary move replacement (Mimic) landed.** Added the `replaceMove`
+   move op, `MoveReplaceEffect`, and controller `ApplyMoveReplace`, which copies the target's last-used
+   move (`LastMoveUsed`) into the Mimic move's own slot with a fresh `min(5, base PP)` pool via the
+   ADR-011 `OverrideMoves` path, emitting a `MoveReplaced` event and `MoveReplacement` trace. It fails
+   without change when the target has not used a move or the user already knows that move, and reverts on
+   switch/faint through the same `RestoreMoves` hook as Transform. Proven: Mimic copies the target's
+   tackle into slot 0 at 5 PP, and fails when the target never moved. Sketch (permanent replacement) is
+   intentionally deferred — it would need to rewrite the immutable base move list, which the ADR-011
+   temporary override does not do. Schema/migration/RNG impact: none. Full solution passed **1,951/1,951**
+   (1,633 Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: form changes (HP-ratio/once-
+   per-battle ownership — scope-check against the Forms/Mega deferral first) and an infiltrator-style
+   decoy bypass; then a `cgm-review-pass` to close 15F-6 and advance to 15F-7.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and

@@ -115,6 +115,9 @@ public sealed record DecoyEffect(Fraction Cost) : MoveEffect;
 /// <summary>transform the user into the target (copy effective identity via overlays) (15F-6).</summary>
 public sealed record TransformEffect : MoveEffect;
 
+/// <summary>Mimic: temporarily replace this move's own slot with the target's last-used move (15F-6).</summary>
+public sealed record MoveReplaceEffect : MoveEffect;
+
 /// <summary>reset_stat_stages over self, target, or both active creatures.</summary>
 public sealed record StatResetEffect(StageEffectScope Scope) : MoveEffect;
 

@@ -2571,6 +2571,8 @@ public sealed class BattleController
                 return ApplyDecoy(ctx, decoy);
             case TransformEffect transform:
                 return ApplyTransform(ctx, transform);
+            case MoveReplaceEffect:
+                return ApplyMoveReplace(ctx);
             case StatResetEffect r: ApplyStatReset(ctx, r); break;
             case StatCopyEffect copy: ApplyStatCopy(ctx, copy); break;
             case StatSwapEffect s: ApplyStatSwap(ctx, s); break;
@@ -4059,6 +4061,32 @@ public sealed class BattleController
     }
 
     private const string TransformFormId = "transform";
+
+    // Mimic (ADR-011): temporarily replace this move's own slot with the target's last-used move.
+    private bool ApplyMoveReplace(EffectContext ctx)
+    {
+        int start = _log.Count;
+        int slot = -1;
+        for (int i = 0; i < ctx.Source.Moves.Count; i++)
+            if (ctx.Source.Moves[i].Move == ctx.Move.Move) { slot = i; break; }
+        BattleMove? copied = ctx.Target.LastMoveUsed is { } id
+            ? ctx.Target.Moves.FirstOrDefault(move => move.Move == id) : null;
+        bool ok = slot >= 0 && copied is not null && ctx.Source.Moves.All(move => move.Move != copied.Move);
+        if (!ok)
+        {
+            ctx.Action.MarkFailed();
+            _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
+                EffectTraceKind.MoveReplacement, false, null, 0, start, _log.Count));
+            return false;
+        }
+        List<BattleMove> replaced = ctx.Source.Moves.ToList();
+        replaced[slot] = copied!.WithPpPool(Math.Min(5, copied.MaxPp), Math.Min(5, copied.MaxPp));
+        ctx.Source.OverrideMoves(replaced);
+        _log.Add(new MoveReplaced(ctx.SourceSlot, slot, copied.Move));
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
+            EffectTraceKind.MoveReplacement, true, null, slot, start, _log.Count));
+        return true;
+    }
 
     private bool ApplyDecoy(EffectContext ctx, DecoyEffect effect)
     {

@@ -202,6 +202,10 @@ public sealed record Transformed(BattleSlot Slot) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
 }
+public sealed record MoveReplaced(BattleSlot Slot, int MoveSlot, EntityId Move) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+}
 public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
