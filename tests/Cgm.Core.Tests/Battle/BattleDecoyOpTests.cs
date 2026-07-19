@@ -118,11 +118,48 @@ public sealed class BattleDecoyOpTests
         Assert.True(defender.CurrentHp < hpBefore); // owner took the hit
     }
 
+    [Fact]
+    public void SubstituteBlocksAnOpposingStatusMove()
+    {
+        BattleMove paralyze = Compile("stun", DamageClass.Status, MoveTarget.Selected,
+            Op("ailment", ("ailment", "paralysis")));
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 100, 100, 100, 100, 1), [paralyze]);
+
+        var battle = new BattleController(defender, attacker, Chart(), new FakeRng(ints: [0, 0]));
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new UseMove(0));
+
+        Assert.DoesNotContain(events, e => e is StatusApplied);
+        Assert.Null(defender.Status);
+    }
+
+    [Fact]
+    public void SoundStatusMovesBypassTheSubstitute()
+    {
+        BattleMove sonicStun = new(EntityId.Parse("move:sonic_stun"), Normal, DamageClass.Status, null, null,
+            10, 0, 0, ailment: PersistentStatus.Paralysis, ailmentChance: 100, tags: ["sound"],
+            target: MoveTarget.Selected);
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 100, 100, 100, 100, 1), [sonicStun]);
+
+        var battle = new BattleController(defender, attacker, Chart(), new FakeRng(ints: [0, 0]));
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        battle.ResolveTurn(new Pass(), new UseMove(0));
+
+        Assert.Equal(PersistentStatus.Paralysis, defender.Status);
+    }
+
     private static BattleMove Compile(string slug, Effect effect) =>
+        Compile(slug, DamageClass.Status, MoveTarget.User, effect);
+
+    private static BattleMove Compile(string slug, DamageClass dc, MoveTarget target, Effect effect) =>
         MoveCompiler.ToBattleMove(new Move
         {
             Id = EntityId.Parse($"move:{slug}"), Name = slug, Type = Normal,
-            DamageClass = DamageClass.Status, Pp = 10, Target = MoveTarget.User, Effects = [effect],
+            DamageClass = dc, Pp = 10, Target = target, Effects = [effect],
         });
 
     private static BattleCreature Creature(string slug, BattleMove move) => new(
@@ -133,5 +170,10 @@ public sealed class BattleDecoyOpTests
 
     private static TypeChart Chart() => new([new TypeDef { Id = Normal }]);
 
-    private static Effect Op(string op) => new() { Op = op };
+    private static Effect Op(string op, params (string Key, object Value)[] values) => new()
+    {
+        Op = op,
+        Params = values.Length == 0 ? null : values.ToDictionary(v => v.Key,
+            v => JsonSerializer.SerializeToElement(v.Value)),
+    };
 }

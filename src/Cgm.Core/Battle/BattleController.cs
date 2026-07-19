@@ -3933,6 +3933,7 @@ public sealed class BattleController
     {
         int start = _log.Count;
         bool eligible = !ctx.Target.IsFainted
+            && !DecoyBlocks(ctx.TargetSlot, ctx.Move)
             && StatusEffects.CanApplyStatus(ctx.Target.Status)
             && !StatusEffects.TypeImmuneToStatus(effect.Status, EffectiveTypes(ctx.TargetSlot))
             && !BlocksStatus(ctx.TargetSlot, effect.Status);
@@ -3969,8 +3970,10 @@ public sealed class BattleController
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
-        bool eligible = !recipient.IsFainted && (effect.Delta >= 0
-            || AllowsSideStageDrop(ctx.SourceSlot, recipientSlot, ctx.Move, ctx.TraceAction));
+        bool eligible = !recipient.IsFainted
+            && !(!effect.OnSelf && DecoyBlocks(ctx.TargetSlot, ctx.Move))
+            && (effect.Delta >= 0
+                || AllowsSideStageDrop(ctx.SourceSlot, recipientSlot, ctx.Move, ctx.TraceAction));
         EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), eligible);
         if (!chance.Passed)
         {
@@ -3994,8 +3997,10 @@ public sealed class BattleController
         BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
         BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
         int start = _log.Count;
-        bool eligible = !recipient.IsFainted && (effect.Delta >= 0
-            || AllowsSideStageDrop(ctx.SourceSlot, recipientSlot, ctx.Move, ctx.TraceAction));
+        bool eligible = !recipient.IsFainted
+            && !(!effect.OnSelf && DecoyBlocks(ctx.TargetSlot, ctx.Move))
+            && (effect.Delta >= 0
+                || AllowsSideStageDrop(ctx.SourceSlot, recipientSlot, ctx.Move, ctx.TraceAction));
         EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), eligible);
         if (!chance.Passed)
         {
@@ -4322,7 +4327,8 @@ public sealed class BattleController
     private void ApplyConfusion(EffectContext ctx, ConfusionEffect effect)
     {
         int start = _log.Count;
-        bool eligible = !ctx.Target.IsFainted && !ctx.Target.IsConfused;
+        bool eligible = !ctx.Target.IsFainted && !ctx.Target.IsConfused
+            && !DecoyBlocks(ctx.TargetSlot, ctx.Move);
         if (eligible)
         {
             BattleHookDispatchSnapshot terrain = TerrainConditions.CollectConfusionHooks(
@@ -4518,6 +4524,12 @@ public sealed class BattleController
     }
 
     private static bool BypassesDecoy(BattleMove move) => move.Tags.Contains(ActionFilterConditions.SoundTag);
+
+    /// <summary>A present, non-bypassed decoy on the target blocks move-inflicted status and stat drops
+    /// aimed at the owner. Covers pure status moves and non-breaking hits; a secondary that runs after the
+    /// decoy broke this turn is not yet tracked (needs per-turn "hit the substitute" state).</summary>
+    private bool DecoyBlocks(BattleSlot targetSlot, BattleMove move) =>
+        EffectiveValues(targetSlot).Decoy is not null && !BypassesDecoy(move);
 
     /// <summary>One hit of a damaging move — draws crit then damage roll (fixed order), applies
     /// crit's stat-stage ignore rule and burn. Returned <c>eff</c> feeds the DamageDealt event.</summary>

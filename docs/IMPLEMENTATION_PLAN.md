@@ -2535,10 +2535,20 @@ Ordered feature packages:
    decoy-free golden is byte-unchanged (full suite stayed green). Proven end-to-end: a Substitute absorbs
    a standard hit with the owner untouched, an overkill breaks it with no overflow, and a sound move
    bypasses it to hit the owner. Schema/migration/RNG impact: none. Full solution passed **1,937/1,937**
-   (1,619 Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: extend interception to the
-   fixed/OHKO, HP-formula, counter, and delayed damage paths; block move-inflicted status/stat-drops on a
-   decoy'd owner; add an infiltrator-style bypass when that ability lands; then Transform snapshots +
-   copied-move PP, form HP-ratio/once-per-battle ownership, and temporary move replacement.
+   (1,619 Core, 104 Creator, 21 Runtime, 193 Tools).
+
+   Progress (2026-07-19): **15F-6 decoy status/stat-drop block wired.** A present, non-bypassed decoy on
+   the target now blocks move-inflicted status (`ApplyAilment`, `ApplyConfusion`) and opposing stat drops
+   (`ApplyStatChange`, `ApplyStatChangeAll`) via a shared `DecoyBlocks(targetSlot, move)` guard reusing
+   `BypassesDecoy`. Correct for pure status moves and non-breaking hits; a secondary that runs after the
+   decoy broke this turn is a documented follow-on (needs per-turn "hit the substitute" state). Still
+   gated on decoy-present, so goldens are unchanged. Proven: a Substitute blocks an opposing paralysis
+   move (owner stays statusless) while a sound-tagged status move bypasses and paralyzes. Full solution
+   passed **1,939/1,939** (1,621 Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: extend
+   damage interception to the fixed/OHKO, HP-formula, counter, and delayed paths; per-turn hit-the-sub
+   tracking for post-break secondaries; an infiltrator-style bypass when that ability lands; then
+   Transform snapshots + copied-move PP, form HP-ratio/once-per-battle ownership, and temporary move
+   replacement.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and
