@@ -170,6 +170,10 @@
     { "referenceKey": "move-0470", "makesContact": false, "additionalEffects": [{ "op": "derivedStatSplit", "params": { "group": "defense" } }] },
     { "referenceKey": "move-0164", "makesContact": false, "additionalEffects": [{ "op": "decoy" }] },
     { "referenceKey": "move-0144", "makesContact": false, "additionalEffects": [{ "op": "transform" }] },
-    { "referenceKey": "move-0102", "makesContact": false, "additionalEffects": [{ "op": "replaceMove" }] }
+    { "referenceKey": "move-0102", "makesContact": false, "additionalEffects": [{ "op": "replaceMove" }] },
+    { "referenceKey": "move-0226", "makesContact": false, "additionalEffects": [{ "op": "batonPass" }] },
+    { "referenceKey": "move-0369", "makesContact": true, "additionalEffects": [{ "op": "pivotSwitch" }] },
+    { "referenceKey": "move-0521", "makesContact": false, "additionalEffects": [{ "op": "pivotSwitch" }] },
+    { "referenceKey": "move-0812", "makesContact": true, "additionalEffects": [{ "op": "pivotSwitch" }] }
   ]
 }

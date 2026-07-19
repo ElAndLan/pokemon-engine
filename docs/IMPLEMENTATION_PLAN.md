@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, and 15G-2 complete; 937 inventoried, 166/937 certified; next eligible package is 15G-1 unified switch intents** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, and 15G-2 complete; 937 inventoried, 170/937 certified; 15G-1 IN PROGRESS (Baton Pass/pivot self-switch + trap gate + conformance; multi-reserve selection remains)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2934,8 +2934,15 @@ Ordered feature packages:
    pivot still deals its damage but does not switch. Proven both ways in one test. Schema/migration/RNG
    impact: none. Full solution passed **1,962/1,962** (1,640 Core, 104 Creator, 21 Runtime, 197 Tools).
    Remaining for 15G-1: multi-reserve self-switch **selection** (the mid-turn replacement pick, shared by
-   Baton Pass and pivots), registry-tagged passable volatiles, and conformance vectors for
-   Baton Pass / U-turn / Volt Switch.
+   Baton Pass and pivots) and registry-tagged passable volatiles.
+
+   Progress (2026-07-19): **15G-1 switch-intent cohort certified (166 → 170/937).** Added a normalizer
+   rule emitting `SwitchIntentConformanceTests.Certified(...)` for the `batonPass`/`pivotSwitch` ops and
+   neutral decisions certifying Baton Pass (`batonPass`), U-turn / Volt Switch (`pivotSwitch`, 70-power)
+   and Flip Turn (`pivotSwitch`, 60-power). Regeneration kept the corpus digest
+   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f` and was byte-identical. Added
+   `SwitchIntentConformanceTests` (per-row + Baton-Pass/pivot coverage). Full solution passed
+   **1,967/1,967** (1,640 Core, 104 Creator, 21 Runtime, 202 Tools).
 2. **15G-2 — Bounded action and damage memory (`IMPLEMENTED`; prerequisite 15B-4).** Extend the minimal
    history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
    sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,

@@ -1600,6 +1600,35 @@
       ]
     },
     {
+      "referenceKey": "move-0226",
+      "sourceFileHash": "20e1173b9650811bccd0c2c0865bb7c57ec514c4c885f78f3912e837bd4911cd",
+      "payloadContentHash": "ad27301534fef5b43087b338bf67d4136b657082c6e528d8cefb9edc16cf4c6b",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "batonPass",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 40,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "batonPass"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "cbee8a0c69d699285e0405c9db30dea769c71acdb9a1ca9f3da062820ab65022",
+      "testIds": [
+        "SwitchIntentConformanceTests.Certified(move-0226)"
+      ]
+    },
+    {
       "referenceKey": "move-0227",
       "sourceFileHash": "af327d3bfea021dbc1ccf129bb9830e760d4a2cba699149725eb6518d0f481d6",
       "payloadContentHash": "db04e6e87fa2aac8b57db1985fb47ca9b404681449672c66490210127e1936e4",
@@ -3011,6 +3040,41 @@
       ]
     },
     {
+      "referenceKey": "move-0369",
+      "sourceFileHash": "e75eacc04e5e8ec99a1a24f171ae455018c78f76fa4328f55c95ce1babb7654b",
+      "payloadContentHash": "66585a42d5f200e68ca032595d8ac406b260ddb30d9bfa7fd00ae6c6a55a2d64",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "pivotSwitch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_07",
+        "damageClass": "physical",
+        "power": 70,
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "pivotSwitch"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "a571eb9f1f51d24cd37f668c787d15d91852e50e4491fb2282a12dd0f3e40d37",
+      "testIds": [
+        "SwitchIntentConformanceTests.Certified(move-0369)"
+      ]
+    },
+    {
       "referenceKey": "move-0371",
       "sourceFileHash": "bcbbf3a0a30819c95ada4fa95ec12c50d462b32c7902f7b004e4ebc9023d8c84",
       "payloadContentHash": "2be3cf3a73e4b1929f353680efde0194cb89903ed98ff1f8f850258b8f5cc724",
@@ -4351,6 +4415,41 @@
       "normalizedDefinitionHash": "c85c48a607e9b0662f36f6c4bde2d32aaeae967df764a31d30b4c92ecb7af9ce",
       "testIds": [
         "MoveReferenceConformanceTests.Certified(move-0520)"
+      ]
+    },
+    {
+      "referenceKey": "move-0521",
+      "sourceFileHash": "eb4531649492643247a556942cf2ef7679c6f22b7348bfc82f2ba9e0c2854c7a",
+      "payloadContentHash": "73327359c6efb8c5a6ae79e8c06df73750c27b73580cf978ab6e8629934d28ad",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "pivotSwitch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_13",
+        "damageClass": "special",
+        "power": 70,
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "pivotSwitch"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "0baa67c8ff2bcebc86734c46ca94554338a28ea396e1d105ce249f01061f223f",
+      "testIds": [
+        "SwitchIntentConformanceTests.Certified(move-0521)"
       ]
     },
     {
@@ -5878,6 +5977,41 @@
       "normalizedDefinitionHash": "57526c3f397e6b9c84706310ef80b8d9091c92e25f0e6c3a7b87a05be030e044",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0786)"
+      ]
+    },
+    {
+      "referenceKey": "move-0812",
+      "sourceFileHash": "6816ef71e3ded46b5d85f41f347c2da5c28522412048c8ec50aa8da27a397483",
+      "payloadContentHash": "32892b1e97fe77ad48ad94e748d81b821ac49252cd64da407ea3b9232de68dee",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "pivotSwitch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_11",
+        "damageClass": "physical",
+        "power": 60,
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "pivotSwitch"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "c0bed516cc4e7e657ec0730b510a8fae399409a75f56133eb760c2d8da0fb652",
+      "testIds": [
+        "SwitchIntentConformanceTests.Certified(move-0812)"
       ]
     },
     {

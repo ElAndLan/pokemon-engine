@@ -207,6 +207,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"StatMutationConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op is "decoy" or "transform" or "replaceMove"))
             testIds.Add($"SnapshotConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "batonPass" or "pivotSwitch"))
+            testIds.Add($"SwitchIntentConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(
