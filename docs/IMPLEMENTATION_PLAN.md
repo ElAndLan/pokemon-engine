@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 159/937 certified; 15F-4 IN PROGRESS (creature-type mutation engine + `typeMutation` move op + all four operations certified + empty-type fallback locked; awaiting review to close)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4, and 15G-2 complete; 937 inventoried, 159/937 certified; next eligible package is 15F-5 stage/derived-stat/metric mutation** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -430,7 +430,7 @@ Current readiness ledger:
 | 15C-7 accuracy/critical/priority/final-damage/healing queries | SPEC READY | IMPLEMENTED | Shared action-query helpers, strict ops, one-shot conditions, resolver/Smart-AI parity, traces, RNG matrix, doubles isolation, and golden evidence |
 | 15D timing/queue/lock families | 15D-1/2/3/4/5/6 SPEC READY; 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4/5/6 IMPLEMENTED; 15D-7 NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, multi-turn locks, condition-backed selection legality, ruleset fallback, and AI parity use shared deterministic paths; apply 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
-| 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
+| 15F mutation/snapshots | 15F-1/2/3/4 SPEC LOCKED; 15F-5 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1/2/3/4 IMPLEMENTED; 15F-5+ NOT ACTIVE | Overlays, item/ability/creature-type mutation, and move-type override precedence are complete; apply 15F-5 through 15F-7 mutation/reversion defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
 | 15I AI awareness | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15I-1 through 15I-5 legality/scoring/tuning defaults after mechanics stabilize |
@@ -2405,7 +2405,7 @@ Ordered feature packages:
    checkpoint, never halfway through the hook enumeration that changed them. **Acceptance:** operation
    matrix, protection, hook activation timing, suppression/ignore distinction, switch/faint/end
    reversion, doubles identity, and events/traces.
-4. **15F-4 — Creature and move type overlays (`PLANNED`; prerequisites 15F-1 and 15C-6).** Lock
+4. **15F-4 — Creature and move type overlays (`COMPLETE`; prerequisites 15F-1 and 15C-6).** Lock
    replace/add/remove/copy operations, maximum effective type count, duplicate elimination preserving
    first occurrence, empty-type fallback, source/duration/cleanup, and move-type override precedence.
    Grounded, STAB, effectiveness, immunity, and type-derived item/field queries consume the same
@@ -2619,6 +2619,19 @@ and move-type override precedence deliverables are implemented, integrated, and 
 `cgm-review-pass` go/no-go is the only step before flipping 15F-4 to COMPLETE. A data-driven move-type
 override *writer* op (Electrify-style) is the sole potentially-unexpressed corpus case and, if required,
 is a small follow-on package.
+
+Progress (2026-07-19): **15F-4 COMPLETE — focused review: GO.** A `cgm-review-pass` over the seven
+15F-4 commits found no blocking scope, determinism, schema, dependency, IP, or architecture issue:
+every in-battle type-effectiveness/immunity read routes through `EffectiveValues`/`EffectiveTypes`
+(the only residual controller `.Types` is the mutation effect's own param); the creature-type engine
+draws no RNG and mutates only overlays, leaving `Species`/forms/saves immutable; the corpus digest
+stayed `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f` and byte-identical on rerun;
+and the new conformance decisions use neutral `type:reference_NN`/`move-NNNN` keys only. 15F-4 delivers
+the `typeMutation` replace/add/remove/copy engine + move op + controller event/trace + Smart-AI
+component + validation, move-type override precedence, and seven certified corpus vectors (159/937).
+Schema/migration/RNG impact: none. Full solution **1,908/1,908** (1,595 Core, 104 Creator, 21 Runtime,
+188 Tools). The Electrify-style move-type override *writer* op is logged in `SCOPE_GUARD.md` §Idea
+Ledger as a possible follow-on. Next eligible package: **15F-5 stage/derived-stat/metric mutation**.
 
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
@@ -3387,7 +3400,7 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2. ACTIVE — 15F-4.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4, and 15G-2. ACTIVE — 15F-5.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
    **15F-4** through **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
