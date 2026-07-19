@@ -271,7 +271,7 @@ per application using ruleset factors 2 (`gen4_like`) or 3 (`modern_reference`).
 | Primitive | What It Does | Covers |
 |---|---|---|
 | `modify_stat_stage` | Raises or lowers stat stages. | Swords Dance, Growl, Sticky Web, Intimidate-like effects. |
-| `set_or_reset_stat_stage` | Sets, clears, maximizes, copies, swaps, steals, guards, or inverts stages. | Haze, Psych Up, Heart Swap, Topsy-Turvy, Belly Drum, stat split/guard effects. |
+| `set_or_reset_stat_stage` | Sets, clears, maximizes, copies, swaps, steals, guards, or inverts stages. | Haze, Psych Up, Heart Swap, Topsy-Turvy, Belly Drum, stat split/guard effects. Phase 15F-5 realizes the two cases the existing reset/copy/swap/invert effects cannot: `statStageSteal` (user takes the target's positive boosts, clamped, zeroing them) and `statStageRandomRaise { delta?, onSelf? }` (one random sub-max stat in enum order, single `IRng` draw), both applied through the pure `BattleStageMutation` helper. |
 | `modify_stat_query` | Changes derived stats without stage mutation. | paralysis speed cut, Choice Scarf, Eviolite, Sandstorm Rock Sp. Def, weather/terrain/ability multipliers. |
 | `modify_type_state` | Adds, removes, replaces, suppresses, or temporarily overrides creature/move typing. | Soak, Forest's Curse, Trick-or-Treat, Protean, Tera-like typing, Electrify, Ion Deluge. |
 | `modify_ability_state` | Suppresses, replaces, copies, swaps, ignores, protects, or traces abilities. | Gastro Acid, Skill Swap, Trace, Mold Breaker, Neutralizing Gas, Ability Shield-like exceptions. |

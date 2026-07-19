@@ -2,37 +2,14 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Battle;
 
-/// <summary>Pure stat-stage mutation arithmetic (Phase 15F-5). Every operation derives its outputs from
-/// the caller's captured pre-mutation snapshot and clamps to the −6..+6 range; no RNG beyond the single
-/// documented draw, no wall clock, no static state.</summary>
+/// <summary>Pure arithmetic for the two non-trivial stat-stage mutations added in Phase 15F-5 —
+/// positive-boost theft and single-draw random raise. Both derive their outputs from the caller's
+/// captured pre-mutation snapshot and clamp to the −6..+6 range; the only RNG is the one documented
+/// draw. Reset/copy/swap/invert stay as their existing controller effects.</summary>
 public static class BattleStageMutation
 {
     public static readonly IReadOnlyList<StatKind> Stageable =
         [StatKind.Atk, StatKind.Def, StatKind.Spa, StatKind.Spd, StatKind.Spe, StatKind.Accuracy, StatKind.Evasion];
-
-    public static IReadOnlyDictionary<StatKind, int> SetTo(IReadOnlyDictionary<StatKind, int> current,
-        int value, IReadOnlyList<StatKind>? stats = null) => Map(current, stats, (_, _) => StatStages.Clamp(value));
-
-    public static IReadOnlyDictionary<StatKind, int> Maximize(IReadOnlyDictionary<StatKind, int> current,
-        IReadOnlyList<StatKind>? stats = null) => SetTo(current, StatStages.Max, stats);
-
-    public static IReadOnlyDictionary<StatKind, int> Invert(IReadOnlyDictionary<StatKind, int> current,
-        IReadOnlyList<StatKind>? stats = null) => Map(current, stats, (_, value) => StatStages.Clamp(-value));
-
-    public static IReadOnlyDictionary<StatKind, int> Copy(IReadOnlyDictionary<StatKind, int> source,
-        IReadOnlyDictionary<StatKind, int> subject, IReadOnlyList<StatKind>? stats = null)
-    {
-        Validate(source);
-        return Map(subject, stats, (stat, _) => source[stat]);
-    }
-
-    public static (IReadOnlyDictionary<StatKind, int> A, IReadOnlyDictionary<StatKind, int> B) Swap(
-        IReadOnlyDictionary<StatKind, int> a, IReadOnlyDictionary<StatKind, int> b, IReadOnlyList<StatKind>? stats = null)
-    {
-        Validate(b);
-        Validate(a);
-        return (Map(a, stats, (stat, _) => b[stat]), Map(b, stats, (stat, _) => a[stat]));
-    }
 
     public static (IReadOnlyDictionary<StatKind, int> User, IReadOnlyDictionary<StatKind, int> Target) Steal(
         IReadOnlyDictionary<StatKind, int> user, IReadOnlyDictionary<StatKind, int> target,
@@ -41,15 +18,6 @@ public static class BattleStageMutation
         Validate(target);
         return (Map(user, stats, (stat, value) => StatStages.Clamp(value + Math.Max(0, target[stat]))),
             Map(target, stats, (_, value) => Math.Min(value, 0)));
-    }
-
-    public static (IReadOnlyDictionary<StatKind, int> A, IReadOnlyDictionary<StatKind, int> B) Average(
-        IReadOnlyDictionary<StatKind, int> a, IReadOnlyDictionary<StatKind, int> b, IReadOnlyList<StatKind>? stats = null)
-    {
-        Validate(b);
-        IReadOnlyDictionary<StatKind, int> averaged = Map(a, stats,
-            (stat, value) => StatStages.Clamp((int)Math.Floor((value + b[stat]) / 2.0)));
-        return (averaged, Map(b, stats, (stat, _) => averaged[stat]));
     }
 
     /// <summary>Raises one randomly chosen eligible stat (below +6) by <paramref name="delta"/> using

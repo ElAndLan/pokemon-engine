@@ -2393,34 +2393,30 @@ Acceptance vectors: `type-mutation-operations`, `type-mutation-dedupe-first`,
 
 ### Stat-stage mutation (Phase 15F-5)
 
-Stat-stage mutation reads a pre-mutation snapshot of the seven stageable stats (`Atk`, `Def`, `Spa`,
-`Spd`, `Spe`, `Accuracy`, `Evasion`; `Hp` has no stage) and computes the resulting stages atomically —
-every output derives from the one captured snapshot, never from a value already changed within the
-same operation. `BattleStageMutation` is the pure arithmetic core; the owning controller applies the
-result to live creatures through the existing stage state and emits its own events. All results clamp
-to the −6..+6 range through `StatStages`.
+Stat-stage mutation operates on the seven stageable stats (`Atk`, `Def`, `Spa`, `Spd`, `Spe`,
+`Accuracy`, `Evasion`; `Hp` has no stage) and clamps every result to the −6..+6 range through
+`StatStages`. Stage reset, copy, swap, and invert remain their existing controller effects, and a
+"maximize" is expressed as an ordinary `statStage` delta large enough to saturate. Phase 15F-5 adds the
+two operations those cannot express: `steal` and `randomRaise`. Both derive their outputs from one
+captured pre-mutation snapshot — never from a value already changed within the same operation —
+through the pure `BattleStageMutation` helper, which the controller applies to live creatures via the
+existing stage state and `StatStageChanged` events.
 
-The closed stage operations are: `set` (assign each affected stat a fixed value; `reset` is `set 0`),
-`maximize` (assign +6), `invert` (negate each affected stat), `copy` (overwrite the subject's affected
-stats with a source creature's snapshot), `swap` (exchange two creatures' affected stats), `steal`
-(move a target's positive boosts onto the user — the user gains each stat's positive amount clamped and
-the target's positive stats drop to zero while its negatives are untouched), `average` (set both
-creatures' affected stats to `floor((a+b)/2)`), and `randomRaise` (raise one randomly chosen eligible
-stat by a delta). Every operation restricts to an optional affected-stat subset (defaulting to all
-seven) and rejects `Hp` or unknown kinds.
-
-`randomRaise` considers only stats below +6, evaluates them in `StatKind` enum order, and draws exactly
-one `IRng` value regardless of how many are eligible; an empty pool changes nothing and reports no
-chosen stat. The engine draws no other RNG, reads no wall clock, and holds no static state.
+`steal` moves a target's positive boosts onto the user: the user gains each affected stat's positive
+amount (clamped to +6) and the target's positive stats drop to zero while its negatives are untouched.
+`randomRaise` raises one randomly chosen eligible stat (strictly below +6) by a delta, evaluating
+eligible stats in `StatKind` enum order and drawing exactly one `IRng` value regardless of how many are
+eligible; an empty pool changes nothing, draws nothing, and reports no chosen stat. Both restrict to an
+optional affected-stat subset (defaulting to all seven) and reject `Hp`, duplicates, or an empty list;
+the helper draws no other RNG, reads no wall clock, and holds no static state.
 
 Derived-stat and metric mutation (Power/Guard Split, Speed Swap, temporary derived-stat overlays)
 reuse the 15F-1 `StatsOverlay`/`StatDeltaOverlay`/`MetricOverlay` payloads through `BattleOverlayStore`
-and are owned by the controller-facing portion of this package; the `pass` (Baton Pass) stage-carry
+and are the remaining controller-facing portion of this package; the `pass` (Baton Pass) stage-carry
 whitelist is a switch-time concern resolved with the unified switch flow.
 
-Acceptance vectors: `stage-set-reset-maximize`, `stage-invert`, `stage-copy`, `stage-swap-atomic`,
-`stage-steal-positive-only`, `stage-average-floor`, `stage-random-one-draw`, `stage-random-empty-pool`,
-`stage-bounds-clamp`, and `stage-subset-validation`.
+Acceptance vectors: `stage-steal-positive-only`, `stage-steal-ceiling-clamp`, `stage-random-one-draw`,
+`stage-random-empty-pool`, `stage-random-enum-order`, and `stage-subset-validation`.
 
 ### Event trace contract
 

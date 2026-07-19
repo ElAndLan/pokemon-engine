@@ -121,6 +121,12 @@ public sealed record StatSwapEffect(StageSwapGroup Group) : MoveEffect;
 /// <summary>invert_stat_stages on the user or target.</summary>
 public sealed record StatInvertEffect(bool OnSelf) : MoveEffect;
 
+/// <summary>steal_positive_stat_stages: the user takes the target's stat boosts (15F-5).</summary>
+public sealed record StatStealEffect : MoveEffect;
+
+/// <summary>raise one random eligible stat stage by a delta on the user or target (15F-5).</summary>
+public sealed record RandomStatRaiseEffect(int Delta, bool OnSelf) : MoveEffect;
+
 /// <summary>apply_condition(volatile:flinch) on the target.</summary>
 public sealed record FlinchEffect : MoveEffect;
 

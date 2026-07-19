@@ -2429,11 +2429,23 @@ Ordered feature packages:
    unique, no `Hp`) and snapshots must define all seven stats in range. 13 focused tests cover bounds/
    clamp, subset scoping, copy, swap atomicity, steal positive-only + ceiling clamp, floor-averaging
    (including negative odd cases), random one-draw + enum-order skip-maxed, empty pool, and validation.
-   Schema/migration/RNG-order impact: none. Full solution passed **1,921/1,921** (1,608 Core, 104
-   Creator, 21 Runtime, 188 Tools). Remaining for 15F-5: the `statMutation` move op + `BattleController`
-   dispatch reading/writing live creature stages and events; derived-stat/metric overlay operations
-   (Power/Guard Split, Speed Swap) via the 15F-1 `StatsOverlay`/`MetricOverlay` payloads; the Baton
-   Pass stage-carry whitelist at switch; Smart-AI parity; and generated conformance vectors.
+   Schema/migration/RNG-order impact: none.
+
+   Progress (2026-07-19): **15F-5 steal and random-raise ops wired into the controller.** Reconciled
+   the engine with the existing stage effects: reset/copy/swap/invert already exist as controller
+   effects and a Belly-Drum "maximize" is an ordinary large `statStage` delta, so `BattleStageMutation`
+   was trimmed to the two operations those cannot express — `Steal` and `RandomRaise` — removing the
+   duplicative set/maximize/invert/copy/swap/average methods. Added the `statStageSteal` and
+   `statStageRandomRaise { delta?, onSelf? }` move ops (`MoveCompiler`), the `StatStealEffect`/
+   `RandomStatRaiseEffect` records, and controller `ApplyStatSteal`/`ApplyRandomStatRaise` that follow
+   the existing inline stage-effect pattern (snapshot → `BattleStageMutation` → `SetStage` with
+   `StatStageChanged` events and the shared effect-chance trace); both are registered in the two
+   opponent-targeting predicates. Spectral-Thief steal and Acupressure single-draw raise are proven
+   end-to-end through `ResolveTurn`. Schema/migration impact: none; RNG draws exactly one value for the
+   random raise, none for steal. Full solution passed **1,915/1,915** (1,602 Core, 104 Creator, 21
+   Runtime, 188 Tools). Remaining for 15F-5: derived-stat/metric overlay operations (Power/Guard Split,
+   Speed Swap) via the 15F-1 `StatsOverlay`/`MetricOverlay` payloads; the Baton Pass stage-carry
+   whitelist at switch (15G-1); Smart-AI parity; and generated conformance vectors.
 6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
    prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
    copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form

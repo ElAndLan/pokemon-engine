@@ -1056,6 +1056,7 @@ public sealed class BattleController
         StatChangeEffect { OnSelf: false } or StatChangeAllEffect { OnSelf: false } or StatInvertEffect { OnSelf: false } => true,
         StatResetEffect { Scope: not StageEffectScope.Self } => true,
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
+        StatStealEffect or RandomStatRaiseEffect { OnSelf: false } => true,
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
             or HpEqualizeEffect or OneShotQueryEffect { Query: OneShotQuery.Accuracy } => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
@@ -2551,6 +2552,8 @@ public sealed class BattleController
             case StatResetEffect r: ApplyStatReset(ctx, r); break;
             case StatCopyEffect copy: ApplyStatCopy(ctx, copy); break;
             case StatSwapEffect s: ApplyStatSwap(ctx, s); break;
+            case StatStealEffect steal: ApplyStatSteal(ctx, steal); break;
+            case RandomStatRaiseEffect raise: ApplyRandomStatRaise(ctx, raise); break;
             case StatInvertEffect i: ApplyStatInvert(ctx, i); break;
             case ConfusionEffect confusion: ApplyConfusion(ctx, confusion); break;
             case FlinchEffect f: ApplyFlinch(ctx, f); break;
@@ -3860,8 +3863,9 @@ public sealed class BattleController
             || (e is StatChangeAllEffect a && !a.OnSelf)
             || (e is StatResetEffect r && r.Scope != StageEffectScope.Self)
             || (e is StatCopyEffect c && (c.From == StageEffectScope.Target || c.To == StageEffectScope.Target))
-            || e is StatSwapEffect
-            || (e is StatInvertEffect i && !i.OnSelf)));
+            || e is StatSwapEffect or StatStealEffect
+            || (e is StatInvertEffect i && !i.OnSelf)
+            || (e is RandomStatRaiseEffect rr && !rr.OnSelf)));
 
     /// <summary>Roar/Whirlwind: a wild target flees (battle ends); a trainer's is dragged out to a random
     /// healthy reserve. No reserve → no effect.</summary>
@@ -4071,6 +4075,47 @@ public sealed class BattleController
             SetStage(recipient, recipientSlot, stat, -recipient.Stage(stat));
         TraceEffectChance(ctx, chance, start);
     }
+
+    private void ApplyStatSteal(EffectContext ctx, StatStealEffect effect)
+    {
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect),
+            !ctx.Source.IsFainted && !ctx.Target.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
+            return;
+        }
+        (IReadOnlyDictionary<StatKind, int> user, IReadOnlyDictionary<StatKind, int> target) =
+            BattleStageMutation.Steal(StageSnapshot(ctx.Source), StageSnapshot(ctx.Target));
+        foreach (StatKind stat in AllStageSlots)
+        {
+            SetStage(ctx.Target, ctx.TargetSlot, stat, target[stat]);
+            SetStage(ctx.Source, ctx.SourceSlot, stat, user[stat]);
+        }
+        TraceEffectChance(ctx, chance, start);
+    }
+
+    private void ApplyRandomStatRaise(EffectContext ctx, RandomStatRaiseEffect effect)
+    {
+        BattleCreature recipient = effect.OnSelf ? ctx.Source : ctx.Target;
+        BattleSlot recipientSlot = effect.OnSelf ? ctx.SourceSlot : ctx.TargetSlot;
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect), !recipient.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
+            return;
+        }
+        (StatKind? chosen, IReadOnlyDictionary<StatKind, int> result) =
+            BattleStageMutation.RandomRaise(StageSnapshot(recipient), effect.Delta, _rng);
+        if (chosen is { } stat)
+            SetStage(recipient, recipientSlot, stat, result[stat]);
+        TraceEffectChance(ctx, chance, start);
+    }
+
+    private static IReadOnlyDictionary<StatKind, int> StageSnapshot(BattleCreature creature) =>
+        AllStageSlots.ToDictionary(stat => stat, creature.Stage);
 
     private void SetStage(BattleCreature creature, BattleSlot slot, StatKind stat, int value)
     {

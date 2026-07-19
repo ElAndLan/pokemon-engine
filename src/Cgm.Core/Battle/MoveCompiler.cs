@@ -1321,6 +1321,21 @@ public static class MoveCompiler
                     AddChanceEffect(effects, new StatInvertEffect(Bool(e, "onSelf") || move.Target == MoveTarget.User), chance);
                     break;
 
+                case "statStageSteal":
+                    CheckAllowedParams(e);
+                    AddChanceEffect(effects, new StatStealEffect(), chance);
+                    break;
+
+                case "statStageRandomRaise":
+                    CheckAllowedParams(e, "delta", "onSelf");
+                    int randomRaiseDelta = e.Params?.ContainsKey("delta") == true ? Int(e, "delta") : 2;
+                    if (randomRaiseDelta <= 0)
+                        throw new ArgumentException("statStageRandomRaise delta must be positive.");
+                    AddChanceEffect(effects,
+                        new RandomStatRaiseEffect(randomRaiseDelta, Bool(e, "onSelf") || move.Target == MoveTarget.User),
+                        chance);
+                    break;
+
                 case "flinch":
                     flinchChance = chance;
                     AddChanceEffect(effects, new FlinchEffect(), chance);
