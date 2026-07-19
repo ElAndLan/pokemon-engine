@@ -2544,11 +2544,18 @@ Ordered feature packages:
    decoy broke this turn is a documented follow-on (needs per-turn "hit the substitute" state). Still
    gated on decoy-present, so goldens are unchanged. Proven: a Substitute blocks an opposing paralysis
    move (owner stays statusless) while a sound-tagged status move bypasses and paralyzes. Full solution
-   passed **1,939/1,939** (1,621 Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: extend
-   damage interception to the fixed/OHKO, HP-formula, counter, and delayed paths; per-turn hit-the-sub
-   tracking for post-break secondaries; an infiltrator-style bypass when that ability lands; then
-   Transform snapshots + copied-move PP, form HP-ratio/once-per-battle ownership, and temporary move
-   replacement.
+   passed **1,939/1,939** (1,621 Core, 104 Creator, 21 Runtime, 193 Tools).
+
+   Progress (2026-07-19): **15F-6 post-break secondary block closed.** Added a per-move-resolution
+   `_hitSubstitute` slot set, cleared at the top of both `ResolveMove` and `ResolveDoublesMove` and filled
+   by `InterceptWithDecoy`; `DecoyBlocks` now blocks a move-inflicted status/stat-drop when the target's
+   decoy is present **or** already absorbed a hit from this move, so a secondary that runs after the
+   substitute broke is still blocked. Proven: a 250-power move with a 100% paralysis secondary breaks the
+   substitute yet the owner is neither damaged (no overflow) nor paralysed. Still gated on decoy-present-
+   or-hit, so goldens are unchanged. Full solution passed **1,940/1,940** (1,622 Core, 104 Creator, 21
+   Runtime, 193 Tools). Remaining for 15F-6: extend damage interception to the fixed/OHKO, HP-formula,
+   counter, and delayed paths; an infiltrator-style bypass when that ability lands; then Transform
+   snapshots + copied-move PP, form HP-ratio/once-per-battle ownership, and temporary move replacement.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and

@@ -152,6 +152,26 @@ public sealed class BattleDecoyOpTests
         Assert.Equal(PersistentStatus.Paralysis, defender.Status);
     }
 
+    [Fact]
+    public void SecondaryStatusIsBlockedEvenWhenTheHitBreaksTheSubstitute()
+    {
+        BattleMove shock = new(EntityId.Parse("move:shock"), Normal, DamageClass.Physical, 250, 100, 10, 0, 0,
+            ailment: PersistentStatus.Paralysis, ailmentChance: 100, target: MoveTarget.Selected);
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 250, 100, 100, 100, 1), [shock]);
+
+        var battle = new BattleController(defender, attacker, Chart(),
+            new FakeRng(ints: [0, 100], doubles: [0.99]));
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        int hpBefore = defender.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new UseMove(0));
+
+        Assert.Contains(events, e => e is DecoyBroke { Side: BattleSide.Player });
+        Assert.Null(defender.Status);            // the secondary status is still blocked
+        Assert.Equal(hpBefore, defender.CurrentHp); // owner took no overflow
+    }
+
     private static BattleMove Compile(string slug, Effect effect) =>
         Compile(slug, DamageClass.Status, MoveTarget.User, effect);
 

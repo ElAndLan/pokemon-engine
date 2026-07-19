@@ -44,6 +44,9 @@ public sealed class BattleController
     private readonly BattleAbilityState _abilities;
     private readonly BattleCreatureTypeState _types;
     private readonly BattleActionHistory _actionHistory = new();
+    // Target slots whose decoy absorbed a hit during the current move resolution — so a secondary that
+    // runs after the decoy broke is still blocked. Cleared at the start of each move resolution.
+    private readonly HashSet<BattleSlot> _hitSubstitute = [];
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
             .. GroundedConditions.Definitions, .. FieldConditions.Definitions, .. SideConditions.Definitions,
@@ -872,6 +875,7 @@ public sealed class BattleController
         BattleActionAttemptId attempt)
     {
         BattleCreature attacker = Active(sourceSlot);
+        _hitSubstitute.Clear();
         BattleMoveIdentityQueryResult moveIdentity = EffectiveMoveIdentity(sourceSlot, move, traceAction);
         EntityId moveType = moveIdentity.EffectiveType;
         var actionContext = new BattleActionContext(move, attacker, sourceSlot, traceAction);
@@ -2193,6 +2197,7 @@ public sealed class BattleController
         BattleCreature attacker = Active(sourceSlot);
         if (attacker.IsFainted)
             return;
+        _hitSubstitute.Clear();
 
         BattleMove move = MoveAt(sourceSlot, moveIndex);
         ActionLegalityResult lockedLegality = LockedMoveLegality(attacker, sourceSlot, moveIndex);
@@ -4517,6 +4522,7 @@ public sealed class BattleController
         _overlays.Apply(new BattleOverlayApplication(OverlayOwner(targetSlot), new BattleOverlaySource(),
             BattleOverlayLayer.FormOrSnapshot, new DecoyOverlay(hit.Remaining), Turn, actionSequence,
             Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+        _hitSubstitute.Add(targetSlot);
         _log.Add(new DecoyHit(targetSlot, hit.Absorbed));
         if (hit.Broke)
             _log.Add(new DecoyBroke(targetSlot));
@@ -4525,11 +4531,12 @@ public sealed class BattleController
 
     private static bool BypassesDecoy(BattleMove move) => move.Tags.Contains(ActionFilterConditions.SoundTag);
 
-    /// <summary>A present, non-bypassed decoy on the target blocks move-inflicted status and stat drops
-    /// aimed at the owner. Covers pure status moves and non-breaking hits; a secondary that runs after the
-    /// decoy broke this turn is not yet tracked (needs per-turn "hit the substitute" state).</summary>
+    /// <summary>Move-inflicted status and stat drops aimed at the owner are blocked when the target's
+    /// decoy is present (and not bypassed) or already absorbed a hit from this move — so a secondary that
+    /// runs after the decoy broke this move is still blocked.</summary>
     private bool DecoyBlocks(BattleSlot targetSlot, BattleMove move) =>
-        EffectiveValues(targetSlot).Decoy is not null && !BypassesDecoy(move);
+        !BypassesDecoy(move)
+        && (EffectiveValues(targetSlot).Decoy is not null || _hitSubstitute.Contains(targetSlot));
 
     /// <summary>One hit of a damaging move — draws crit then damage roll (fixed order), applies
     /// crit's stat-stage ignore rule and burn. Returned <c>eff</c> feeds the DamageDealt event.</summary>
