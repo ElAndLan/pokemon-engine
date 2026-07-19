@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4, and 15G-2 complete; 937 inventoried, 159/937 certified; 15F-5 IN PROGRESS (stat-stage mutation arithmetic engine landed; move op/controller/overlays/conformance remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5, and 15G-2 complete; 937 inventoried, 163/937 certified; next eligible package is 15F-6 decoy/transform/snapshots/forms** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -430,7 +430,7 @@ Current readiness ledger:
 | 15C-7 accuracy/critical/priority/final-damage/healing queries | SPEC READY | IMPLEMENTED | Shared action-query helpers, strict ops, one-shot conditions, resolver/Smart-AI parity, traces, RNG matrix, doubles isolation, and golden evidence |
 | 15D timing/queue/lock families | 15D-1/2/3/4/5/6 SPEC READY; 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4/5/6 IMPLEMENTED; 15D-7 NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, multi-turn locks, condition-backed selection legality, ruleset fallback, and AI parity use shared deterministic paths; apply 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
-| 15F mutation/snapshots | 15F-1/2/3/4 SPEC LOCKED; 15F-5 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1/2/3/4 IMPLEMENTED; 15F-5+ NOT ACTIVE | Overlays, item/ability/creature-type mutation, and move-type override precedence are complete; apply 15F-5 through 15F-7 mutation/reversion defaults after their prerequisites |
+| 15F mutation/snapshots | 15F-1/2/3/4/5 SPEC LOCKED; 15F-6/7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1/2/3/4/5 IMPLEMENTED; 15F-6+ NOT ACTIVE | Overlays, item/ability/creature-type mutation, move-type override precedence, and stat-stage/derived-stat mutation are complete; apply 15F-6/7 decoy/transform/selector defaults after their prerequisites |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
 | 15I AI awareness | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15I-1 through 15I-5 legality/scoring/tuning defaults after mechanics stabilize |
@@ -2411,7 +2411,7 @@ Ordered feature packages:
    Grounded, STAB, effectiveness, immunity, and type-derived item/field queries consume the same
    effective list. **Acceptance:** mono/dual/add/remove/copy, duplicates/empty, overlay conflicts,
    STAB/effectiveness/grounding integration, switch cleanup, and conformance vectors.
-5. **15F-5 — Stage, derived-stat, and metric mutation (`IN PROGRESS`; prerequisites 15F-1 and 15C
+5. **15F-5 — Stage, derived-stat, and metric mutation (`COMPLETE`; prerequisites 15F-1 and 15C
    queries).** Reuse stage bounds and lock set, maximize, average with floor, split, swap, steal,
    random-stat selection, pass, and temporary derived-stat/metric overlays. Operations calculate all
    outputs from one pre-mutation snapshot and commit atomically; random eligible stats use enum order
@@ -2481,6 +2481,21 @@ Ordered feature packages:
    Smart-AI parity test. Full solution passed **1,922/1,922** (1,604 Core, 104 Creator, 21 Runtime, 193
    Tools). Remaining for 15F-5: a `cgm-review-pass` go/no-go to close; the Baton Pass stage-carry
    whitelist stays with 15G-1.
+
+   Progress (2026-07-19): **15F-5 COMPLETE — focused review: GO.** A `cgm-review-pass` over the six
+   15F-5 commits found no blocking scope, determinism, schema, dependency, IP, or architecture issue.
+   Determinism holds: `randomRaise` draws exactly one `IRng` value and steal/swap/split draw none;
+   overlay contribution keys are distinct per op/stat (`derived_swap_speed`,
+   `derived_split_{group}_{stat}`), so multi-stat and multi-op writes compose instead of colliding.
+   Both the damage path and turn order read the effective stat through `EffectiveValues`/`SpeedQuery`,
+   so Speed Swap and the splits actually change ordering and damage. `BattleStageMutation` stays pure;
+   reset/copy/swap/invert remain their existing effects (no duplicate system). 15F-5 delivers the
+   `statStageSteal` and `statStageRandomRaise` stage ops and the `derivedStatSwap`/`derivedStatSplit`
+   derived-stat ops with events, traces, Smart-AI parity, and four certified corpus vectors (163/937).
+   Two documented carve-outs: Acupressure certification awaits target-topology harness `user-or-ally`
+   support (random-raise is engine/controller tested), and Baton Pass stage-carry belongs to 15G-1.
+   Schema/migration/RNG impact: none. Full solution **1,922/1,922** (1,604 Core, 104 Creator, 21
+   Runtime, 193 Tools). Next eligible package: **15F-6 decoy/transform/snapshots/forms**.
 6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
    prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
    copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form
@@ -3464,7 +3479,7 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4, and 15G-2. ACTIVE — 15F-5.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5, and 15G-2. ACTIVE — 15F-6.** Follow this remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
    **15F-4** through **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.

@@ -46,7 +46,8 @@ Starting baseline:
   vectors (130/937 total), including shared controller/AI legality and ruleset fallback. The complete
   15D-7 move-reference/order package and 15F-2 held-item mutation package raise the generated total
   to 144/937. The complete 15F-3 ability mutation and 15F-4 creature/move-type mutation packages raise
-  it to 159/937. The next eligible work is 15F-5 stage/derived-stat/metric mutation. Deferred
+  it to 159/937. The complete 15F-5 stage/derived-stat mutation package raises it to 163/937. The next
+  eligible work is 15F-6 decoy/transform/snapshots/forms. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
