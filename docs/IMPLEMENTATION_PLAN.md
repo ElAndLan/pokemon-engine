@@ -2918,9 +2918,18 @@ Ordered feature packages:
    Identity/status/HP/item/ability/non-passable volatiles do not transfer. Proven: Baton Pass carries a
    +2 Atk / −1 Spe snapshot to the reserve, a voluntary switch carries nothing, and Baton Pass fails
    without a reserve. Schema/migration/RNG impact: none. Full solution passed **1,959/1,959** (1,637
-   Core, 104 Creator, 21 Runtime, 197 Tools). Remaining for 15G-1: multi-reserve self-switch **selection**
-   (the mid-turn replacement pick), pivot-after-hit (U-turn/Volt Switch, switch after dealing damage),
-   escape, and trapping/bypass; then registry-tagged passable volatiles and conformance vectors.
+   Core, 104 Creator, 21 Runtime, 197 Tools).
+
+   Progress (2026-07-19): **15G-1 pivot-after-hit (U-turn/Volt Switch) landed.** Extracted a shared
+   `SelfSwitch(slot, passStages)` helper (single healthy reserve, optional stage snapshot) used by both
+   Baton Pass and the new `pivotSwitch` op/`PivotSwitchEffect`: a damaging move resolves its damage, then
+   its terminal `pivotSwitch` secondary switches the user out to its sole reserve with no state transfer.
+   Unlike Baton Pass, a pivot with no reserve does **not** fail — the move already hit. Proven: a 70-power
+   pivot deals damage then switches (no `StatePassed`), and still succeeds (hits, no switch) when there is
+   no reserve. Schema/migration/RNG impact: none. Full solution passed **1,961/1,961** (1,639 Core, 104
+   Creator, 21 Runtime, 197 Tools). Remaining for 15G-1: multi-reserve self-switch **selection** (the
+   mid-turn replacement pick, shared by Baton Pass and pivots), escape and trapping/bypass, registry-
+   tagged passable volatiles, and conformance vectors.
 2. **15G-2 — Bounded action and damage memory (`IMPLEMENTED`; prerequisite 15B-4).** Extend the minimal
    history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
    sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,

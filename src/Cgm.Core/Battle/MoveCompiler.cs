@@ -1343,6 +1343,15 @@ public static class MoveCompiler
                     effects.Add(new BatonPassEffect());
                     break;
 
+                case "pivotSwitch":
+                    if (chance != 100)
+                        throw new ArgumentException("pivotSwitch does not support chance.");
+                    CheckAllowedParams(e);
+                    if (effects.OfType<PivotSwitchEffect>().Any())
+                        throw new ArgumentException("A move can declare only one pivotSwitch effect.");
+                    effects.Add(new PivotSwitchEffect());
+                    break;
+
                 case "statStageReset":
                     CheckAllowedParams(e, "scope");
                     AddChanceEffect(effects, new StatResetEffect(Parse<StageEffectScope>(Str(e, "scope"), "scope")), chance);

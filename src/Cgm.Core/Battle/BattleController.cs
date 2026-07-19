@@ -1354,22 +1354,29 @@ public sealed class BattleController
     private void SwitchTo(BattleSide side, int index)
         => SwitchTo(new BattleSlot(side, 0), index);
 
-    // Baton Pass (15G-1): switch the user out and carry its stat stages to the incoming creature, when
-    // exactly one healthy reserve exists (multi-reserve self-switch selection is the remaining 15G-1 work).
+    // Baton Pass (15G-1): switch the user out carrying its stat stages; fails if there is no reserve.
     private bool ApplyBatonPass(EffectContext ctx)
     {
-        int[] reserves = Enumerable.Range(0, _parties[(int)ctx.SourceSlot.Side].Count)
-            .Where(i => !_parties[(int)ctx.SourceSlot.Side][i].IsFainted
-                && !_activeSlots.IsActive(ctx.SourceSlot.Side, i))
+        IReadOnlyDictionary<StatKind, int> passed = AllStageSlots.ToDictionary(stat => stat, ctx.Source.Stage);
+        if (SelfSwitch(ctx.SourceSlot, passed))
+            return true;
+        ctx.Action.MarkFailed();
+        return false;
+    }
+
+    // 15G-1 self-switch: switch the source out to its sole healthy reserve (multi-reserve selection is the
+    // remaining 15G-1 work), optionally passing a stage snapshot to the incoming creature. Returns whether
+    // a switch occurred.
+    private bool SelfSwitch(BattleSlot slot, IReadOnlyDictionary<StatKind, int>? passStages)
+    {
+        int[] reserves = Enumerable.Range(0, _parties[(int)slot.Side].Count)
+            .Where(i => !_parties[(int)slot.Side][i].IsFainted && !_activeSlots.IsActive(slot.Side, i))
             .ToArray();
         if (reserves.Length != 1)
-        {
-            ctx.Action.MarkFailed();
             return false;
-        }
-        IReadOnlyDictionary<StatKind, int> passed = AllStageSlots.ToDictionary(stat => stat, ctx.Source.Stage);
-        _log.Add(new StatePassed(ctx.SourceSlot));
-        SwitchTo(ctx.SourceSlot, reserves[0], passed);
+        if (passStages is not null)
+            _log.Add(new StatePassed(slot));
+        SwitchTo(slot, reserves[0], passStages);
         return true;
     }
 
@@ -2597,6 +2604,9 @@ public sealed class BattleController
                 return ApplyMoveReplace(ctx);
             case BatonPassEffect:
                 return ApplyBatonPass(ctx);
+            case PivotSwitchEffect:
+                SelfSwitch(ctx.SourceSlot, null); // pivot: switch out after the move; no failure if no reserve
+                break;
             case StatResetEffect r: ApplyStatReset(ctx, r); break;
             case StatCopyEffect copy: ApplyStatCopy(ctx, copy); break;
             case StatSwapEffect s: ApplyStatSwap(ctx, s); break;

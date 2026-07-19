@@ -121,6 +121,9 @@ public sealed record MoveReplaceEffect : MoveEffect;
 /// <summary>Baton Pass: switch the user out and transfer its stat stages to the incoming creature (15G-1).</summary>
 public sealed record BatonPassEffect : MoveEffect;
 
+/// <summary>Pivot (U-turn/Volt Switch): switch the user out after the move resolves, no transfer (15G-1).</summary>
+public sealed record PivotSwitchEffect : MoveEffect;
+
 /// <summary>reset_stat_stages over self, target, or both active creatures.</summary>
 public sealed record StatResetEffect(StageEffectScope Scope) : MoveEffect;
 

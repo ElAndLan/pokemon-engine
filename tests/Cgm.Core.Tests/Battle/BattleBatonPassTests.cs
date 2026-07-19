@@ -52,6 +52,40 @@ public sealed class BattleBatonPassTests
         Assert.Empty(events.OfType<SwitchedIn>());
     }
 
+    [Fact]
+    public void PivotMoveDealsDamageThenSwitchesTheUserOut()
+    {
+        BattleMove uturn = new(EntityId.Parse("move:uturn"), Normal, DamageClass.Physical, 70, 100, 20, 0, 0,
+            target: MoveTarget.Selected, secondaryEffects: [new PivotSwitchEffect()]);
+        BattleCreature user = Creature("user", uturn);
+        BattleCreature reserve = Creature("reserve", Inert());
+        BattleCreature enemy = Creature("enemy", Inert());
+
+        var battle = new BattleController([user, reserve], [enemy], Chart(),
+            new FakeRng(ints: [0, 100, 0, 0], doubles: [0.99, 0.99]));
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new Pass());
+
+        Assert.Contains(events, e => e is DamageDealt { Target: BattleSide.Enemy }); // hit first
+        Assert.Contains(events, e => e is SwitchedIn);                                // then pivoted out
+        Assert.Empty(events.OfType<StatePassed>());                                   // pivot carries no state
+    }
+
+    [Fact]
+    public void PivotMoveStillSucceedsWithNoReserveToSwitchTo()
+    {
+        BattleMove uturn = new(EntityId.Parse("move:uturn"), Normal, DamageClass.Physical, 70, 100, 20, 0, 0,
+            target: MoveTarget.Selected, secondaryEffects: [new PivotSwitchEffect()]);
+        BattleCreature user = Creature("user", uturn);
+        BattleCreature enemy = Creature("enemy", Inert());
+
+        var battle = new BattleController([user], [enemy], Chart(),
+            new FakeRng(ints: [0, 100, 0, 0], doubles: [0.99, 0.99]));
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new Pass());
+
+        Assert.Contains(events, e => e is DamageDealt { Target: BattleSide.Enemy });
+        Assert.Empty(events.OfType<SwitchedIn>()); // no reserve -> no switch, move still hit
+    }
+
     private static BattleCreature Creature(string slug, BattleMove move) => new(
         EntityId.Parse($"species:{slug}"), slug, 50, [Normal], new Stats(300, 100, 100, 100, 100, 100), [move]);
 
