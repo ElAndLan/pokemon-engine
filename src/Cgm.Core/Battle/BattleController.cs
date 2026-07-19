@@ -83,6 +83,8 @@ public sealed class BattleController
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _items = new BattleItemState(_overlays, _itemData);
         _abilities = new BattleAbilityState(_overlays, (abilityData ?? []).ToDictionary(ability => ability.Id));
+        // ponytail: no empty-type fallback — an emptying mutation fails WouldEmptyTypes (spec default);
+        // pass a ruleset-defined typeless type here if one is ever authored.
         _types = new BattleCreatureTypeState(_overlays);
         _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
@@ -125,6 +127,8 @@ public sealed class BattleController
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _items = new BattleItemState(_overlays, _itemData);
         _abilities = new BattleAbilityState(_overlays, (abilityData ?? []).ToDictionary(ability => ability.Id));
+        // ponytail: no empty-type fallback — an emptying mutation fails WouldEmptyTypes (spec default);
+        // pass a ruleset-defined typeless type here if one is ever authored.
         _types = new BattleCreatureTypeState(_overlays);
         _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);

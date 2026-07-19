@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 157/937 certified; 15F-4 IN PROGRESS (creature-type mutation engine + `typeMutation` move op wired, non-emptying corpus cohort certified; remove/empty-type fallback cohort remains)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 159/937 certified; 15F-4 IN PROGRESS (creature-type mutation engine + `typeMutation` move op + all four operations certified + empty-type fallback locked; awaiting review to close)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2604,6 +2604,21 @@ operation-coverage fact asserting replace/add/copy). Full solution passed **1,90
 104 Creator, 21 Runtime, 186 Tools). Remaining for 15F-4: the `remove` operation and the empty-type
 fallback ruleset decision (Burn Up / Double Shock leave a mono-typed user typeless), which certifies the
 last type-mutation cohort and lets 15F-4 close.
+
+Progress (2026-07-19): **15F-4 `remove` cohort certified and empty-type fallback locked (157 → 159/937).**
+Added Burn Up (`move-0682`) and Double Shock (`move-0892`) as self-type `remove` decisions, completing
+operation coverage (replace/add/remove/copy); the coverage test now asserts all four. Regenerated the
+catalog: certified rose to **159/937**, corpus digest stayed
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, byte-identical on rerun. Locked the
+empty-type fallback decision in `BATTLE_SYSTEM_SPEC.md`: `modern_reference` configures **no** fallback,
+so an emptying mutation fails `WouldEmptyTypes` rather than materializing an unauthorized typeless
+type; a ruleset that later defines a neutral typeless `type:*` may supply it with no engine change
+(`// ponytail:` ceiling noted at the controller's `BattleCreatureTypeState` construction). Full solution
+passed **1,908/1,908** (1,595 Core, 104 Creator, 21 Runtime, 188 Tools). 15F-4's creature-type mutation
+and move-type override precedence deliverables are implemented, integrated, and certified; a focused
+`cgm-review-pass` go/no-go is the only step before flipping 15F-4 to COMPLETE. A data-driven move-type
+override *writer* op (Electrify-style) is the sole potentially-unexpressed corpus case and, if required,
+is a small follow-on package.
 
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;

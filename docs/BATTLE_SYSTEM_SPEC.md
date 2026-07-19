@@ -2370,7 +2370,12 @@ source; `copy` carries a source and no authored list.
 Every operation validates its full pre-state before writing. A fainted subject, or a fainted source
 for `copy`, fails with `Fainted` and writes nothing. After deduplication the result must be nonempty:
 an empty result uses the engine's configured empty-type fallback when one is set and otherwise fails
-with `WouldEmptyTypes`. A result longer than the engine's configured maximum effective type count
+with `WouldEmptyTypes`. The locked default for `modern_reference` configures **no** fallback: a
+mutation that would empty the effective type list (a mono-typed user's self-type removal) fails
+`WouldEmptyTypes` and changes nothing, rather than materializing an unauthorized typeless type. A
+ruleset that later defines a neutral typeless `type:*` may supply it as the fallback without any engine
+change; until then the engine never invents one. A result longer than the engine's configured maximum
+effective type count
 fails with `ExceedsMax`. A result identical to the current effective list fails with `NoChange`
 (removing an absent type, adding only present types, replacing with the current list, or copying an
 identical list). Any failure leaves overlays, events, and traces untouched.

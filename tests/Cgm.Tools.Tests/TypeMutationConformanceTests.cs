@@ -37,11 +37,13 @@ public sealed class TypeMutationConformanceTests
             .Select(entry => MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(entry.ReferenceKey)))
             .SelectMany(move => move.SecondaryEffects.OfType<TypeMutationEffect>()).ToArray();
 
-        Assert.Equal(5, effects.Length);
+        Assert.Equal(7, effects.Length);
         Assert.Contains(effects, effect => effect.Operation == BattleTypeOperation.Replace
             && effect.Subject == BattleTypeSubject.Target);
         Assert.Contains(effects, effect => effect.Operation == BattleTypeOperation.Add
             && effect.Subject == BattleTypeSubject.Target);
+        Assert.Contains(effects, effect => effect.Operation == BattleTypeOperation.Remove
+            && effect.Subject == BattleTypeSubject.User);
         Assert.Contains(effects, effect => effect.Operation == BattleTypeOperation.Copy
             && effect.Source == BattleTypeSubject.Target);
     }

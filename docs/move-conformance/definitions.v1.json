@@ -5231,6 +5231,46 @@
       ]
     },
     {
+      "referenceKey": "move-0682",
+      "sourceFileHash": "38a29de08514bff4ed57743cc20bade99f1eaf81d88adc65c96381ac4117f26a",
+      "payloadContentHash": "d8efed29dfbe256265847662711a86a89e813e736dccd2845c80a78846b01173",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "standardDamage",
+        "targetTopology",
+        "typeMutation"
+      ],
+      "mechanics": {
+        "type": "type:reference_10",
+        "damageClass": "special",
+        "power": 130,
+        "accuracy": 100,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "typeMutation",
+            "params": {
+              "operation": "remove",
+              "subject": "user",
+              "types": "type:reference_10"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "b786a1c779ab3c4a2e9df26912ab50b844f5c3f7cd930bc7a4016f14cf978f3e",
+      "testIds": [
+        "TypeMutationConformanceTests.Certified(move-0682)"
+      ]
+    },
+    {
       "referenceKey": "move-0691",
       "sourceFileHash": "0ea8bcbb26178b530d67ab5ffcc09004725bf767f4f34a1b2426f5bf9671a8dd",
       "payloadContentHash": "5cdfa2a130a99fb40eafb4b189a5883cc8d69026be79303d5fa384437bba15b9",
@@ -5827,6 +5867,46 @@
       "normalizedDefinitionHash": "c9231226b296a4ea6f736f70433182e680f3fcbb5729e18af90f56c42dd8bbba",
       "testIds": [
         "AbilityMutationConformanceTests.Certified(move-0867)"
+      ]
+    },
+    {
+      "referenceKey": "move-0892",
+      "sourceFileHash": "7b4fb0b80d764695364a556522784d85636e9c6e1f5b47378da6dd39539e9fae",
+      "payloadContentHash": "f16781e24c5ec52d600aa0a0811091eb9146cfd1a49f5c25776f2a06d3afaa04",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "standardDamage",
+        "targetTopology",
+        "typeMutation"
+      ],
+      "mechanics": {
+        "type": "type:reference_13",
+        "damageClass": "physical",
+        "power": 120,
+        "accuracy": 100,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "typeMutation",
+            "params": {
+              "operation": "remove",
+              "subject": "user",
+              "types": "type:reference_13"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "f08fa04ef5165d74e29bf7683fefc8d22dfda59f3c8e5ef0bc16d8ed408525fc",
+      "testIds": [
+        "TypeMutationConformanceTests.Certified(move-0892)"
       ]
     },
     {
