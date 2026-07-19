@@ -253,6 +253,29 @@ public sealed class BattleCreatureTypeMutationTests
             component => component is { Name: "typeMutation", Value: 0 });
     }
 
+    [Fact]
+    public void MutatingTargetTypesFlipsStatusTypeImmunity()
+    {
+        // Control: a Fire-type target is immune to burn.
+        BattleCreature immune = Creature("immune", Inert(), Fire);
+        var control = new BattleController(Creature("u", Compile("burn", Burn()), Water), immune,
+            Chart(), new CountingRng());
+        control.ResolveTurn(new UseMove(0), new Pass());
+        Assert.Null(immune.Status);
+
+        // Mutated: Soak the Fire target to Water, then the same burn now lands.
+        BattleMove soak = Compile("soak",
+            Op("typeMutation", ("operation", "replace"), ("subject", "target"), ("types", "type:water")));
+        BattleCreature target = Creature("target", Inert(), Fire);
+        var battle = new BattleController(Creature("attacker", [soak, Compile("burn", Burn())], Water), target,
+            Chart(), new CountingRng());
+        battle.ResolveTurn(new UseMove(0), new Pass()); // Soak: Fire -> Water
+        battle.ResolveTurn(new UseMove(1), new Pass()); // Burn now applies to the Water target
+        Assert.Equal(PersistentStatus.Burn, target.Status);
+    }
+
+    private static Effect Burn() => Op("ailment", ("ailment", "burn"));
+
     private static BattleMove Compile(string slug, Effect effect, MoveTarget target = MoveTarget.Selected) =>
         MoveCompiler.ToBattleMove(new Move
         {
@@ -262,6 +285,9 @@ public sealed class BattleCreatureTypeMutationTests
 
     private static BattleCreature Creature(string slug, BattleMove move, params EntityId[] types) => new(
         EntityId.Parse($"species:{slug}"), slug, 50, types, new Stats(500, 100, 100, 100, 100, 50), [move]);
+
+    private static BattleCreature Creature(string slug, IReadOnlyList<BattleMove> moves, params EntityId[] types) =>
+        new(EntityId.Parse($"species:{slug}"), slug, 50, types, new Stats(500, 100, 100, 100, 100, 50), moves);
 
     private static BattleMove Inert() => new(EntityId.Parse("move:inert"), Normal,
         DamageClass.Status, null, null, 20, 0, 0);

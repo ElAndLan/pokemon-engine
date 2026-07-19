@@ -2554,6 +2554,19 @@ warnings/errors; `BattleCreatureTypeMutationTests` passed 16 (11 engine + 5 pipe
 solution passed **1,897/1,897** (1,593 Core, 104 Creator, 21 Runtime, 179 Tools). Remaining for 15F-4:
 per-slot move-type override op/precedence and generated corpus conformance vectors.
 
+Progress (2026-07-19): **15F-4 type-immunity consumers now read the effective list.** Audited every
+residual base-`Types` read in `BattleController` and routed the type-derived immunity/query sites
+through the shared `EffectiveTypes(slot)` overlay path: Leech Seed self-type immunity, on-hit and
+contact-triggered status type-immunity, weather stat-hook typing, and weather residual-damage immunity.
+With no overlay these return the base types (the exact path the damage/STAB calc already used), so
+non-mutation behavior is byte-identical; a mutated creature now correctly gains or loses type-based
+immunities. Schema/migration/RNG impact: none. Verification: `D:\dotnet\dotnet.exe build
+CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors; a new end-to-end test proves a
+`Soak`-style target mutation flips burn type-immunity (`BattleCreatureTypeMutationTests` now 17), and
+the full solution passed **1,898/1,898** (1,594 Core, 104 Creator, 21 Runtime, 179 Tools). The
+empty-type fallback stays `WouldEmptyTypes` (no invented typeless type); its ruleset wiring and the
+per-slot move-type override op plus generated corpus conformance vectors remain for 15F-4.
+
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
 substitute interception matrix; Transform/PP/form goldens; deterministic move-pool selection.

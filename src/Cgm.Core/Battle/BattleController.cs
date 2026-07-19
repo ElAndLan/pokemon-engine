@@ -3904,7 +3904,7 @@ public sealed class BattleController
     {
         if (ctx.Target.IsFainted || ctx.Target.Seeded)
             return;
-        if (ctx.Target.Types.Contains(ctx.Move.Type)) // a seed of its own type can't take hold (grass immune to grass Leech Seed)
+        if (EffectiveTypes(ctx.TargetSlot).Contains(ctx.Move.Type)) // a seed of its own type can't take hold (grass immune to grass Leech Seed)
             return;
         ctx.Target.SetSeeded(true);
         _log.Add(new LeechSeeded(ctx.TargetSlot));
@@ -3915,7 +3915,7 @@ public sealed class BattleController
         int start = _log.Count;
         bool eligible = !ctx.Target.IsFainted
             && StatusEffects.CanApplyStatus(ctx.Target.Status)
-            && !StatusEffects.TypeImmuneToStatus(effect.Status, ctx.Target.Types)
+            && !StatusEffects.TypeImmuneToStatus(effect.Status, EffectiveTypes(ctx.TargetSlot))
             && !BlocksStatus(ctx.TargetSlot, effect.Status);
         if (eligible)
         {
@@ -4220,7 +4220,7 @@ public sealed class BattleController
                 PersistentStatus status = Parse<PersistentStatus>(statusName);
                 eligible = eligible
                     && StatusEffects.CanApplyStatus(source.Status)
-                    && !StatusEffects.TypeImmuneToStatus(status, source.Types)
+                    && !StatusEffects.TypeImmuneToStatus(status, EffectiveTypes(sourceSlot))
                     && !BlocksStatus(sourceSlot, status)
                     && AllowsSideStatus(targetSlot, sourceSlot, null, confusion: false, traceAction);
             }
@@ -4940,7 +4940,7 @@ public sealed class BattleController
     {
         var modifiers = new List<BattleQueryModifier>();
         BattleHookDispatchSnapshot weather = WeatherConditions.CollectStatHooks(
-            ConditionSnapshot, Active(statOwner).Types, stat, query, Ruleset, _traceActionSequence);
+            ConditionSnapshot, EffectiveTypes(statOwner), stat, query, Ruleset, _traceActionSequence);
         _hookTrace.AddRange(weather.Trace);
         modifiers.AddRange(weather.QueryModifiers(query));
         int insertion = modifiers.Count;
@@ -5412,7 +5412,7 @@ public sealed class BattleController
                 foreach (BattleSlot slot in Topology.Slots)
                 {
                     BattleCreature c = Active(slot);
-                    if (c.IsFainted || c.Types.Any(t => def.ResidualImmuneTypes.Contains(t.Slug)))
+                    if (c.IsFainted || EffectiveTypes(slot).Any(t => def.ResidualImmuneTypes.Contains(t.Slug)))
                         continue;
                     Sap(c, slot, Math.Max(1, c.MaxHp / def.ResidualDenominator), amt => new WeatherDamage(slot, amt));
                 }
