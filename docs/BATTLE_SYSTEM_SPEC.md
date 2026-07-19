@@ -2391,6 +2391,37 @@ Acceptance vectors: `type-mutation-operations`, `type-mutation-dedupe-first`,
 `type-mutation-fainted`, `type-mutation-copy-source`, `type-mutation-switch-faint-end-reversion`,
 `type-mutation-definition-immutable`, and `type-mutation-stab-effectiveness`.
 
+### Stat-stage mutation (Phase 15F-5)
+
+Stat-stage mutation reads a pre-mutation snapshot of the seven stageable stats (`Atk`, `Def`, `Spa`,
+`Spd`, `Spe`, `Accuracy`, `Evasion`; `Hp` has no stage) and computes the resulting stages atomically —
+every output derives from the one captured snapshot, never from a value already changed within the
+same operation. `BattleStageMutation` is the pure arithmetic core; the owning controller applies the
+result to live creatures through the existing stage state and emits its own events. All results clamp
+to the −6..+6 range through `StatStages`.
+
+The closed stage operations are: `set` (assign each affected stat a fixed value; `reset` is `set 0`),
+`maximize` (assign +6), `invert` (negate each affected stat), `copy` (overwrite the subject's affected
+stats with a source creature's snapshot), `swap` (exchange two creatures' affected stats), `steal`
+(move a target's positive boosts onto the user — the user gains each stat's positive amount clamped and
+the target's positive stats drop to zero while its negatives are untouched), `average` (set both
+creatures' affected stats to `floor((a+b)/2)`), and `randomRaise` (raise one randomly chosen eligible
+stat by a delta). Every operation restricts to an optional affected-stat subset (defaulting to all
+seven) and rejects `Hp` or unknown kinds.
+
+`randomRaise` considers only stats below +6, evaluates them in `StatKind` enum order, and draws exactly
+one `IRng` value regardless of how many are eligible; an empty pool changes nothing and reports no
+chosen stat. The engine draws no other RNG, reads no wall clock, and holds no static state.
+
+Derived-stat and metric mutation (Power/Guard Split, Speed Swap, temporary derived-stat overlays)
+reuse the 15F-1 `StatsOverlay`/`StatDeltaOverlay`/`MetricOverlay` payloads through `BattleOverlayStore`
+and are owned by the controller-facing portion of this package; the `pass` (Baton Pass) stage-carry
+whitelist is a switch-time concern resolved with the unified switch flow.
+
+Acceptance vectors: `stage-set-reset-maximize`, `stage-invert`, `stage-copy`, `stage-swap-atomic`,
+`stage-steal-positive-only`, `stage-average-floor`, `stage-random-one-draw`, `stage-random-empty-pool`,
+`stage-bounds-clamp`, and `stage-subset-validation`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

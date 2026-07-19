@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4, and 15G-2 complete; 937 inventoried, 159/937 certified; next eligible package is 15F-5 stage/derived-stat/metric mutation** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4, and 15G-2 complete; 937 inventoried, 159/937 certified; 15F-5 IN PROGRESS (stat-stage mutation arithmetic engine landed; move op/controller/overlays/conformance remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2411,12 +2411,29 @@ Ordered feature packages:
    Grounded, STAB, effectiveness, immunity, and type-derived item/field queries consume the same
    effective list. **Acceptance:** mono/dual/add/remove/copy, duplicates/empty, overlay conflicts,
    STAB/effectiveness/grounding integration, switch cleanup, and conformance vectors.
-5. **15F-5 — Stage, derived-stat, and metric mutation (`PLANNED`; prerequisites 15F-1 and 15C
+5. **15F-5 — Stage, derived-stat, and metric mutation (`IN PROGRESS`; prerequisites 15F-1 and 15C
    queries).** Reuse stage bounds and lock set, maximize, average with floor, split, swap, steal,
    random-stat selection, pass, and temporary derived-stat/metric overlays. Operations calculate all
    outputs from one pre-mutation snapshot and commit atomically; random eligible stats use enum order
    and one draw only for multiple choices. **Acceptance:** bounds, odd averages, mixed positive/
    negative, empty random pool, atomic multi-target state, exact draw, pass whitelist, and cleanup.
+
+   Progress (2026-07-19): **15F-5 IN PROGRESS — stat-stage mutation arithmetic engine landed.** The
+   battle spec now locks the closed stage operations `set`/`reset`/`maximize`/`invert`/`copy`/`swap`/
+   `steal`/`average`/`randomRaise` over the seven stageable stats. `BattleStageMutation` is a pure
+   static core: every operation derives outputs from the caller's captured pre-mutation snapshot and
+   clamps through `StatStages` (−6..+6); `swap`/`steal`/`average` are two-owner atomic; `steal` moves
+   only positive boosts and zeroes them while leaving negatives; `average` uses `floor((a+b)/2)`;
+   `randomRaise` considers only sub-max stats in `StatKind` enum order and draws exactly one `IRng`
+   value (empty pool → no change, no draw, no chosen stat). Stat subsets are validated (nonempty,
+   unique, no `Hp`) and snapshots must define all seven stats in range. 13 focused tests cover bounds/
+   clamp, subset scoping, copy, swap atomicity, steal positive-only + ceiling clamp, floor-averaging
+   (including negative odd cases), random one-draw + enum-order skip-maxed, empty pool, and validation.
+   Schema/migration/RNG-order impact: none. Full solution passed **1,921/1,921** (1,608 Core, 104
+   Creator, 21 Runtime, 188 Tools). Remaining for 15F-5: the `statMutation` move op + `BattleController`
+   dispatch reading/writing live creature stages and events; derived-stat/metric overlay operations
+   (Power/Guard Split, Speed Swap) via the 15F-1 `StatsOverlay`/`MetricOverlay` payloads; the Baton
+   Pass stage-carry whitelist at switch; Smart-AI parity; and generated conformance vectors.
 6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
    prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
    copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form
