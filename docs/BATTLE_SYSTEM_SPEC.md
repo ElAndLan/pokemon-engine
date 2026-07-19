@@ -2451,8 +2451,11 @@ target does not alter the transformed user, and the target's own definition is n
 copied: the user keeps its own HP and max HP (the copied stat struct preserves the user's HP field).
 Copied moves take a fresh PP pool. Transform fails without any change when the user is already
 transformed. All Transform overlays clear on switch, faint, or battle end, restoring the user's base
-identity, and Transform emits a `Transformed` event and one effect trace. The move-list and copied-PP
-portion is wired after the value copy over the same overlay foundation.
+identity, and Transform emits a `Transformed` event and one effect trace. Per ADR-011 the copied move
+set is applied through a runtime `BattleCreature.OverrideMoves`/`RestoreMoves` pair (not an overlay,
+because move selection and PP read the live move list); each copied move takes `min(5, base PP)` and
+`RestoreMoves` runs from `ClearVolatiles` (switch-out) and at faint cleanup so the move set reverts with
+the value overlays.
 
 Acceptance vectors (transform): `transform-copies-types-stats-ability`, `transform-snapshot-independent`,
 `transform-preserves-own-hp`, `transform-already-transformed`, and `transform-switch-faint-end-reversion`.

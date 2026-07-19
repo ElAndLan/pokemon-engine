@@ -764,6 +764,30 @@ public sealed class BattleCreature
         ChoiceLockedMoveIndex = null;
         ActionsSinceSwitch = 0;
         LastMoveUsed = null;
+        RestoreMoves();
+    }
+
+    private IReadOnlyList<BattleMove>? _preTransformMoves;
+
+    /// <summary>Transform (ADR-011): replace the live move list with a copied set, remembering the
+    /// original once so <see cref="RestoreMoves"/> can put it back on switch/faint/battle-end.</summary>
+    public void OverrideMoves(IReadOnlyList<BattleMove> moves)
+    {
+        ArgumentNullException.ThrowIfNull(moves);
+        if (moves.Count == 0)
+            throw new ArgumentException("Overridden move set cannot be empty.", nameof(moves));
+        _preTransformMoves ??= Moves;
+        Moves = moves.ToList();
+    }
+
+    public bool IsTransformed => _preTransformMoves is not null;
+
+    public void RestoreMoves()
+    {
+        if (_preTransformMoves is null)
+            return;
+        Moves = _preTransformMoves;
+        _preTransformMoves = null;
     }
 
     private static int StageIndex(StatKind stat) => stat switch

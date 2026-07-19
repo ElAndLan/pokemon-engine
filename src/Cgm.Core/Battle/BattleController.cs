@@ -4049,6 +4049,9 @@ public sealed class BattleController
         Snapshot(new StatsOverlay(targetValues.Stats with { Hp = userValues.Stats.Hp })); // keep the user's HP
         Snapshot(new AbilityOverlay(targetValues.Ability));
         Snapshot(new FormOverlay(TransformFormId));
+        // ADR-011: copy the target's moves onto the user with a fresh PP pool (min(5, base)).
+        ctx.Source.OverrideMoves([.. ctx.Target.Moves
+            .Select(move => move.WithPpPool(Math.Min(5, move.MaxPp), Math.Min(5, move.MaxPp)))]);
         _log.Add(new Transformed(ctx.SourceSlot));
         _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
             EffectTraceKind.Transform, true, null, 1, start, _log.Count));
@@ -5760,6 +5763,7 @@ public sealed class BattleController
             RecordConditionChanges(_conditions.SourceLeft(slot.Side, ActiveIndex(slot),
                 BattleConditionCleanupReason.Faint, Turn, _traceActionSequence));
             _overlays.OwnerFainted(slot.Side, ActiveIndex(slot), Turn, _traceActionSequence);
+            Active(slot).RestoreMoves(); // ADR-011: transform move override reverts on faint
         }
         _pendingReplacementSlots.Clear();
         foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])

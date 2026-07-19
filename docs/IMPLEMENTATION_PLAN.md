@@ -2593,6 +2593,20 @@ Ordered feature packages:
    Creator, 21 Runtime, 193 Tools). Remaining for 15F-6 (needs the selection decision): Transform copied-
    move PP pool, temporary move replacement; plus form changes (HP-ratio/ownership) and an infiltrator-
    style decoy bypass. Recommend an ADR before the next 15F-6 move-set slice.
+
+   Progress (2026-07-19): **15F-6 Transform move copy landed via ADR-011 (Option B).** Recorded the
+   user-directed decision in `docs/adr/ADR-011-transform-move-selection.md`: a runtime
+   `BattleCreature.OverrideMoves`/`RestoreMoves` pair rather than routing move selection through the
+   effective move list. `ApplyTransform` now copies the target's moves onto the user with a fresh PP pool
+   (`min(5, base PP)`); `RestoreMoves` runs from `ClearVolatiles` (switch-out) and the faint cleanup, so
+   the move set reverts alongside the type/stat/ability overlays. Move selection, legality, PP, and AI
+   keep reading `creature.Moves` unchanged — no engine-wide rewire, confirmed by the full move suite
+   staying green. Proven: a transformed creature carries the target's moves at 5 PP each, spends the
+   copied PP independently of its originals, and the override round-trips through `RestoreMoves`/
+   `ClearVolatiles`. Schema/migration/RNG impact: none. Full solution passed **1,949/1,949** (1,631 Core,
+   104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: temporary single-slot move replacement
+   (Mimic/Sketch, reusing the ADR-011 override with a duration); form changes (HP-ratio/ownership); an
+   infiltrator-style decoy bypass; then a review to close and advance to 15F-7.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and

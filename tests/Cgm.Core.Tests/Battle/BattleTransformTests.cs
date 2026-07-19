@@ -30,6 +30,44 @@ public sealed class BattleTransformTests
     }
 
     [Fact]
+    public void TransformCopiesTargetMovesWithAFreshPpPoolThatSpendsIndependently()
+    {
+        BattleCreature user = User();
+        BattleCreature target = Target();
+        var battle = new BattleController(user, target, Chart(), new FakeRng(ints: [0, 0, 0, 0]));
+
+        battle.ResolveTurn(new UseMove(0), new Pass()); // transform copies the target's inert move
+        Assert.True(user.IsTransformed);
+        Assert.Equal(target.Moves[0].Move, user.Moves[0].Move);
+        Assert.Equal(5, user.Moves[0].MaxPp); // min(5, base 20)
+        Assert.Equal(5, user.Moves[0].Pp);
+
+        battle.ResolveTurn(new UseMove(0), new Pass()); // spend the copied move's PP
+        Assert.Equal(4, user.Moves[0].Pp);
+    }
+
+    [Fact]
+    public void OverrideAndRestoreMovesRoundTripsAndClearVolatilesReverts()
+    {
+        BattleCreature creature = User();
+        IReadOnlyList<BattleMove> original = creature.Moves;
+        BattleMove copied = new(EntityId.Parse("move:copied"), Normal, DamageClass.Status, null, null, 20, 0, 0);
+
+        creature.OverrideMoves([copied]);
+        Assert.True(creature.IsTransformed);
+        Assert.Equal(copied.Move, creature.Moves.Single().Move);
+
+        creature.RestoreMoves();
+        Assert.False(creature.IsTransformed);
+        Assert.Same(original, creature.Moves);
+
+        creature.OverrideMoves([copied]);
+        creature.ClearVolatiles(); // switch-out path restores moves
+        Assert.False(creature.IsTransformed);
+        Assert.Same(original, creature.Moves);
+    }
+
+    [Fact]
     public void TransformSnapshotIsIndependentOfLaterTargetChanges()
     {
         var battle = new BattleController(User(), Target(), Chart(), new FakeRng(ints: [0, 0]));
