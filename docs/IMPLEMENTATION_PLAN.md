@@ -2898,7 +2898,7 @@ non-battle/post-battle effects (4).
 
 Ordered feature packages:
 
-1. **15G-1 — Unified switch intents (`PLANNED`; prerequisites 15B-6 and 15E condition cleanup).**
+1. **15G-1 — Unified switch intents (`IN PROGRESS`; prerequisites 15B-6 and 15E condition cleanup).**
    Lock voluntary, forced-target, random-forced, pivot-after-hit, self-switch, escape, and replacement
    intent payloads; source/target slot; candidate filter/order; trap/bypass; success checkpoint;
    failure; and transfer policy. Candidate lists use party index order; random selection draws once
@@ -2907,6 +2907,20 @@ Ordered feature packages:
    persistent status, HP, item, ability, non-passable volatiles, queues, and slot conditions never
    transfer. **Acceptance:** every intent valid/no-candidate/trapped, pivot miss/faint, random draws,
    doubles slot, entry hooks, transfer/cleanup matrix, creature conservation, and golden.
+
+   Progress (2026-07-19): **15G-1 IN PROGRESS — Baton Pass stat-stage transfer landed (the 15F-5
+   deferral).** Audited the existing switch flow: forced-target (`ForceSwitch`), voluntary (`Switch`),
+   and post-faint replacement already route through the slot-addressed `SwitchTo`; the self-switch/pivot
+   family and state transfer were missing. Added the `batonPass` move op, `BatonPassEffect`, controller
+   `ApplyBatonPass`, and a `SwitchTo(slot, index, passStages)` overload that captures the outgoing
+   creature's stage snapshot **before** its switch-out reset and applies the whitelist (the seven stat
+   stages only) to the incoming creature after it materializes, emitting a `StatePassed` event.
+   Identity/status/HP/item/ability/non-passable volatiles do not transfer. Proven: Baton Pass carries a
+   +2 Atk / −1 Spe snapshot to the reserve, a voluntary switch carries nothing, and Baton Pass fails
+   without a reserve. Schema/migration/RNG impact: none. Full solution passed **1,959/1,959** (1,637
+   Core, 104 Creator, 21 Runtime, 197 Tools). Remaining for 15G-1: multi-reserve self-switch **selection**
+   (the mid-turn replacement pick), pivot-after-hit (U-turn/Volt Switch, switch after dealing damage),
+   escape, and trapping/bypass; then registry-tagged passable volatiles and conformance vectors.
 2. **15G-2 — Bounded action and damage memory (`IMPLEMENTED`; prerequisite 15B-4).** Extend the minimal
    history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
    sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,

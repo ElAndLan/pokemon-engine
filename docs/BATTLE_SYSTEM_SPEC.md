@@ -2485,6 +2485,27 @@ one-candidate no-draw, multi-candidate exact draw, PP/event attribution, target 
 depth-8 recursion golden) plus `UserKnownSelector_ReadsTheEffectiveOverriddenMoveList` for the
 temporarily-replaced-move integration.
 
+### Switch intents and state transfer (Phase 15G-1)
+
+All switches go through the slot-addressed `SwitchTo` helper. The existing forced-target (Roar/Whirlwind
+drag), voluntary (turn-action `Switch`), and post-faint replacement flows remain; 15G-1 adds the
+self-switch/pivot family and Baton-style state transfer, and unifies the intent payloads (voluntary,
+forced-target, random-forced, pivot-after-hit, self-switch, escape, replacement) with source/target
+slot, candidate filter/order, trap/bypass, success checkpoint, and failure.
+
+Passable state is an explicit whitelist: only the seven stat stages and registry-tagged passable
+creature conditions transfer to the incoming creature. Identity, persistent status, HP, held item,
+ability, non-passable volatiles, queued intents, and slot/side conditions never transfer. On a
+state-passing switch, `SwitchTo` captures the outgoing creature's stage snapshot **before** its
+switch-out reset and applies it to the incoming creature after it materializes but before entry hooks,
+emitting a `StatePassed` event. Baton Pass is the first consumer: it switches the user out and passes
+its stage snapshot. Candidate lists use party-index order and random selection draws once only for
+multiple candidates. (This slice wires the single-reserve auto-switch case; multi-reserve self-switch
+selection is the remaining 15G-1 work.)
+
+Acceptance vectors: `baton-pass-carries-stages`, `switch-out-resets-non-passed-state`, and the broader
+intent/trap/candidate matrix as the self-switch selection flow lands.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

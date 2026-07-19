@@ -1354,7 +1354,26 @@ public sealed class BattleController
     private void SwitchTo(BattleSide side, int index)
         => SwitchTo(new BattleSlot(side, 0), index);
 
-    private void SwitchTo(BattleSlot slot, int index)
+    // Baton Pass (15G-1): switch the user out and carry its stat stages to the incoming creature, when
+    // exactly one healthy reserve exists (multi-reserve self-switch selection is the remaining 15G-1 work).
+    private bool ApplyBatonPass(EffectContext ctx)
+    {
+        int[] reserves = Enumerable.Range(0, _parties[(int)ctx.SourceSlot.Side].Count)
+            .Where(i => !_parties[(int)ctx.SourceSlot.Side][i].IsFainted
+                && !_activeSlots.IsActive(ctx.SourceSlot.Side, i))
+            .ToArray();
+        if (reserves.Length != 1)
+        {
+            ctx.Action.MarkFailed();
+            return false;
+        }
+        IReadOnlyDictionary<StatKind, int> passed = AllStageSlots.ToDictionary(stat => stat, ctx.Source.Stage);
+        _log.Add(new StatePassed(ctx.SourceSlot));
+        SwitchTo(ctx.SourceSlot, reserves[0], passed);
+        return true;
+    }
+
+    private void SwitchTo(BattleSlot slot, int index, IReadOnlyDictionary<StatKind, int>? passStages = null)
     {
         int outgoingPartyIndex = ActiveIndex(slot);
         _actionHistory.RecordSwitch(
@@ -1374,6 +1393,9 @@ public sealed class BattleController
         _activeSlots.Assign(slot, index);
         _overlays.OwnerSwitched(slot.Side, index, slot, Turn, _traceActionSequence);
         _log.Add(new SwitchedIn(slot, index));
+        if (passStages is not null)
+            foreach ((StatKind stat, int value) in passStages)
+                Active(slot).SetStage(stat, value); // carry the passed stages onto the incoming creature
         OnSwitchIn(slot);
         ResolveSwitchInIntents(slot);
     }
@@ -2573,6 +2595,8 @@ public sealed class BattleController
                 return ApplyTransform(ctx, transform);
             case MoveReplaceEffect:
                 return ApplyMoveReplace(ctx);
+            case BatonPassEffect:
+                return ApplyBatonPass(ctx);
             case StatResetEffect r: ApplyStatReset(ctx, r); break;
             case StatCopyEffect copy: ApplyStatCopy(ctx, copy); break;
             case StatSwapEffect s: ApplyStatSwap(ctx, s); break;

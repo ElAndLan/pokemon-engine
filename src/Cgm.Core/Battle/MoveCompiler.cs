@@ -1332,6 +1332,17 @@ public static class MoveCompiler
                     effects.Add(new MoveReplaceEffect());
                     break;
 
+                case "batonPass":
+                    if (chance != 100)
+                        throw new ArgumentException("batonPass does not support chance.");
+                    CheckAllowedParams(e);
+                    if (move.Target != MoveTarget.User)
+                        throw new ArgumentException("batonPass must target the user.");
+                    if (effects.OfType<BatonPassEffect>().Any())
+                        throw new ArgumentException("A move can declare only one batonPass effect.");
+                    effects.Add(new BatonPassEffect());
+                    break;
+
                 case "statStageReset":
                     CheckAllowedParams(e, "scope");
                     AddChanceEffect(effects, new StatResetEffect(Parse<StageEffectScope>(Str(e, "scope"), "scope")), chance);
