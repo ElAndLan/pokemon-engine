@@ -2418,6 +2418,30 @@ whitelist is a switch-time concern resolved with the unified switch flow.
 Acceptance vectors: `stage-steal-positive-only`, `stage-steal-ceiling-clamp`, `stage-random-one-draw`,
 `stage-random-empty-pool`, `stage-random-enum-order`, and `stage-subset-validation`.
 
+### Decoy, Transform, and snapshots (Phase 15F-6)
+
+Decoys, Transform snapshots, form changes, and temporary move replacement all reuse the 15F-1
+effective-value overlays; `Species`, `Ability`, forms, and saved creatures stay immutable. This section
+locks the decoy portion first; Transform/form/replacement land over the same overlay foundation.
+
+A decoy (Substitute) is created from an authored HP-cost fraction of the user's **max** HP. The pure
+`BattleDecoy.Create` computes the cost as `floor(maxHp × fraction)` clamped to at least 1, and fails
+without any change when a decoy is already present (`AlreadyPresent`) or the user's current HP does not
+strictly exceed the cost (`InsufficientHp` — the user may never faint to make a decoy). On success the
+decoy is a `BattleDecoyState` whose HP and max HP both equal the cost, written as a `DecoyOverlay`
+cleared on switch, faint, or battle end; the owner separately pays the HP cost.
+
+While a decoy is present it intercepts eligible incoming damage before the owner. `BattleDecoy.Intercept`
+absorbs `min(incomingDamage, decoyHp)`; the decoy breaks and is removed when its HP reaches zero, and
+**no overflow** damage passes to the owner (an intercepted hit deals the owner nothing regardless of how
+far the incoming damage exceeded the decoy). A decoy also blocks move-inflicted status and stat drops
+directed at the owner. The bypass matrix — sound moves, an infiltrating attacker, and self/field effects
+— is owned by the controller, which decides per hit whether to route through the decoy or straight to the
+owner; the pure helper only does the creation and interception arithmetic and draws no RNG.
+
+Acceptance vectors (decoy): `decoy-insufficient-hp`, `decoy-already-present`, `decoy-exact-cost`,
+`decoy-absorb-partial`, `decoy-break-no-overflow`, and `decoy-switch-faint-end-reversion`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

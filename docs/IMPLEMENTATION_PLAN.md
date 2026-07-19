@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5, and 15G-2 complete; 937 inventoried, 163/937 certified; next eligible package is 15F-6 decoy/transform/snapshots/forms** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5, and 15G-2 complete; 937 inventoried, 163/937 certified; 15F-6 IN PROGRESS (spec locked, decoy creation/interception arithmetic landed; move op/controller/transform/forms remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2496,7 +2496,7 @@ Ordered feature packages:
    support (random-raise is engine/controller tested), and Baton Pass stage-carry belongs to 15G-1.
    Schema/migration/RNG impact: none. Full solution **1,922/1,922** (1,604 Core, 104 Creator, 21
    Runtime, 193 Tools). Next eligible package: **15F-6 decoy/transform/snapshots/forms**.
-6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
+6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`IN PROGRESS`;
    prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
    copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form
    changes; once-per-battle form ownership; replacement duration; and switch/faint/end reversion.
@@ -2504,6 +2504,20 @@ Ordered feature packages:
    target definition. Decoy receives eligible damage/status before the owner and emits distinct
    events. **Acceptance:** insufficient cost, exact decoy break/overflow policy, bypass matrix,
    snapshot depth/independence, copied PP, form HP ratio edges, nested overlay precedence, and golden.
+
+   Progress (2026-07-19): **15F-6 IN PROGRESS — spec locked; decoy creation/interception arithmetic
+   landed.** The battle spec now locks the decoy portion: creation costs `floor(maxHp × fraction)`
+   (min 1), fails on an existing decoy (`AlreadyPresent`) or when current HP does not strictly exceed the
+   cost (`InsufficientHp`), and produces a `BattleDecoyState(cost, cost)`; interception absorbs
+   `min(incoming, decoyHp)`, breaks at zero, and passes **no overflow** to the owner. Implemented the
+   pure `BattleDecoy.Create`/`Intercept` helper (no RNG, no owner mutation) over the existing 15F-1
+   `DecoyOverlay`/`BattleDecoyState` foundation. 9 focused tests cover exact/floored/min-1 cost, the
+   strict-HP requirement, already-present, partial absorb, exact and overkill break without overflow, and
+   input validation. Schema/migration/RNG impact: none. Full solution passed **1,931/1,931** (1,613 Core,
+   104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: the `decoy` move op + `BattleController`
+   wiring (pay the HP cost, write the `DecoyOverlay`, route eligible damage/status through the decoy with
+   the bypass matrix and distinct events); then Transform snapshots + copied-move PP, form HP-ratio/
+   once-per-battle ownership, and temporary move replacement.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and
