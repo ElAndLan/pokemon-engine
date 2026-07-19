@@ -2553,9 +2553,19 @@ Ordered feature packages:
    substitute broke is still blocked. Proven: a 250-power move with a 100% paralysis secondary breaks the
    substitute yet the owner is neither damaged (no overflow) nor paralysed. Still gated on decoy-present-
    or-hit, so goldens are unchanged. Full solution passed **1,940/1,940** (1,622 Core, 104 Creator, 21
-   Runtime, 193 Tools). Remaining for 15F-6: extend damage interception to the fixed/OHKO, HP-formula,
-   counter, and delayed paths; an infiltrator-style bypass when that ability lands; then Transform
-   snapshots + copied-move PP, form HP-ratio/once-per-battle ownership, and temporary move replacement.
+   Runtime, 193 Tools).
+
+   Progress (2026-07-19): **15F-6 decoy interception extended to fixed/OHKO damage.** Routed the
+   fixed-damage/OHKO `DealMoveDamage` sites in both `ResolveMove` and `ResolveDoublesMove` through
+   `InterceptWithDecoy`, so a substitute absorbs OHKO and fixed-damage moves (breaking as usual) and the
+   owner takes nothing. Proven: a substitute blocks an OHKO (owner survives, sub breaks) and absorbs a
+   40-point fixed hit without breaking a 50-HP sub. Still gated on decoy-present, so goldens are
+   unchanged. The counter/Mirror-Coat, HP-formula (Endeavor/Pain Split), and delayed (Future Sight)
+   damage paths intentionally do **not** intercept — Substitute does not shield those in reference
+   mechanics — so no further damage-path wiring is required. Full solution passed **1,942/1,942** (1,624
+   Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: an infiltrator-style bypass when that
+   ability lands; then Transform snapshots + copied-move PP, form HP-ratio/once-per-battle ownership, and
+   temporary move replacement.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and

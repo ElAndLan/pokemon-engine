@@ -958,15 +958,19 @@ public sealed class BattleController
                     targetContext.Target, move, damage, traceAction, effectiveness > 0);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Immunity,
                     false, null, effectiveness <= 0 ? 0 : 1, _log.Count, _log.Count);
-                DamageApplication applied = DealMoveDamage(targetContext.Target, targetContext.TargetSlot,
-                    damage, effectiveness, crit: false, HpStatusFormulas.CannotKoFloor(move));
+                DamageApplication? intercepted = InterceptWithDecoy(targetContext.TargetSlot, move, damage,
+                    effectiveness, traceAction);
+                DamageApplication applied = intercepted ?? DealMoveDamage(targetContext.Target,
+                    targetContext.TargetSlot, damage, effectiveness, crit: false, HpStatusFormulas.CannotKoFloor(move));
                 targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
                 BattleDamageCause cause = move.Ohko ? BattleDamageCause.OneHitKnockout
                     : move.FixedDamageLevel ? BattleDamageCause.Level : BattleDamageCause.Fixed;
                 RecordDamage(attempt, sourceOwner, HistoryOwner(targetContext.TargetSlot), move, cause,
-                    1, true, effectiveness <= 0 ? BattleDamageFailure.Immune
+                    1, true, intercepted is not null ? BattleDamageFailure.Substitute
+                        : effectiveness <= 0 ? BattleDamageFailure.Immune
                         : applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
-                    damage, applied, critical: false, effectiveType: moveType,
+                    damage, applied, critical: false, substitute: intercepted is not null,
+                    effectiveType: moveType,
                     effectiveClass: moveIdentity.EffectiveClass);
             }
             ApplyDoublesMoveEffects(actionContext, accurateTargets);
@@ -2420,16 +2424,18 @@ public sealed class BattleController
                 : move.FixedDamage!.Value;
             dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target, move, dmg,
                 traceAction, eff > 0);
-            DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, eff, crit: false,
+            DamageApplication? intercepted = InterceptWithDecoy(targetSlot, move, dmg, eff, traceAction);
+            DamageApplication applied = intercepted ?? DealMoveDamage(target, targetSlot, dmg, eff, crit: false,
                 HpStatusFormulas.CannotKoFloor(move));
             targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
             BattleDamageCause cause = move.Ohko ? BattleDamageCause.OneHitKnockout
                 : move.FixedDamageLevel ? BattleDamageCause.Level : BattleDamageCause.Fixed;
             RecordDamage(attempt, sourceOwner, targetOwner, move, cause, 1, true,
-                eff <= 0 ? BattleDamageFailure.Immune
+                intercepted is not null ? BattleDamageFailure.Substitute
+                    : eff <= 0 ? BattleDamageFailure.Immune
                     : applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
-                dmg, applied, critical: false, effectiveType: moveType,
-                effectiveClass: moveIdentity.EffectiveClass);
+                dmg, applied, critical: false, substitute: intercepted is not null,
+                effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
         }
         else if (HpStatusFormulas.HasBasePower(move))
         {

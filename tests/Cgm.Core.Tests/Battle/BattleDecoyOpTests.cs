@@ -153,6 +153,44 @@ public sealed class BattleDecoyOpTests
     }
 
     [Fact]
+    public void SubstituteBlocksAnOhkoMove()
+    {
+        BattleMove ohko = new(EntityId.Parse("move:fissure"), Normal, DamageClass.Physical, null, null, 5, 0, 0,
+            ohko: true, target: MoveTarget.Selected);
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 100, 100, 100, 100, 1), [ohko]);
+
+        var battle = new BattleController(defender, attacker, Chart(), new FakeRng(ints: [0, 0, 0]));
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        int hpBefore = defender.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new UseMove(0));
+
+        Assert.Contains(events, e => e is DecoyBroke { Side: BattleSide.Player });
+        Assert.False(defender.IsFainted);
+        Assert.Equal(hpBefore, defender.CurrentHp); // the OHKO hit the substitute, not the owner
+    }
+
+    [Fact]
+    public void SubstituteAbsorbsFixedDamageWithoutBreakingWhenItSurvives()
+    {
+        BattleMove rage = new(EntityId.Parse("move:rage"), Normal, DamageClass.Physical, null, 100, 10, 0, 0,
+            fixedDamage: 40, target: MoveTarget.Selected);
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 100, 100, 100, 100, 1), [rage]);
+
+        var battle = new BattleController(defender, attacker, Chart(), new FakeRng(ints: [0, 0, 0]));
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        int hpBefore = defender.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new UseMove(0));
+
+        Assert.Contains(events, e => e is DecoyHit { Side: BattleSide.Player, Absorbed: 40 });
+        Assert.DoesNotContain(events, e => e is DecoyBroke); // 50-HP sub survives 40 fixed damage
+        Assert.Equal(hpBefore, defender.CurrentHp);
+    }
+
+    [Fact]
     public void SecondaryStatusIsBlockedEvenWhenTheHitBreaksTheSubstitute()
     {
         BattleMove shock = new(EntityId.Parse("move:shock"), Normal, DamageClass.Physical, 250, 100, 10, 0, 0,
