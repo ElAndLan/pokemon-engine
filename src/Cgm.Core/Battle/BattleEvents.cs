@@ -174,6 +174,12 @@ public sealed record AbilityMutated(
     EntityId? Before,
     EntityId? After,
     BattleAbilityOperation Operation) : BattleEvent;
+public sealed record CreatureTypesMutated(
+    BattleSide Side,
+    int PartyIndex,
+    IReadOnlyList<EntityId> Before,
+    IReadOnlyList<EntityId> After,
+    BattleTypeOperation Operation) : BattleEvent;
 public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

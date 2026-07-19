@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 152/937 certified; 15F-4 IN PROGRESS (creature-type mutation engine landed; op/controller/AI/conformance remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 152/937 certified; 15F-4 IN PROGRESS (creature-type mutation engine + `typeMutation` move op wired; move-type override + conformance vectors remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2536,6 +2536,23 @@ tests, the full Battle filter passed 1,302, and the full solution passed **1,892
 104 Creator, 21 Runtime, 179 Tools). Remaining for 15F-4: `typeMutation` move-op compile/validation,
 `BattleController` dispatch + `CreatureTypesMutated` event/trace, Smart AI parity, move-type override
 precedence, and generated conformance vectors.
+
+Progress (2026-07-19): **15F-4 pipeline wired — creature-type `typeMutation` move op live.** The
+effect catalog and battle spec now realize the closed authored op
+`typeMutation { operation:replace|add|remove|copy, subject?, source?, types? }`. `MoveCompiler` parses
+and shape-locks it (no chance, single effect, list-vs-copy exclusivity, distinct copy source, unique
+nonempty `type:*` list, target compatibility mirroring `abilityMutation`); `BattleController` dispatches
+it to `BattleCreatureTypeState`, emits one owner-addressed `CreatureTypesMutated` event on success, and
+records one `CreatureTypesMutation` effect trace with the exact event range on every attempt.
+`MoveRules` now reports missing `type:*` references from the op, `SmartAi` names a neutral `typeMutation`
+score component, and `TargetsTheTarget` recognizes a target-subject mutation for redirection. Existing
+grounded/STAB/effectiveness/immunity consumers already read the shared effective list, so mutated types
+take effect with no consumer change. Schema/migration/RNG impact: none (existing open effect params,
+runtime-only battle identity). No move cohort newly certified (no conformance vectors generated yet).
+Verification: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0
+warnings/errors; `BattleCreatureTypeMutationTests` passed 16 (11 engine + 5 pipeline), and the full
+solution passed **1,897/1,897** (1,593 Core, 104 Creator, 21 Runtime, 179 Tools). Remaining for 15F-4:
+per-slot move-type override op/precedence and generated corpus conformance vectors.
 
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;

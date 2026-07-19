@@ -42,6 +42,7 @@ public sealed class BattleController
     private readonly BattleOverlayStore _overlays = new();
     private readonly BattleItemState _items;
     private readonly BattleAbilityState _abilities;
+    private readonly BattleCreatureTypeState _types;
     private readonly BattleActionHistory _actionHistory = new();
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
@@ -82,6 +83,7 @@ public sealed class BattleController
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _items = new BattleItemState(_overlays, _itemData);
         _abilities = new BattleAbilityState(_overlays, (abilityData ?? []).ToDictionary(ability => ability.Id));
+        _types = new BattleCreatureTypeState(_overlays);
         _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
         TriggerInitialTerrainSeeds();
@@ -123,6 +125,7 @@ public sealed class BattleController
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _items = new BattleItemState(_overlays, _itemData);
         _abilities = new BattleAbilityState(_overlays, (abilityData ?? []).ToDictionary(ability => ability.Id));
+        _types = new BattleCreatureTypeState(_overlays);
         _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
         TriggerInitialTerrainSeeds();
@@ -142,6 +145,7 @@ public sealed class BattleController
     public BattleOverlayStore Overlays => _overlays;
     public BattleItemState Items => _items;
     public BattleAbilityState Abilities => _abilities;
+    public BattleCreatureTypeState Types => _types;
     public BattleActionHistory ActionHistory => _actionHistory;
     public IReadOnlyList<BattleConditionInstance> ConditionSnapshot => _conditions.Snapshot();
     public IReadOnlyList<BattleConditionTraceEntry> ConditionTrace => _conditionTrace;
@@ -1059,6 +1063,7 @@ public sealed class BattleController
         ItemMutationEffect { Subject: BattleItemSubject.Target }
             or ItemMutationEffect { Operation: BattleItemOperation.Give or BattleItemOperation.Steal or BattleItemOperation.Swap }
             => true,
+        TypeMutationEffect { Subject: BattleTypeSubject.Target } => true,
         _ => false,
     };
 
@@ -2563,6 +2568,8 @@ public sealed class BattleController
                 return ApplyItemMutation(ctx, item);
             case AbilityMutationEffect ability:
                 return ApplyAbilityMutation(ctx, ability);
+            case TypeMutationEffect type:
+                return ApplyTypeMutation(ctx, type);
             case RedirectEffect redirect: _redirects.Add(new RedirectCondition(ctx.SourceSlot, redirect.Priority,
                 redirect.AcceptedClasses, redirect.BypassClasses, redirect.AcceptedTags, redirect.BypassTags)); break;
             case DrainEffect d when ctx.ActionDamageDealt > 0:
@@ -2728,6 +2735,31 @@ public sealed class BattleController
         return AbilityHooks(owner).SelectMany(hook => hook.Effects)
             .Any(effect => effect.Op == "itemMutationGuard"
                 && BattleItemState.Operations(effect).Contains(operation));
+    }
+
+    private bool ApplyTypeMutation(EffectContext ctx, TypeMutationEffect effect)
+    {
+        (BattleOverlayOwner Owner, BattleEffectiveValues Base, bool Fainted) Party(BattleTypeSubject which)
+        {
+            BattleSlot slot = which == BattleTypeSubject.User ? ctx.SourceSlot : ctx.TargetSlot;
+            BattleCreature creature = which == BattleTypeSubject.User ? ctx.Source : ctx.Target;
+            return (OverlayOwner(slot), PhysicalMetricFormulas.BaseEffectiveValues(creature), creature.IsFainted);
+        }
+
+        var subject = Party(effect.Subject);
+        (BattleOverlayOwner, BattleEffectiveValues, bool)? source = effect.Source is { } src ? Party(src) : null;
+        int start = _log.Count;
+        BattleTypeMutationResult result = _types.Mutate(effect.Operation, effect.Types, subject, source,
+            Turn, ctx.TraceAction);
+        if (result.Succeeded)
+            _log.Add(new CreatureTypesMutated(subject.Owner.Side, subject.Owner.PartyIndex,
+                result.Before, result.After, effect.Operation));
+        else
+            ctx.Action.MarkFailed();
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
+            EffectTraceKind.CreatureTypesMutation, result.Succeeded, null,
+            result.Succeeded ? result.After.Count : -(int)result.Failure, start, _log.Count));
+        return result.Succeeded;
     }
 
     private bool ApplyAbilityMutation(EffectContext ctx, AbilityMutationEffect effect)

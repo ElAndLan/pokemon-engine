@@ -237,6 +237,31 @@ public static class MoveCompiler
                         replacementAbility));
                     break;
 
+                case "typeMutation":
+                    if (chance != 100)
+                        throw new ArgumentException("typeMutation does not support chance.");
+                    CheckAllowedParams(e, "operation", "subject", "source", "types");
+                    BattleTypeOperation typeOperation = ParseNamed<BattleTypeOperation>(
+                        Str(e, "operation"), "type mutation operation");
+                    BattleTypeSubject typeSubject = e.Params?.ContainsKey("subject") == true
+                        ? ParseNamed<BattleTypeSubject>(Str(e, "subject"), "type mutation subject")
+                        : BattleTypeSubject.User;
+                    BattleTypeSubject? typeSource = e.Params?.ContainsKey("source") == true
+                        ? ParseNamed<BattleTypeSubject>(Str(e, "source"), "type mutation source")
+                        : typeOperation == BattleTypeOperation.Copy ? BattleTypeSubject.Target : null;
+                    IReadOnlyList<EntityId>? typeList = e.Params?.ContainsKey("types") == true
+                        ? ParseTypeList(Str(e, "types")) : null;
+                    bool typeCopy = typeOperation == BattleTypeOperation.Copy;
+                    if (typeCopy != typeSource.HasValue || typeCopy == (typeList is not null)
+                        || typeCopy && typeSource == typeSubject
+                        || (typeSubject == BattleTypeSubject.Target || typeSource == BattleTypeSubject.Target)
+                            && (!IsActiveCreatureTarget(move.Target) || move.Target == MoveTarget.User))
+                        throw new ArgumentException("typeMutation parameters do not match the operation or move target.");
+                    if (effects.OfType<TypeMutationEffect>().Any())
+                        throw new ArgumentException("A move can declare only one typeMutation effect.");
+                    effects.Add(new TypeMutationEffect(typeOperation, typeSubject, typeSource, typeList));
+                    break;
+
                 case "drain":
                     drain = ReadFraction(e, 1, 2);
                     effects.Add(new DrainEffect(drain.Value));
@@ -1446,6 +1471,16 @@ public static class MoveCompiler
         && Enum.IsDefined(result)
             ? result
             : throw new ArgumentException($"Unknown {what} '{value}'.");
+
+    private static IReadOnlyList<EntityId> ParseTypeList(string value)
+    {
+        EntityId[] types = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(EntityId.Parse).ToArray();
+        if (types.Length == 0 || types.Any(type => type.Category != EntityCategory.Type)
+            || types.Distinct().Count() != types.Length)
+            throw new ArgumentException("typeMutation 'types' must be a unique nonempty list of type IDs.");
+        return types;
+    }
 
     private static IReadOnlyList<HpPowerBand> ParseHpBands(string value)
     {

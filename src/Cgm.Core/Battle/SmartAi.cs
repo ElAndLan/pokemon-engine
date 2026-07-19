@@ -161,6 +161,8 @@ public static class SmartAi
             c.Add(new("itemMutation", 0));
         if (authoredMove.SecondaryEffects.OfType<AbilityMutationEffect>().Any())
             c.Add(new("abilityMutation", 0));
+        if (authoredMove.SecondaryEffects.OfType<TypeMutationEffect>().Any())
+            c.Add(new("typeMutation", 0));
         if (KnownItemRequirementFails(authoredMove, attacker, context))
         {
             c.Add(new("itemRequirement", -1_000_000));

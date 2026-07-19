@@ -40,6 +40,7 @@ public enum EffectTraceKind
     PairedAction,
     HeldItemMutation,
     AbilityMutation,
+    CreatureTypesMutation,
     EntryHazard,
     IntentEnqueued,
     IntentConsumed,

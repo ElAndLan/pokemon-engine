@@ -82,6 +82,11 @@ public sealed record AbilityMutationEffect(
     BattleAbilitySubject Source = BattleAbilitySubject.Target,
     BattleAbilitySubject Subject = BattleAbilitySubject.User,
     EntityId? Ability = null) : MoveEffect;
+public sealed record TypeMutationEffect(
+    BattleTypeOperation Operation,
+    BattleTypeSubject Subject,
+    BattleTypeSubject? Source,
+    IReadOnlyList<EntityId>? Types) : MoveEffect;
 public sealed record FormulaPowerBand(int MinInclusive, int Power);
 public sealed record StatusChanceFormula(
     StatusPowerSubject Subject,

@@ -481,6 +481,17 @@ for uncopyable/unswappable/unreplaceable/unsuppressible abilities. Ignore is del
 effective-query option over a known suppression sequence, not a state mutation or blanket hook
 bypass. The primitive draws no RNG and emits ordered `AbilityMutated` events plus one resolver trace.
 
+Phase 15F-4 realizes `modify_creature_types` as the closed authored op
+`typeMutation { operation:replace|add|remove|copy, subject?, source?, types? }`. `subject` defaults to
+`user`; `replace`/`add`/`remove` carry a comma-separated unique `type:*` list and no `source`; `copy`
+carries a distinct `source` (default `target`) and no list. `BattleCreatureTypeState` reads the
+subject's current effective type list, computes the result, deduplicates preserving first occurrence,
+and writes one permanent-instance `CreatureTypesOverlay` cleared on switch/faint/battle-end. It fails
+without writing on a fainted subject/source, an empty result without a configured fallback, a result
+above the configured maximum type count, or a result equal to the current list. Grounded/STAB/
+effectiveness/immunity consumers already read the same effective list. The primitive draws no RNG and
+emits one ordered `CreatureTypesMutated` event plus one resolver trace.
+
 ### 4.8 Move Tag And Filter Helpers
 
 | Helper | Purpose |

@@ -2358,7 +2358,8 @@ computes the resulting list for the operation, deduplicates preserving first occ
 the full replacement atomically. Grounded, STAB, effectiveness, immunity, and type-derived item/field
 queries already consume the same effective list, so no consumer special-cases mutated types.
 
-The closed operations are `replace`, `add`, `remove`, and `copy`. `replace` sets the recipient's
+The closed authored move op is `typeMutation { operation, subject?, source?, types? }`; `subject`
+defaults to `user`. The closed operations are `replace`, `add`, `remove`, and `copy`. `replace` sets the recipient's
 effective types to the authored type list; `add` appends the authored types after the current
 effective types; `remove` drops every authored type from the current effective types; `copy` sets the
 recipient's effective types to a distinct source creature's current effective types. The recipient is

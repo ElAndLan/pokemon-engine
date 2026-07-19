@@ -51,11 +51,12 @@ public sealed class MoveRule : IValidationRule
         {
             BattleMove compiled = MoveCompiler.ToBattleMove(move);
             EntityId? missingType = compiled.SecondaryEffects
-                .Where(effect => effect is WeatherMoveEffect or TerrainMoveEffect)
+                .Where(effect => effect is WeatherMoveEffect or TerrainMoveEffect or TypeMutationEffect)
                 .SelectMany(effect => effect switch
                 {
                     WeatherMoveEffect weather => weather.TypeOverrides.Values,
                     TerrainMoveEffect terrain => terrain.TypeOverrides.Values,
+                    TypeMutationEffect type => type.Types ?? [],
                     _ => [],
                 })
                 .FirstOrDefault(type => project.Find<TypeDef>(type) is null);
