@@ -2576,9 +2576,23 @@ Ordered feature packages:
    opponent-targeting predicates). All overlays clear on switch/faint/battle-end. Proven: types/stats/
    ability copied with the user's HP preserved, snapshot independence, already-transformed failure, and
    battle-end reversion. Schema/migration/RNG impact: none. Full solution passed **1,946/1,946** (1,628
-   Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: Transform's move-list copy with a
-   fresh copied-move PP pool; an infiltrator-style decoy bypass when that ability lands; form changes
-   (HP-ratio/once-per-battle ownership); and temporary move replacement.
+   Core, 104 Creator, 21 Runtime, 193 Tools).
+
+   Progress (2026-07-19): **15F-6 multi-hit substitute leak fixed; move-selection architecture finding
+   recorded.** `InterceptWithDecoy` now blocks every later hit of a move once that move has hit the
+   substitute, so a multi-hit move that breaks the substitute mid-sequence no longer leaks its remaining
+   hits to the owner (the bypass/immunity checks were also hoisted above the decoy lookup). Still
+   decoy-present-or-hit gated, so goldens are unchanged; proven with a 2-hit move that breaks a 50-HP
+   substitute leaving the owner untouched. **Architecture finding:** move *selection* and PP spend read
+   the live `creature.Moves` via `MoveAt`/`EffectiveMoveIndex` — the `MoveListOverlay` is consumed only
+   by damage/STAB queries, not selection. So Transform's move-list copy, temporary move replacement
+   (Mimic/Sketch), and any overlay-driven move set need either a move-selection pass through the effective
+   move list or a runtime move-list swap with reversion — an ADR-level decision, not an incremental
+   slice; writing a `MoveListOverlay` for Transform without that rearchitecture would desync selection
+   from STAB and is intentionally deferred. Full solution passed **1,947/1,947** (1,629 Core, 104
+   Creator, 21 Runtime, 193 Tools). Remaining for 15F-6 (needs the selection decision): Transform copied-
+   move PP pool, temporary move replacement; plus form changes (HP-ratio/ownership) and an infiltrator-
+   style decoy bypass. Recommend an ADR before the next 15F-6 move-set slice.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and

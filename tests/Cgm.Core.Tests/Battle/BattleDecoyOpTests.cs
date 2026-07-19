@@ -153,6 +153,25 @@ public sealed class BattleDecoyOpTests
     }
 
     [Fact]
+    public void MultiHitMoveThatBreaksTheSubstituteDoesNotLeakToTheOwner()
+    {
+        BattleMove twoHit = new(EntityId.Parse("move:doublehit"), Normal, DamageClass.Physical, 60, 100, 10, 0, 0,
+            multiHitMin: 2, multiHitMax: 2, target: MoveTarget.Selected);
+        BattleCreature defender = Creature("defender", Compile("substitute", Op("decoy")));
+        BattleCreature attacker = new(EntityId.Parse("species:attacker"), "attacker", 50, [Normal],
+            new Stats(200, 200, 100, 100, 100, 1), [twoHit]);
+
+        var battle = new BattleController(defender, attacker, Chart(),
+            new FakeRng(ints: [0, 0, 0, 0, 0], doubles: [0.99, 0.99, 0.99]));
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        int hpBefore = defender.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new Pass(), new UseMove(0));
+
+        Assert.Contains(events, e => e is DecoyBroke { Side: BattleSide.Player });
+        Assert.Equal(hpBefore, defender.CurrentHp); // the post-break second hit did not reach the owner
+    }
+
+    [Fact]
     public void SubstituteBlocksAnOhkoMove()
     {
         BattleMove ohko = new(EntityId.Parse("move:fissure"), Normal, DamageClass.Physical, null, null, 5, 0, 0,

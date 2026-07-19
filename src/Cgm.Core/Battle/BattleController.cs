@@ -4544,17 +4544,19 @@ public sealed class BattleController
 
     /// <summary>If the target has an effective decoy (Substitute) and the move does not bypass it, the
     /// decoy absorbs the hit (owner takes nothing) and the overlay is reduced or cleared; returns the
-    /// owner-facing zero application, or null when the hit should proceed to the owner. Only fires when a
-    /// decoy is present, so decoy-free battles are unaffected. Interception beyond this standard-damage
-    /// path (fixed/OHKO, HP-formula, counter, delayed) is not yet routed here.</summary>
+    /// owner-facing zero application, or null when the hit should proceed to the owner. Once this move has
+    /// hit the substitute, later hits of the same move never reach the owner even after it broke. Only
+    /// fires when a decoy is present-or-hit, so decoy-free battles are unaffected. The counter/HP-formula/
+    /// delayed damage causes intentionally do not route here (Substitute does not shield those).</summary>
     private DamageApplication? InterceptWithDecoy(BattleSlot targetSlot, BattleMove move, int damage,
         double effectiveness, int actionSequence)
     {
-        if (effectiveness <= 0)
-            return null; // an immune hit never touches the decoy
+        if (effectiveness <= 0 || BypassesDecoy(move))
+            return null; // an immune or bypassing hit never touches the decoy
         BattleDecoyState? decoy = EffectiveValues(targetSlot).Decoy;
-        if (decoy is null || BypassesDecoy(move))
-            return null;
+        if (decoy is null)
+            // A later hit of a move that already broke this substitute is absorbed into nothing.
+            return _hitSubstitute.Contains(targetSlot) ? new DamageApplication(0, 0) : null;
         BattleDecoyInterception hit = BattleDecoy.Intercept(decoy, damage);
         _overlays.Apply(new BattleOverlayApplication(OverlayOwner(targetSlot), new BattleOverlaySource(),
             BattleOverlayLayer.FormOrSnapshot, new DecoyOverlay(hit.Remaining), Turn, actionSequence,
