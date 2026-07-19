@@ -1352,6 +1352,20 @@ public static class MoveCompiler
                     effects.Add(new PivotSwitchEffect());
                     break;
 
+                case "revengeDamage":
+                    if (chance != 100)
+                        throw new ArgumentException("revengeDamage does not support chance.");
+                    CheckAllowedParams(e, "num", "den");
+                    Fraction revengeMultiplier = ReadFraction(e, 3, 2);
+                    if (revengeMultiplier.Num <= 0 || revengeMultiplier.Den <= 0)
+                        throw new ArgumentException("revengeDamage num and den must be positive.");
+                    if (!IsActiveCreatureTarget(move.Target) || move.Target == MoveTarget.User)
+                        throw new ArgumentException("revengeDamage requires an active-creature target.");
+                    if (effects.OfType<RevengeDamageEffect>().Any())
+                        throw new ArgumentException("A move can declare only one revengeDamage effect.");
+                    effects.Add(new RevengeDamageEffect(revengeMultiplier));
+                    break;
+
                 case "statStageReset":
                     CheckAllowedParams(e, "scope");
                     AddChanceEffect(effects, new StatResetEffect(Parse<StageEffectScope>(Str(e, "scope"), "scope")), chance);

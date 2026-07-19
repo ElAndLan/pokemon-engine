@@ -124,6 +124,10 @@ public sealed record BatonPassEffect : MoveEffect;
 /// <summary>Pivot (U-turn/Volt Switch): switch the user out after the move resolves, no transfer (15G-1).</summary>
 public sealed record PivotSwitchEffect : MoveEffect;
 
+/// <summary>Revenge (Metal Burst/Comeuppance): return a multiple of the damage the user took this turn,
+/// of any class, to the target — the "sum" damage-memory consumer (15G-3).</summary>
+public sealed record RevengeDamageEffect(Fraction Multiplier) : MoveEffect;
+
 /// <summary>reset_stat_stages over self, target, or both active creatures.</summary>
 public sealed record StatResetEffect(StageEffectScope Scope) : MoveEffect;
 

@@ -2456,6 +2456,30 @@ public sealed class BattleController
                     effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
             }
         }
+        else if (move.SecondaryEffects.OfType<RevengeDamageEffect>().SingleOrDefault() is { } revenge)
+        {
+            // Metal Burst/Comeuppance: return a multiple of this turn's total damage taken (any class), no draw.
+            int received = attacker.PhysicalDamageTaken + attacker.SpecialDamageTaken;
+            if (received > 0)
+            {
+                int dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target, move,
+                    checked(received * revenge.Multiplier.Num / revenge.Multiplier.Den), traceAction);
+                DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, 1.0, crit: false,
+                    HpStatusFormulas.CannotKoFloor(move));
+                targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
+                RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Counter, 1, true,
+                    applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
+                    dmg, applied, critical: false, effectiveType: moveType,
+                    effectiveClass: moveIdentity.EffectiveClass);
+            }
+            else
+            {
+                _log.Add(new MoveMissed(sourceSlot, move.Move)); // nothing to return → fizzles
+                RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Counter, 0, false,
+                    BattleDamageFailure.NoQualifyingDamage, 0, default, critical: false,
+                    effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
+            }
+        }
         else if (move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel)
         {
             // Formula-bypassing hit: no crit/STAB/roll (no RNG draws), but type immunity still voids it.
@@ -2534,7 +2558,8 @@ public sealed class BattleController
                 break;
         ApplyContactEffects(move, sourceSlot, attacker, targetSlot, traceAction);
         bool damaging = HpStatusFormulas.HasBasePower(move) || move.CounterCategory is not null
-            || move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel;
+            || move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel
+            || move.SecondaryEffects.OfType<RevengeDamageEffect>().Any();
         _actionHistory.Complete(attempt,
             actionContext.Failed ? BattleActionResult.Failed
             : actionContext.TotalDamage > 0 ? BattleActionResult.Connected

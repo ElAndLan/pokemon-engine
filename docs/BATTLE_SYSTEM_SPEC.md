@@ -2507,6 +2507,22 @@ opponent target among multiple candidates.
 Acceptance vectors: `baton-pass-carries-stages`, `switch-out-resets-non-passed-state`, and the broader
 intent/trap/candidate matrix as the self-switch selection flow lands.
 
+### Counter, revenge, and stored-release consumers (Phase 15G-3)
+
+These moves return damage read from the battle's damage memory. Counter and Mirror Coat already return
+2× the **sum** of the physical (resp. special) damage the user took this turn, from the per-turn
+`PhysicalDamageTaken`/`SpecialDamageTaken` accumulators (reset at turn start), fizzling with
+`NoQualifyingDamage` if none. Phase 15G-3 adds the revenge consumer: `revengeDamage { num?, den? }`
+(default 3/2, Metal Burst/Comeuppance) returns `floor(multiplier × (physical + special damage taken
+this turn))` to the target, of any class, with no RNG draw, the cannot-KO floor applied, and the same
+`NoQualifyingDamage` fizzle. Substitute-absorbed damage is already excluded because only damage that
+reduced the user's own HP feeds the accumulators. Overflow-safe multiplication uses checked arithmetic.
+
+Stored-release (Bide) and per-hit source/last-versus-sum consumers over the richer 15G-2
+`BattleActionHistory` remain the remaining 15G-3 work; in singles the return target is the move's
+selected opponent (the same simplification Counter uses), with source-addressed targeting a doubles
+refinement.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

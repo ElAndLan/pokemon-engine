@@ -2983,12 +2983,25 @@ Ordered feature packages:
    and faint result. Keep only the current and immediately previous completed turn plus active
    multi-turn aggregates; expose queries, never mutable lists. **Acceptance:** record completeness,
    per-hit/order, miss/immune/decoy, doubles isolation, aging/reset, bounded size, replay identity.
-3. **15G-3 — Counter, revenge, stored-release, and damage-memory consumers (`PLANNED`; prerequisite
+3. **15G-3 — Counter, revenge, stored-release, and damage-memory consumers (`IN PROGRESS`; prerequisite
    15G-2).** Lock qualifying source/target/class/cause/window for each registry row; last versus sum;
    multiplier/fixed return; target fallback; cannot-KO floor; and failure event. Stored release owns a
    bounded accumulator condition and clears on release, switch, faint, or expiration. **Acceptance:**
    qualifying/nonqualifying damage table, multiple hits/sources, decoy/residual exclusion, target gone,
    overflow-safe multiplication/clamp, normal failure, and event/trace golden.
+
+   Progress (2026-07-19): **15G-3 IN PROGRESS — revenge (Metal Burst/Comeuppance) landed.** Audited the
+   existing consumers: Counter/Mirror Coat already return 2× the per-class **sum** of damage taken this
+   turn (via `PhysicalDamageTaken`/`SpecialDamageTaken`, reset at turn start), fizzling on none. Added the
+   `revengeDamage { num?, den? }` op (default 3/2), `RevengeDamageEffect`, and a damage-resolution branch
+   parallel to the counter branch: it returns `floor(multiplier × (physical + special taken this turn))`
+   to the target with no RNG draw, the cannot-KO floor, and the `NoQualifyingDamage` fizzle; substitute-
+   absorbed damage is excluded because only own-HP loss feeds the accumulators; multiplication is checked.
+   Registered in the damaging gate. Proven: Metal Burst returns exactly 1.5× the damage taken, and
+   fizzles when the user took none. Schema/migration/RNG impact: none. Full solution passed **1,971/1,971**
+   (1,644 Core, 104 Creator, 21 Runtime, 202 Tools). Remaining for 15G-3: Bide (bounded stored-damage
+   accumulator, release ×2), per-hit/last-versus-sum consumers over the 15G-2 `BattleActionHistory`,
+   doubles source-addressed targeting, and conformance vectors.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`PLANNED`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;
