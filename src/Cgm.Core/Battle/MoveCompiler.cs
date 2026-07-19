@@ -1296,6 +1296,20 @@ public static class MoveCompiler
                     effects.Add(new HpCostEffect(cost, Bool(e, "allowFaint")));
                     break;
 
+                case "decoy":
+                    if (chance != 100)
+                        throw new ArgumentException("decoy does not support chance.");
+                    CheckAllowedParams(e, "num", "den");
+                    Fraction decoyCost = ReadFraction(e, 1, 4);
+                    if (decoyCost.Num <= 0 || decoyCost.Den <= 0)
+                        throw new ArgumentException("decoy num and den must be positive.");
+                    if (move.Target != MoveTarget.User)
+                        throw new ArgumentException("decoy must target the user.");
+                    if (effects.OfType<DecoyEffect>().Any())
+                        throw new ArgumentException("A move can declare only one decoy effect.");
+                    effects.Add(new DecoyEffect(decoyCost));
+                    break;
+
                 case "statStageReset":
                     CheckAllowedParams(e, "scope");
                     AddChanceEffect(effects, new StatResetEffect(Parse<StageEffectScope>(Str(e, "scope"), "scope")), chance);

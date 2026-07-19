@@ -2550,6 +2550,8 @@ public sealed class BattleController
                 if (!paid)
                     ctx.Action.MarkFailed();
                 return paid;
+            case DecoyEffect decoy:
+                return ApplyDecoy(ctx, decoy);
             case StatResetEffect r: ApplyStatReset(ctx, r); break;
             case StatCopyEffect copy: ApplyStatCopy(ctx, copy); break;
             case StatSwapEffect s: ApplyStatSwap(ctx, s); break;
@@ -4000,6 +4002,28 @@ public sealed class BattleController
             _log.Add(new StatStageChanged(recipientSlot, stat, effect.Delta));
         }
         TraceEffectChance(ctx, chance, start);
+    }
+
+    private bool ApplyDecoy(EffectContext ctx, DecoyEffect effect)
+    {
+        int start = _log.Count;
+        bool present = EffectiveValues(ctx.SourceSlot).Decoy is not null;
+        BattleDecoyCreation creation = BattleDecoy.Create(ctx.Source.CurrentHp, ctx.Source.MaxHp, effect.Cost, present);
+        if (!creation.Succeeded)
+        {
+            ctx.Action.MarkFailed();
+            _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.SourceSlot,
+                EffectTraceKind.Decoy, false, null, -(int)creation.Failure, start, _log.Count));
+            return false;
+        }
+        Sap(ctx.Source, ctx.SourceSlot, creation.Cost, amount => new HpCostPaid(ctx.SourceSlot, amount));
+        _overlays.Apply(new BattleOverlayApplication(OverlayOwner(ctx.SourceSlot), new BattleOverlaySource(),
+            BattleOverlayLayer.FormOrSnapshot, new DecoyOverlay(creation.Decoy), Turn, ctx.TraceAction,
+            Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+        _log.Add(new DecoyCreated(ctx.SourceSlot, creation.Decoy!.Hp));
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.SourceSlot,
+            EffectTraceKind.Decoy, true, null, creation.Cost, start, _log.Count));
+        return true;
     }
 
     private bool ApplyHpCost(EffectContext ctx, HpCostEffect effect)

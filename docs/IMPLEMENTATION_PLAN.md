@@ -2514,10 +2514,21 @@ Ordered feature packages:
    `DecoyOverlay`/`BattleDecoyState` foundation. 9 focused tests cover exact/floored/min-1 cost, the
    strict-HP requirement, already-present, partial absorb, exact and overkill break without overflow, and
    input validation. Schema/migration/RNG impact: none. Full solution passed **1,931/1,931** (1,613 Core,
-   104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: the `decoy` move op + `BattleController`
-   wiring (pay the HP cost, write the `DecoyOverlay`, route eligible damage/status through the decoy with
-   the bypass matrix and distinct events); then Transform snapshots + copied-move PP, form HP-ratio/
-   once-per-battle ownership, and temporary move replacement.
+   104 Creator, 21 Runtime, 193 Tools).
+
+   Progress (2026-07-19): **15F-6 decoy creation wired into the controller.** Added the `decoy { num?,
+   den? }` move op (default 1/4, must target the user), the `DecoyEffect` record, and controller
+   `ApplyDecoy`, which calls `BattleDecoy.Create` on the source's live HP, pays the HP cost through the
+   existing `Sap` path on success, writes a form/snapshot-layer `DecoyOverlay` cleared on
+   switch/faint/battle-end, and emits a `DecoyCreated` event plus a `Decoy` effect trace; failures mark
+   the action failed and change nothing. Proven end-to-end: Substitute deducts 1/4 max HP and persists a
+   `(cost, cost)` decoy overlay; it fails without paying HP when current HP is not above the cost, and a
+   second cast fails while one is present. Schema/migration/RNG impact: none. Full solution passed
+   **1,934/1,934** (1,616 Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: decoy damage/
+   status **interception** in the damage path (route eligible hits through `BattleDecoy.Intercept`,
+   `DecoyHit`/`DecoyBroke` events, the bypass matrix, and the `substitute` damage-record flag); then
+   Transform snapshots + copied-move PP, form HP-ratio/once-per-battle ownership, and temporary move
+   replacement.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and

@@ -41,6 +41,7 @@ public enum EffectTraceKind
     HeldItemMutation,
     AbilityMutation,
     CreatureTypesMutation,
+    Decoy,
     EntryHazard,
     IntentEnqueued,
     IntentConsumed,
