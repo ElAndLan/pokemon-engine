@@ -2950,10 +2950,19 @@ Ordered feature packages:
    Identity/status/HP/item/ability and non-passable volatiles still never transfer. Proven: Baton Pass
    carries Leech Seed and a +2 crit boost to the reserve (alongside the already-tested stage carry). Pivot
    still passes nothing. Schema/migration/RNG impact: none. Full solution passed **1,968/1,968** (1,641
-   Core, 104 Creator, 21 Runtime, 202 Tools). Remaining for 15G-1: multi-reserve self-switch **selection**,
-   which the current one-shot `ResolveTurn` turn model can't express (a mid-turn pause for the player's
-   replacement pick) — this needs an ADR (mid-turn suspend/resume vs. deferred end-of-turn replacement)
-   before implementation, so it is the next decision point for closing 15G-1.
+   Core, 104 Creator, 21 Runtime, 202 Tools).
+
+   Progress (2026-07-19): **15G-1 multi-reserve self-switch resolved via ADR-012 (Option C).** Recorded
+   the user-directed decision in `docs/adr/ADR-012-mid-turn-self-switch-selection.md`: Core switches a
+   self-switch to the **party-index-first** healthy reserve immediately and deterministically (no mid-turn
+   pause), and the interactive player pick is a Runtime/Phase-16 concern on the existing submission seam.
+   `SelfSwitch` now switches for any reserve count (was single-reserve only), so Baton Pass and pivots
+   work with a full party. Proven: a Baton Pass user with two reserves switches to the party-index-first
+   reserve carrying its stages, leaving the other reserve untouched. Determinism/golden-replay preserved
+   (full suite unchanged). Schema/migration/RNG impact: none. Full solution passed **1,969/1,969** (1,642
+   Core, 104 Creator, 21 Runtime, 202 Tools). 15G-1 now covers Baton Pass (stages + passable volatiles),
+   pivot-after-hit, trap gating, multi-reserve self-switch, and certified conformance; a
+   `cgm-review-pass` is the remaining step to close it and advance to 15G-3.
 2. **15G-2 — Bounded action and damage memory (`IMPLEMENTED`; prerequisite 15B-4).** Extend the minimal
    history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
    sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,

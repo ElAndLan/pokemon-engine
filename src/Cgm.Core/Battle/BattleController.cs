@@ -1363,21 +1363,20 @@ public sealed class BattleController
         return false;
     }
 
-    // 15G-1 self-switch: switch the source out to its sole healthy reserve (multi-reserve selection is the
-    // remaining 15G-1 work), optionally passing whitelisted state to the incoming creature. Returns whether
-    // a switch occurred.
+    // 15G-1 self-switch (ADR-012): switch the source out to the party-index-first healthy reserve,
+    // immediately and deterministically; the interactive player pick is a Runtime concern. Optionally
+    // passes whitelisted state to the incoming creature. Returns whether a switch occurred.
     private bool SelfSwitch(BattleSlot slot, BattlePassedState? passed)
     {
         if (Active(slot).IsTrapped) // a trapped creature cannot switch itself out (matches voluntary switch)
             return false;
-        int[] reserves = Enumerable.Range(0, _parties[(int)slot.Side].Count)
-            .Where(i => !_parties[(int)slot.Side][i].IsFainted && !_activeSlots.IsActive(slot.Side, i))
-            .ToArray();
-        if (reserves.Length != 1)
+        int reserve = Enumerable.Range(0, _parties[(int)slot.Side].Count)
+            .FirstOrDefault(i => !_parties[(int)slot.Side][i].IsFainted && !_activeSlots.IsActive(slot.Side, i), -1);
+        if (reserve < 0)
             return false;
         if (passed is not null)
             _log.Add(new StatePassed(slot));
-        SwitchTo(slot, reserves[0], passed);
+        SwitchTo(slot, reserve, passed);
         return true;
     }
 

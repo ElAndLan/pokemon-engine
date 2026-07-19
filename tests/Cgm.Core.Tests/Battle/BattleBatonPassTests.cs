@@ -27,6 +27,23 @@ public sealed class BattleBatonPassTests
     }
 
     [Fact]
+    public void MultiReserveBatonPassSwitchesToThePartyIndexFirstReserve()
+    {
+        BattleCreature user = Creature("user", BatonPass());
+        BattleCreature reserveA = Creature("reserve_a", Inert());
+        BattleCreature reserveB = Creature("reserve_b", Inert());
+        user.ChangeStage(StatKind.Atk, 2);
+
+        var battle = new BattleController([user, reserveA, reserveB], [Creature("enemy", Inert())],
+            Chart(), new FakeRng());
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new Pass());
+
+        Assert.Contains(events, e => e is SwitchedIn { PartyIndex: 1 }); // ADR-012: party-index-first reserve
+        Assert.Equal(2, reserveA.Stage(StatKind.Atk)); // carried to the chosen reserve
+        Assert.Equal(0, reserveB.Stage(StatKind.Atk)); // the other reserve is untouched
+    }
+
+    [Fact]
     public void BatonPassCarriesPassableVolatilesToTheIncomingReserve()
     {
         BattleCreature user = Creature("user", BatonPass());

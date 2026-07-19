@@ -2499,9 +2499,10 @@ ability, non-passable volatiles, queued intents, and slot/side conditions never 
 state-passing switch, `SwitchTo` captures the outgoing creature's stage snapshot **before** its
 switch-out reset and applies it to the incoming creature after it materializes but before entry hooks,
 emitting a `StatePassed` event. Baton Pass is the first consumer: it switches the user out and passes
-its stage snapshot. Candidate lists use party-index order and random selection draws once only for
-multiple candidates. (This slice wires the single-reserve auto-switch case; multi-reserve self-switch
-selection is the remaining 15G-1 work.)
+its stage snapshot. Per ADR-012 a self-switch picks the party-index-first healthy reserve immediately
+and deterministically; the interactive player choice is a Runtime (Phase 16) concern layered on the
+same submission seam. A trapped user cannot self-switch. Forced switches still draw once for a random
+opponent target among multiple candidates.
 
 Acceptance vectors: `baton-pass-carries-stages`, `switch-out-resets-non-passed-state`, and the broader
 intent/trap/candidate matrix as the self-switch selection flow lands.
