@@ -1369,6 +1369,8 @@ public sealed class BattleController
     // a switch occurred.
     private bool SelfSwitch(BattleSlot slot, IReadOnlyDictionary<StatKind, int>? passStages)
     {
+        if (Active(slot).IsTrapped) // a trapped creature cannot switch itself out (matches voluntary switch)
+            return false;
         int[] reserves = Enumerable.Range(0, _parties[(int)slot.Side].Count)
             .Where(i => !_parties[(int)slot.Side][i].IsFainted && !_activeSlots.IsActive(slot.Side, i))
             .ToArray();

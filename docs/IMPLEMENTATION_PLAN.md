@@ -2927,9 +2927,15 @@ Ordered feature packages:
    Unlike Baton Pass, a pivot with no reserve does **not** fail — the move already hit. Proven: a 70-power
    pivot deals damage then switches (no `StatePassed`), and still succeeds (hits, no switch) when there is
    no reserve. Schema/migration/RNG impact: none. Full solution passed **1,961/1,961** (1,639 Core, 104
-   Creator, 21 Runtime, 197 Tools). Remaining for 15G-1: multi-reserve self-switch **selection** (the
-   mid-turn replacement pick, shared by Baton Pass and pivots), escape and trapping/bypass, registry-
-   tagged passable volatiles, and conformance vectors.
+   Creator, 21 Runtime, 197 Tools).
+
+   Progress (2026-07-19): **15G-1 trap gate on self-switch.** `SelfSwitch` now honors the same trap rule
+   as voluntary switching (`Active(slot).IsTrapped`): a trapped user's Baton Pass fails and a trapped
+   pivot still deals its damage but does not switch. Proven both ways in one test. Schema/migration/RNG
+   impact: none. Full solution passed **1,962/1,962** (1,640 Core, 104 Creator, 21 Runtime, 197 Tools).
+   Remaining for 15G-1: multi-reserve self-switch **selection** (the mid-turn replacement pick, shared by
+   Baton Pass and pivots), registry-tagged passable volatiles, and conformance vectors for
+   Baton Pass / U-turn / Volt Switch.
 2. **15G-2 — Bounded action and damage memory (`IMPLEMENTED`; prerequisite 15B-4).** Extend the minimal
    history service introduced by 15C-4 with typed action-attempt and per-hit records: turn, action
    sequence, source/target slot+creature, move, class/type, cause, attempted/connected/failed reason,

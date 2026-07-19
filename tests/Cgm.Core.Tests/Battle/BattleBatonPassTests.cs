@@ -86,6 +86,29 @@ public sealed class BattleBatonPassTests
         Assert.Empty(events.OfType<SwitchedIn>()); // no reserve -> no switch, move still hit
     }
 
+    [Fact]
+    public void TrappedUserCannotBatonPassOrPivotOut()
+    {
+        BattleCreature bpUser = Creature("bp_user", BatonPass());
+        bpUser.ChangeStage(StatKind.Atk, 2);
+        bpUser.SetTrap(3);
+        BattleCreature reserve = Creature("reserve", Inert());
+        var bpBattle = new BattleController([bpUser, reserve], [Creature("e1", Inert())], Chart(), new FakeRng());
+        IReadOnlyList<BattleEvent> bpEvents = bpBattle.ResolveTurn(new UseMove(0), new Pass());
+        Assert.Empty(bpEvents.OfType<StatePassed>());
+        Assert.Empty(bpEvents.OfType<SwitchedIn>());
+
+        BattleMove uturn = new(EntityId.Parse("move:uturn"), Normal, DamageClass.Physical, 70, 100, 20, 0, 0,
+            target: MoveTarget.Selected, secondaryEffects: [new PivotSwitchEffect()]);
+        BattleCreature pivotUser = Creature("pivot_user", uturn);
+        pivotUser.SetTrap(3);
+        var pivotBattle = new BattleController([pivotUser, Creature("r2", Inert())], [Creature("e2", Inert())],
+            Chart(), new FakeRng(ints: [0, 100, 0, 0], doubles: [0.99, 0.99]));
+        IReadOnlyList<BattleEvent> pivotEvents = pivotBattle.ResolveTurn(new UseMove(0), new Pass());
+        Assert.Contains(pivotEvents, e => e is DamageDealt { Target: BattleSide.Enemy }); // still hits
+        Assert.Empty(pivotEvents.OfType<SwitchedIn>());                                    // but does not switch
+    }
+
     private static BattleCreature Creature(string slug, BattleMove move) => new(
         EntityId.Parse($"species:{slug}"), slug, 50, [Normal], new Stats(300, 100, 100, 100, 100, 100), [move]);
 
