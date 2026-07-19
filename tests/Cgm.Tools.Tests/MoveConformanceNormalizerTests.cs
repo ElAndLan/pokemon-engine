@@ -120,6 +120,26 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
         Assert.Throws<InvalidDataException>(() => MoveConformanceNormalizer.Build(_folder, unowned));
     }
 
+    [Fact]
+    public void Build_RegistersTypeMutationVectors()
+    {
+        WriteMove("neutral_soak", 902, "selected-pokemon");
+        var typeMutation = new Effect
+        {
+            Op = "typeMutation",
+            Params = new Dictionary<string, JsonElement>
+            {
+                ["operation"] = JsonSerializer.SerializeToElement("copy"),
+            },
+        };
+        var decisions = new MoveConformanceDecisionCatalog(1, ["neutral-test-evidence"],
+            [new("move-0902", false, [typeMutation])]);
+
+        MoveConformanceRecord record = Assert.Single(MoveConformanceNormalizer.Build(_folder, decisions).Entries);
+        Assert.Equal(["TypeMutationConformanceTests.Certified(move-0902)"], record.TestIds);
+        Assert.Contains("typeMutation", record.MechanicFamilies);
+    }
+
     private string WriteMove(string name, int id, string target = "all-opponents", int? power = 40)
     {
         string powerJson = power?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null";

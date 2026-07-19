@@ -2579,6 +2579,19 @@ solution passed **1,899/1,899** (1,595 Core, 104 Creator, 21 Runtime, 179 Tools)
 a data-driven move-type override *writer* op (only if a corpus move needs it), the empty-type fallback
 ruleset decision, and generated corpus conformance vectors via the audit/normalizer tooling.
 
+Progress (2026-07-19): **15F-4 conformance generator now recognizes the typeMutation family.**
+`MoveConformanceNormalizer.Normalize` emits `TypeMutationConformanceTests.Certified(<key>)` for any
+normalized move whose effects include `typeMutation`, mirroring the existing item/ability-mutation
+family rules; `Families` already surfaces `typeMutation` from the effect op. Added a fixture-driven
+normalizer unit test (`Build_RegistersTypeMutationVectors`) proving a `typeMutation` decision produces
+exactly that test id and the `typeMutation` mechanic family — no real corpus required. This is the
+generator half of the conformance work; the corpus (`docs/pokeapi-results/`) is gitignored and absent
+from this worktree, so authoring the neutral `typeMutation` decisions in
+`target-topology-decisions.v1.json`, adding `TypeMutationConformanceTests`, and regenerating
+`definitions.v1.json`/`manifest.v1.json` against the local corpus is the next slice (which advances
+the certified count past 152/937). Full solution passed **1,900/1,900** (1,595 Core, 104 Creator, 21
+Runtime, 180 Tools).
+
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
 substitute interception matrix; Transform/PP/form goldens; deterministic move-pool selection.
