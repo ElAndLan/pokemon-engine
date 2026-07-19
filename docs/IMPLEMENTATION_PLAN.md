@@ -2567,6 +2567,18 @@ the full solution passed **1,898/1,898** (1,594 Core, 104 Creator, 21 Runtime, 1
 empty-type fallback stays `WouldEmptyTypes` (no invented typeless type); its ruleset wiring and the
 per-slot move-type override op plus generated corpus conformance vectors remain for 15F-4.
 
+Progress (2026-07-19): **15F-4 move-type override precedence locked by test.** Confirmed the effective
+per-slot move type already flows through `EffectiveMoveIdentity` → `BattleDamageQueries.Identity`, so
+STAB and effectiveness read `identity.EffectiveType` (the overlay-resolved `BattleEffectiveMove.Type`),
+never the authored `move.Type`. Added `BattleMoveTypeOverrideTests` proving end-to-end that a
+`MoveTypeOverlay` on a move slot grants STAB in the real damage pipeline (a Water attacker's authored
+Normal move gains 1.5x STAB once its slot type is overridden to Water, raising the emitted
+`DamageDealt` amount). No production change was required — the consumer path was already correct; this
+closes the 15F-4 "STAB/effectiveness integration" acceptance item for move-type overrides. Full
+solution passed **1,899/1,899** (1,595 Core, 104 Creator, 21 Runtime, 179 Tools). Remaining for 15F-4:
+a data-driven move-type override *writer* op (only if a corpus move needs it), the empty-type fallback
+ruleset decision, and generated corpus conformance vectors via the audit/normalizer tooling.
+
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
 substitute interception matrix; Transform/PP/form goldens; deterministic move-pool selection.
