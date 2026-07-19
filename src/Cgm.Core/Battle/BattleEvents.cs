@@ -198,6 +198,10 @@ public sealed record DecoyBroke(BattleSlot Slot) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
 }
+public sealed record Transformed(BattleSlot Slot) : BattleEvent
+{
+    public BattleSide Side => Slot.Side;
+}
 public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

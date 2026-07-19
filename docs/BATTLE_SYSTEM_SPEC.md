@@ -2442,6 +2442,21 @@ owner; the pure helper only does the creation and interception arithmetic and dr
 Acceptance vectors (decoy): `decoy-insufficient-hp`, `decoy-already-present`, `decoy-exact-cost`,
 `decoy-absorb-partial`, `decoy-break-no-overflow`, and `decoy-switch-faint-end-reversion`.
 
+Transform snapshots the target's effective identity onto the user through form/snapshot overlays.
+`ApplyTransform` reads the target's effective creature types, derived stats, ability, and effective
+move rows at the moment of application and writes them as `CreatureTypesOverlay`, `StatsOverlay`,
+`AbilityOverlay`, and `MoveListOverlay` on the user, plus a `FormOverlay` marker. Snapshots copy values
+at application — the type list and stat struct are copied, never aliased — so a later change to the
+target does not alter the transformed user, and the target's own definition is never mutated. HP is not
+copied: the user keeps its own HP and max HP (the copied stat struct preserves the user's HP field).
+Copied moves take a fresh PP pool. Transform fails without any change when the user is already
+transformed. All Transform overlays clear on switch, faint, or battle end, restoring the user's base
+identity, and Transform emits a `Transformed` event and one effect trace. The move-list and copied-PP
+portion is wired after the value copy over the same overlay foundation.
+
+Acceptance vectors (transform): `transform-copies-types-stats-ability`, `transform-snapshot-independent`,
+`transform-preserves-own-hp`, `transform-already-transformed`, and `transform-switch-faint-end-reversion`.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

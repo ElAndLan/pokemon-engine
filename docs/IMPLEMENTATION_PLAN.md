@@ -2563,9 +2563,22 @@ Ordered feature packages:
    unchanged. The counter/Mirror-Coat, HP-formula (Endeavor/Pain Split), and delayed (Future Sight)
    damage paths intentionally do **not** intercept — Substitute does not shield those in reference
    mechanics — so no further damage-path wiring is required. Full solution passed **1,942/1,942** (1,624
-   Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: an infiltrator-style bypass when that
-   ability lands; then Transform snapshots + copied-move PP, form HP-ratio/once-per-battle ownership, and
-   temporary move replacement.
+   Core, 104 Creator, 21 Runtime, 193 Tools).
+
+   Progress (2026-07-19): **15F-6 Transform value copy landed.** Spec-locked Transform and added the
+   `transform` move op, `TransformEffect`, and controller `ApplyTransform`, which reads the target's
+   effective creature types, derived stats, and ability and writes them as form/snapshot
+   `CreatureTypesOverlay`/`StatsOverlay`/`AbilityOverlay` on the user plus a `transform` `FormOverlay`
+   marker; the user keeps its own HP (the copied stat struct preserves the user's HP field). Snapshots
+   copy values at application (types via `NormalizeTypes` `ToArray`, stats by struct value), so a later
+   target change leaves the transformed user unchanged and the target definition is never mutated.
+   Transform fails without change while already transformed and is blocked by Protect (registered in both
+   opponent-targeting predicates). All overlays clear on switch/faint/battle-end. Proven: types/stats/
+   ability copied with the user's HP preserved, snapshot independence, already-transformed failure, and
+   battle-end reversion. Schema/migration/RNG impact: none. Full solution passed **1,946/1,946** (1,628
+   Core, 104 Creator, 21 Runtime, 193 Tools). Remaining for 15F-6: Transform's move-list copy with a
+   fresh copied-move PP pool; an infiltrator-style decoy bypass when that ability lands; form changes
+   (HP-ratio/once-per-battle ownership); and temporary move replacement.
 7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and

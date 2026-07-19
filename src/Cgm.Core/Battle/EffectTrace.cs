@@ -42,6 +42,7 @@ public enum EffectTraceKind
     AbilityMutation,
     CreatureTypesMutation,
     Decoy,
+    Transform,
     EntryHazard,
     IntentEnqueued,
     IntentConsumed,

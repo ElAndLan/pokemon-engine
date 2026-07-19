@@ -1068,7 +1068,7 @@ public sealed class BattleController
         StatResetEffect { Scope: not StageEffectScope.Self } => true,
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
         StatStealEffect or RandomStatRaiseEffect { OnSelf: false } or DerivedStatSwapEffect
-            or DerivedStatSplitEffect => true,
+            or DerivedStatSplitEffect or TransformEffect => true,
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
             or HpEqualizeEffect or OneShotQueryEffect { Query: OneShotQuery.Accuracy } => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
@@ -2569,6 +2569,8 @@ public sealed class BattleController
                 return paid;
             case DecoyEffect decoy:
                 return ApplyDecoy(ctx, decoy);
+            case TransformEffect transform:
+                return ApplyTransform(ctx, transform);
             case StatResetEffect r: ApplyStatReset(ctx, r); break;
             case StatCopyEffect copy: ApplyStatCopy(ctx, copy); break;
             case StatSwapEffect s: ApplyStatSwap(ctx, s); break;
@@ -3886,6 +3888,7 @@ public sealed class BattleController
             || (e is StatResetEffect r && r.Scope != StageEffectScope.Self)
             || (e is StatCopyEffect c && (c.From == StageEffectScope.Target || c.To == StageEffectScope.Target))
             || e is StatSwapEffect or StatStealEffect or DerivedStatSwapEffect or DerivedStatSplitEffect
+                or TransformEffect
             || (e is StatInvertEffect i && !i.OnSelf)
             || (e is RandomStatRaiseEffect rr && !rr.OnSelf)));
 
@@ -4025,6 +4028,34 @@ public sealed class BattleController
         }
         TraceEffectChance(ctx, chance, start);
     }
+
+    private bool ApplyTransform(EffectContext ctx, TransformEffect effect)
+    {
+        int start = _log.Count;
+        BattleEffectiveValues userValues = EffectiveValues(ctx.SourceSlot);
+        if (userValues.FormId == TransformFormId)
+        {
+            ctx.Action.MarkFailed();
+            _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
+                EffectTraceKind.Transform, false, null, 0, start, _log.Count));
+            return false;
+        }
+        BattleEffectiveValues targetValues = EffectiveValues(ctx.TargetSlot);
+        BattleOverlayOwner owner = OverlayOwner(ctx.SourceSlot);
+        void Snapshot(BattleOverlayPayload payload) => _overlays.Apply(new BattleOverlayApplication(owner,
+            new BattleOverlaySource(), BattleOverlayLayer.FormOrSnapshot, payload, Turn, ctx.TraceAction,
+            Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+        Snapshot(new CreatureTypesOverlay(targetValues.CreatureTypes));
+        Snapshot(new StatsOverlay(targetValues.Stats with { Hp = userValues.Stats.Hp })); // keep the user's HP
+        Snapshot(new AbilityOverlay(targetValues.Ability));
+        Snapshot(new FormOverlay(TransformFormId));
+        _log.Add(new Transformed(ctx.SourceSlot));
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
+            EffectTraceKind.Transform, true, null, 1, start, _log.Count));
+        return true;
+    }
+
+    private const string TransformFormId = "transform";
 
     private bool ApplyDecoy(EffectContext ctx, DecoyEffect effect)
     {

@@ -1310,6 +1310,17 @@ public static class MoveCompiler
                     effects.Add(new DecoyEffect(decoyCost));
                     break;
 
+                case "transform":
+                    if (chance != 100)
+                        throw new ArgumentException("transform does not support chance.");
+                    CheckAllowedParams(e);
+                    if (!IsActiveCreatureTarget(move.Target) || move.Target == MoveTarget.User)
+                        throw new ArgumentException("transform requires an active-creature target.");
+                    if (effects.OfType<TransformEffect>().Any())
+                        throw new ArgumentException("A move can declare only one transform effect.");
+                    effects.Add(new TransformEffect());
+                    break;
+
                 case "statStageReset":
                     CheckAllowedParams(e, "scope");
                     AddChanceEffect(effects, new StatResetEffect(Parse<StageEffectScope>(Str(e, "scope"), "scope")), chance);

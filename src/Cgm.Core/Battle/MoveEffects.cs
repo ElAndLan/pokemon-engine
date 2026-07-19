@@ -112,6 +112,9 @@ public sealed record HpCostEffect(Fraction Fraction, bool AllowFaint) : MoveEffe
 /// <summary>create a decoy (Substitute) costing a fraction of the user's max HP (15F-6).</summary>
 public sealed record DecoyEffect(Fraction Cost) : MoveEffect;
 
+/// <summary>transform the user into the target (copy effective identity via overlays) (15F-6).</summary>
+public sealed record TransformEffect : MoveEffect;
+
 /// <summary>reset_stat_stages over self, target, or both active creatures.</summary>
 public sealed record StatResetEffect(StageEffectScope Scope) : MoveEffect;
 
