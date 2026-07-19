@@ -1359,8 +1359,6 @@ public static class MoveCompiler
                     Fraction revengeMultiplier = ReadFraction(e, 3, 2);
                     if (revengeMultiplier.Num <= 0 || revengeMultiplier.Den <= 0)
                         throw new ArgumentException("revengeDamage num and den must be positive.");
-                    if (!IsActiveCreatureTarget(move.Target) || move.Target == MoveTarget.User)
-                        throw new ArgumentException("revengeDamage requires an active-creature target.");
                     if (effects.OfType<RevengeDamageEffect>().Any())
                         throw new ArgumentException("A move can declare only one revengeDamage effect.");
                     effects.Add(new RevengeDamageEffect(revengeMultiplier));
@@ -1510,6 +1508,7 @@ public static class MoveCompiler
             throw new ArgumentException("replacementRestore must execute before selfDestruct.");
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
             && fixedDamage is null && !fixedDamageLevel && !ohko && counterCategory is null
+            && !effects.OfType<RevengeDamageEffect>().Any()
             && !effects.OfType<HpFractionEffect>().Any(effect => effect.Operation == HpFractionOperation.Damage)
             && !effects.OfType<HpEqualizeEffect>().Any(effect => effect.Mode == HpEqualizeMode.MatchSource))
             throw new ArgumentException("Damaging moves without authored power require a replacement base-power formula.");

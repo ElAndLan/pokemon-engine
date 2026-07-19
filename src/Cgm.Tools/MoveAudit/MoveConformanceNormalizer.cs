@@ -132,6 +132,7 @@ public static class MoveConformanceNormalizer
         bool replacementPower = decision.AdditionalEffects?.Any(effect => effect.Op is "hpBandPower" or "statusCountPower" or "hpFraction" or "hpEqualize"
             or "speedRatioPower" or "metricBandPower" or "metricRatioPower" or "partyCountPower"
             or "friendshipPower" or "ppPower" or "positiveStagePower" or "itemDataPower" or "randomTablePower"
+            or "counterDamage" or "revengeDamage"
             || effect.Op == "hpRatioPower" && effect.Params?.ContainsKey("scale") == true) == true;
         if (damageClass == DamageClass.Status ? power is not null : power is not > 0 && !replacementPower)
             throw Invalid(path, "power is inconsistent with damage_class");
@@ -209,6 +210,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"SnapshotConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op is "batonPass" or "pivotSwitch"))
             testIds.Add($"SwitchIntentConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "counterDamage" or "revengeDamage"))
+            testIds.Add($"DamageMemoryConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 170/937 certified; next eligible package is 15G-3 counter/revenge/stored-release consumers** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 174/937 certified; 15G-3 IN PROGRESS (Counter/Mirror Coat/revenge + conformance; Bide/stored-release remains)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -2999,9 +2999,20 @@ Ordered feature packages:
    absorbed damage is excluded because only own-HP loss feeds the accumulators; multiplication is checked.
    Registered in the damaging gate. Proven: Metal Burst returns exactly 1.5× the damage taken, and
    fizzles when the user took none. Schema/migration/RNG impact: none. Full solution passed **1,971/1,971**
-   (1,644 Core, 104 Creator, 21 Runtime, 202 Tools). Remaining for 15G-3: Bide (bounded stored-damage
-   accumulator, release ×2), per-hit/last-versus-sum consumers over the 15G-2 `BattleActionHistory`,
-   doubles source-addressed targeting, and conformance vectors.
+   (1,644 Core, 104 Creator, 21 Runtime, 202 Tools).
+
+   Progress (2026-07-19): **15G-3 damage-memory cohort certified (170 → 174/937).** Relaxed the
+   `revengeDamage` op's target check to match `counterDamage` (the corpus uses `specific-move`) and
+   exempted revenge from the "damaging move needs a base-power formula" compiler guard; taught the
+   normalizer that `counterDamage`/`revengeDamage` are replacement-power ops and emit
+   `DamageMemoryConformanceTests.Certified(...)`. Certified Counter (`counterDamage:physical`), Mirror
+   Coat (`counterDamage:special`), Metal Burst and Comeuppance (`revengeDamage`); regeneration kept the
+   corpus digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f` and was
+   byte-identical, which also exercised the revenge compiler path on the real corpus (Comeuppance's
+   power-1 shape included). Added `DamageMemoryConformanceTests` (per-row + Counter/Mirror-Coat/revenge
+   coverage). Full solution passed **1,976/1,976** (1,644 Core, 104 Creator, 21 Runtime, 207 Tools).
+   Remaining for 15G-3: Bide (bounded stored-damage accumulator, release ×2), per-hit/last-versus-sum
+   consumers over the 15G-2 `BattleActionHistory`, and doubles source-addressed targeting.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`PLANNED`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

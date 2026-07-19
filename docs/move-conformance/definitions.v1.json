@@ -417,6 +417,42 @@
       ]
     },
     {
+      "referenceKey": "move-0068",
+      "sourceFileHash": "9de6c14a0d7e6609f8886a1dd126144a9f1a4fac1d38d091336cdbb1493d39a3",
+      "payloadContentHash": "d9413c089abd75484c3b95e266a50240d7c95d2dcec9a80016d826ea9552f818",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "counterDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_02",
+        "damageClass": "physical",
+        "accuracy": 100,
+        "pp": 20,
+        "priority": -5,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "specificMove",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "counterDamage",
+            "params": {
+              "category": "physical"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "7ad21817305631cf125f493771da5ff132ad8fda851142bb4cbc9b58f58a98f9",
+      "testIds": [
+        "DamageMemoryConformanceTests.Certified(move-0068)"
+      ]
+    },
+    {
       "referenceKey": "move-0075",
       "sourceFileHash": "c5729cf52c5e66ca90632899b6b6e31aa7c78f5a92c1c0ebb4a73d545ba81df7",
       "payloadContentHash": "1ab7b911faa05f60871402eb4dbc007b8c673053439745c1c5207fec4c38bebe",
@@ -1705,6 +1741,42 @@
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0239)",
         "ChargeConformanceTests.Certified(move-0239)"
+      ]
+    },
+    {
+      "referenceKey": "move-0243",
+      "sourceFileHash": "158cdb13c3b1795e419e1c5ad283488fe7071ec314ef86a622ea0dade2e2a989",
+      "payloadContentHash": "fec32e61b6334287840e6ef35d1ca44aa99fa09655ca28e9e73651aa5922e069",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "counterDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "special",
+        "accuracy": 100,
+        "pp": 20,
+        "priority": -5,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "specificMove",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "counterDamage",
+            "params": {
+              "category": "special"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "1e5874c90446f606b3dbf39656c6afa824b95826604be6d8411132b77429cb3e",
+      "testIds": [
+        "DamageMemoryConformanceTests.Certified(move-0243)"
       ]
     },
     {
@@ -3037,6 +3109,39 @@
       "normalizedDefinitionHash": "7008fb992dcd367448a0444b39fab284c8467a97e9b50f01b5815fad5cf6ca5d",
       "testIds": [
         "HpStatusFormulaConformanceTests.Certified(move-0362)"
+      ]
+    },
+    {
+      "referenceKey": "move-0368",
+      "sourceFileHash": "658cdf53bf5fb12edcf61851efa1380e0f4462f2068b4a4166402660f006447e",
+      "payloadContentHash": "ab9dcf36fab2a45facb284bcfa13e1f17722c40e565433f59e3293349cfc7629",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "revengeDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_09",
+        "damageClass": "physical",
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "specificMove",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "revengeDamage"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "001708784a08b186fc24df17f4934b0bf213dbb4fdbdbdbde531fe76ff7fd9b4",
+      "testIds": [
+        "DamageMemoryConformanceTests.Certified(move-0368)"
       ]
     },
     {
@@ -6259,6 +6364,41 @@
       "normalizedDefinitionHash": "f08fa04ef5165d74e29bf7683fefc8d22dfda59f3c8e5ef0bc16d8ed408525fc",
       "testIds": [
         "TypeMutationConformanceTests.Certified(move-0892)"
+      ]
+    },
+    {
+      "referenceKey": "move-0894",
+      "sourceFileHash": "4666920e9a31ed991eceb21d20606f2c55f7a698bfdbd45e9e350280beebeb10",
+      "payloadContentHash": "3ab3c5c5d230356ddcbeb5eb91a4646b4c48ea18fd0151a3dcf5a7edc5776c88",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "revengeDamage",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "physical",
+        "power": 1,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "specificMove",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "revengeDamage"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "8db556d8ded9fdb711d2bec4bfe41226ee6968df129f065ad9d37ef606d6f383",
+      "testIds": [
+        "DamageMemoryConformanceTests.Certified(move-0894)"
       ]
     },
     {
