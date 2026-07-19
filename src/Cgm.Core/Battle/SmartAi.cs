@@ -163,6 +163,12 @@ public static class SmartAi
             c.Add(new("abilityMutation", 0));
         if (authoredMove.SecondaryEffects.OfType<TypeMutationEffect>().Any())
             c.Add(new("typeMutation", 0));
+        if (authoredMove.SecondaryEffects.OfType<StatStealEffect>().Any())
+            c.Add(new("statStageSteal", 0));
+        if (authoredMove.SecondaryEffects.OfType<RandomStatRaiseEffect>().Any())
+            c.Add(new("statStageRandomRaise", 0));
+        if (authoredMove.SecondaryEffects.Any(e => e is DerivedStatSwapEffect or DerivedStatSplitEffect))
+            c.Add(new("derivedStatMutation", 0));
         if (KnownItemRequirementFails(authoredMove, attacker, context))
         {
             c.Add(new("itemRequirement", -1_000_000));

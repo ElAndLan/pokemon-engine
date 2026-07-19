@@ -202,6 +202,9 @@ public static class MoveConformanceNormalizer
             testIds.Add($"AbilityMutationConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op == "typeMutation"))
             testIds.Add($"TypeMutationConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "statStageSteal" or "statStageRandomRaise"
+            or "derivedStatSwap" or "derivedStatSplit"))
+            testIds.Add($"StatMutationConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

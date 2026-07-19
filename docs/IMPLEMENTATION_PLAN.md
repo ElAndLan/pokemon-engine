@@ -2465,9 +2465,22 @@ Ordered feature packages:
    `DerivedStatMutated` events fire only for stats that actually change. Proven end-to-end: Power Split
    over Atk 60/120 → 90 and Spa 41/80 → 60 (floor of 60.5) emits the four expected events and persists
    four reciprocal per-stat overlays. Schema/migration/RNG impact: none. Full solution passed
-   **1,917/1,917** (1,604 Core, 104 Creator, 21 Runtime, 188 Tools). Remaining for 15F-5: Smart-AI
-   parity for the new stat ops; generated conformance vectors (Spectral Thief, Acupressure, Speed Swap,
-   Power/Guard Split); then a review to close. The Baton Pass stage-carry whitelist stays with 15G-1.
+   **1,917/1,917** (1,604 Core, 104 Creator, 21 Runtime, 188 Tools).
+
+   Progress (2026-07-19): **15F-5 Smart-AI parity and conformance vectors (159 → 163/937).** `SmartAi`
+   now names neutral `statStageSteal`, `statStageRandomRaise`, and `derivedStatMutation` score components
+   so the new ops don't fall through scoring. The conformance normalizer emits
+   `StatMutationConformanceTests.Certified(...)` for the four new ops, and neutral decisions certify
+   Spectral Thief (`statStageSteal`), Speed Swap (`derivedStatSwap`), Power Split and Guard Split
+   (`derivedStatSplit`); regeneration kept the corpus digest
+   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f` and was byte-identical. Acupressure
+   (`statStageRandomRaise`) is intentionally **not** certified: its `user-or-ally` target lands in the
+   target-topology cohort, whose harness does not yet drive that selection, so random-raise stays proven
+   by the engine/controller tests rather than a generated vector (a small follow-on if the harness gains
+   user-or-ally support). Added `StatMutationConformanceTests` (per-row + operation-coverage) and a
+   Smart-AI parity test. Full solution passed **1,922/1,922** (1,604 Core, 104 Creator, 21 Runtime, 193
+   Tools). Remaining for 15F-5: a `cgm-review-pass` go/no-go to close; the Baton Pass stage-carry
+   whitelist stays with 15G-1.
 6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
    prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
    copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form

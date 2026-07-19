@@ -97,8 +97,30 @@ public sealed class BattleStageMutationOpsTests
         Assert.Contains(deltas, d => d.Delta.Spa == -20); // target 60-80
     }
 
+    [Fact]
+    public void SmartAiNamesNeutralStatMutationComponents()
+    {
+        BattleMove split = Compile("guard_split", DamageClass.Status, null, MoveTarget.Selected,
+            Op("derivedStatSplit", ("group", "defense")));
+        BattleCreature attacker = Creature("attacker", Fast, split);
+        BattleCreature defender = Creature("defender", Slow, Inert());
+
+        SmartAiDecision decision = SmartAi.ChooseAction(new SmartAiContext([attacker], 0, [defender], 0,
+            Chart(), new ZeroRng(), Weights: new SmartAiWeights { NoiseFraction = 0 }));
+
+        Assert.Contains(decision.Scores.Single().Components,
+            component => component is { Name: "derivedStatMutation", Value: 0 });
+    }
+
     private static readonly Stats Fast = new(400, 120, 100, 120, 100, 100);
     private static readonly Stats Slow = new(400, 100, 100, 100, 100, 1);
+
+    private sealed class ZeroRng : IRng
+    {
+        public int Next(int maxExclusive) => 0;
+        public int Next(int minInclusive, int maxExclusive) => minInclusive;
+        public double NextDouble() => 0;
+    }
 
     private static BattleMove Compile(string slug, DamageClass dc, int? power, MoveTarget target, Effect effect) =>
         MoveCompiler.ToBattleMove(new Move

@@ -3557,6 +3557,70 @@
       ]
     },
     {
+      "referenceKey": "move-0470",
+      "sourceFileHash": "ec84e373783271b2df4f9264b0b368de18450da32116d08c4d2fdf78819d0c85",
+      "payloadContentHash": "1047e0c2805bc14ac1fb5ddd6659d2d455398a37791429e8585c79df3211be1d",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "derivedStatSplit",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "derivedStatSplit",
+            "params": {
+              "group": "defense"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "a61ae214554c8d00923de57c3dd425cd9d3ea80419bf9d519d5608bacaa2ba77",
+      "testIds": [
+        "StatMutationConformanceTests.Certified(move-0470)"
+      ]
+    },
+    {
+      "referenceKey": "move-0471",
+      "sourceFileHash": "bb6fd6e3f19d3e7a6d0ca7f99de5622b9ece8b66b8237bd49f97f878fef8b351",
+      "payloadContentHash": "9046408f640efccf73cca17c2abb8bd6dcda02341a07abf83e6805a58480012c",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "derivedStatSplit",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "derivedStatSplit",
+            "params": {
+              "group": "offense"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "3b357f5ce6dc42e57376bd509269621443ddd9113ec8de6871ba97a8dad9e983",
+      "testIds": [
+        "StatMutationConformanceTests.Certified(move-0471)"
+      ]
+    },
+    {
       "referenceKey": "move-0474",
       "sourceFileHash": "bbe77a793e21c12b103905a32930b8f0e29ed137f77f1bbffc6682bbdad77167",
       "payloadContentHash": "e950d62697390f462497bd4ac3bb680d671297a2e7787a3101f75224ac81b47d",
@@ -5271,6 +5335,38 @@
       ]
     },
     {
+      "referenceKey": "move-0683",
+      "sourceFileHash": "1ef00f7d98add9e67a89cc5b915f197ea96a1b2d5e3c199430a6a4a10c77afdc",
+      "payloadContentHash": "814ce05efc35f2e0f162a907a42339f3970390ec69b82987b3efa8a57b4417af",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "derivedStatSwap",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "derivedStatSwap",
+            "params": {
+              "stat": "spe"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "b9c434abf0c411cd052532342e12488805186aff0e1e6bc8b86d2a2f9658f096",
+      "testIds": [
+        "StatMutationConformanceTests.Certified(move-0683)"
+      ]
+    },
+    {
       "referenceKey": "move-0691",
       "sourceFileHash": "0ea8bcbb26178b530d67ab5ffcc09004725bf767f4f34a1b2426f5bf9671a8dd",
       "payloadContentHash": "5cdfa2a130a99fb40eafb4b189a5883cc8d69026be79303d5fa384437bba15b9",
@@ -5467,6 +5563,41 @@
       "normalizedDefinitionHash": "78ad32c9aed17abff853100d20b2728bfe83e2e15acf8031c3c4fedbc1e0a2ad",
       "testIds": [
         "ActionHistoryFormulaConformanceTests.Certified(move-0707)"
+      ]
+    },
+    {
+      "referenceKey": "move-0712",
+      "sourceFileHash": "2d688805128357116e43c96ff628fab5162c6c1c588001ef0e7a17128e4d3052",
+      "payloadContentHash": "aa0595a891642c0f3c6dde9574cbb5b94ad5c6b28f737180c7f4c0e259878720",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "standardDamage",
+        "statStageSteal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_08",
+        "damageClass": "physical",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "statStageSteal"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "6f25090b3d1a25f594c15dfb95d57f5a356a6ac882e680c793161a1ecd9f5a67",
+      "testIds": [
+        "StatMutationConformanceTests.Certified(move-0712)"
       ]
     },
     {
