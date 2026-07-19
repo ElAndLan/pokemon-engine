@@ -1056,7 +1056,7 @@ public sealed class BattleController
         StatChangeEffect { OnSelf: false } or StatChangeAllEffect { OnSelf: false } or StatInvertEffect { OnSelf: false } => true,
         StatResetEffect { Scope: not StageEffectScope.Self } => true,
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
-        StatStealEffect or RandomStatRaiseEffect { OnSelf: false } => true,
+        StatStealEffect or RandomStatRaiseEffect { OnSelf: false } or DerivedStatSwapEffect => true,
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
             or HpEqualizeEffect or OneShotQueryEffect { Query: OneShotQuery.Accuracy } => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
@@ -2554,6 +2554,7 @@ public sealed class BattleController
             case StatSwapEffect s: ApplyStatSwap(ctx, s); break;
             case StatStealEffect steal: ApplyStatSteal(ctx, steal); break;
             case RandomStatRaiseEffect raise: ApplyRandomStatRaise(ctx, raise); break;
+            case DerivedStatSwapEffect swap: ApplyDerivedStatSwap(ctx, swap); break;
             case StatInvertEffect i: ApplyStatInvert(ctx, i); break;
             case ConfusionEffect confusion: ApplyConfusion(ctx, confusion); break;
             case FlinchEffect f: ApplyFlinch(ctx, f); break;
@@ -3863,7 +3864,7 @@ public sealed class BattleController
             || (e is StatChangeAllEffect a && !a.OnSelf)
             || (e is StatResetEffect r && r.Scope != StageEffectScope.Self)
             || (e is StatCopyEffect c && (c.From == StageEffectScope.Target || c.To == StageEffectScope.Target))
-            || e is StatSwapEffect or StatStealEffect
+            || e is StatSwapEffect or StatStealEffect or DerivedStatSwapEffect
             || (e is StatInvertEffect i && !i.OnSelf)
             || (e is RandomStatRaiseEffect rr && !rr.OnSelf)));
 
@@ -4116,6 +4117,50 @@ public sealed class BattleController
 
     private static IReadOnlyDictionary<StatKind, int> StageSnapshot(BattleCreature creature) =>
         AllStageSlots.ToDictionary(stat => stat, creature.Stage);
+
+    private void ApplyDerivedStatSwap(EffectContext ctx, DerivedStatSwapEffect effect)
+    {
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect),
+            !ctx.Source.IsFainted && !ctx.Target.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
+            return;
+        }
+        int userValue = DerivedStat(ctx.SourceSlot, effect.Stat);
+        int targetValue = DerivedStat(ctx.TargetSlot, effect.Stat);
+        if (userValue != targetValue)
+        {
+            // ponytail: a fresh additive delta per side computed from the pre-swap snapshot; each side's
+            // effective stat becomes the other's. Composes with any prior deltas via the additive layer.
+            ApplyDerivedStatDelta(ctx.SourceSlot, effect.Stat, targetValue - userValue, ctx.TraceAction);
+            ApplyDerivedStatDelta(ctx.TargetSlot, effect.Stat, userValue - targetValue, ctx.TraceAction);
+            _log.Add(new DerivedStatMutated(ctx.SourceSlot.Side, ActiveIndex(ctx.SourceSlot), effect.Stat,
+                userValue, targetValue));
+            _log.Add(new DerivedStatMutated(ctx.TargetSlot.Side, ActiveIndex(ctx.TargetSlot), effect.Stat,
+                targetValue, userValue));
+        }
+        TraceEffectChance(ctx, chance, start);
+    }
+
+    private int DerivedStat(BattleSlot slot, StatKind stat) => stat switch
+    {
+        StatKind.Spe => EffectiveValues(slot).Stats.Spe,
+        _ => throw new ArgumentException("Derived-stat swap supports the speed stat only."),
+    };
+
+    private void ApplyDerivedStatDelta(BattleSlot slot, StatKind stat, int delta, int actionSequence)
+    {
+        Stats deltaStats = stat switch
+        {
+            StatKind.Spe => new Stats(0, 0, 0, 0, 0, delta),
+            _ => throw new ArgumentException("Derived-stat swap supports the speed stat only."),
+        };
+        _overlays.Apply(new BattleOverlayApplication(OverlayOwner(slot), new BattleOverlaySource(),
+            BattleOverlayLayer.Additive, new StatDeltaOverlay("derived_stat_swap", deltaStats), Turn, actionSequence,
+            Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+    }
 
     private void SetStage(BattleCreature creature, BattleSlot slot, StatKind stat, int value)
     {

@@ -43,6 +43,31 @@ public sealed class BattleStageMutationOpsTests
         Assert.Equal(0, user.Stage(StatKind.Def)); // exactly one stat raised
     }
 
+    [Fact]
+    public void SpeedSwapWritesReciprocalSpeedOverlaysAndEvents()
+    {
+        BattleMove speedSwap = Compile("speed_swap", DamageClass.Status, null, MoveTarget.Selected,
+            Op("derivedStatSwap", ("stat", "spe")));
+        BattleCreature user = Creature("user", new Stats(400, 100, 100, 100, 100, 30), speedSwap);
+        BattleCreature target = Creature("target", new Stats(400, 100, 100, 100, 100, 130), Inert());
+
+        var battle = new BattleController(user, target, Chart(), new FakeRng(ints: [0, 0]));
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new Pass());
+
+        DerivedStatMutated[] mutations = events.OfType<DerivedStatMutated>().ToArray();
+        Assert.Contains(mutations, m => m.Side == BattleSide.Player && m.Stat == StatKind.Spe
+            && m is { Before: 30, After: 130 });
+        Assert.Contains(mutations, m => m.Side == BattleSide.Enemy && m.Stat == StatKind.Spe
+            && m is { Before: 130, After: 30 });
+
+        // The swap is persisted as reciprocal additive Speed overlays (consumed by EffectiveValues().Stats).
+        int[] speedDeltas = battle.Overlays.Snapshot()
+            .Where(entry => entry.Payload is StatDeltaOverlay)
+            .Select(entry => ((StatDeltaOverlay)entry.Payload).Delta.Spe)
+            .OrderBy(delta => delta).ToArray();
+        Assert.Equal([-100, 100], speedDeltas);
+    }
+
     private static readonly Stats Fast = new(400, 120, 100, 120, 100, 100);
     private static readonly Stats Slow = new(400, 100, 100, 100, 100, 1);
 

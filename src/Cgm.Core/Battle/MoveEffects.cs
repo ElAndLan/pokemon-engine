@@ -127,6 +127,9 @@ public sealed record StatStealEffect : MoveEffect;
 /// <summary>raise one random eligible stat stage by a delta on the user or target (15F-5).</summary>
 public sealed record RandomStatRaiseEffect(int Delta, bool OnSelf) : MoveEffect;
 
+/// <summary>swap a raw derived stat (e.g. Speed Swap) between user and target via overlays (15F-5).</summary>
+public sealed record DerivedStatSwapEffect(StatKind Stat) : MoveEffect;
+
 /// <summary>apply_condition(volatile:flinch) on the target.</summary>
 public sealed record FlinchEffect : MoveEffect;
 

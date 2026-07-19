@@ -1336,6 +1336,18 @@ public static class MoveCompiler
                         chance);
                     break;
 
+                case "derivedStatSwap":
+                    CheckAllowedParams(e, "stat");
+                    StatKind swapStat = ParseNamed<StatKind>(Str(e, "stat"), "derived stat");
+                    if (swapStat != StatKind.Spe)
+                        throw new ArgumentException("derivedStatSwap currently supports only the speed stat.");
+                    if (!IsActiveCreatureTarget(move.Target) || move.Target == MoveTarget.User)
+                        throw new ArgumentException("derivedStatSwap requires an active-creature target.");
+                    if (effects.OfType<DerivedStatSwapEffect>().Any())
+                        throw new ArgumentException("A move can declare only one derivedStatSwap effect.");
+                    effects.Add(new DerivedStatSwapEffect(swapStat));
+                    break;
+
                 case "flinch":
                     flinchChance = chance;
                     AddChanceEffect(effects, new FlinchEffect(), chance);

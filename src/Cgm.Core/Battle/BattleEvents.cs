@@ -180,6 +180,12 @@ public sealed record CreatureTypesMutated(
     IReadOnlyList<EntityId> Before,
     IReadOnlyList<EntityId> After,
     BattleTypeOperation Operation) : BattleEvent;
+public sealed record DerivedStatMutated(
+    BattleSide Side,
+    int PartyIndex,
+    StatKind Stat,
+    int Before,
+    int After) : BattleEvent;
 public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

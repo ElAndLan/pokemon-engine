@@ -2443,9 +2443,20 @@ Ordered feature packages:
    opponent-targeting predicates. Spectral-Thief steal and Acupressure single-draw raise are proven
    end-to-end through `ResolveTurn`. Schema/migration impact: none; RNG draws exactly one value for the
    random raise, none for steal. Full solution passed **1,915/1,915** (1,602 Core, 104 Creator, 21
-   Runtime, 188 Tools). Remaining for 15F-5: derived-stat/metric overlay operations (Power/Guard Split,
-   Speed Swap) via the 15F-1 `StatsOverlay`/`MetricOverlay` payloads; the Baton Pass stage-carry
-   whitelist at switch (15G-1); Smart-AI parity; and generated conformance vectors.
+   Runtime, 188 Tools).
+
+   Progress (2026-07-19): **15F-5 Speed Swap (derived-stat overlay) wired.** Added the `derivedStatSwap
+   { stat }` move op, `DerivedStatSwapEffect`, and controller `ApplyDerivedStatSwap`, which reads each
+   participant's effective stat from `EffectiveValues().Stats`, writes reciprocal additive
+   `StatDeltaOverlay` contributions (each side's effective stat becomes the other's), and emits paired
+   `DerivedStatMutated` events. The overlays clear on switch/faint/battle-end and are consumed by the
+   existing effective-stats damage/turn-order path, so no consumer changes. Speed is the only supported
+   stat for now (the op rejects others). Proven end-to-end: a Speed-Swap resolve emits the reciprocal
+   events and persists ±(speed difference) additive overlays. Schema/migration/RNG impact: none. Full
+   solution passed **1,916/1,916** (1,603 Core, 104 Creator, 21 Runtime, 188 Tools). Remaining for
+   15F-5: Power/Guard Split (average Atk+SpA / Def+SpD across two creatures via the same additive
+   overlay mechanism); the Baton Pass stage-carry whitelist at switch (15G-1); Smart-AI parity for the
+   new stat ops; and generated conformance vectors.
 6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
    prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
    copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form
