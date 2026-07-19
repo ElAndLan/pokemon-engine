@@ -205,6 +205,8 @@ public static class MoveConformanceNormalizer
         if (mechanics.Effects.Any(effect => effect.Op is "statStageSteal" or "statStageRandomRaise"
             or "derivedStatSwap" or "derivedStatSplit"))
             testIds.Add($"StatMutationConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "decoy" or "transform" or "replaceMove"))
+            testIds.Add($"SnapshotConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

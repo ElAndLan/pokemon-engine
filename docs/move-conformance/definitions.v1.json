@@ -642,6 +642,35 @@
       ]
     },
     {
+      "referenceKey": "move-0102",
+      "sourceFileHash": "8910ff0857bc628733ab70746545183ab268b615b9d4007c87fd679ce9f9ea04",
+      "payloadContentHash": "b0c19b09302fbb7c7edeab550b4b8d96422d0df1aa6870e96c9c3c731f2cb6ec",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "replaceMove",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "replaceMove"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "db0ff48c7110d246f091806555f1de9522414a9f9babb39c578cf702be990c27",
+      "testIds": [
+        "SnapshotConformanceTests.Certified(move-0102)"
+      ]
+    },
+    {
       "referenceKey": "move-0111",
       "sourceFileHash": "f615eb80de89253da9428214ff20c75a8544b47a72a3c99ff97adf72f06cbf92",
       "payloadContentHash": "4eccd7a2312414d6fd7fc4010d3f867a1f27f03210f3aad1a86ef495e19e563c",
@@ -868,6 +897,35 @@
       ]
     },
     {
+      "referenceKey": "move-0144",
+      "sourceFileHash": "0770dffa4a5df6db5b350bb3cfe96e1068ade38da9db3b35d2977d39ef18a05e",
+      "payloadContentHash": "a6d58b09901ce227e448b260b995c8ec11cde2b1dd8b54c176dd16f8bbd0d318",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "targetTopology",
+        "transform"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "transform"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "20724dea61a488331e796a6af9115b1fac08cce028f6cfaae546b71ed11af2c2",
+      "testIds": [
+        "SnapshotConformanceTests.Certified(move-0144)"
+      ]
+    },
+    {
       "referenceKey": "move-0145",
       "sourceFileHash": "ae20089958f040e67dc90580301218382a3e63b6a73eacabea7038630f9a212c",
       "payloadContentHash": "c4470ac1669b8bfd937263fa1ac9059951e65781bd4f31a5e8284d52ae11df99",
@@ -1024,6 +1082,35 @@
       "normalizedDefinitionHash": "2bfb9c1bc4459975d3eca6e2ee30cd8c762ce70c99d9c1d9b19cab1d6662bc61",
       "testIds": [
         "HpStatusFormulaConformanceTests.Certified(move-0162)"
+      ]
+    },
+    {
+      "referenceKey": "move-0164",
+      "sourceFileHash": "67b4c5a2b5fba5dfe9628c64cf3143d1d10d0d1963f7737810ded038063684f5",
+      "payloadContentHash": "3ad4e723cb7e49b01e6448d41223ace52469b88275edeba9f81fd06e35795363",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "decoy",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "decoy"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "94c4cf733b35a0f4204a81e148dbf3c1da6c964ec6727ca0e7d74f6d21597f37",
+      "testIds": [
+        "SnapshotConformanceTests.Certified(move-0164)"
       ]
     },
     {

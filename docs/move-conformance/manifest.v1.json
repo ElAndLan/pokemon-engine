@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 774
+      "count": 771
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 163
+      "count": 166
     },
     {
       "status": "blockedReference",
@@ -1587,12 +1587,16 @@
       "payloadContentHash": "b0c19b09302fbb7c7edeab550b4b8d96422d0df1aa6870e96c9c3c731f2cb6ec",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "replaceMove",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "db0ff48c7110d246f091806555f1de9522414a9f9babb39c578cf702be990c27",
+      "testIds": [
+        "SnapshotConformanceTests.Certified(move-0102)"
+      ]
     },
     {
       "referenceKey": "move-0103",
@@ -2220,12 +2224,16 @@
       "payloadContentHash": "a6d58b09901ce227e448b260b995c8ec11cde2b1dd8b54c176dd16f8bbd0d318",
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
-        "unclassified"
+        "targetTopology",
+        "transform"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "20724dea61a488331e796a6af9115b1fac08cce028f6cfaae546b71ed11af2c2",
+      "testIds": [
+        "SnapshotConformanceTests.Certified(move-0144)"
+      ]
     },
     {
       "referenceKey": "move-0145",
@@ -2529,12 +2537,16 @@
       "payloadContentHash": "3ad4e723cb7e49b01e6448d41223ace52469b88275edeba9f81fd06e35795363",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "unclassified"
+        "decoy",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "94c4cf733b35a0f4204a81e148dbf3c1da6c964ec6727ca0e7d74f6d21597f37",
+      "testIds": [
+        "SnapshotConformanceTests.Certified(move-0164)"
+      ]
     },
     {
       "referenceKey": "move-0165",
