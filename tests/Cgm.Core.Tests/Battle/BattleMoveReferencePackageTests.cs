@@ -97,6 +97,30 @@ public sealed class BattleMoveReferencePackageTests
     }
 
     [Fact]
+    public void UserKnownSelector_ReadsTheEffectiveOverriddenMoveList()
+    {
+        // A UserKnown caller selects from the creature's live move list; ADR-011 OverrideMoves (Transform/
+        // Mimic) replaces that list, so the newly injected move becomes selectable (15F-7 over 15F-6).
+        BattleMove caller = new(EntityId.Parse("move:caller"), Normal, DamageClass.Status, null, null, 10, 0, 0,
+            target: MoveTarget.Selected, tags: ["uncallable"],
+            secondaryEffects: [new CallMoveEffect(new CallMoveProfile(MoveReferenceSelector.UserKnown,
+                CalledMovePpOwner.Caller, [], new Dictionary<BattleEnvironment, EntityId>(),
+                MoveReferenceResolver.DefaultExcludedTags))]);
+        BattleMove chosen = Inert("chosen"); // status move -> no execution RNG, isolating the selection draw
+        BattleCreature source = Creature("source", 100, caller);
+        source.OverrideMoves([caller, chosen]); // as if Transform/Mimic injected 'chosen'
+        BattleCreature target = Creature("target", 1, Inert());
+        var rng = new CountingRng();
+        var battle = new BattleController(source, target, Chart(), rng);
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new Pass());
+
+        Assert.Equal([caller.Move, chosen.Move], events.OfType<MoveUsed>().Select(e => e.Move));
+        Assert.Contains(events, e => e is MoveCalled { Called: var called } && called == chosen.Move);
+        Assert.Equal(0, rng.Calls); // the caller is excluded, leaving one candidate -> no draw
+    }
+
+    [Fact]
     public void CallLoop_StopsAtDepthEightWithoutAnUnneededDraw()
     {
         BattleMove loop = Call("loop", MoveReferenceSelector.ExplicitReference,

@@ -2460,6 +2460,31 @@ the value overlays.
 Acceptance vectors (transform): `transform-copies-types-stats-ability`, `transform-snapshot-independent`,
 `transform-preserves-own-hp`, `transform-already-transformed`, and `transform-switch-faint-end-reversion`.
 
+### Unified move selector/executor (Phase 15F-7)
+
+All called and copied move execution routes through one selector/executor built in 15D-7 and completed
+here. `MoveReferenceResolver.Select` chooses from a candidate pool with a fixed contract: candidates are
+filtered by required PP and excluded tags (`uncallable` by default) and de-duplicated by move ID; an
+empty pool selects nothing, a single eligible candidate is chosen with **no** RNG draw, and multiple
+eligible candidates take exactly one `IRng` draw over the eligible count. The closed selectors are
+`UserKnown`, `TargetKnown`, `UserLastUsed`, `TargetLastUsed`, `PartyKnown`, `AuthoredPool`,
+`EnvironmentPool`, and `ExplicitReference`.
+
+The known/last-used/party selectors read each creature's **effective** move list — the live
+`BattleCreature.Moves`, which ADR-011 `OverrideMoves` replaces on Transform and Mimic — so a temporarily
+replaced or copied move is selectable exactly like a native one and reverts with the override. Called
+execution is a typed chain resolved by `ResolveMoveInvocation`, not recursive `BattleController`
+re-entry: it follows at most `MoveReferenceResolver.MaximumDepth` (8) `callMove` links, then fails with
+`DepthExceeded` if the pool is still a caller. PP is charged to the declared owner (`Caller` or
+`Called`), the called move's target selection is revalidated (failing `TargetUnavailable` when its
+different target shape has no valid selection), and each link emits a `MoveCalled` edge plus a
+`MoveSelection` trace with the draw and pool count.
+
+Acceptance vectors: covered by the existing move-reference package tests (pool/exclusion matrix,
+one-candidate no-draw, multi-candidate exact draw, PP/event attribution, target revalidation, and the
+depth-8 recursion golden) plus `UserKnownSelector_ReadsTheEffectiveOverriddenMoveList` for the
+temporarily-replaced-move integration.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

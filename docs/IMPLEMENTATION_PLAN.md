@@ -2637,13 +2637,29 @@ Ordered feature packages:
    ability is not built) are deferred follow-ons. Schema/migration/RNG impact: none. Full solution
    passed **1,955/1,955** (1,633 Core, 104 Creator, 21 Runtime, 197 Tools). Next eligible package:
    **15F-7 unified move selector/executor**.
-7. **15F-7 — Unified move selector/executor (`PLANNED`; prerequisite 15D-7).** Finish selectors for
+7. **15F-7 — Unified move selector/executor (`IN PROGRESS`; prerequisite 15D-7).** Finish selectors for
    known, target, last, party, random, environment, and temporarily replaced moves over effective
    move lists. Lock pool ordering, exclusions, target/PP/event ownership, recursion depth 8, and
    temporary/permanent replacement cleanup. This is the only entry to called/copied move execution;
    no selector invokes `BattleController` recursively outside the typed execution stack. **Acceptance:**
    pool and exclusion matrix, one-candidate no draw, multi-candidate exact draw, PP/event attribution,
    replacement reversion, target invalidation, and recursion golden.
+
+   Progress (2026-07-19): **15F-7 spec-locked; effective-move-selection integration proven.** The
+   unified selector/executor was already implemented by 15D-7 — `MoveReferenceResolver.Select` (PP/tag
+   filter, dedupe-by-move, one-candidate no-draw, multi-candidate single draw), all eight selectors
+   (`UserKnown`/`TargetKnown`/`UserLastUsed`/`TargetLastUsed`/`PartyKnown`/`AuthoredPool`/`EnvironmentPool`/
+   `ExplicitReference`) in `MoveReferenceCandidates`, the typed `ResolveMoveInvocation` chain with
+   `MaximumDepth` 8 + `DepthExceeded`, PP-owner attribution, target revalidation, and `MoveCalled`/
+   `MoveSelection` events/traces. The one item this package adds — selection **over the effective move
+   list** (ADR-011) — needs no new code because the known/last/party selectors read the live
+   `creature.Moves`, which `OverrideMoves` replaces on Transform/Mimic. Spec-locked the contract in
+   `BATTLE_SYSTEM_SPEC.md §Unified move selector/executor` and added
+   `UserKnownSelector_ReadsTheEffectiveOverriddenMoveList`, proving a `callMove(UserKnown)` selects a
+   move injected by `OverrideMoves` with the caller excluded and no draw. Schema/migration/RNG impact:
+   none. Full solution passed **1,956/1,956** (1,634 Core, 104 Creator, 21 Runtime, 197 Tools). Remaining
+   for 15F-7: a `cgm-review-pass` to confirm the acceptance matrix (already covered by the 15D-7
+   move-reference package tests plus the new integration test) and close the package.
 
 Progress (2026-07-14): **15F-1 COMPLETE — focused review: GO.** The battle spec and effect catalog
 now lock one runtime-only effective-value path with immutable captured base values and typed overlays
