@@ -2453,10 +2453,21 @@ Ordered feature packages:
    existing effective-stats damage/turn-order path, so no consumer changes. Speed is the only supported
    stat for now (the op rejects others). Proven end-to-end: a Speed-Swap resolve emits the reciprocal
    events and persists ±(speed difference) additive overlays. Schema/migration/RNG impact: none. Full
-   solution passed **1,916/1,916** (1,603 Core, 104 Creator, 21 Runtime, 188 Tools). Remaining for
-   15F-5: Power/Guard Split (average Atk+SpA / Def+SpD across two creatures via the same additive
-   overlay mechanism); the Baton Pass stage-carry whitelist at switch (15G-1); Smart-AI parity for the
-   new stat ops; and generated conformance vectors.
+   solution passed **1,916/1,916** (1,603 Core, 104 Creator, 21 Runtime, 188 Tools).
+
+   Progress (2026-07-19): **15F-5 Power/Guard Split (derived-stat averaging) wired.** Added the
+   `derivedStatSplit { group: offense|defense }` op, `DerivedStatSplitEffect`, and controller
+   `ApplyDerivedStatSplit`, which averages each group stat (offense = Atk+Spa, defense = Def+Spd) across
+   user and target using integer floor and writes reciprocal additive `StatDeltaOverlay`s. Generalized
+   the derived-stat helpers (`DerivedStat`/`StatDelta` now cover Atk/Def/Spa/Spd/Spe) and gave each
+   contribution a **per-stat** overlay key so a two-stat split keeps both contributions instead of the
+   second overwriting the first (a collision I caught and fixed before it shipped). Paired
+   `DerivedStatMutated` events fire only for stats that actually change. Proven end-to-end: Power Split
+   over Atk 60/120 → 90 and Spa 41/80 → 60 (floor of 60.5) emits the four expected events and persists
+   four reciprocal per-stat overlays. Schema/migration/RNG impact: none. Full solution passed
+   **1,917/1,917** (1,604 Core, 104 Creator, 21 Runtime, 188 Tools). Remaining for 15F-5: Smart-AI
+   parity for the new stat ops; generated conformance vectors (Spectral Thief, Acupressure, Speed Swap,
+   Power/Guard Split); then a review to close. The Baton Pass stage-carry whitelist stays with 15G-1.
 6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
    prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
    copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form

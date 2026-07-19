@@ -1348,6 +1348,16 @@ public static class MoveCompiler
                     effects.Add(new DerivedStatSwapEffect(swapStat));
                     break;
 
+                case "derivedStatSplit":
+                    CheckAllowedParams(e, "group");
+                    DerivedStatGroup splitGroup = ParseNamed<DerivedStatGroup>(Str(e, "group"), "derived split group");
+                    if (!IsActiveCreatureTarget(move.Target) || move.Target == MoveTarget.User)
+                        throw new ArgumentException("derivedStatSplit requires an active-creature target.");
+                    if (effects.OfType<DerivedStatSplitEffect>().Any())
+                        throw new ArgumentException("A move can declare only one derivedStatSplit effect.");
+                    effects.Add(new DerivedStatSplitEffect(splitGroup));
+                    break;
+
                 case "flinch":
                     flinchChance = chance;
                     AddChanceEffect(effects, new FlinchEffect(), chance);

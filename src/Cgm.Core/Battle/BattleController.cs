@@ -1056,7 +1056,8 @@ public sealed class BattleController
         StatChangeEffect { OnSelf: false } or StatChangeAllEffect { OnSelf: false } or StatInvertEffect { OnSelf: false } => true,
         StatResetEffect { Scope: not StageEffectScope.Self } => true,
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
-        StatStealEffect or RandomStatRaiseEffect { OnSelf: false } or DerivedStatSwapEffect => true,
+        StatStealEffect or RandomStatRaiseEffect { OnSelf: false } or DerivedStatSwapEffect
+            or DerivedStatSplitEffect => true,
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
             or HpEqualizeEffect or OneShotQueryEffect { Query: OneShotQuery.Accuracy } => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
@@ -2555,6 +2556,7 @@ public sealed class BattleController
             case StatStealEffect steal: ApplyStatSteal(ctx, steal); break;
             case RandomStatRaiseEffect raise: ApplyRandomStatRaise(ctx, raise); break;
             case DerivedStatSwapEffect swap: ApplyDerivedStatSwap(ctx, swap); break;
+            case DerivedStatSplitEffect split: ApplyDerivedStatSplit(ctx, split); break;
             case StatInvertEffect i: ApplyStatInvert(ctx, i); break;
             case ConfusionEffect confusion: ApplyConfusion(ctx, confusion); break;
             case FlinchEffect f: ApplyFlinch(ctx, f); break;
@@ -3864,7 +3866,7 @@ public sealed class BattleController
             || (e is StatChangeAllEffect a && !a.OnSelf)
             || (e is StatResetEffect r && r.Scope != StageEffectScope.Self)
             || (e is StatCopyEffect c && (c.From == StageEffectScope.Target || c.To == StageEffectScope.Target))
-            || e is StatSwapEffect or StatStealEffect or DerivedStatSwapEffect
+            || e is StatSwapEffect or StatStealEffect or DerivedStatSwapEffect or DerivedStatSplitEffect
             || (e is StatInvertEffect i && !i.OnSelf)
             || (e is RandomStatRaiseEffect rr && !rr.OnSelf)));
 
@@ -4134,8 +4136,10 @@ public sealed class BattleController
         {
             // ponytail: a fresh additive delta per side computed from the pre-swap snapshot; each side's
             // effective stat becomes the other's. Composes with any prior deltas via the additive layer.
-            ApplyDerivedStatDelta(ctx.SourceSlot, effect.Stat, targetValue - userValue, ctx.TraceAction);
-            ApplyDerivedStatDelta(ctx.TargetSlot, effect.Stat, userValue - targetValue, ctx.TraceAction);
+            ApplyDerivedStatDelta(ctx.SourceSlot, StatDelta(effect.Stat, targetValue - userValue),
+                "derived_swap_speed", ctx.TraceAction);
+            ApplyDerivedStatDelta(ctx.TargetSlot, StatDelta(effect.Stat, userValue - targetValue),
+                "derived_swap_speed", ctx.TraceAction);
             _log.Add(new DerivedStatMutated(ctx.SourceSlot.Side, ActiveIndex(ctx.SourceSlot), effect.Stat,
                 userValue, targetValue));
             _log.Add(new DerivedStatMutated(ctx.TargetSlot.Side, ActiveIndex(ctx.TargetSlot), effect.Stat,
@@ -4144,23 +4148,72 @@ public sealed class BattleController
         TraceEffectChance(ctx, chance, start);
     }
 
-    private int DerivedStat(BattleSlot slot, StatKind stat) => stat switch
+    private void ApplyDerivedStatSplit(EffectContext ctx, DerivedStatSplitEffect effect)
     {
-        StatKind.Spe => EffectiveValues(slot).Stats.Spe,
-        _ => throw new ArgumentException("Derived-stat swap supports the speed stat only."),
+        int start = _log.Count;
+        EffectChanceResult chance = CheckEffectChance(EffectiveEffectChance(ctx, effect),
+            !ctx.Source.IsFainted && !ctx.Target.IsFainted);
+        if (!chance.Passed)
+        {
+            TraceEffectChance(ctx, chance, start);
+            return;
+        }
+        (StatKind a, StatKind b) = effect.Group == DerivedStatGroup.Offense
+            ? (StatKind.Atk, StatKind.Spa) : (StatKind.Def, StatKind.Spd);
+        string key = effect.Group == DerivedStatGroup.Offense ? "derived_split_offense" : "derived_split_defense";
+        SplitStat(ctx, a, key);
+        SplitStat(ctx, b, key);
+        TraceEffectChance(ctx, chance, start);
+    }
+
+    // Averages one derived stat across user and target (floor); both effective values become the average.
+    // The overlay key is per-stat so a two-stat split keeps both contributions instead of overwriting.
+    private void SplitStat(EffectContext ctx, StatKind stat, string groupKey)
+    {
+        string key = $"{groupKey}_{stat.ToString().ToLowerInvariant()}";
+        int userValue = DerivedStat(ctx.SourceSlot, stat);
+        int targetValue = DerivedStat(ctx.TargetSlot, stat);
+        int average = (userValue + targetValue) / 2; // stats are positive, so this floors
+        if (average != userValue)
+        {
+            ApplyDerivedStatDelta(ctx.SourceSlot, StatDelta(stat, average - userValue), key, ctx.TraceAction);
+            _log.Add(new DerivedStatMutated(ctx.SourceSlot.Side, ActiveIndex(ctx.SourceSlot), stat, userValue, average));
+        }
+        if (average != targetValue)
+        {
+            ApplyDerivedStatDelta(ctx.TargetSlot, StatDelta(stat, average - targetValue), key, ctx.TraceAction);
+            _log.Add(new DerivedStatMutated(ctx.TargetSlot.Side, ActiveIndex(ctx.TargetSlot), stat, targetValue, average));
+        }
+    }
+
+    private int DerivedStat(BattleSlot slot, StatKind stat)
+    {
+        Stats stats = EffectiveValues(slot).Stats;
+        return stat switch
+        {
+            StatKind.Atk => stats.Atk,
+            StatKind.Def => stats.Def,
+            StatKind.Spa => stats.Spa,
+            StatKind.Spd => stats.Spd,
+            StatKind.Spe => stats.Spe,
+            _ => throw new ArgumentException($"Derived-stat mutation does not support {stat}."),
+        };
+    }
+
+    private static Stats StatDelta(StatKind stat, int delta) => stat switch
+    {
+        StatKind.Atk => new Stats(0, delta, 0, 0, 0, 0),
+        StatKind.Def => new Stats(0, 0, delta, 0, 0, 0),
+        StatKind.Spa => new Stats(0, 0, 0, delta, 0, 0),
+        StatKind.Spd => new Stats(0, 0, 0, 0, delta, 0),
+        StatKind.Spe => new Stats(0, 0, 0, 0, 0, delta),
+        _ => throw new ArgumentException($"Derived-stat mutation does not support {stat}."),
     };
 
-    private void ApplyDerivedStatDelta(BattleSlot slot, StatKind stat, int delta, int actionSequence)
-    {
-        Stats deltaStats = stat switch
-        {
-            StatKind.Spe => new Stats(0, 0, 0, 0, 0, delta),
-            _ => throw new ArgumentException("Derived-stat swap supports the speed stat only."),
-        };
+    private void ApplyDerivedStatDelta(BattleSlot slot, Stats delta, string key, int actionSequence) =>
         _overlays.Apply(new BattleOverlayApplication(OverlayOwner(slot), new BattleOverlaySource(),
-            BattleOverlayLayer.Additive, new StatDeltaOverlay("derived_stat_swap", deltaStats), Turn, actionSequence,
+            BattleOverlayLayer.Additive, new StatDeltaOverlay(key, delta), Turn, actionSequence,
             Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
-    }
 
     private void SetStage(BattleCreature creature, BattleSlot slot, StatKind stat, int value)
     {

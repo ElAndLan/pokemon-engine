@@ -68,6 +68,35 @@ public sealed class BattleStageMutationOpsTests
         Assert.Equal([-100, 100], speedDeltas);
     }
 
+    [Fact]
+    public void PowerSplitAveragesBothOffenseStatsAcrossBothCreatures()
+    {
+        BattleMove powerSplit = Compile("power_split", DamageClass.Status, null, MoveTarget.Selected,
+            Op("derivedStatSplit", ("group", "offense")));
+        // Atk 60/120 -> avg 90; Spa 41/80 -> avg 60 (floor of 60.5); Def/Spd/Spe untouched.
+        BattleCreature user = Creature("user", new Stats(400, 60, 100, 41, 100, 30), powerSplit);
+        BattleCreature target = Creature("target", new Stats(400, 120, 100, 80, 100, 130), Inert());
+
+        var battle = new BattleController(user, target, Chart(), new FakeRng(ints: [0, 0]));
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new Pass());
+
+        DerivedStatMutated[] m = events.OfType<DerivedStatMutated>().ToArray();
+        Assert.Contains(m, e => e is { Side: BattleSide.Player, Stat: StatKind.Atk, Before: 60, After: 90 });
+        Assert.Contains(m, e => e is { Side: BattleSide.Enemy, Stat: StatKind.Atk, Before: 120, After: 90 });
+        Assert.Contains(m, e => e is { Side: BattleSide.Player, Stat: StatKind.Spa, Before: 41, After: 60 });
+        Assert.Contains(m, e => e is { Side: BattleSide.Enemy, Stat: StatKind.Spa, Before: 80, After: 60 });
+        Assert.DoesNotContain(m, e => e.Stat is StatKind.Def or StatKind.Spd or StatKind.Spe);
+
+        // Per-stat additive overlays (distinct keys) keep both Atk and Spa contributions.
+        StatDeltaOverlay[] deltas = battle.Overlays.Snapshot()
+            .Select(entry => entry.Payload).OfType<StatDeltaOverlay>().ToArray();
+        Assert.Equal(4, deltas.Length); // Atk + Spa, for user and target
+        Assert.Contains(deltas, d => d.Delta.Atk == 30);  // user +30 Atk
+        Assert.Contains(deltas, d => d.Delta.Atk == -30); // target -30 Atk
+        Assert.Contains(deltas, d => d.Delta.Spa == 19);  // user 60-41
+        Assert.Contains(deltas, d => d.Delta.Spa == -20); // target 60-80
+    }
+
     private static readonly Stats Fast = new(400, 120, 100, 120, 100, 100);
     private static readonly Stats Slow = new(400, 100, 100, 100, 100, 1);
 

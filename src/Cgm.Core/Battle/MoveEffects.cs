@@ -130,6 +130,11 @@ public sealed record RandomStatRaiseEffect(int Delta, bool OnSelf) : MoveEffect;
 /// <summary>swap a raw derived stat (e.g. Speed Swap) between user and target via overlays (15F-5).</summary>
 public sealed record DerivedStatSwapEffect(StatKind Stat) : MoveEffect;
 
+public enum DerivedStatGroup { Offense, Defense }
+
+/// <summary>average a derived stat group across user and target (Power/Guard Split) via overlays (15F-5).</summary>
+public sealed record DerivedStatSplitEffect(DerivedStatGroup Group) : MoveEffect;
+
 /// <summary>apply_condition(volatile:flinch) on the target.</summary>
 public sealed record FlinchEffect : MoveEffect;
 
