@@ -57,8 +57,10 @@ Starting baseline:
   Draining Kiss/Oblivion Wing) raises it to 192/937, and the pure recoil cohort (Take Down/Double-Edge/
   Submission/Brave Bird/Wood Hammer/Head Smash/Wild Charge/Head Charge/Light of Ruin) raises it to
   201/937, and the secondary-ailment attacker cohort (Thunderbolt/Ice Beam/Flamethrower/Sludge Bomb/
-  elemental punches/Poison Jab/Lick) raises it to 210/937. 15G-4 continues with flinch/stat secondaries
-  and target/delayed/cure/transfer/revival heals. Deferred environment
+  elemental punches/Poison Jab/Lick) raises it to 210/937, and the secondary-flinch attacker cohort
+  (Headbutt/Bite/Air Slash/Iron Head/Dark Pulse/Icicle Crash/… twenty moves) raises it to 230/937.
+  15G-4 continues with stat-drop secondaries and target/delayed/cure/transfer/revival heals. Deferred
+  environment
   consumers, doubles Bide unleash, and individual conformance vectors remain with their owning later
   packages without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

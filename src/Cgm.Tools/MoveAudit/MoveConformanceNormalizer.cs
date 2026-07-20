@@ -220,6 +220,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"RecoilConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op == "ailment"))
             testIds.Add($"SecondaryAilmentConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op == "flinch"))
+            testIds.Add($"SecondaryFlinchConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

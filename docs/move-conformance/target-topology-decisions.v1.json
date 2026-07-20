@@ -214,6 +214,26 @@
     { "referenceKey": "move-0008", "makesContact": true },
     { "referenceKey": "move-0007", "makesContact": true },
     { "referenceKey": "move-0398", "makesContact": true },
-    { "referenceKey": "move-0122", "makesContact": true }
+    { "referenceKey": "move-0122", "makesContact": true },
+    { "referenceKey": "move-0023", "makesContact": true },
+    { "referenceKey": "move-0027", "makesContact": true },
+    { "referenceKey": "move-0029", "makesContact": true },
+    { "referenceKey": "move-0044", "makesContact": true },
+    { "referenceKey": "move-0125", "makesContact": false },
+    { "referenceKey": "move-0127", "makesContact": true },
+    { "referenceKey": "move-0158", "makesContact": true },
+    { "referenceKey": "move-0302", "makesContact": true },
+    { "referenceKey": "move-0310", "makesContact": true },
+    { "referenceKey": "move-0326", "makesContact": false },
+    { "referenceKey": "move-0399", "makesContact": false },
+    { "referenceKey": "move-0403", "makesContact": false },
+    { "referenceKey": "move-0407", "makesContact": true },
+    { "referenceKey": "move-0428", "makesContact": true },
+    { "referenceKey": "move-0442", "makesContact": true },
+    { "referenceKey": "move-0531", "makesContact": true },
+    { "referenceKey": "move-0537", "makesContact": true },
+    { "referenceKey": "move-0556", "makesContact": false },
+    { "referenceKey": "move-0716", "makesContact": true },
+    { "referenceKey": "move-0731", "makesContact": true }
   ]
 }

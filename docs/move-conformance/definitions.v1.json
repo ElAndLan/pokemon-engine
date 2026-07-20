@@ -240,6 +240,114 @@
       ]
     },
     {
+      "referenceKey": "move-0023",
+      "sourceFileHash": "cb1a1781642cd01b5c58a886ea456e6aec443087c635c5272585085bf40c1903",
+      "payloadContentHash": "40b7c3de9b5b76b0f158558eb7ef17432649376a1ee790ea0344fcf65b794457",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "power": 65,
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "2b981890c124d4458686b73a03de5f72c818f3b25ab801f2eb25ab7d0a63c833",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0023)"
+      ]
+    },
+    {
+      "referenceKey": "move-0027",
+      "sourceFileHash": "e1ef0980e5e42333e2c734cdd53ed0f38c6a6b7d261d238b9bfa140d6bf4537f",
+      "payloadContentHash": "b8a1242463b157a2c9cf0c679442aa4a6f0b85e895827ff1c1d6d23039c0215c",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_02",
+        "damageClass": "physical",
+        "power": 60,
+        "accuracy": 85,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "5abe71d4cde8edd690587d20b88d4a63d14425be03e6c79c4c51c326064f7176",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0027)"
+      ]
+    },
+    {
+      "referenceKey": "move-0029",
+      "sourceFileHash": "b5101191967323515e9d4c9c695fd5db8ea488a4cac1cc5157a4d3900adac5ba",
+      "payloadContentHash": "706eaa529924fa65028267b63c5cae59a6cdf776c8bf0a5bb0f1595c77797f98",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "power": 70,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "f7407e2198ad2118f2136a283416776590d0ee62c1758de69940c9b3abaff7d4",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0029)"
+      ]
+    },
+    {
       "referenceKey": "move-0036",
       "sourceFileHash": "350443a883235c19da5db5e98bb482fa78af3f4670f923f32d4d41ed9e65a1dd",
       "payloadContentHash": "52b3a8e8707426336d6c37767aa3f973ed507bd494e7765b35bc6e511496a239",
@@ -423,6 +531,42 @@
       "normalizedDefinitionHash": "7926823cbeb7905772d2fb7b0509f8c371f09bbe134c9b195d1f819146e5985e",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0043)"
+      ]
+    },
+    {
+      "referenceKey": "move-0044",
+      "sourceFileHash": "58f301b9cb2f243a817daad5e6b8eac3cb4ee27cb8def95f726b813f0451a89a",
+      "payloadContentHash": "cffc278afa7e251547168c7a59987720485666ee65dd8aea0c7d63d19a393e54",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "physical",
+        "power": 60,
+        "accuracy": 100,
+        "pp": 25,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "3928796ca9e02053912ff86c116d8564553abe03a4bab5e3dcc0bddf94d5a2af",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0044)"
       ]
     },
     {
@@ -1319,6 +1463,78 @@
       ]
     },
     {
+      "referenceKey": "move-0125",
+      "sourceFileHash": "04689becc6e67e7de30e5b82c61677d01883e4b49b38bf0294f8536bb6d8c28f",
+      "payloadContentHash": "7443af0d55f6665cc6a46acb4298a8776b9d67c359d7afb0ba893948d21c4fff",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_05",
+        "damageClass": "physical",
+        "power": 65,
+        "accuracy": 85,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 10
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "842f5794876cd142f8674b31ace97071eb18ae9836421b76d3ffac82e0309ade",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0125)"
+      ]
+    },
+    {
+      "referenceKey": "move-0127",
+      "sourceFileHash": "891cf9f214c3286141f5ac972d93801589e02e30cf267555bf956f5fe57b204e",
+      "payloadContentHash": "08d75cfaa63e72ff14bed20bbf2abcdb72f55d77449b4fe34687af695559a465",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_11",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 20
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "4e4c7c2824623c2a28a3aa65d0d46cf7e7ed50096c1f96a4380f9aafd8d86641",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0127)"
+      ]
+    },
+    {
       "referenceKey": "move-0129",
       "sourceFileHash": "5f803e6a16202808fdd01615dd748d65a0789ccd2672c438bf1dfe6ccdf89d82",
       "payloadContentHash": "cd025352c103f351b71c3b0601856a5d7ea2dbb6e393857ea123edc0d933f9fe",
@@ -1535,7 +1751,8 @@
       },
       "normalizedDefinitionHash": "759f48471e559624930ff0490500aa1dddc10e7f4b1a321afb3623ad465e0460",
       "testIds": [
-        "ChargeConformanceTests.Certified(move-0143)"
+        "ChargeConformanceTests.Certified(move-0143)",
+        "SecondaryFlinchConformanceTests.Certified(move-0143)"
       ]
     },
     {
@@ -1676,7 +1893,44 @@
       },
       "normalizedDefinitionHash": "354d6a0b9c36717370ad0cd9d6a7909f667dcecdb9069d0a447cbd043c251797",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0157)"
+        "TargetTopologyConformanceTests.Certified(move-0157)",
+        "SecondaryFlinchConformanceTests.Certified(move-0157)"
+      ]
+    },
+    {
+      "referenceKey": "move-0158",
+      "sourceFileHash": "c74e0b1a4a132ce927d304bbeff10071bce2224500978066d07df6b649d3e7c5",
+      "payloadContentHash": "556de05e625753d2c8ff098fc8b9698e22532500f68399fd1d5e8f3ce7f0d3f3",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 90,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 10
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "7d759333bce8297319ddcc1839c619de74c0adfc32620c4891f3782273e2fcf8",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0158)"
       ]
     },
     {
@@ -2560,7 +2814,8 @@
       "normalizedDefinitionHash": "113db12ade5193da5bce9b29351050e6c0d20af5d516f9b326330ffab39563e5",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0239)",
-        "ChargeConformanceTests.Certified(move-0239)"
+        "ChargeConformanceTests.Certified(move-0239)",
+        "SecondaryFlinchConformanceTests.Certified(move-0239)"
       ]
     },
     {
@@ -2678,7 +2933,8 @@
       },
       "normalizedDefinitionHash": "d7ca20246b4898461754c6804d39cd1c4e978ae78b70a91174996163ae4b8369",
       "testIds": [
-        "ActionGateConformanceTests.Certified(move-0252)"
+        "ActionGateConformanceTests.Certified(move-0252)",
+        "SecondaryFlinchConformanceTests.Certified(move-0252)"
       ]
     },
     {
@@ -3364,6 +3620,42 @@
       ]
     },
     {
+      "referenceKey": "move-0302",
+      "sourceFileHash": "1b33aafda51c41f61e256ee4ec2d7a2bc62c7f7687db1a1c03ed3d1a5ca0c1ee",
+      "payloadContentHash": "26c5b085d295e35a07439d4ba04fe7ef1a95c22bafbf90905ef777a934930fc2",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_12",
+        "damageClass": "physical",
+        "power": 60,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "126124c9642c603d385d16e4a5627d41749955a315448179d459112385e66b7e",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0302)"
+      ]
+    },
+    {
       "referenceKey": "move-0303",
       "sourceFileHash": "64e178a042c3620c1cf8583503500e7606489ef30c7b01cff49b6b1230673c63",
       "payloadContentHash": "22457e28872368513fa3b830f1a5e3806851947907226fda10f0cad61f4e23d2",
@@ -3498,6 +3790,42 @@
       ]
     },
     {
+      "referenceKey": "move-0310",
+      "sourceFileHash": "2d15f18c16a19456087a8fc4765619752f2ac31be955bd02b3c73d981e6f3866",
+      "payloadContentHash": "f73c05b692224c73bf881ffb8d3dfd2996deefd69da0e7a109529a41bf7c09d7",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_08",
+        "damageClass": "physical",
+        "power": 30,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "89ebabc15815933cf63cdc16413634edc0e96a44c6b849009e5e77fee55d94d7",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0310)"
+      ]
+    },
+    {
       "referenceKey": "move-0314",
       "sourceFileHash": "473c630ae45824e2ed6360d9acd2b800fcb42be2eb8c7b93569e4ff968fb840d",
       "payloadContentHash": "d6cec2fc34c18c5a0058a5f0c0a2df94f51527d429e0d9236f03252c7ea869d8",
@@ -3565,6 +3893,42 @@
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0323)",
         "HpStatusFormulaConformanceTests.Certified(move-0323)"
+      ]
+    },
+    {
+      "referenceKey": "move-0326",
+      "sourceFileHash": "20dbdcb42290dad270997b5ffd726703ef33d9b5ea502d154b9274f3fd5425b2",
+      "payloadContentHash": "a4e5ba8fedf96a0119d58d57fe761794a8dee902fceeae6b30f2fb3ab7f1f2f7",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "special",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 10
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "c656bdd1ed92187121897679cf6a980f57dd2f7ed67cb98677a4f5dd0fd75ee0",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0326)"
       ]
     },
     {
@@ -4409,6 +4773,114 @@
       ]
     },
     {
+      "referenceKey": "move-0399",
+      "sourceFileHash": "6fd24704e19b1569695f50d1dbec57bd6ad409e3cc9fb7cc253b6c9b95f91ad6",
+      "payloadContentHash": "08d8b5293ad4b134f55a0692e847f3997373a14731522edbdabdb3737faf2df7",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_17",
+        "damageClass": "special",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 20
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "0fb9922786400f20269147c0aa9ac711144260c08336903b378a88d3522c6658",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0399)"
+      ]
+    },
+    {
+      "referenceKey": "move-0403",
+      "sourceFileHash": "2f22216eb11f5230ee110f0a3a531a261fd3e515434816d154935d88eadc036c",
+      "payloadContentHash": "2f174d55e522e4adc695c5122b0c3c229f4134a832c8b91d48af280d7c4dab30",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_03",
+        "damageClass": "special",
+        "power": 75,
+        "accuracy": 95,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "401e82a4a8c08c8ef94c4adbbd7addf00118e39f40c7e59b853517d70418b6cf",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0403)"
+      ]
+    },
+    {
+      "referenceKey": "move-0407",
+      "sourceFileHash": "cecd8d5c3da5a1fa3cb7d499b4cf3d87dbe8bc22a23df5af43df456637ab4386",
+      "payloadContentHash": "8a606be3e5aa5381e7c066db382524c7106177d672ccdc116ff9a8c9304109f4",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_16",
+        "damageClass": "physical",
+        "power": 100,
+        "accuracy": 75,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 20
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "20f44463731a8e5fc49c84859627a045a96be5da3018b988bafc525291d53b37",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0407)"
+      ]
+    },
+    {
       "referenceKey": "move-0409",
       "sourceFileHash": "b9d42b6a436a86201519d0386f6d13b034d208d79452208ab7b88356de82156e",
       "payloadContentHash": "7a62a20bbfd68ad99e308dc1476fd61da133411e0d76dfc00c34a041de943e5a",
@@ -4555,6 +5027,42 @@
       ]
     },
     {
+      "referenceKey": "move-0428",
+      "sourceFileHash": "65731aba579b1e5516e35906995da67eb4f2c11ebd015a5755a54aa19f3488ef",
+      "payloadContentHash": "3fdebc50898f2081736c123e9863d362963e5960cfdb558579bcb2352aa0a15b",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 90,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 20
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "27023d3d43153bb43ef8554ffe5f7e20b3c6c40b4b1920c6d7825f939133839b",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0428)"
+      ]
+    },
+    {
       "referenceKey": "move-0435",
       "sourceFileHash": "fb64ec082be4429e96cf82f9ec5d85543a4be63ad6cb49ac76a5445deaf60218",
       "payloadContentHash": "526d5519a035c013091b9bf926687ce2cf3866862b0d14d755dca8774fac9e2d",
@@ -4632,6 +5140,42 @@
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0436)",
         "SecondaryAilmentConformanceTests.Certified(move-0436)"
+      ]
+    },
+    {
+      "referenceKey": "move-0442",
+      "sourceFileHash": "52bd3090a16ecb1662f313c79383bb0522431947c3b4b05001c80882ad188a12",
+      "payloadContentHash": "fe9e436c5fbf4d60bf5fe37008c700a23047716316902b0df4d4dd55afba1a7b",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_09",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "9116a299c121787168a6db976f6198c2568ab2389bea59724e23e7a3910f4994",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0442)"
       ]
     },
     {
@@ -5808,6 +6352,42 @@
       ]
     },
     {
+      "referenceKey": "move-0531",
+      "sourceFileHash": "c63ce5e0d8e5b021c72cb9c0de8d7d02050a703bbdd4183283a546c4d600aefc",
+      "payloadContentHash": "08b7e93ff88b7bca130eeedd8c22dc6a822da4b164f10341f04770c1cf8c5831",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "physical",
+        "power": 60,
+        "accuracy": 100,
+        "pp": 25,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "abd3e4c975af3f92b4401e3424ab59d03a90ce525b1da6e960f0f07c92c412b8",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0531)"
+      ]
+    },
+    {
       "referenceKey": "move-0532",
       "sourceFileHash": "d3c390e622575baaf9fe8150e8979c8d7b969222457e72f293f9439f3ee37bed",
       "payloadContentHash": "f2ea83fd8351afe6648e28a070ca026853b5e12f6c296f0343a88ce6e4db4e69",
@@ -5844,6 +6424,42 @@
       "normalizedDefinitionHash": "4ba1b2d5a2646774c02b151357ac1eff5bdedc2737e45e5f7d9f717ceed044a8",
       "testIds": [
         "DrainConformanceTests.Certified(move-0532)"
+      ]
+    },
+    {
+      "referenceKey": "move-0537",
+      "sourceFileHash": "6d73f469591a7fa1d50be1f7b432d6e4380ca8a13083f52a1c337488ec24d8d1",
+      "payloadContentHash": "48da775cc4f1b3d8667dd62ba31a7d36f840c13ebd71246e70413d7f439720fc",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_07",
+        "damageClass": "physical",
+        "power": 65,
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "9e479a086931e4cf920fb3fae5f6d5f206d2bf571738c66b8490c8729c78976d",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0537)"
       ]
     },
     {
@@ -6093,6 +6709,42 @@
       "normalizedDefinitionHash": "4514a9141b2e75aec9a2f007be0ee921bba508b675518af83e3649262b2b2969",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0555)"
+      ]
+    },
+    {
+      "referenceKey": "move-0556",
+      "sourceFileHash": "42794586549d5050ffcd5fdfe77864d6a46696da6524a1996f65a11ecd5b20eb",
+      "payloadContentHash": "045a8503028e3633d6fce7012bf472fa462d540f73a86210756679875499667c",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_15",
+        "damageClass": "physical",
+        "power": 85,
+        "accuracy": 90,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "f8b4bbee1fb7d41e4e445ae545f6b383eb56d51fe9cfb3c02f5a43e41745008a",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0556)"
       ]
     },
     {
@@ -7252,6 +7904,42 @@
       ]
     },
     {
+      "referenceKey": "move-0716",
+      "sourceFileHash": "3818829a226c6c6a372f0fe14d56abcda476b80dc753a1e25e566baab1fa9f0c",
+      "payloadContentHash": "0b1f67b485c15ccd5817be5f3132bc40034552bf9c8e4c129cffd349bc4b217d",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_13",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "417cf49710ff6148dd2de6c3c3ac72b3800640fd526e7a468acab418cddf69a0",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0716)"
+      ]
+    },
+    {
       "referenceKey": "move-0717",
       "sourceFileHash": "7c2eb4db6ba91e41e3e8f8c6077715bba0cbbc58032ecd3465c0fe63d31506fb",
       "payloadContentHash": "03446d1d5b4b787297d02a34dfc48189c10361619363dbb66157c524b984fb71",
@@ -7336,6 +8024,42 @@
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0730)",
         "SecondaryAilmentConformanceTests.Certified(move-0730)"
+      ]
+    },
+    {
+      "referenceKey": "move-0731",
+      "sourceFileHash": "340b75247478bb49b1a5ebc92b416f1164c120a2454a1d853b695023006eaf6f",
+      "payloadContentHash": "c34759a312444e9f5f8ccdfbd04fc5958de59b5e211a02fd011db3a74f65a158",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "flinch",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_03",
+        "damageClass": "physical",
+        "power": 90,
+        "accuracy": 95,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "flinch",
+            "chance": 30
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "0ab2c8be34ed3a8b834dd0137a9927e27fb004928e0947aa347a1d87a71c5de7",
+      "testIds": [
+        "SecondaryFlinchConformanceTests.Certified(move-0731)"
       ]
     },
     {
@@ -7552,7 +8276,8 @@
       },
       "normalizedDefinitionHash": "c046b90815f9f07cd7c7cdf3c9242c658639eb5f77c322978f31d57facb25c2c",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0822)"
+        "TargetTopologyConformanceTests.Certified(move-0822)",
+        "SecondaryFlinchConformanceTests.Certified(move-0822)"
       ]
     },
     {
