@@ -9926,6 +9926,41 @@
       ]
     },
     {
+      "referenceKey": "move-0791",
+      "sourceFileHash": "cc79c97a93fe004839fa846e52c88d0ff4841c6aa1eb83e35d3a139690ff60d4",
+      "payloadContentHash": "6f1ea63c2864971d78649f493bf8a0964c1a54437f51bf2c5e960bd33d2be5c0",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "doubles",
+      "mechanicFamilies": [
+        "heal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_11",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "userAndAllies",
+        "effects": [
+          {
+            "op": "heal",
+            "params": {
+              "num": 1,
+              "den": 4,
+              "recipient": "target"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "f751608bdac0ca79ff6150833801cecab46cbb02614809355ba469779f872cfa",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0791)",
+        "HealingConformanceTests.Certified(move-0791)"
+      ]
+    },
+    {
       "referenceKey": "move-0812",
       "sourceFileHash": "6816ef71e3ded46b5d85f41f347c2da5c28522412048c8ec50aa8da27a397483",
       "payloadContentHash": "32892b1e97fe77ad48ad94e748d81b821ac49252cd64da407ea3b9232de68dee",

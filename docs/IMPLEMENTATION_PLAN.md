@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 270/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + target-heal and secondary-ailment/flinch/stat-drop/self-buff attacker cohorts certified; delayed/cure/transfer/revival heals remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 271/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + selected/multi-target healing and secondary-ailment/flinch/stat-drop/self-buff attacker cohorts certified; formula/residual/cure/transfer/revival heals remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3200,6 +3200,22 @@ Ordered feature packages:
    Creator, 21 Runtime, 351 Tools). Schema, dependency, saved-data, presentation, and RNG impact:
    none. Remaining 15G-4 work includes multi-target/formula/residual healing, cures/transfer,
    sacrifice/revival, costs, and the package boundary/golden matrix.
+
+   Progress (2026-07-20): **15G-4 active-side multi-target healing certified (270 → 271/937).**
+   The pure `user-and-allies` recovery row now authors the existing target-scoped `heal { 1/4 }` op,
+   causing the shared doubles target materializer to heal both live allied slots in topology order
+   from each recipient's own max HP. `HealingConformanceTests` locks the typed target recipient and
+   quarter fraction; `TargetTopologyConformanceTests` now damages both allied fixtures and verifies
+   both state changes and ordered `Healed` events for generic target-scoped heals. The related
+   multi-target heal-plus-cure row remains with the cure criterion rather than being partially
+   certified. Focused healing/topology conformance passed **80/80**. Two regenerations were
+   byte-identical at 937 inventoried / **271 certified**, unchanged corpus digest
+   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`,
+   definitions SHA-256 `EC9DA1F61001A444B29696DB27FDC570F12C380ED9CA22AF082979CA37D274EC`,
+   and manifest SHA-256 `CAC2CA2D51399159D1CDB5C8A5D36C72E5E32EE8285B5DF0FA77DDC0289F104E`.
+   Full build passed with 0 warnings/errors; full tests passed **2,133/2,133** (1,654 Core, 104
+   Creator, 21 Runtime, 354 Tools). Production, schema, dependency, presentation, and RNG impact:
+   none. Next coherent 15G-4 work is the reusable persistent-status cure family.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`IN PROGRESS`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

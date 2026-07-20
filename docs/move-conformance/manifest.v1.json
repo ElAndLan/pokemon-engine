@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 667
+      "count": 666
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 270
+      "count": 271
     },
     {
       "status": "blockedReference",
@@ -12553,12 +12553,17 @@
       "payloadContentHash": "6f1ea63c2864971d78649f493bf8a0964c1a54437f51bf2c5e960bd33d2be5c0",
       "sourceTarget": "user-and-allies",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "f751608bdac0ca79ff6150833801cecab46cbb02614809355ba469779f872cfa",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0791)",
+        "HealingConformanceTests.Certified(move-0791)"
+      ]
     },
     {
       "referenceKey": "move-0792",

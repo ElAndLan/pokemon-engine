@@ -43,6 +43,7 @@ public sealed class TargetTopologyConformanceTests
         BattleCreature enemy0 = Creature("e0", enemyMove, move.Type, 100, [contactHook]);
         BattleCreature enemy1 = Creature("e1", Wait(move.Type), move.Type, 50);
         player0.TakeDamage(400);
+        player1.TakeDamage(400);
         var battle = new BattleController(
             [player0, player1], [enemy0, enemy1], BattleTopology.Doubles,
             [0, 1], [0, 1], new TypeChart([new TypeDef { Id = move.Type }]), new ConformanceRng());
@@ -139,6 +140,10 @@ public sealed class TargetTopologyConformanceTests
                 break;
             case FlinchEffect:
                 Assert.All(targets, slot => Assert.True(At(slot).Flinched));
+                break;
+            case HealEffect { Recipient: HpFractionRecipient.Target }:
+                Assert.All(targets, slot => Assert.True(At(slot).CurrentHp > 600));
+                Assert.Equal(targets, events.OfType<Healed>().Select(e => e.Slot!.Value).ToArray());
                 break;
             case MoveGateEffect or QueueActionGateEffect:
                 break;

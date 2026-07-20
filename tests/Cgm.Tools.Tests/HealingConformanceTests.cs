@@ -86,6 +86,22 @@ public sealed class HealingConformanceTests
                 && fraction == new Fraction(2, 3));
     }
 
+    [Fact]
+    public void UserAndAlliesHealCohortUsesTargetRecipientAndQuarterFraction()
+    {
+        BattleMove[] moves = Catalog().Entries
+            .Where(entry => entry.TestIds.Any(id => id.StartsWith("HealingConformanceTests.Certified(",
+                StringComparison.Ordinal)))
+            .Select(entry => MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(entry.ReferenceKey)))
+            .Where(move => move.Target == MoveTarget.UserAndAllies)
+            .ToArray();
+
+        Assert.NotEmpty(moves);
+        Assert.All(moves, move => Assert.Equal(
+            new HealEffect(new Fraction(1, 4), HpFractionRecipient.Target),
+            Assert.Single(move.SecondaryEffects.OfType<HealEffect>())));
+    }
+
     private static MoveConformanceCatalog Catalog() => CgmJson.Deserialize<MoveConformanceCatalog>(
         File.ReadAllText(Path.Combine(RepoRoot(), "docs", "move-conformance", "definitions.v1.json")));
 

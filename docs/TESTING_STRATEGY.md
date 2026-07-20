@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15 is active at 270/937 strict certifications; 15G-4 is in progress after the selected-target healing cohort.**
+Status: **Phase 15 is active at 271/937 strict certifications; 15G-4 is in progress after the active-side multi-target healing cohort.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -382,6 +382,10 @@ effects on self-only and field scopes; typed compilation of a selected-target ha
 replacement data; shared resolver healing, clamp, event, and target isolation; per-reference
 conformance; and byte-identical regeneration. It adds no RNG, schema, dependency, or named-move
 behavior and advances strict certification from 268 to 270/937.
+
+The active-side multi-target healing vector additionally proves recipient-local fraction rounding
+and ordered state/event resolution for both allied slots through the shared doubles target
+materializer. It advances strict certification from 270 to 271/937 without production or RNG change.
 
 ## Golden format
 
