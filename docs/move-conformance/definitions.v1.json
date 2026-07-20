@@ -3630,6 +3630,58 @@
       ]
     },
     {
+      "referenceKey": "move-0265",
+      "sourceFileHash": "beb00718f3550905214cc566daed717e9064e2f82df73d0342b360d439651cc8",
+      "payloadContentHash": "9b110378fe257fdf0e676ee42e3695be915905dccfe61c2aaad85a3f02424569",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "standardDamage",
+        "statusCure",
+        "statusPower",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "power": 70,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "statusPower",
+            "params": {
+              "subject": "target",
+              "status": "paralysis",
+              "multiplierNum": 2,
+              "multiplierDen": 1,
+              "ignoreSourceBurnPenalty": false
+            }
+          },
+          {
+            "op": "statusCure",
+            "params": {
+              "recipient": "target",
+              "statuses": "paralysis",
+              "requireDamage": true
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "488891b30b67c24e9ee202eab1486a05cad40663387c9915b3ede28c06172305",
+      "testIds": [
+        "HpStatusFormulaConformanceTests.Certified(move-0265)",
+        "StatusCureConformanceTests.Certified(move-0265)"
+      ]
+    },
+    {
       "referenceKey": "move-0267",
       "sourceFileHash": "08d2ffc2fb35c04469dfbd30bee4ea1256d7e9a0f400f433720a6cfdfe42a5a1",
       "payloadContentHash": "cbabe0927f0672e021a0eaddbc1a00ff8b37666a11e45da6c022070eb0a874bf",
@@ -4036,6 +4088,38 @@
       "normalizedDefinitionHash": "a77c5efe920fbe79144dc2e409ee921d7570b9c23e5649db19cf9a52b31a7080",
       "testIds": [
         "ActionFilterConformanceTests.Certified(move-0286)"
+      ]
+    },
+    {
+      "referenceKey": "move-0287",
+      "sourceFileHash": "f93d4fed427bcf7b268b44ff3bae17e811cc38c5d0e056c1950237d2a0f54c59",
+      "payloadContentHash": "7599d7c3a747ff591f2ef06c088fa76b91e61ff9cec32aca037b18b6e864d85c",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "statusCure",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "statusCure",
+            "params": {
+              "statuses": "burn,paralysis,poison,toxic"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "0f72d9875b2c1d3aec9187cc34d23d37a529f855a60f36aacede0c7bff0c3249",
+      "testIds": [
+        "StatusCureConformanceTests.Certified(move-0287)"
       ]
     },
     {
@@ -4989,6 +5073,58 @@
       "normalizedDefinitionHash": "cd7277250c0c86d91e381c21fba0fcdb0756138a2e1a8710480a4130329e7106",
       "testIds": [
         "DelayedActionConformanceTests.Certified(move-0353)"
+      ]
+    },
+    {
+      "referenceKey": "move-0358",
+      "sourceFileHash": "7c5172004df749b294e0a69b2fd3a01fa59d800550c227d552cf4ae86dc7b99b",
+      "payloadContentHash": "1f57e96376f9dc6ec262e1bc68e3ae8c197ede1f671950b5de5c235b26dcad28",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "standardDamage",
+        "statusCure",
+        "statusPower",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_02",
+        "damageClass": "physical",
+        "power": 70,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "statusPower",
+            "params": {
+              "subject": "target",
+              "status": "sleep",
+              "multiplierNum": 2,
+              "multiplierDen": 1,
+              "ignoreSourceBurnPenalty": false
+            }
+          },
+          {
+            "op": "statusCure",
+            "params": {
+              "recipient": "target",
+              "statuses": "sleep",
+              "requireDamage": true
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "bdb21e82b2e956ce4e9e3e5ff1080044079f5640d5846454d5641dbfedea331e",
+      "testIds": [
+        "HpStatusFormulaConformanceTests.Certified(move-0358)",
+        "StatusCureConformanceTests.Certified(move-0358)"
       ]
     },
     {
@@ -9069,6 +9205,47 @@
       "normalizedDefinitionHash": "714ea62d730dad2f01a7e205f54f76051f271a079cbc827d291efaadc48f3a1a",
       "testIds": [
         "ActionGateConformanceTests.Certified(move-0660)"
+      ]
+    },
+    {
+      "referenceKey": "move-0664",
+      "sourceFileHash": "631ab24956e08b2be0fa12f1eb9a809e9f22aaf9bfdb2b84ce5fce2059571a01",
+      "payloadContentHash": "4da5d33ae60249d85b43d45e4bcd9b0799145f5d9e6f1a8f3f4203f0b96e984c",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "doubles",
+      "mechanicFamilies": [
+        "standardDamage",
+        "statusCure",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_11",
+        "damageClass": "special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "allOtherPokemon",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "statusCure",
+            "params": {
+              "recipient": "target",
+              "statuses": "burn",
+              "requireDamage": true
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "463db205254000c17bdf45d12338d146550d3cccfd4c73f4d6d4421e88ba7bef",
+      "testIds": [
+        "TargetTopologyConformanceTests.Certified(move-0664)",
+        "StatusCureConformanceTests.Certified(move-0664)"
       ]
     },
     {

@@ -243,6 +243,7 @@ Damage model values for `deal_damage`:
 | `heal_hp` | Restores HP by flat, percent, full, delayed, drain-derived, slot-derived, or formula amount. | Recover, Roost, Synthesis, Wish, potions, Grassy Terrain, Aqua Ring, Strength Sap. |
 | `heal` weather table | Optional unique `weather:num/den` rows replace the authored max-HP fraction through `on_healing_query`; unlisted weather is neutral. | solar recovery family, sand-amplified recovery family. |
 | `restore_resource` | Restores PP, cures status, restores item/ability state, or refreshes limited-use state. | Ether, Leppa Berry, Heal Bell, Aromatherapy, Recycle, Lunar Blessing. |
+| `statusCure` | Removes one matching persistent status from `self` or a materialized `target`; optional unique `statuses` filters and per-target `requireDamage` use actual HP removed. | filtered self cures, damage-then-cure, spread burn cure. |
 | `pay_cost` | Pays HP, PP, item, turn, fainting, stat, or condition cost. | Substitute, Belly Drum, Curse-Ghost, Mind Blown-like costs, Healing Wish self-faint. |
 | `apply_recoil_or_crash` | Damages user after damage, miss, failure, or contact. | recoil, Jump Kick crash, Life Orb, Steel Beam-style cost. |
 | `set_hp_by_formula` | Sets/equalizes HP using formula instead of normal damage/heal. | Pain Split, Endeavor-like HP matching. |

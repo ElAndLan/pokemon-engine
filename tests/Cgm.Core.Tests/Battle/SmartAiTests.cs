@@ -537,6 +537,30 @@ public sealed class SmartAiTests
     }
 
     [Fact]
+    public void StatusCureScoresMatchingVisibleRecipientsWithTheCorrectSign()
+    {
+        BattleMove selfCure = new(EntityId.Parse("move:self_cure"), Normal,
+            DamageClass.Status, null, null, 10, 0, 0, target: MoveTarget.User,
+            secondaryEffects: [new StatusCureEffect(HpFractionRecipient.Self,
+                [PersistentStatus.Burn], false)]);
+        BattleMove targetCure = new(EntityId.Parse("move:target_cure"), Normal,
+            DamageClass.Physical, 40, 100, 10, 0, 0,
+            secondaryEffects: [new StatusCureEffect(HpFractionRecipient.Target,
+                [PersistentStatus.Poison], true)]);
+        BattleCreature attacker = Attacker(selfCure, targetCure);
+        attacker.SetStatus(PersistentStatus.Burn);
+        BattleCreature defender = Defender(Normal);
+        defender.SetStatus(PersistentStatus.Poison);
+
+        SmartAiDecision decision = SmartAi.ChooseAction(Ctx([attacker], [defender]));
+
+        Assert.Contains(decision.Scores.Single(score => score.Action == new UseMove(0)).Components,
+            component => component.Name == "statusCure" && component.Value > 0);
+        Assert.Contains(decision.Scores.Single(score => score.Action == new UseMove(1)).Components,
+            component => component.Name == "statusCure" && component.Value < 0);
+    }
+
+    [Fact]
     public void ReplacementRestore_IsValuedOnlyForAReserveThatNeedsSelectedResources()
     {
         BattleMove restore = new(EntityId.Parse("move:replacement_restore"), Normal,

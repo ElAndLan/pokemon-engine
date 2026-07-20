@@ -202,6 +202,12 @@ public sealed record HpFractionEffect(
     HpFractionBasis Basis,
     Fraction Fraction) : MoveEffect;
 
+/// <summary>Cures a matching persistent status from the user or one materialized target.</summary>
+public sealed record StatusCureEffect(
+    HpFractionRecipient Recipient,
+    IReadOnlyList<PersistentStatus> Statuses,
+    bool RequireDamage) : MoveEffect;
+
 /// <summary>Changes base power when the move user or target has a matching persistent status.</summary>
 public sealed record StatusPowerEffect(
     StatusPowerSubject Subject,

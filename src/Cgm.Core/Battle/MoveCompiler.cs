@@ -306,6 +306,26 @@ public static class MoveCompiler
                         hpFraction));
                     break;
 
+                case "statusCure":
+                    if (chance != 100)
+                        throw new ArgumentException("statusCure does not support chance.");
+                    CheckAllowedParams(e, "recipient", "statuses", "requireDamage");
+                    HpFractionRecipient cureRecipient = e.Params?.ContainsKey("recipient") == true
+                        ? Parse<HpFractionRecipient>(Str(e, "recipient"), "recipient")
+                        : HpFractionRecipient.Self;
+                    ValidateHpRecipient(move.Target, cureRecipient, "statusCure");
+                    IReadOnlyList<PersistentStatus> cureStatuses = ParseList<PersistentStatus>(e, "statuses");
+                    if (e.Params?.ContainsKey("statuses") == true && cureStatuses.Count == 0)
+                        throw new ArgumentException("statusCure statuses cannot be empty.");
+                    bool cureRequiresDamage = Bool(e, "requireDamage");
+                    if (cureRequiresDamage && (cureRecipient != HpFractionRecipient.Target
+                        || move.DamageClass == DamageClass.Status))
+                        throw new ArgumentException("statusCure requireDamage needs a damaging target-recipient move.");
+                    if (effects.OfType<StatusCureEffect>().Any())
+                        throw new ArgumentException("A move can declare only one statusCure effect.");
+                    effects.Add(new StatusCureEffect(cureRecipient, cureStatuses, cureRequiresDamage));
+                    break;
+
                 case "multiHit":
                     multiHitMin = Int(e, "min");
                     multiHitMax = Int(e, "max");

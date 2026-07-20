@@ -20,6 +20,7 @@ public enum EffectTraceKind
     DamageRoll,
     Damage,
     HpFormula,
+    StatusCure,
     LockDuration,
     Charge,
     SemiInvulnerability,

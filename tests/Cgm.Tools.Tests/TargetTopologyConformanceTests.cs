@@ -44,6 +44,9 @@ public sealed class TargetTopologyConformanceTests
         BattleCreature enemy1 = Creature("e1", Wait(move.Type), move.Type, 50);
         player0.TakeDamage(400);
         player1.TakeDamage(400);
+        if (compiled.SecondaryEffects.OfType<StatusCureEffect>().SingleOrDefault() is { } cure)
+            foreach (BattleCreature recipient in new[] { player1, enemy0, enemy1 })
+                recipient.SetStatus(cure.Statuses.FirstOrDefault(PersistentStatus.Burn));
         var battle = new BattleController(
             [player0, player1], [enemy0, enemy1], BattleTopology.Doubles,
             [0, 1], [0, 1], new TypeChart([new TypeDef { Id = move.Type }]), new ConformanceRng());
@@ -144,6 +147,10 @@ public sealed class TargetTopologyConformanceTests
             case HealEffect { Recipient: HpFractionRecipient.Target }:
                 Assert.All(targets, slot => Assert.True(At(slot).CurrentHp > 600));
                 Assert.Equal(targets, events.OfType<Healed>().Select(e => e.Slot!.Value).ToArray());
+                break;
+            case StatusCureEffect { Recipient: HpFractionRecipient.Target }:
+                Assert.All(targets, slot => Assert.Null(At(slot).Status));
+                Assert.Equal(targets, events.OfType<StatusCured>().Select(e => e.Slot).ToArray());
                 break;
             case MoveGateEffect or QueueActionGateEffect:
                 break;

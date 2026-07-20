@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15 is active at 271/937 strict certifications; 15G-4 is in progress after the active-side multi-target healing cohort.**
+Status: **Phase 15 is active at 275/937 strict certifications; 15G-4 is in progress after the active persistent-status cure family.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -386,6 +386,12 @@ behavior and advances strict certification from 268 to 270/937.
 The active-side multi-target healing vector additionally proves recipient-local fraction rounding
 and ordered state/event resolution for both allied slots through the shared doubles target
 materializer. It advances strict certification from 270 to 271/937 without production or RNG change.
+
+The active `statusCure` family proves closed compiler validation; optional any/exact filters;
+matching, mismatched, and fainted recipients; toxic-counter cleanup; actual-damage immunity/no-op;
+spread target order; events and typed traces; signed Smart-AI parity; exact formula/filter agreement;
+and per-reference certification. It advances strict certification from 271 to 275/937 with no RNG,
+schema, dependency, or named-move behavior.
 
 ## Golden format
 

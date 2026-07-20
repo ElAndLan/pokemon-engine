@@ -150,6 +150,9 @@ Capabilities:
   - status on a healthy unstated target;
   - setup when the AI is not in immediate KO danger;
   - recovery below a threshold if the move is available.
+  - a filtered persistent-status cure only when its visible recipient has a matching status; curing
+    the user contributes positive `statusCure` value, while curing an opposing target contributes
+    the corresponding negative value after required-damage and hit-probability checks.
 - Boss trainers can use limited healing items once trainer item actions exist.
 - Replacement after fainting prefers a party member with a good type matchup or strongest damage.
 - Voluntary switching is rare:

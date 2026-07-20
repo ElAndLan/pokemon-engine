@@ -63,8 +63,9 @@ Starting baseline:
   moves) raises it to 257/937, and the self-buff attacker cohort (Metal Claw/Meteor Mash/Ancient Power/
   Charge Beam/… eleven moves, with the onSelf category bug fixed) raises it to 268/937, and the
   selected-target half-heal/terrain-heal cohort raises it to 270/937, and active-side multi-target
-  healing raises it to 271/937. 15G-4 continues with formula/residual healing, costs,
-  cures/transfer, sacrifice, and revival. Deferred environment
+  healing raises it to 271/937, and the active persistent-status cure family raises it to 275/937.
+  15G-4 continues with party-wide/confusion cure, conditional cure/heal, formula/residual healing,
+  costs, transfer, sacrifice, and revival. Deferred environment
   consumers, doubles Bide unleash, and individual conformance vectors remain with their owning later
   packages without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

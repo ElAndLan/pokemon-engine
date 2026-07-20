@@ -1126,6 +1126,7 @@ public sealed class BattleController
         StatStealEffect or RandomStatRaiseEffect { OnSelf: false } or DerivedStatSwapEffect
             or DerivedStatSplitEffect or TransformEffect => true,
         HealEffect { Recipient: HpFractionRecipient.Target } or HpFractionEffect { Recipient: HpFractionRecipient.Target }
+            or StatusCureEffect { Recipient: HpFractionRecipient.Target }
             or HpEqualizeEffect or OneShotQueryEffect { Query: OneShotQuery.Accuracy } => true,
         GroundedStateEffect { Scope: GroundedStateScope.Target } => true,
         ApplyActionFilterEffect { Owner: SideConditionTarget.Target } => true,
@@ -2812,6 +2813,9 @@ public sealed class BattleController
             case HpFractionEffect h:
                 ApplyHpFraction(ctx, h);
                 break;
+            case StatusCureEffect cure:
+                ApplyStatusCure(ctx, cure);
+                break;
             case HpEqualizeEffect equalize:
                 ApplyHpEqualize(ctx, equalize);
                 break;
@@ -3268,6 +3272,23 @@ public sealed class BattleController
                 effectiveType: damageQuery!.Identity.EffectiveType,
                 effectiveClass: damageQuery.Identity.EffectiveClass);
         }
+    }
+
+    private void ApplyStatusCure(EffectContext ctx, StatusCureEffect effect)
+    {
+        (BattleCreature recipient, BattleSlot slot) = FractionRecipient(ctx, effect.Recipient);
+        PersistentStatus? status = recipient.Status;
+        bool performed = !recipient.IsFainted && status is { } current
+            && (effect.Statuses.Count == 0 || effect.Statuses.Contains(current))
+            && (!effect.RequireDamage || ctx.DamageDealt > 0);
+        int start = _log.Count;
+        if (performed)
+        {
+            recipient.ClearStatus();
+            _log.Add(new StatusCured(slot, status!.Value));
+        }
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, slot, EffectTraceKind.StatusCure, performed, null,
+            performed ? (int)status!.Value : 0, start, _log.Count);
     }
 
     private void ApplyHpEqualize(EffectContext ctx, HpEqualizeEffect effect)

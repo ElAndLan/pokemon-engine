@@ -275,6 +275,10 @@
     { "referenceKey": "move-0783", "makesContact": true },
     { "referenceKey": "move-0505", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 2, "recipient": "target" } }] },
     { "referenceKey": "move-0666", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 2, "recipient": "target", "terrain": "Grassy:2/3" } }] },
-    { "referenceKey": "move-0791", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 4, "recipient": "target" } }] }
+    { "referenceKey": "move-0791", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 4, "recipient": "target" } }] },
+    { "referenceKey": "move-0265", "makesContact": true, "additionalEffects": [{ "op": "statusPower", "params": { "subject": "target", "status": "paralysis", "multiplierNum": 2, "multiplierDen": 1, "ignoreSourceBurnPenalty": false } }, { "op": "statusCure", "params": { "recipient": "target", "statuses": "paralysis", "requireDamage": true } }] },
+    { "referenceKey": "move-0287", "makesContact": false, "additionalEffects": [{ "op": "statusCure", "params": { "statuses": "burn,paralysis,poison,toxic" } }] },
+    { "referenceKey": "move-0358", "makesContact": true, "additionalEffects": [{ "op": "statusPower", "params": { "subject": "target", "status": "sleep", "multiplierNum": 2, "multiplierDen": 1, "ignoreSourceBurnPenalty": false } }, { "op": "statusCure", "params": { "recipient": "target", "statuses": "sleep", "requireDamage": true } }] },
+    { "referenceKey": "move-0664", "makesContact": false, "additionalEffects": [{ "op": "statusCure", "params": { "recipient": "target", "statuses": "burn", "requireDamage": true } }] }
   ]
 }

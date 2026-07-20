@@ -2548,6 +2548,33 @@ checked arithmetic.
 Per-hit source/last-versus-sum consumers over the richer 15G-2 `BattleActionHistory` remain the
 remaining 15G-3 work.
 
+### Persistent-status cure (Phase 15G-4)
+
+The closed `statusCure { recipient?, statuses?, requireDamage? }` op removes one matching persistent
+status from a live active creature. `recipient` is `self` by default or `target`; a target recipient
+requires an externally targeted active-creature scope. Omitting `statuses` matches any persistent
+status; when present it is a nonempty, unique comma-separated enum list. The op is chance-free,
+allows at most one row per move, and never removes confusion or another volatile condition.
+
+`requireDamage` defaults false. When true it requires a damaging target-recipient move and rechecks
+the current materialized target's actual HP damage after the ordinary damage pipeline. A miss,
+immunity, protection block, decoy-only hit, or zero HP removed leaves the status unchanged. Spread
+resolution evaluates each target independently in topology order. A matching cure clears the status
+and its counter, emits `StatusCured`, and records a no-RNG `StatusCure` trace; fainted, unstatused,
+filtered, and damage-ineligible recipients emit only a performed-false trace. Failure to cure does
+not by itself fail the move or stop later authored effects; conditional cure composites remain a
+separate explicit gate rather than hidden coupling.
+
+Smart AI reads the same typed effect and visible recipient status. A matching self cure contributes
+positive `statusCure`; curing an opposing target contributes the corresponding negative value, with
+required-damage eligibility and hit probability applied. The preview neither mutates status nor
+reads hidden party state.
+
+Acceptance vectors: strict chance/param/recipient/filter/damage validation; matching and filtered
+self cure; actual-damage target cure and immunity no-op; spread per-target order; status counter
+clear; event/trace observability; AI sign/parity; immutable definitions; and sanitized per-reference
+conformance.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

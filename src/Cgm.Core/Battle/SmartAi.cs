@@ -261,6 +261,16 @@ public static class SmartAi
             && TerrainAllowsStatus(context, delayedStatus.Status, defender))
             c.Add(new("delayedStatus", weights.StatusValue * HpFraction(defender) * 0.9));
 
+        if (move.SecondaryEffects.OfType<StatusCureEffect>().SingleOrDefault() is { } cure)
+        {
+            BattleCreature recipient = cure.Recipient == HpFractionRecipient.Self ? attacker : defender;
+            if (recipient.Status is { } status
+                && (cure.Statuses.Count == 0 || cure.Statuses.Contains(status))
+                && (!cure.RequireDamage || damage > 0))
+                c.Add(new("statusCure", (cure.Recipient == HpFractionRecipient.Self ? 1 : -1)
+                    * weights.StatusValue * (cure.RequireDamage ? accuracy : 1)));
+        }
+
         if (move.StageEffect is { OnSelf: true, Delta: > 0 } setup
             && !ThreatensKo(defender, attacker, context.Chart, context))
             c.Add(new("setup", weights.SetupValue * setup.Delta));

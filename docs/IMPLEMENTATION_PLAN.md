@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 271/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + selected/multi-target healing and secondary-ailment/flinch/stat-drop/self-buff attacker cohorts certified; formula/residual/cure/transfer/revival heals remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 275/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + selected/multi-target healing, active status cure, and secondary-ailment/flinch/stat-drop/self-buff attacker cohorts certified; formula/residual/party-cure/transfer/revival heals remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3216,6 +3216,28 @@ Ordered feature packages:
    Full build passed with 0 warnings/errors; full tests passed **2,133/2,133** (1,654 Core, 104
    Creator, 21 Runtime, 354 Tools). Production, schema, dependency, presentation, and RNG impact:
    none. Next coherent 15G-4 work is the reusable persistent-status cure family.
+
+   Progress (2026-07-20): **15G-4 active persistent-status cure family certified (271 → 275/937) —
+   focused review GO.** The new chance-free `statusCure` op removes one matching persistent status
+   from `self` or a materialized `target`, optionally filters a unique status list, and can require
+   actual per-target HP damage. Compiler validation rejects invalid recipient scopes, empty/duplicate/
+   unknown filters, chance, duplicate rows, and damage gating on status/self effects. Resolution
+   clears the status counter, emits `StatusCured`, records a typed no-RNG trace for success and no-op,
+   and evaluates spread targets independently in topology order. Smart AI uses the same visible typed
+   effect and exposes signed `statusCure` value without hidden party reads.
+
+   Four sanitized rows certify: filtered self cure; two target status-power/damage/cure composites;
+   and spread damage-then-burn-cure. Party-wide persistent/confusion cure and conditional cure-then-
+   heal remain unclaimed. Focused Core cure/AI passed **4/4**; focused cure/formula/topology/normalizer
+   conformance passed **94/94**. Review found one FIX-NOW proof gap (filters were only enum-valid),
+   fixed by exact self-filter, formula/filter, spread-burn, omitted-any, and toxic-counter assertions.
+   Two complete generations were byte-identical at 937 inventoried / **275 certified**, corpus digest
+   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`,
+   definitions SHA-256 `865860DC2D3EFCD6154D32866DD6B34D28D60428D77E2FAF7916087455872EA3`,
+   and manifest SHA-256 `C71DD02ABC5DB15AFA7D26187CA10F93D13A3CD2A4CAC39F913507409A8D4EFA`.
+   Full build passed with 0 warnings/errors; full tests passed **2,144/2,144** (1,658 Core, 104
+   Creator, 21 Runtime, 361 Tools). Schema, dependency, definition-mutation, and RNG impact: none.
+   Next 15G-4 criterion is party-wide persistent/confusion cure, followed by conditional cure/heal.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`IN PROGRESS`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;
