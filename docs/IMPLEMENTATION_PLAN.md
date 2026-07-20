@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 201/937 certified; 15G-4 IN PROGRESS (self-heal + weather-heal + drain + recoil cohorts certified; target/delayed/cure/transfer/revival heals remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 210/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + secondary-ailment attacker cohorts certified; flinch/stat secondaries, target/delayed/cure/transfer/revival heals remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3126,6 +3126,19 @@ Ordered feature packages:
    already proven by `BattleV5OpTests.Recoil_HurtsAttacker`. Volt Tackle/Flare Blitz deferred (recoil +
    ailment chance). Byte-identical regen, digest unchanged, count +9 exactly. Full solution
    **2,018/2,018** (1,654 Core, 104 Creator, 21 Runtime, 239 Tools). Crossed 200/937.
+
+   Progress (2026-07-20): **15G-4 secondary-ailment attacker cohort certified (201 → 210/937).** Opened
+   the large "damaging move + chance-based status" bucket: no family certified plain `damage + ailment`
+   before. Added an `ailment` testId rule + `SecondaryAilmentConformanceTests` (per-row: a chance-bearing
+   `AilmentEffect`/`ConfusionEffect` with `Chance` in [1,100]; a damaging-attacker Fact asserting a
+   sub-100% secondary). `AddAilment` already derives the op, so nine neutral decisions certify the
+   classic added-effect attackers: **Thunderbolt/Thunder Punch/Lick** (paralysis), **Ice Beam/Ice Punch**
+   (freeze), **Flamethrower/Fire Punch** (burn), **Sludge Bomb/Poison Jab** (poison). Ailment execution
+   is already proven by the status battle tests. The rule additively tagged the already-certified
+   ailment-carrying moves (extra testId, count unchanged), all of which pass the new generic assertion —
+   full suite green is the safety net. Byte-identical regen, digest unchanged, count +9 exactly. Full
+   solution **2,041/2,041** (1,654 Core, 104 Creator, 21 Runtime, 262 Tools). Next: the flinch-secondary
+   and stat-drop-secondary attacker sub-cohorts (same shape, different op).
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`IN PROGRESS`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

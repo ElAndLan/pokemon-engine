@@ -2,6 +2,123 @@
   "formatVersion": 1,
   "entries": [
     {
+      "referenceKey": "move-0007",
+      "sourceFileHash": "80aa9a610e83606ba6e9203174f4b339edcd297d6957c711b7c9c344f41dd59f",
+      "payloadContentHash": "b6253ce6e33d79c91f21e20c1d62b9f4108798817c3f628441182150e640fbfe",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_10",
+        "damageClass": "physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 10,
+            "params": {
+              "ailment": "burn"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "c6fc256f80de458f2bde732272780265779499542d0d22c49f98170192de77b9",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0007)"
+      ]
+    },
+    {
+      "referenceKey": "move-0008",
+      "sourceFileHash": "fe67a44386f34dc8d913760fd46123c6689712f3ce258f03bbe891d6a495eb95",
+      "payloadContentHash": "608d2a6c560adafec6ea733bea1e11393ba89a79e3e6f644558de36278b6c7d1",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_15",
+        "damageClass": "physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 10,
+            "params": {
+              "ailment": "freeze"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "51f7f4e1540275ac0e816963c5a66e340cdc19e407d53d94dbd7f33de862a0b9",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0008)"
+      ]
+    },
+    {
+      "referenceKey": "move-0009",
+      "sourceFileHash": "19630cd38c0c6dd85fac8716363f0dcf87a9d96e308119f32a560b901798ae33",
+      "payloadContentHash": "5ab143d33f8c6973e152bba08640e67d4dc0ab49d48b2a17ae69db96e72e73ce",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_13",
+        "damageClass": "physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 10,
+            "params": {
+              "ailment": "paralysis"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "0f0e118473322ae52b3dc218eed05a16fedba52a454d75e24584d9a29bf1c880",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0009)"
+      ]
+    },
+    {
       "referenceKey": "move-0013",
       "sourceFileHash": "4c0272dea2dc2e0eeeb7ecc78230f8da3ff7123326e480cb3cf40c640a05d078",
       "payloadContentHash": "15cc2d70a4472db596c6dccfebd19b54cbe848b9c3c8f790f77facd78fd0f994",
@@ -419,6 +536,45 @@
       ]
     },
     {
+      "referenceKey": "move-0053",
+      "sourceFileHash": "374d695ff42a43e147449d3a6552506924d3e8ac4e6fbb9b893a9a796d8e6e74",
+      "payloadContentHash": "0e02cdcbbf8087c1db0aa47f545b83e18d42016799a33c9b768f8cf58409fcae",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_10",
+        "damageClass": "special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 10,
+            "params": {
+              "ailment": "burn"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "a59c6bb2fde785655a8a7918f75a56d49ca89952111d351daa5924a56740a357",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0053)"
+      ]
+    },
+    {
       "referenceKey": "move-0057",
       "sourceFileHash": "543d175a189a23c34e36820a77747d379bafd21a02fbb6a42a92c3cdc225602a",
       "payloadContentHash": "f253c2e10157feb74b9a705150c709f97d3fd03e15756520c927b5c3a7b7a65a",
@@ -457,6 +613,45 @@
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0057)",
         "ChargeConformanceTests.Certified(move-0057)"
+      ]
+    },
+    {
+      "referenceKey": "move-0058",
+      "sourceFileHash": "6194e20dae5e26fd35b3ea685d630e5ad6d003a1f4b64b7e62dae6b10c826f75",
+      "payloadContentHash": "312d9e320e5006174b6085be127110ac4337a68f25afcb68a3263d40ecb8d6dc",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_15",
+        "damageClass": "special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 10,
+            "params": {
+              "ailment": "freeze"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "0eaa6df4a56e4ae3fe8bc893b1dc0862b2d4878eacdaca5c5b0e527039498e6c",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0058)"
       ]
     },
     {
@@ -794,6 +989,45 @@
       ]
     },
     {
+      "referenceKey": "move-0085",
+      "sourceFileHash": "92c766a1cfd737fd08d938d4ed7d0b4a10aa305cd43f22634595eb33b728b4de",
+      "payloadContentHash": "26a179c9ea052a66c8eb3355dee2fa3417704888e8313451571fa409ee853752",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_13",
+        "damageClass": "special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 10,
+            "params": {
+              "ailment": "paralysis"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "b3f21654688f692405c097c90be76ad1426ce4f2e3987f6a276c99d4c483d8f9",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0085)"
+      ]
+    },
+    {
       "referenceKey": "move-0089",
       "sourceFileHash": "859eb04a040e56ba5b5d0e2be8ab16f701c3856c3cdc304adbf0421cfceebed5",
       "payloadContentHash": "abf020a32727fdc6139a9c55d54a40a2de6f59cf4a73a53881598074c9768758",
@@ -1046,6 +1280,45 @@
       ]
     },
     {
+      "referenceKey": "move-0122",
+      "sourceFileHash": "9b19c9a240c2beee8474c0c066acf2bd3b44a9db12046b2d42895e6ec5bcc963",
+      "payloadContentHash": "11eb83b3405f72bc1a10fb6d12646a13618d3254f17606e5781a3c5a2c4866b9",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_08",
+        "damageClass": "physical",
+        "power": 30,
+        "accuracy": 100,
+        "pp": 30,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 30,
+            "params": {
+              "ailment": "paralysis"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "121f44c3b25e93ba73e708b2c7fe832992b1a578459ccd85935fd5cad772a182",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0122)"
+      ]
+    },
+    {
       "referenceKey": "move-0129",
       "sourceFileHash": "5f803e6a16202808fdd01615dd748d65a0789ccd2672c438bf1dfe6ccdf89d82",
       "payloadContentHash": "cd025352c103f351b71c3b0601856a5d7ea2dbb6e393857ea123edc0d933f9fe",
@@ -1182,7 +1455,8 @@
       },
       "normalizedDefinitionHash": "b142cdf6c0d8701bfc54b5b29db7bea9348b86ec58700d516d59bab28a24acf9",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0139)"
+        "TargetTopologyConformanceTests.Certified(move-0139)",
+        "SecondaryAilmentConformanceTests.Certified(move-0139)"
       ]
     },
     {
@@ -1667,7 +1941,47 @@
       },
       "normalizedDefinitionHash": "dc35074f767a0d256b1cdb34167f67d77b98dcb6299a7190ec59b89b78accc8b",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0181)"
+        "TargetTopologyConformanceTests.Certified(move-0181)",
+        "SecondaryAilmentConformanceTests.Certified(move-0181)"
+      ]
+    },
+    {
+      "referenceKey": "move-0188",
+      "sourceFileHash": "ca2745e2f33010fdc150ca6a02c90ef7abdd83bc315eba71e129c179dac294f4",
+      "payloadContentHash": "9100b4622e62175dad3870fa9c4038a61f909e69f3f0308c265b93be3937b999",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_04",
+        "damageClass": "special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 30,
+            "params": {
+              "ailment": "poison"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "4643ffe4008ff1a973ad061679a663d8ca39001306977a15d8c9bf870745fb2f",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0188)"
       ]
     },
     {
@@ -2403,7 +2717,8 @@
       },
       "normalizedDefinitionHash": "abdd4c228a0b4f012632ba9054697d1d12f5ef4fc97161155c9e84282759a4b3",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0257)"
+        "TargetTopologyConformanceTests.Certified(move-0257)",
+        "SecondaryAilmentConformanceTests.Certified(move-0257)"
       ]
     },
     {
@@ -2999,7 +3314,8 @@
       },
       "normalizedDefinitionHash": "faea0f51e462d747c4f2940fe7e2ed5807bdc601fd9cd7e1e367a0497bcbcbf0",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0298)"
+        "TargetTopologyConformanceTests.Certified(move-0298)",
+        "SecondaryAilmentConformanceTests.Certified(move-0298)"
       ]
     },
     {
@@ -3450,7 +3766,8 @@
       },
       "normalizedDefinitionHash": "d48b9ca338447568e3610a7c1eed551c850df70a616d264429f304d9e5e85226",
       "testIds": [
-        "ChargeConformanceTests.Certified(move-0340)"
+        "ChargeConformanceTests.Certified(move-0340)",
+        "SecondaryAilmentConformanceTests.Certified(move-0340)"
       ]
     },
     {
@@ -4053,6 +4370,45 @@
       ]
     },
     {
+      "referenceKey": "move-0398",
+      "sourceFileHash": "04212e235ca25ee1d69b913c3ff476e12dd90c0b8d175317f97a8746a130d81c",
+      "payloadContentHash": "f4445c15e2cc1158073603a296d7593fefd61e87ea7db2f3abb4aef2ffe2114f",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "ailment",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_04",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "ailment",
+            "chance": 30,
+            "params": {
+              "ailment": "poison"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "12897d47f4fdd9904e3b3e5c53b3ae05460db66d9b24d2a2fff7acb789154c04",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0398)"
+      ]
+    },
+    {
       "referenceKey": "move-0409",
       "sourceFileHash": "b9d42b6a436a86201519d0386f6d13b034d208d79452208ab7b88356de82156e",
       "payloadContentHash": "7a62a20bbfd68ad99e308dc1476fd61da133411e0d76dfc00c34a041de943e5a",
@@ -4234,7 +4590,8 @@
       },
       "normalizedDefinitionHash": "df8017c3af9af84110d8e1bcc90e6ba67bbedd4b05d141e09f990d80ae65c858",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0435)"
+        "TargetTopologyConformanceTests.Certified(move-0435)",
+        "SecondaryAilmentConformanceTests.Certified(move-0435)"
       ]
     },
     {
@@ -4273,7 +4630,8 @@
       },
       "normalizedDefinitionHash": "41ebac38e97b8b132792ae502864d719e88c859b751a5a6e113f8c206576798d",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0436)"
+        "TargetTopologyConformanceTests.Certified(move-0436)",
+        "SecondaryAilmentConformanceTests.Certified(move-0436)"
       ]
     },
     {
@@ -4495,7 +4853,8 @@
       },
       "normalizedDefinitionHash": "0ad819b60b748c80a0685c649cb17d640051d4dfd2de9866bafe49bb31b8904a",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0464)"
+        "TargetTopologyConformanceTests.Certified(move-0464)",
+        "SecondaryAilmentConformanceTests.Certified(move-0464)"
       ]
     },
     {
@@ -4682,7 +5041,8 @@
       },
       "normalizedDefinitionHash": "5140d5f6e44a3b5b5d2a290d5a641ba9c3448d0b8024a0c9e3993a96ccff1dd5",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0482)"
+        "TargetTopologyConformanceTests.Certified(move-0482)",
+        "SecondaryAilmentConformanceTests.Certified(move-0482)"
       ]
     },
     {
@@ -5561,7 +5921,8 @@
       },
       "normalizedDefinitionHash": "15a4daacb2661ba845f248251672c1f0553068373abca591cd61a26b1377aa4f",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0545)"
+        "TargetTopologyConformanceTests.Certified(move-0545)",
+        "SecondaryAilmentConformanceTests.Certified(move-0545)"
       ]
     },
     {
@@ -5645,7 +6006,8 @@
       },
       "normalizedDefinitionHash": "30253a0d6047df7622e7b77a4cb62173b795d20a354855349b6e560fcd66a811",
       "testIds": [
-        "ChargeConformanceTests.Certified(move-0553)"
+        "ChargeConformanceTests.Certified(move-0553)",
+        "SecondaryAilmentConformanceTests.Certified(move-0553)"
       ]
     },
     {
@@ -5688,7 +6050,8 @@
       },
       "normalizedDefinitionHash": "f173096c0e4739510f20b4909498b41e9bb6da413d09371a1da7c049161986e8",
       "testIds": [
-        "ChargeConformanceTests.Certified(move-0554)"
+        "ChargeConformanceTests.Certified(move-0554)",
+        "SecondaryAilmentConformanceTests.Certified(move-0554)"
       ]
     },
     {
@@ -6971,7 +7334,8 @@
       },
       "normalizedDefinitionHash": "7fb3bedf257ee5a42052f10bdd6020613d42e5806a23b07578dd9d816b9ef5c6",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0730)"
+        "TargetTopologyConformanceTests.Certified(move-0730)",
+        "SecondaryAilmentConformanceTests.Certified(move-0730)"
       ]
     },
     {

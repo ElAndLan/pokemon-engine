@@ -205,6 +205,15 @@
     { "referenceKey": "move-0457", "makesContact": true },
     { "referenceKey": "move-0528", "makesContact": true },
     { "referenceKey": "move-0543", "makesContact": true },
-    { "referenceKey": "move-0617", "makesContact": false }
+    { "referenceKey": "move-0617", "makesContact": false },
+    { "referenceKey": "move-0085", "makesContact": false },
+    { "referenceKey": "move-0058", "makesContact": false },
+    { "referenceKey": "move-0053", "makesContact": false },
+    { "referenceKey": "move-0188", "makesContact": false },
+    { "referenceKey": "move-0009", "makesContact": true },
+    { "referenceKey": "move-0008", "makesContact": true },
+    { "referenceKey": "move-0007", "makesContact": true },
+    { "referenceKey": "move-0398", "makesContact": true },
+    { "referenceKey": "move-0122", "makesContact": true }
   ]
 }

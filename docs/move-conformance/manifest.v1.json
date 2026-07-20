@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 736
+      "count": 727
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 201
+      "count": 210
     },
     {
       "status": "blockedReference",
@@ -128,12 +128,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "c6fc256f80de458f2bde732272780265779499542d0d22c49f98170192de77b9",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0007)"
+      ]
     },
     {
       "referenceKey": "move-0008",
@@ -143,12 +147,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "51f7f4e1540275ac0e816963c5a66e340cdc19e407d53d94dbd7f33de862a0b9",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0008)"
+      ]
     },
     {
       "referenceKey": "move-0009",
@@ -158,12 +166,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "0f0e118473322ae52b3dc218eed05a16fedba52a454d75e24584d9a29bf1c880",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0009)"
+      ]
     },
     {
       "referenceKey": "move-0010",
@@ -847,12 +859,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "a59c6bb2fde785655a8a7918f75a56d49ca89952111d351daa5924a56740a357",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0053)"
+      ]
     },
     {
       "referenceKey": "move-0054",
@@ -924,12 +940,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "0eaa6df4a56e4ae3fe8bc893b1dc0862b2d4878eacdaca5c5b0e527039498e6c",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0058)"
+      ]
     },
     {
       "referenceKey": "move-0059",
@@ -1356,12 +1376,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "b3f21654688f692405c097c90be76ad1426ce4f2e3987f6a276c99d4c483d8f9",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0085)"
+      ]
     },
     {
       "referenceKey": "move-0086",
@@ -1915,12 +1939,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "121f44c3b25e93ba73e708b2c7fe832992b1a578459ccd85935fd5cad772a182",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0122)"
+      ]
     },
     {
       "referenceKey": "move-0123",
@@ -2185,7 +2213,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "b142cdf6c0d8701bfc54b5b29db7bea9348b86ec58700d516d59bab28a24acf9",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0139)"
+        "TargetTopologyConformanceTests.Certified(move-0139)",
+        "SecondaryAilmentConformanceTests.Certified(move-0139)"
       ]
     },
     {
@@ -2849,7 +2878,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "dc35074f767a0d256b1cdb34167f67d77b98dcb6299a7190ec59b89b78accc8b",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0181)"
+        "TargetTopologyConformanceTests.Certified(move-0181)",
+        "SecondaryAilmentConformanceTests.Certified(move-0181)"
       ]
     },
     {
@@ -2945,12 +2975,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "4643ffe4008ff1a973ad061679a663d8ca39001306977a15d8c9bf870745fb2f",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0188)"
+      ]
     },
     {
       "referenceKey": "move-0189",
@@ -4032,7 +4066,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "abdd4c228a0b4f012632ba9054697d1d12f5ef4fc97161155c9e84282759a4b3",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0257)"
+        "TargetTopologyConformanceTests.Certified(move-0257)",
+        "SecondaryAilmentConformanceTests.Certified(move-0257)"
       ]
     },
     {
@@ -4686,7 +4721,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "faea0f51e462d747c4f2940fe7e2ed5807bdc601fd9cd7e1e367a0497bcbcbf0",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0298)"
+        "TargetTopologyConformanceTests.Certified(move-0298)",
+        "SecondaryAilmentConformanceTests.Certified(move-0298)"
       ]
     },
     {
@@ -5351,7 +5387,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "d48b9ca338447568e3610a7c1eed551c850df70a616d264429f304d9e5e85226",
       "testIds": [
-        "ChargeConformanceTests.Certified(move-0340)"
+        "ChargeConformanceTests.Certified(move-0340)",
+        "SecondaryAilmentConformanceTests.Certified(move-0340)"
       ]
     },
     {
@@ -6247,12 +6284,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "ailment",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "12897d47f4fdd9904e3b3e5c53b3ae05460db66d9b24d2a2fff7acb789154c04",
+      "testIds": [
+        "SecondaryAilmentConformanceTests.Certified(move-0398)"
+      ]
     },
     {
       "referenceKey": "move-0399",
@@ -6816,7 +6857,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "df8017c3af9af84110d8e1bcc90e6ba67bbedd4b05d141e09f990d80ae65c858",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0435)"
+        "TargetTopologyConformanceTests.Certified(move-0435)",
+        "SecondaryAilmentConformanceTests.Certified(move-0435)"
       ]
     },
     {
@@ -6835,7 +6877,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "41ebac38e97b8b132792ae502864d719e88c859b751a5a6e113f8c206576798d",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0436)"
+        "TargetTopologyConformanceTests.Certified(move-0436)",
+        "SecondaryAilmentConformanceTests.Certified(move-0436)"
       ]
     },
     {
@@ -7268,7 +7311,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "0ad819b60b748c80a0685c649cb17d640051d4dfd2de9866bafe49bb31b8904a",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0464)"
+        "TargetTopologyConformanceTests.Certified(move-0464)",
+        "SecondaryAilmentConformanceTests.Certified(move-0464)"
       ]
     },
     {
@@ -7549,7 +7593,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "5140d5f6e44a3b5b5d2a290d5a641ba9c3448d0b8024a0c9e3993a96ccff1dd5",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0482)"
+        "TargetTopologyConformanceTests.Certified(move-0482)",
+        "SecondaryAilmentConformanceTests.Certified(move-0482)"
       ]
     },
     {
@@ -8555,7 +8600,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "15a4daacb2661ba845f248251672c1f0553068373abca591cd61a26b1377aa4f",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0545)"
+        "TargetTopologyConformanceTests.Certified(move-0545)",
+        "SecondaryAilmentConformanceTests.Certified(move-0545)"
       ]
     },
     {
@@ -8683,7 +8729,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "30253a0d6047df7622e7b77a4cb62173b795d20a354855349b6e560fcd66a811",
       "testIds": [
-        "ChargeConformanceTests.Certified(move-0553)"
+        "ChargeConformanceTests.Certified(move-0553)",
+        "SecondaryAilmentConformanceTests.Certified(move-0553)"
       ]
     },
     {
@@ -8703,7 +8750,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "f173096c0e4739510f20b4909498b41e9bb6da413d09371a1da7c049161986e8",
       "testIds": [
-        "ChargeConformanceTests.Certified(move-0554)"
+        "ChargeConformanceTests.Certified(move-0554)",
+        "SecondaryAilmentConformanceTests.Certified(move-0554)"
       ]
     },
     {
@@ -11356,7 +11404,8 @@
       "status": "certified",
       "normalizedDefinitionHash": "7fb3bedf257ee5a42052f10bdd6020613d42e5806a23b07578dd9d816b9ef5c6",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0730)"
+        "TargetTopologyConformanceTests.Certified(move-0730)",
+        "SecondaryAilmentConformanceTests.Certified(move-0730)"
       ]
     },
     {
