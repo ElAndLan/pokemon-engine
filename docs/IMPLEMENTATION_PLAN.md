@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 184/937 certified; 15G-4 IN PROGRESS (plain + weather-scaled self-heal cohorts certified; target/delayed/cure/transfer/revival heals remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 192/937 certified; 15G-4 IN PROGRESS (self-heal + weather-heal + drain cohorts certified; target/delayed/cure/transfer/revival heals remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3104,6 +3104,18 @@ Ordered feature packages:
    regeneration, digest unchanged, count +4 exactly. Full solution **1,998/1,998** (1,654 Core, 104
    Creator, 21 Runtime, 219 Tools). Next: target-recipient heal (Heal Pulse) — now unblocked by the same
    decision-override path.
+
+   Progress (2026-07-20): **15G-4 drain cohort certified (184 → 192/937).** Audit found there was no
+   drain-specific conformance family — single-target drains couldn't certify (only spread drains rode
+   `TargetTopology`, e.g. Parabolic Charge). Added a `drain` testId rule + `DrainConformanceTests`
+   (per-row: single `DrainEffect` fraction in (0,1] on a damaging move; cohort covers 1/2 and 3/4).
+   `AddDrainOrRecoil` already derives the `drain` op from `meta.drain`, so the eight clean single-target
+   drains needed only neutral decisions: certified **Absorb, Mega Drain, Giga Drain** (1/2), **Leech
+   Life, Drain Punch, Horn Leech** (1/2, contact), **Draining Kiss, Oblivion Wing** (3/4). Drain
+   execution is already proven by `BattleV5OpTests`. Parabolic Charge also now carries the drain testId
+   (additive; still one certified row). Dream Eater deferred (needs a sleeping-target gate).
+   Byte-identical regen, digest unchanged, count +8 exactly. Full solution **1,992/1,992** (1,654 Core,
+   104 Creator, 21 Runtime, 229 Tools).
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`IN PROGRESS`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

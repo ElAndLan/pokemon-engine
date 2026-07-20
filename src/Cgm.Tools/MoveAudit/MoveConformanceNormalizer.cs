@@ -214,6 +214,8 @@ public static class MoveConformanceNormalizer
             testIds.Add($"DamageMemoryConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op == "heal"))
             testIds.Add($"HealingConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op == "drain"))
+            testIds.Add($"DrainConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

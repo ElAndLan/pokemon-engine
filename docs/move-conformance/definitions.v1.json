@@ -453,6 +453,84 @@
       ]
     },
     {
+      "referenceKey": "move-0071",
+      "sourceFileHash": "bafe9e0d2f8c4a3b65965a0162ec2772e7695dc722a70d6df381c0b6be65665d",
+      "payloadContentHash": "35d2a2f1073e046e95e9c5818d3753739796cc6c7dc1c3e6bfb6cfcd12974753",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "drain",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_12",
+        "damageClass": "special",
+        "power": 20,
+        "accuracy": 100,
+        "pp": 25,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "drain",
+            "params": {
+              "num": 50,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "8335e82216d4ed8241fa6f5fb6d7809e17c9cc98a480b8f876e90887fcbe39d1",
+      "testIds": [
+        "DrainConformanceTests.Certified(move-0071)"
+      ]
+    },
+    {
+      "referenceKey": "move-0072",
+      "sourceFileHash": "53ca12310f282c6cabfa9648fbee59871576bf107b6be83e498b6115cd4518aa",
+      "payloadContentHash": "928d7d116e6a6937f13cdf68534c0c1f7b1f98e42f98c9dcb92f669c3e8a693a",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "drain",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_12",
+        "damageClass": "special",
+        "power": 40,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "drain",
+            "params": {
+              "num": 50,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "8530745dbcff94444369ced75013255b4e6a2bd78b929673e1a46241fdc37a0f",
+      "testIds": [
+        "DrainConformanceTests.Certified(move-0072)"
+      ]
+    },
+    {
       "referenceKey": "move-0075",
       "sourceFileHash": "c5729cf52c5e66ca90632899b6b6e31aa7c78f5a92c1c0ebb4a73d545ba81df7",
       "payloadContentHash": "1ab7b911faa05f60871402eb4dbc007b8c673053439745c1c5207fec4c38bebe",
@@ -991,6 +1069,45 @@
       ]
     },
     {
+      "referenceKey": "move-0141",
+      "sourceFileHash": "7bd539da893cfd3b9409eaf8632e9bc23ad1e5bffcf4c08ce76a1f8fe897c873",
+      "payloadContentHash": "4d323f289b1bddb62a878303b919e883f8f1a1a76e5ddd1eaabd828b8a1a44df",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "drain",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_07",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "drain",
+            "params": {
+              "num": 50,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "b46a4ece057c58599107a40705f4d81dcba12b4d94540b6e5cb91cf89c48ca5c",
+      "testIds": [
+        "DrainConformanceTests.Certified(move-0141)"
+      ]
+    },
+    {
       "referenceKey": "move-0143",
       "sourceFileHash": "4d703881796e145acdb30e5f2c87c0552e00e1d6ad97a1582736e6a89ea58fc9",
       "payloadContentHash": "792f94b545a8e3e6decebbe88462c13a25e110cb6065feef249597f8490ac8f2",
@@ -1511,6 +1628,45 @@
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0200)",
         "MultiTurnLockConformanceTests.Certified(move-0200)"
+      ]
+    },
+    {
+      "referenceKey": "move-0202",
+      "sourceFileHash": "cfb9bcc215ccaf16c0a22f6bb2cb015ee810fce5168a7cbca76e75b05cb27060",
+      "payloadContentHash": "947a2a301879e9a6268cfd5623d9603d7e1c907a16fd9fb0673584f483c9fc04",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "drain",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_12",
+        "damageClass": "special",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "drain",
+            "params": {
+              "num": 50,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "85cb3369c92d1b528f5e3e656f7d007f1ab6f53e3ec2a471c80f201e7483336e",
+      "testIds": [
+        "DrainConformanceTests.Certified(move-0202)"
       ]
     },
     {
@@ -3780,6 +3936,45 @@
       ]
     },
     {
+      "referenceKey": "move-0409",
+      "sourceFileHash": "b9d42b6a436a86201519d0386f6d13b034d208d79452208ab7b88356de82156e",
+      "payloadContentHash": "7a62a20bbfd68ad99e308dc1476fd61da133411e0d76dfc00c34a041de943e5a",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "drain",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_02",
+        "damageClass": "physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "drain",
+            "params": {
+              "num": 50,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "85c8d705f126f6b8e0b2750db08772f3442b501160ca3ad6f7ca5561cb1f1df5",
+      "testIds": [
+        "DrainConformanceTests.Certified(move-0409)"
+      ]
+    },
+    {
       "referenceKey": "move-0415",
       "sourceFileHash": "ea84660600fd7f1ff4d8aee6754a11f0df4f1bab5dbfe318c9162aaea886cfae",
       "payloadContentHash": "48b95dbe4657f6dffdf6e4145ed1112fc12cdda5e610cfef419e15fb5db2ec1f",
@@ -4980,6 +5175,45 @@
       ]
     },
     {
+      "referenceKey": "move-0532",
+      "sourceFileHash": "d3c390e622575baaf9fe8150e8979c8d7b969222457e72f293f9439f3ee37bed",
+      "payloadContentHash": "f2ea83fd8351afe6648e28a070ca026853b5e12f6c296f0343a88ce6e4db4e69",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "drain",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_12",
+        "damageClass": "physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "drain",
+            "params": {
+              "num": 50,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "4ba1b2d5a2646774c02b151357ac1eff5bdedc2737e45e5f7d9f717ceed044a8",
+      "testIds": [
+        "DrainConformanceTests.Certified(move-0532)"
+      ]
+    },
+    {
       "referenceKey": "move-0545",
       "sourceFileHash": "de5a36896ea65bab4f314eb047fa5ef2afa3401d56d1fbc9e17bed51de5cfa42",
       "payloadContentHash": "0264356721f12d85c181ace2f0f6acbdc3bc49a5feefc902a5173e3b1ee382fe",
@@ -5299,7 +5533,8 @@
       },
       "normalizedDefinitionHash": "010eec47f4894bb09f03bef589030595bc946a71c4359ac0a041628d1364e88b",
       "testIds": [
-        "TargetTopologyConformanceTests.Certified(move-0570)"
+        "TargetTopologyConformanceTests.Certified(move-0570)",
+        "DrainConformanceTests.Certified(move-0570)"
       ]
     },
     {
@@ -5396,6 +5631,45 @@
       "normalizedDefinitionHash": "ab5536cfffc54563ca4f28ef6ea387ad848832fad3420ef2ee2720119f46107c",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0574)"
+      ]
+    },
+    {
+      "referenceKey": "move-0577",
+      "sourceFileHash": "6e0355bf844c522840a11d42ea607ef2eb8b2423e86916212687266e354bc972",
+      "payloadContentHash": "31d8d0b8873af9cf6c02ee9819295ace27ce9bba987a54d03338205165d5c07a",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "drain",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_18",
+        "damageClass": "special",
+        "power": 50,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "drain",
+            "params": {
+              "num": 75,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "69a07069ede83115a1daa7ef632a6651551380ae5f62935a2db6946ef43448fc",
+      "testIds": [
+        "DrainConformanceTests.Certified(move-0577)"
       ]
     },
     {
@@ -5629,6 +5903,45 @@
       "normalizedDefinitionHash": "653611a9bb5ba998d75daa0913a251012222af8c71bc14638f3328950ee30c6b",
       "testIds": [
         "HpStatusFormulaConformanceTests.Certified(move-0610)"
+      ]
+    },
+    {
+      "referenceKey": "move-0613",
+      "sourceFileHash": "4b2495a234b33c5b566a8349dc6d4668d3decdcacd0e4175647051894962ed1a",
+      "payloadContentHash": "f7dd32fc3adbd0baafb3337c223a35f5e913f3b8f60b236ae71613aa162e683a",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "drain",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_03",
+        "damageClass": "special",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "drain",
+            "params": {
+              "num": 75,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "3d17d916ebfb1ababb6cb9079ef98f059825a64d90ced12e50bf82c17b966e02",
+      "testIds": [
+        "DrainConformanceTests.Certified(move-0613)"
       ]
     },
     {
