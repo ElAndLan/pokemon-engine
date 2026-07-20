@@ -218,6 +218,8 @@ public sealed class BattleController
         BattleCreature active = Active(slot);
         if (active.ChargingMoveIndex is { } charge)
             return [new UseMove(charge)];
+        if (active.IsBiding)
+            return [new UseMove(active.BideMoveIndex)];
         if (active.IsLocked)
             return [new UseMove(active.LockedMoveIndex)];
         IReadOnlyList<int> legal = BattleActionLegality.LegalMoves(active, slot, ActiveIndex(slot),
@@ -515,6 +517,13 @@ public sealed class BattleController
     private BattleActionSubmission EffectiveLockedSubmission(BattleActionSubmission submitted)
     {
         BattleCreature creature = Active(submitted.Source);
+        if (creature.IsBiding)
+            return submitted with
+            {
+                Action = new UseMove(creature.BideMoveIndex),
+                Selection = null, // singles: unleash retargets to the sole opponent
+                TargetPartySnapshot = null,
+            };
         return creature.IsLocked
             ? submitted with
             {
@@ -1202,6 +1211,8 @@ public sealed class BattleController
                     throw new ArgumentException($"{side} is trapped and cannot switch.");
                 if (Active(slot).IsCharging)
                     throw new ArgumentException($"{side} is charging a move and cannot switch.");
+                if (Active(slot).IsBiding)
+                    throw new ArgumentException($"{side} is biding and cannot switch.");
                 if (Active(slot).IsLocked)
                     throw new ArgumentException($"{side} is locked into a move and cannot switch.");
                 break;
@@ -1304,7 +1315,7 @@ public sealed class BattleController
         BattleSide side = slot.Side;
         if (moveIndex < 0 || moveIndex >= c.Moves.Count)
             throw new ArgumentException($"{side} move index {moveIndex} out of range.");
-        if (!c.IsCharging && !c.IsLocked)
+        if (!c.IsCharging && !c.IsLocked && !c.IsBiding)
         {
             ActionLegalityResult result = BattleActionLegality.Move(c, moveIndex, slot, ActiveIndex(slot),
                 ConditionSnapshot, SourceCreature, ItemsSuppressed);
@@ -2126,6 +2137,9 @@ public sealed class BattleController
         int moveIndex, int traceAction, BattleActionSubmission? submission = null,
         BattleMove? ppOwner = null)
     {
+        if (move.SecondaryEffects.OfType<BideEffect>().SingleOrDefault() is { } bide)
+            return PrepareBide(attacker, sourceSlot, move, moveIndex, bide, ppOwner);
+
         bool firing = attacker.IsCharging;
         bool requiresCharge = move.Charge is not null;
         if (requiresCharge && !firing
@@ -2189,6 +2203,28 @@ public sealed class BattleController
         if (!continuingLock && moveIndex >= 0)
             ApplyChoiceLock(attacker, moveIndex);
         return true;
+    }
+
+    /// <summary>Bide (catalog §9.2): store damage over N locked turns, then return true on the unleash
+    /// turn so the caller runs the damage phase. Returns false while still storing (no attack this turn).</summary>
+    private bool PrepareBide(BattleCreature attacker, BattleSlot sourceSlot, BattleMove move, int moveIndex,
+        BideEffect bide, BattleMove? ppOwner)
+    {
+        if (!attacker.IsBiding)
+        {
+            (ppOwner ?? move).UsePp();
+            attacker.StartBide(moveIndex, bide.StoreTurns);
+            _log.Add(new BideStoring(sourceSlot, move.Move, attacker.BideTurns));
+            return false;
+        }
+        attacker.AdvanceBide();
+        if (attacker.IsBiding)
+        {
+            _log.Add(new BideStoring(sourceSlot, move.Move, attacker.BideTurns));
+            return false;
+        }
+        _log.Add(new BideUnleashed(sourceSlot, move.Move));
+        return true; // BideDamage stays live until the unleash branch reads and clears it
     }
 
     private void ApplyChargeStartEffects(BattleCreature creature, BattleSlot slot, BattleMove move)
@@ -2432,7 +2468,32 @@ public sealed class BattleController
         ApplyBeforeDamageSideRemovals(actionContext, [targetContext]);
         int? randomPower = SelectRandomPower(sourceSlot, move, traceAction);
 
-        if (move.CounterCategory is { } counterCat)
+        if (move.SecondaryEffects.OfType<BideEffect>().Any())
+        {
+            // Bide unleash: return twice the damage stored across the locked turns (no draw), then clear.
+            int stored = attacker.BideDamage;
+            attacker.EndBide();
+            if (stored > 0)
+            {
+                int dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target,
+                    move, checked(stored * 2), traceAction);
+                DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, 1.0, crit: false,
+                    HpStatusFormulas.CannotKoFloor(move));
+                targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
+                RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Counter, 1, true,
+                    applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
+                    dmg, applied, critical: false, effectiveType: moveType,
+                    effectiveClass: moveIdentity.EffectiveClass);
+            }
+            else
+            {
+                _log.Add(new MoveMissed(sourceSlot, move.Move)); // stored nothing → fizzles
+                RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Counter, 0, false,
+                    BattleDamageFailure.NoQualifyingDamage, 0, default, critical: false,
+                    effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
+            }
+        }
+        else if (move.CounterCategory is { } counterCat)
         {
             // Counter/Mirror Coat: return 2× the damage of that category taken this turn (no draw).
             int received = counterCat == DamageClass.Physical ? attacker.PhysicalDamageTaken : attacker.SpecialDamageTaken;
@@ -2559,7 +2620,8 @@ public sealed class BattleController
         ApplyContactEffects(move, sourceSlot, attacker, targetSlot, traceAction);
         bool damaging = HpStatusFormulas.HasBasePower(move) || move.CounterCategory is not null
             || move.Ohko || move.FixedDamage is not null || move.FixedDamageLevel
-            || move.SecondaryEffects.OfType<RevengeDamageEffect>().Any();
+            || move.SecondaryEffects.OfType<RevengeDamageEffect>().Any()
+            || move.SecondaryEffects.OfType<BideEffect>().Any();
         _actionHistory.Complete(attempt,
             actionContext.Failed ? BattleActionResult.Failed
             : actionContext.TotalDamage > 0 ? BattleActionResult.Connected
@@ -4740,6 +4802,7 @@ public sealed class BattleController
     {
         CancelCharge(slot, Active(slot));
         EndMultiTurnLock(slot, Active(slot), MultiTurnLockEndReason.Faint);
+        Active(slot).EndBide();
         Active(slot).ClearMultiTurnPowerBoost();
         TraceCancelled(_intentQueue.OwnerFainted(slot.Side, ActiveIndex(slot)));
         _log.Add(new Fainted(slot));

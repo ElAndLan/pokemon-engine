@@ -128,6 +128,10 @@ public sealed record PivotSwitchEffect : MoveEffect;
 /// of any class, to the target — the "sum" damage-memory consumer (15G-3).</summary>
 public sealed record RevengeDamageEffect(Fraction Multiplier) : MoveEffect;
 
+/// <summary>Bide: the user stores damage taken over <paramref name="StoreTurns"/> locked turns, then
+/// unleashes twice the stored total at an opponent — the cross-turn damage-memory consumer (15G-3).</summary>
+public sealed record BideEffect(int StoreTurns) : MoveEffect;
+
 /// <summary>reset_stat_stages over self, target, or both active creatures.</summary>
 public sealed record StatResetEffect(StageEffectScope Scope) : MoveEffect;
 

@@ -1364,6 +1364,18 @@ public static class MoveCompiler
                     effects.Add(new RevengeDamageEffect(revengeMultiplier));
                     break;
 
+                case "bide": // store damage over N turns, unleash 2× (catalog §9.2 damage_memory)
+                    if (chance != 100)
+                        throw new ArgumentException("bide does not support chance.");
+                    CheckAllowedParams(e, "turns");
+                    int bideTurns = e.Params?.ContainsKey("turns") == true ? Int(e, "turns") : 2;
+                    if (bideTurns < 1)
+                        throw new ArgumentException("bide turns must be at least 1.");
+                    if (effects.OfType<BideEffect>().Any())
+                        throw new ArgumentException("A move can declare only one bide effect.");
+                    effects.Add(new BideEffect(bideTurns));
+                    break;
+
                 case "statStageReset":
                     CheckAllowedParams(e, "scope");
                     AddChanceEffect(effects, new StatResetEffect(Parse<StageEffectScope>(Str(e, "scope"), "scope")), chance);
@@ -1509,6 +1521,7 @@ public static class MoveCompiler
         if (move.DamageClass != DamageClass.Status && move.Power is null && replacementPowerFormulas == 0
             && fixedDamage is null && !fixedDamageLevel && !ohko && counterCategory is null
             && !effects.OfType<RevengeDamageEffect>().Any()
+            && !effects.OfType<BideEffect>().Any()
             && !effects.OfType<HpFractionEffect>().Any(effect => effect.Operation == HpFractionOperation.Damage)
             && !effects.OfType<HpEqualizeEffect>().Any(effect => effect.Mode == HpEqualizeMode.MatchSource))
             throw new ArgumentException("Damaging moves without authored power require a replacement base-power formula.");

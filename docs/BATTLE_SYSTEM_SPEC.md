@@ -2518,10 +2518,21 @@ this turn))` to the target, of any class, with no RNG draw, the cannot-KO floor 
 `NoQualifyingDamage` fizzle. Substitute-absorbed damage is already excluded because only damage that
 reduced the user's own HP feeds the accumulators. Overflow-safe multiplication uses checked arithmetic.
 
-Stored-release (Bide) and per-hit source/last-versus-sum consumers over the richer 15G-2
-`BattleActionHistory` remain the remaining 15G-3 work; in singles the return target is the move's
-selected opponent (the same simplification Counter uses), with source-addressed targeting a doubles
-refinement.
+The stored-release consumer `bide { turns? }` (default 2) is the cross-turn variant. On selection the
+user spends PP, starts biding, and is force-locked into Bide for the stored turns (like a multi-turn
+lock: the submitted action is replaced by the forced Bide, switching is blocked, and no attack lands
+while storing). All move damage the user takes while biding accumulates in a dedicated `BideDamage`
+counter — separate from the per-turn Counter accumulators, so it survives across turns — and is
+cleared on switch-out, faint, or unleash. On the turn the last stored turn elapses, the user unleashes
+`2 × BideDamage` at its opponent with no RNG draw and the cannot-KO floor, fizzling with
+`NoQualifyingDamage` if nothing was stored. Storing turns emit `BideStoring`; the unleash emits
+`BideUnleashed`. Like Counter, only damage that reduced the user's own HP feeds the store (indirect
+residual/OHKO/fixed damage is a known ceiling), and in singles the return target is the sole opponent,
+with source-addressed last-attacker targeting a doubles refinement. Overflow-safe multiplication uses
+checked arithmetic.
+
+Per-hit source/last-versus-sum consumers over the richer 15G-2 `BattleActionHistory` remain the
+remaining 15G-3 work.
 
 ### Event trace contract
 

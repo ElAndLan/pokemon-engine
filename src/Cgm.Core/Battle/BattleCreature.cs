@@ -423,6 +423,12 @@ public sealed class BattleCreature
     public bool IsCharging => ChargingMoveIndex is not null;
     public SemiInvulnerableState? SemiInvulnerableState { get; private set; }
 
+    /// <summary>Bide: forced move index, storing turns left, and the damage stored so far (catalog §9.2).</summary>
+    public int BideMoveIndex { get; private set; }
+    public int BideTurns { get; private set; }
+    public int BideDamage { get; private set; }
+    public bool IsBiding => BideTurns > 0;
+
     /// <summary>Data-defined multi-turn lock: forced move, stored selection, ramp step, and turns left.</summary>
     public int LockedMoveIndex { get; private set; }
     public int LockTurns { get; private set; }
@@ -686,7 +692,22 @@ public sealed class BattleCreature
     {
         if (damageClass == DamageClass.Physical) PhysicalDamageTaken += amount;
         else if (damageClass == DamageClass.Special) SpecialDamageTaken += amount;
+        // ponytail: Bide stores move damage routed through here; indirect damage (residual/OHKO/fixed)
+        // is a known ceiling — same blind spot Counter/Mirror Coat already accept.
+        if (IsBiding) BideDamage = checked(BideDamage + amount);
     }
+
+    public void StartBide(int moveIndex, int turns)
+    {
+        if (moveIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(moveIndex));
+        BideMoveIndex = moveIndex;
+        BideTurns = Math.Max(1, turns);
+        BideDamage = 0;
+    }
+    /// <summary>Consumes one storing turn; the caller unleashes once this reports <see cref="IsBiding"/> false.</summary>
+    public void AdvanceBide() { if (BideTurns > 0) BideTurns--; }
+    public void EndBide() { BideTurns = 0; BideDamage = 0; }
 
     public void ResetDamageTaken() { PhysicalDamageTaken = 0; SpecialDamageTaken = 0; }
 
@@ -760,6 +781,7 @@ public sealed class BattleCreature
         ProtectChain = 0;
         StopCharging();
         EndLock();
+        EndBide();
         ClearMultiTurnPowerBoost();
         ChoiceLockedMoveIndex = null;
         ActionsSinceSwitch = 0;
