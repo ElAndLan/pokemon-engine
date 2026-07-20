@@ -18,7 +18,9 @@ public sealed class DamageMemoryConformanceTests
     {
         MoveConformanceRecord entry = Catalog().Entries.Single(row => row.ReferenceKey == referenceKey);
         BattleMove move = MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(referenceKey));
-        Assert.True(move.CounterCategory is not null || move.SecondaryEffects.OfType<RevengeDamageEffect>().Any());
+        Assert.True(move.CounterCategory is not null
+            || move.SecondaryEffects.OfType<RevengeDamageEffect>().Any()
+            || move.SecondaryEffects.OfType<BideEffect>().Any());
         Assert.Contains(entry.TestIds, id => id == $"DamageMemoryConformanceTests.Certified({referenceKey})");
     }
 
@@ -33,6 +35,7 @@ public sealed class DamageMemoryConformanceTests
         Assert.Contains(moves, move => move.CounterCategory == DamageClass.Physical);
         Assert.Contains(moves, move => move.CounterCategory == DamageClass.Special);
         Assert.Contains(moves, move => move.SecondaryEffects.OfType<RevengeDamageEffect>().Any());
+        Assert.Contains(moves, move => move.SecondaryEffects.OfType<BideEffect>().Any());
     }
 
     private static MoveConformanceCatalog Catalog() => CgmJson.Deserialize<MoveConformanceCatalog>(

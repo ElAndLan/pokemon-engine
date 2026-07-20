@@ -751,6 +751,38 @@
       ]
     },
     {
+      "referenceKey": "move-0117",
+      "sourceFileHash": "89737dde6cdea23c89c185eb419eb1ec5e4fcd50bc72bef756134d81b1ab04ce",
+      "payloadContentHash": "e8116b3c8bab21174554eedbb4ca9d70064551ffb2add9ab3c71b0f3e2d1dd17",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "bide",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "pp": 10,
+        "priority": 1,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "user",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "bide"
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "c49429147caa9c6ea9eb92ccb5009606e592685508d4cd5359153d249bad7f11",
+      "testIds": [
+        "DamageMemoryConformanceTests.Certified(move-0117)"
+      ]
+    },
+    {
       "referenceKey": "move-0120",
       "sourceFileHash": "b3c0a80644a9679fc08860dda2df227f5e44112a75695d8802e5e6dc020e3a81",
       "payloadContentHash": "d05db4f131da9173cc9dc3a0698cbf96ba2aefe85c2e8ccde0a641e7d65743e9",

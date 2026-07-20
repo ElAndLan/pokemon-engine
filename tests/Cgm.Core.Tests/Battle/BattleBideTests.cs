@@ -77,6 +77,26 @@ public sealed class BattleBideTests
         Assert.Same(player, battle.Active(BattleSide.Player)); // never left the field
     }
 
+    [Fact]
+    public void UnleashesAtOpponentEvenWithTheCorpusUserTarget()
+    {
+        // Bide's real PokeAPI target is "user"; the unleash must still retarget to the opponent.
+        BattleMove userTargetBide = new(EntityId.Parse("move:bide"), Normal, DamageClass.Physical, null,
+            null, 10, 1, 0, target: MoveTarget.User, secondaryEffects: [new BideEffect(2)]);
+        var bider = new BattleCreature(EntityId.Parse("species:bider"), "Bider", 50, [Normal],
+            new Stats(3000, 100, 100, 100, 100, 100), [userTargetBide]);
+        var battle = new BattleController(bider, Striker(999999), Chart(), new Rng(7));
+
+        int h1 = battle.ResolveTurn(new UseMove(0), new UseMove(0))
+            .OfType<DamageDealt>().Single(e => e.Target == BattleSide.Player).Amount;
+        int h2 = battle.ResolveTurn(new UseMove(0), new UseMove(0))
+            .OfType<DamageDealt>().Single(e => e.Target == BattleSide.Player).Amount;
+        IReadOnlyList<BattleEvent> t3 = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        int returned = t3.OfType<DamageDealt>().Single(e => e.Target == BattleSide.Enemy).Amount;
+        Assert.Equal((h1 + h2) * 2, returned);
+    }
+
     private static BattleMove Bide() =>
         new(EntityId.Parse("move:bide"), Normal, DamageClass.Physical, null, null, 10, 1, 0,
             target: MoveTarget.Selected, secondaryEffects: [new BideEffect(2)]);

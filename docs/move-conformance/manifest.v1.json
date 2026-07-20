@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 763
+      "count": 762
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 174
+      "count": 175
     },
     {
       "status": "blockedReference",
@@ -1811,12 +1811,16 @@
       "payloadContentHash": "e8116b3c8bab21174554eedbb4ca9d70064551ffb2add9ab3c71b0f3e2d1dd17",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "unclassified"
+        "bide",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "c49429147caa9c6ea9eb92ccb5009606e592685508d4cd5359153d249bad7f11",
+      "testIds": [
+        "DamageMemoryConformanceTests.Certified(move-0117)"
+      ]
     },
     {
       "referenceKey": "move-0118",

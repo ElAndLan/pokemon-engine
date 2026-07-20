@@ -2360,7 +2360,11 @@ public sealed class BattleController
             _actionHistory.Complete(attempt, BattleActionResult.Failed);
             return;
         }
-        BattleSide targetSide = BattleTargetResolver.IsSinglesActiveCreatureTarget(move.Target)
+        // Bide's corpus target is "user" (it charges on the user), but its unleash addresses an
+        // opponent; retarget so the damage phase runs against the opposing slot. ponytail: singles
+        // only — doubles last-attacker addressing rides the deferred source-addressed targeting item.
+        BattleSide targetSide = move.SecondaryEffects.OfType<BideEffect>().Any() ? Opponent(side)
+            : BattleTargetResolver.IsSinglesActiveCreatureTarget(move.Target)
             ? BattleTargetResolver.ResolveSinglesActiveCreatureSide(move.Target, side)
             : Opponent(side);
         BattleSlot targetSlot = new(targetSide, 0);

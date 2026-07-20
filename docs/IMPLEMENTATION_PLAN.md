@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 174/937 certified; 15G-3 IN PROGRESS (Counter/Mirror Coat/revenge certified; Bide mechanic landed, its corpus certification + history consumers remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 175/937 certified; 15G-3 IN PROGRESS (Counter/Mirror Coat/revenge/Bide certified; per-hit/last-versus-sum history consumers + doubles source-addressed targeting remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3027,6 +3027,16 @@ Ordered feature packages:
    certification of the Bide move (decision + normalizer testId + regen) is the next slice.
    Remaining for 15G-3: certify Bide's corpus move; per-hit/last-versus-sum consumers over the 15G-2
    `BattleActionHistory`; and doubles source-addressed targeting.
+
+   Progress (2026-07-20): **15G-3 Bide certified (174 → 175/937).** Bide's corpus target is `user`
+   (unlike Counter's `specific-move`), so the resolver now retargets any Bide move's damage phase to
+   the opposing slot (singles; doubles addressing deferred with the source-addressed item). Taught the
+   normalizer that `bide` is a replacement-power op and emits `DamageMemoryConformanceTests.Certified`;
+   authored the neutral `move-0117` decision (`op: bide`, contact). Regeneration certified Bide (effects
+   `[damage, bide]`, target `user`, power null) and kept the corpus digest
+   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, byte-identical on rerun.
+   Extended `DamageMemoryConformanceTests` to accept `BideEffect` and added a Target=User unleash test.
+   Full solution **1,982/1,982** (1,649 Core, 104 Creator, 21 Runtime, 208 Tools).
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`PLANNED`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

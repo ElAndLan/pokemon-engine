@@ -178,6 +178,7 @@
     { "referenceKey": "move-0068", "makesContact": true, "additionalEffects": [{ "op": "counterDamage", "params": { "category": "physical" } }] },
     { "referenceKey": "move-0243", "makesContact": false, "additionalEffects": [{ "op": "counterDamage", "params": { "category": "special" } }] },
     { "referenceKey": "move-0368", "makesContact": false, "additionalEffects": [{ "op": "revengeDamage" }] },
-    { "referenceKey": "move-0894", "makesContact": true, "additionalEffects": [{ "op": "revengeDamage" }] }
+    { "referenceKey": "move-0894", "makesContact": true, "additionalEffects": [{ "op": "revengeDamage" }] },
+    { "referenceKey": "move-0117", "makesContact": true, "additionalEffects": [{ "op": "bide" }] }
   ]
 }
