@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 180/937 certified; 15G-4 IN PROGRESS (plain 50% self-heal cohort certified; weather/target/delayed/cure/transfer/revival heals remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 184/937 certified; 15G-4 IN PROGRESS (plain + weather-scaled self-heal cohorts certified; target/delayed/cure/transfer/revival heals remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3091,6 +3091,19 @@ Ordered feature packages:
    table), target-recipient heal (Heal Pulse), Roost (Flying-type suppression), Stockpile-linked Swallow,
    delayed Wish, residual Aqua Ring/Grassy Terrain, Rest (sleep + full heal), and the faint-and-replace
    heals (Healing Wish/Lunar Dance). Next: the weather-scaled self-heal sub-cohort.
+
+   Progress (2026-07-20): **15G-4 weather-scaled self-heal cohort certified (180 → 184/937).** The
+   normalizer's `AddHealing` now yields to a decision-authored `heal` (small guard: skip the flat
+   `meta.healing` derivation when the decision already provides a `heal` op), which unblocks weather
+   tables, non-self recipients, and custom fractions without duplicate heal effects. Certified **Morning
+   Sun, Synthesis, Moonlight** (base 1/2; `Sun:2/3`, other weather `1/4`) and **Shore Up** (base 1/2;
+   `Sandstorm:2/3`) via decisions carrying the `heal` weather table (`ParseWeatherFractions` already
+   supports the `weather:num/den` format; the `HealEffect` weather execution is proven by
+   `BattleWeatherConditionTests`). Extended `HealingConformanceTests` with a weather-boost assertion
+   (every weather fraction in (0,1]; at least one strictly above the 1/2 base). Byte-identical
+   regeneration, digest unchanged, count +4 exactly. Full solution **1,998/1,998** (1,654 Core, 104
+   Creator, 21 Runtime, 219 Tools). Next: target-recipient heal (Heal Pulse) — now unblocked by the same
+   decision-override path.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`IN PROGRESS`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

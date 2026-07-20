@@ -184,6 +184,10 @@
     { "referenceKey": "move-0135", "makesContact": false },
     { "referenceKey": "move-0208", "makesContact": false },
     { "referenceKey": "move-0303", "makesContact": false },
-    { "referenceKey": "move-0456", "makesContact": false }
+    { "referenceKey": "move-0456", "makesContact": false },
+    { "referenceKey": "move-0234", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 2, "weather": "Sun:2/3, Rain:1/4, Sandstorm:1/4, Hail:1/4, Snow:1/4" } }] },
+    { "referenceKey": "move-0235", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 2, "weather": "Sun:2/3, Rain:1/4, Sandstorm:1/4, Hail:1/4, Snow:1/4" } }] },
+    { "referenceKey": "move-0236", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 2, "weather": "Sun:2/3, Rain:1/4, Sandstorm:1/4, Hail:1/4, Snow:1/4" } }] },
+    { "referenceKey": "move-0659", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 2, "weather": "Sandstorm:2/3" } }] }
   ]
 }

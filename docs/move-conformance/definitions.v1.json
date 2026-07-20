@@ -1829,6 +1829,108 @@
       ]
     },
     {
+      "referenceKey": "move-0234",
+      "sourceFileHash": "81e0bec8ddd5ffae96c5a460f355dc85d34124a0177c24857b2b0728fbfc0724",
+      "payloadContentHash": "6c0f249ec8c68aae45b2d09bfedb102a5accac199ab5eeaf8311bb500c7f907c",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "heal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "status",
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "heal",
+            "params": {
+              "num": 1,
+              "den": 2,
+              "weather": "Sun:2/3, Rain:1/4, Sandstorm:1/4, Hail:1/4, Snow:1/4"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "6287f396f9e0985da1f2962f51054ac10fc6a78f715a15b7ef7dc71baf8c06e8",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0234)"
+      ]
+    },
+    {
+      "referenceKey": "move-0235",
+      "sourceFileHash": "3258d13b2192a148f708d55bd297e30176c1ea72dc877ff7020ab371e74416c1",
+      "payloadContentHash": "da0ff92d01fe1cbac9ed80bba7736a3d63366c3b71fc77f79642516e273cffde",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "heal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_12",
+        "damageClass": "status",
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "heal",
+            "params": {
+              "num": 1,
+              "den": 2,
+              "weather": "Sun:2/3, Rain:1/4, Sandstorm:1/4, Hail:1/4, Snow:1/4"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "16af31f11de36a0a6712035981e1e7c179502a8ac8321aa48fd6d06aab522e03",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0235)"
+      ]
+    },
+    {
+      "referenceKey": "move-0236",
+      "sourceFileHash": "e44fae707832b216cda19e75e703632a03867f05d921eee53de9090dd5dbb58c",
+      "payloadContentHash": "c4838dd197de46039a0ac1ec0a18941ec03a3cbaf880aa35d6c7e0f13453fa24",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "heal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_18",
+        "damageClass": "status",
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "heal",
+            "params": {
+              "num": 1,
+              "den": 2,
+              "weather": "Sun:2/3, Rain:1/4, Sandstorm:1/4, Hail:1/4, Snow:1/4"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "1901e04abaf4c3255f71709b2ecfe78a3b721f289f03eb64c4b7f7c7837d4946",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0236)"
+      ]
+    },
+    {
       "referenceKey": "move-0239",
       "sourceFileHash": "a5e191e2a342f4649fe9261b5901618dcfee568ebd755ff136369e0801b28155",
       "payloadContentHash": "0a3ff565bd16dbb19bd75e10e826ee42afb44d31f20aac518e1b2751506e838e",
@@ -5620,6 +5722,40 @@
       "normalizedDefinitionHash": "ef1d1744131b0c3c365691563858ac41e601c96e37f945acc0bf7112ee50a518",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0619)"
+      ]
+    },
+    {
+      "referenceKey": "move-0659",
+      "sourceFileHash": "352542a18afb06a6ae36a2a8c0f128bc325df4c050e91c5cfcaf924c436f41d2",
+      "payloadContentHash": "2ebf131d8ebfc3b02284f40fc2ec6286f126e5dfd4509d7d8729e51419ed7f35",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "heal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_05",
+        "damageClass": "status",
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "user",
+        "effects": [
+          {
+            "op": "heal",
+            "params": {
+              "num": 1,
+              "den": 2,
+              "weather": "Sandstorm:2/3"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "ff6e789ae2fd4cdff34a6a3eede19d24b5d161ae5297a145391679b0546f17aa",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0659)"
       ]
     },
     {

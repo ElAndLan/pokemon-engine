@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 757
+      "count": 753
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 180
+      "count": 184
     },
     {
       "status": "blockedReference",
@@ -3631,12 +3631,16 @@
       "payloadContentHash": "6c0f249ec8c68aae45b2d09bfedb102a5accac199ab5eeaf8311bb500c7f907c",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "6287f396f9e0985da1f2962f51054ac10fc6a78f715a15b7ef7dc71baf8c06e8",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0234)"
+      ]
     },
     {
       "referenceKey": "move-0235",
@@ -3645,12 +3649,16 @@
       "payloadContentHash": "da0ff92d01fe1cbac9ed80bba7736a3d63366c3b71fc77f79642516e273cffde",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "16af31f11de36a0a6712035981e1e7c179502a8ac8321aa48fd6d06aab522e03",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0235)"
+      ]
     },
     {
       "referenceKey": "move-0236",
@@ -3659,12 +3667,16 @@
       "payloadContentHash": "c4838dd197de46039a0ac1ec0a18941ec03a3cbaf880aa35d6c7e0f13453fa24",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "1901e04abaf4c3255f71709b2ecfe78a3b721f289f03eb64c4b7f7c7837d4946",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0236)"
+      ]
     },
     {
       "referenceKey": "move-0237",
@@ -10190,12 +10202,16 @@
       "payloadContentHash": "2ebf131d8ebfc3b02284f40fc2ec6286f126e5dfd4509d7d8729e51419ed7f35",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "ff6e789ae2fd4cdff34a6a3eede19d24b5d161ae5297a145391679b0546f17aa",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0659)"
+      ]
     },
     {
       "referenceKey": "move-0660",

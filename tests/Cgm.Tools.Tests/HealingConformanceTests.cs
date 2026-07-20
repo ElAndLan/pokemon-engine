@@ -43,6 +43,26 @@ public sealed class HealingConformanceTests
         });
     }
 
+    [Fact]
+    public void WeatherScaledHealsCarryABoostAboveTheBaseFraction()
+    {
+        HealEffect[] weatherHeals = Catalog().Entries
+            .Where(entry => entry.TestIds.Any(id => id.StartsWith("HealingConformanceTests.Certified(",
+                StringComparison.Ordinal)))
+            .Select(entry => MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(entry.ReferenceKey))
+                .SecondaryEffects.OfType<HealEffect>().Single())
+            .Where(heal => heal.WeatherFractions is not null)
+            .ToArray();
+
+        Assert.NotEmpty(weatherHeals); // Morning Sun/Synthesis/Moonlight/Shore Up
+        Assert.All(weatherHeals, heal =>
+        {
+            Assert.All(heal.WeatherFractions!.Values, f => Assert.True(f.Num > 0 && f.Num <= f.Den));
+            // at least one weather heals strictly more than the 1/2 base (the favoured weather).
+            Assert.Contains(heal.WeatherFractions!.Values, f => f.Num * heal.Fraction.Den > heal.Fraction.Num * f.Den);
+        });
+    }
+
     private static MoveConformanceCatalog Catalog() => CgmJson.Deserialize<MoveConformanceCatalog>(
         File.ReadAllText(Path.Combine(RepoRoot(), "docs", "move-conformance", "definitions.v1.json")));
 

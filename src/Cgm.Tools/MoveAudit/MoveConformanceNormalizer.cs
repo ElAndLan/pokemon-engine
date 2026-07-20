@@ -150,7 +150,7 @@ public static class MoveConformanceNormalizer
             AddStatChanges(payload, metadata, target, effects, path);
             AddFlinch(metadata, effects);
             AddDrainOrRecoil(metadata, effects);
-            AddHealing(metadata, effects);
+            AddHealing(metadata, effects, decision);
             AddMultiHit(metadata, effects, path);
         }
 
@@ -290,8 +290,12 @@ public static class MoveConformanceNormalizer
         });
     }
 
-    private static void AddHealing(JsonElement meta, List<Effect> effects)
+    private static void AddHealing(JsonElement meta, List<Effect> effects, MoveConformanceDecision decision)
     {
+        // A decision that authors its own heal (e.g. a weather table or a non-self recipient) replaces
+        // the flat self-heal this would otherwise derive from meta.healing.
+        if (decision.AdditionalEffects?.Any(effect => effect.Op == "heal") == true)
+            return;
         if (OptionalInt(meta, "healing") is > 0 and var healing)
             effects.Add(new Effect { Op = "heal", Params = Params(("num", healing), ("den", 100)) });
     }

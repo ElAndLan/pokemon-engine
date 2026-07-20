@@ -52,7 +52,8 @@ Starting baseline:
   count to 170/937. The complete 15G-3 damage-memory consumers (Counter/Mirror Coat/revenge/Bide, with
   last-hit semantics and doubles source-addressed reflection) raise the count to 175/937. The 15G-4
   plain 50% self-heal cohort (Recover/Soft-Boiled/Milk Drink/Slack Off/Heal Order) raises it to 180/937;
-  15G-4 continues with weather/target/delayed/cure/transfer/revival heals. Deferred environment
+  the weather-scaled self-heal cohort (Morning Sun/Synthesis/Moonlight/Shore Up) raises it to 184/937.
+  15G-4 continues with target/delayed/cure/transfer/revival heals. Deferred environment
   consumers, doubles Bide unleash, and individual conformance vectors remain with their owning later
   packages without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in
