@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 745
+      "count": 736
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 192
+      "count": 201
     },
     {
       "status": "blockedReference",
@@ -564,12 +564,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "35077a5602bac7a2e0472603906c4d139142d2ba6a958355b4b9d328745c0eb3",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0036)"
+      ]
     },
     {
       "referenceKey": "move-0037",
@@ -599,12 +603,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "2751daf1528687c203925d5e1f37630ebc846650178f3c5d293304510afd2858",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0038)"
+      ]
     },
     {
       "referenceKey": "move-0039",
@@ -1039,12 +1047,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "c999392289319284bd272c55a001ac6c099ce1e18be85b14d17dc78cf4b165a8",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0066)"
+      ]
     },
     {
       "referenceKey": "move-0067",
@@ -6458,12 +6470,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "5c289fbe851841d9be1ccd73c58c1534b2ba78b6bb0365e652c9b6da675ba598",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0413)"
+      ]
     },
     {
       "referenceKey": "move-0414",
@@ -7049,12 +7065,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "3bc67cf9ec2796cf3371bf806b3343dc47f9315c7ba46a9abc0eb81bd54b0cf7",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0452)"
+      ]
     },
     {
       "referenceKey": "move-0453",
@@ -7125,12 +7145,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "6d88a5fbf53d45c990ae52203c5f41a3fe30131e8225b29e9d7c554ecb185184",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0457)"
+      ]
     },
     {
       "referenceKey": "move-0458",
@@ -8259,12 +8283,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "b4f06aa76fe96030d858751ae831b80da08322c2624c081caa6914411036c104",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0528)"
+      ]
     },
     {
       "referenceKey": "move-0529",
@@ -8485,12 +8513,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "0fe2ac9a197455fea8d869fb156bddb12483002ec2e99196d8e680a2a5524654",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0543)"
+      ]
     },
     {
       "referenceKey": "move-0544",
@@ -9637,12 +9669,16 @@
       "sourceTarget": "selected-pokemon",
       "observedMechanicFamilies": [
         "recoil",
-        "standardDamage"
+        "standardDamage",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "82f422671f318ae8f32fdd428c6bb81fd52d98159a192a9f9684adfd70c64efd",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0617)"
+      ]
     },
     {
       "referenceKey": "move-0618",

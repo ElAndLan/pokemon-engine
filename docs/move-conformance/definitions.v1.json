@@ -123,6 +123,45 @@
       ]
     },
     {
+      "referenceKey": "move-0036",
+      "sourceFileHash": "350443a883235c19da5db5e98bb482fa78af3f4670f923f32d4d41ed9e65a1dd",
+      "payloadContentHash": "52b3a8e8707426336d6c37767aa3f973ed507bd494e7765b35bc6e511496a239",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "power": 90,
+        "accuracy": 85,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 25,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "35077a5602bac7a2e0472603906c4d139142d2ba6a958355b4b9d328745c0eb3",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0036)"
+      ]
+    },
+    {
       "referenceKey": "move-0037",
       "sourceFileHash": "cf76662402288fa3eb4f3c495be52e4403f9e472c3a6e27eb269a4926470f437",
       "payloadContentHash": "40ac988ad33659a32c21bc6196e5dbe65b1ce85b15e903aa78ad57787596301f",
@@ -156,6 +195,45 @@
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0037)",
         "MultiTurnLockConformanceTests.Certified(move-0037)"
+      ]
+    },
+    {
+      "referenceKey": "move-0038",
+      "sourceFileHash": "c013a83cebffb74dd5716acb5e995c9526edbb6cd3637fca6e02f48c4d1bcd6d",
+      "payloadContentHash": "9d1feacd1a3d6f252a70341c60a28d063ab1143581912d9cb1ed77eb356d0fc5",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "power": 120,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 33,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "2751daf1528687c203925d5e1f37630ebc846650178f3c5d293304510afd2858",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0038)"
       ]
     },
     {
@@ -414,6 +492,45 @@
       "normalizedDefinitionHash": "e6ea9f0f496d6f16dbf9be135e415272c2d1c0f9689b97f7d77f595e98af1639",
       "testIds": [
         "ActionGateConformanceTests.Certified(move-0063)"
+      ]
+    },
+    {
+      "referenceKey": "move-0066",
+      "sourceFileHash": "2d8e95822fc11709eb6061fdff884690833afef3e19dda360745f52d83a0cb07",
+      "payloadContentHash": "05f196aeb3d26bacf0095bf2a13cb6d3386cb402a1112abf4c9dc6582ea39eca",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_02",
+        "damageClass": "physical",
+        "power": 80,
+        "accuracy": 80,
+        "pp": 20,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 25,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "c999392289319284bd272c55a001ac6c099ce1e18be85b14d17dc78cf4b165a8",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0066)"
       ]
     },
     {
@@ -3975,6 +4092,45 @@
       ]
     },
     {
+      "referenceKey": "move-0413",
+      "sourceFileHash": "86c9712cf3da996eff35ae470961358c2b05a4bae8435b9410440be887bf22f7",
+      "payloadContentHash": "14977f4c3db0d318c3a4387c8b784d8ae8a7ef5427528da3aac4de2ff881971f",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_03",
+        "damageClass": "physical",
+        "power": 120,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 33,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "5c289fbe851841d9be1ccd73c58c1534b2ba78b6bb0365e652c9b6da675ba598",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0413)"
+      ]
+    },
+    {
       "referenceKey": "move-0415",
       "sourceFileHash": "ea84660600fd7f1ff4d8aee6754a11f0df4f1bab5dbfe318c9162aaea886cfae",
       "payloadContentHash": "48b95dbe4657f6dffdf6e4145ed1112fc12cdda5e610cfef419e15fb5db2ec1f",
@@ -4121,6 +4277,45 @@
       ]
     },
     {
+      "referenceKey": "move-0452",
+      "sourceFileHash": "40e813937457619ffe66996da970e706eccbf0d06338dedb71d974abf2f5f63d",
+      "payloadContentHash": "3617820266eb461e91f51e6fa656e3a8012264584f13a4547e9a74bd80450f8a",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_12",
+        "damageClass": "physical",
+        "power": 120,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 33,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "3bc67cf9ec2796cf3371bf806b3343dc47f9315c7ba46a9abc0eb81bd54b0cf7",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0452)"
+      ]
+    },
+    {
       "referenceKey": "move-0456",
       "sourceFileHash": "c5959d01729bf4944d8209c67a4ea4d109f4bbadd176c0bb5cbb4ffbb71191da",
       "payloadContentHash": "f4cc2d2e663ed48dd582cb0cf1690767ceaed452665553c04205d9560b2aa624",
@@ -4151,6 +4346,45 @@
       "normalizedDefinitionHash": "b353fd4bc33ec79f3f3ca20ff53017c110b41c6d52057d1a9a683649d22fd464",
       "testIds": [
         "HealingConformanceTests.Certified(move-0456)"
+      ]
+    },
+    {
+      "referenceKey": "move-0457",
+      "sourceFileHash": "7d1ae4771c0bfcb369bc43654dc230acdd2a3b2f6d211774168f664bfd4ef762",
+      "payloadContentHash": "e792c90d73322e959dc9bbb432e0115db2b0dbd08465d0fb06642ed932c63b11",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_06",
+        "damageClass": "physical",
+        "power": 150,
+        "accuracy": 80,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 50,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "6d88a5fbf53d45c990ae52203c5f41a3fe30131e8225b29e9d7c554ecb185184",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0457)"
       ]
     },
     {
@@ -5175,6 +5409,45 @@
       ]
     },
     {
+      "referenceKey": "move-0528",
+      "sourceFileHash": "d06a2805cd612a82e432a909bfc2ff2fba50b8d9f3c5b73f3f5b6100fb736955",
+      "payloadContentHash": "647ba8c8c81377252ea85a28a6ac839502b684df7ac500fbc39eba60b077fe62",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_13",
+        "damageClass": "physical",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 25,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "b4f06aa76fe96030d858751ae831b80da08322c2624c081caa6914411036c104",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0528)"
+      ]
+    },
+    {
       "referenceKey": "move-0532",
       "sourceFileHash": "d3c390e622575baaf9fe8150e8979c8d7b969222457e72f293f9439f3ee37bed",
       "payloadContentHash": "f2ea83fd8351afe6648e28a070ca026853b5e12f6c296f0343a88ce6e4db4e69",
@@ -5211,6 +5484,45 @@
       "normalizedDefinitionHash": "4ba1b2d5a2646774c02b151357ac1eff5bdedc2737e45e5f7d9f717ceed044a8",
       "testIds": [
         "DrainConformanceTests.Certified(move-0532)"
+      ]
+    },
+    {
+      "referenceKey": "move-0543",
+      "sourceFileHash": "6e2cc1f45f915c00e7fcb171d09737d48a1be39bb1a0e19582118e781252f467",
+      "payloadContentHash": "3eb1a54ffdfbee6495f6071293bc80e57e106a1ce0ea5c6a7fc6ca34e7b58c75",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_01",
+        "damageClass": "physical",
+        "power": 120,
+        "accuracy": 100,
+        "pp": 15,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": true,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 25,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "0fe2ac9a197455fea8d869fb156bddb12483002ec2e99196d8e680a2a5524654",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0543)"
       ]
     },
     {
@@ -5973,6 +6285,45 @@
       "normalizedDefinitionHash": "049313839507214656530fee26f231fca30c40c54ccf14e3fd4ce05a33e51b53",
       "testIds": [
         "TargetTopologyConformanceTests.Certified(move-0616)"
+      ]
+    },
+    {
+      "referenceKey": "move-0617",
+      "sourceFileHash": "344246ad4d739dd308c42e8d1c6ff60aac8a3757c502ef06202aa61c0701b960",
+      "payloadContentHash": "51ce68f0e508e5db8c34193fbbce2dd01377541cf41d68ce989d78e064565240",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "recoil",
+        "standardDamage",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_18",
+        "damageClass": "special",
+        "power": 140,
+        "accuracy": 90,
+        "pp": 5,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "damage"
+          },
+          {
+            "op": "recoil",
+            "params": {
+              "num": 50,
+              "den": 100
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "82f422671f318ae8f32fdd428c6bb81fd52d98159a192a9f9684adfd70c64efd",
+      "testIds": [
+        "RecoilConformanceTests.Certified(move-0617)"
       ]
     },
     {
