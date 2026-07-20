@@ -5,7 +5,7 @@
   "statusCounts": [
     {
       "status": "inventoryOnly",
-      "count": 762
+      "count": 757
     },
     {
       "status": "normalized",
@@ -17,7 +17,7 @@
     },
     {
       "status": "certified",
-      "count": 175
+      "count": 180
     },
     {
       "status": "blockedReference",
@@ -1637,12 +1637,16 @@
       "payloadContentHash": "6771a7e0f047b8006461fae9c91bcf0379eb657034fb628a3c17f38d0eb1e8f1",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "311dce9629d9a7914f55ef4fcaea757737d500d698a604104c3decf678ffe146",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0105)"
+      ]
     },
     {
       "referenceKey": "move-0106",
@@ -2092,12 +2096,16 @@
       "payloadContentHash": "929f4c996c7396f07527d039160b094eadf143853d353261300f432521474a8f",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "311dce9629d9a7914f55ef4fcaea757737d500d698a604104c3decf678ffe146",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0135)"
+      ]
     },
     {
       "referenceKey": "move-0136",
@@ -3222,12 +3230,16 @@
       "payloadContentHash": "756625e6ffa54833dd9153b7ecab67483d464e641c54d658227636ce3f666296",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "311dce9629d9a7914f55ef4fcaea757737d500d698a604104c3decf678ffe146",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0208)"
+      ]
     },
     {
       "referenceKey": "move-0209",
@@ -4708,12 +4720,16 @@
       "payloadContentHash": "22457e28872368513fa3b830f1a5e3806851947907226fda10f0cad61f4e23d2",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "311dce9629d9a7914f55ef4fcaea757737d500d698a604104c3decf678ffe146",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0303)"
+      ]
     },
     {
       "referenceKey": "move-0304",
@@ -7058,12 +7074,16 @@
       "payloadContentHash": "f4cc2d2e663ed48dd582cb0cf1690767ceaed452665553c04205d9560b2aa624",
       "sourceTarget": "user",
       "observedMechanicFamilies": [
-        "heal"
+        "heal",
+        "targetTopology"
       ],
-      "requiredTopology": "unclassified",
-      "requiredRuleset": "unclassified",
-      "status": "inventoryOnly",
-      "testIds": []
+      "requiredTopology": "singles-or-doubles",
+      "requiredRuleset": "modern_reference",
+      "status": "certified",
+      "normalizedDefinitionHash": "b353fd4bc33ec79f3f3ca20ff53017c110b41c6d52057d1a9a683649d22fd464",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0456)"
+      ]
     },
     {
       "referenceKey": "move-0457",

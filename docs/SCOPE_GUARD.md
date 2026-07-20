@@ -50,8 +50,9 @@ Starting baseline:
   packages raise it to 166/937. The complete 15F-7 unified move selector/executor closes the 15F
   workstream, and the complete 15G-1 unified switch-intent package (Baton Pass/pivot/trap) raises the
   count to 170/937. The complete 15G-3 damage-memory consumers (Counter/Mirror Coat/revenge/Bide, with
-  last-hit semantics and doubles source-addressed reflection) raise the count to 175/937. The next
-  eligible work is 15G-4 healing/costs/cures/transfer/revival/HP-equalization. Deferred environment
+  last-hit semantics and doubles source-addressed reflection) raise the count to 175/937. The 15G-4
+  plain 50% self-heal cohort (Recover/Soft-Boiled/Milk Drink/Slack Off/Heal Order) raises it to 180/937;
+  15G-4 continues with weather/target/delayed/cure/transfer/revival heals. Deferred environment
   consumers, doubles Bide unleash, and individual conformance vectors remain with their owning later
   packages without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

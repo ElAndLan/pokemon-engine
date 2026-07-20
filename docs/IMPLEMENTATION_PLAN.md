@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 175/937 certified; 15G-4 (healing/costs/cures/transfer/revival/HP-equalization) is the next package** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 180/937 certified; 15G-4 IN PROGRESS (plain 50% self-heal cohort certified; weather/target/delayed/cure/transfer/revival heals remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3078,7 +3078,20 @@ Ordered feature packages:
    **1,987/1,987** (1,654 Core, 104 Creator, 21 Runtime, 208 Tools). 175/937 certified. Next package:
    **15G-4** (healing/costs/cures/transfer/revival/HP-equalization) — audit first; several ops already
    exist, so it should be a batch-certification cohort.
-4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`PLANNED`; prerequisites
+   Progress (2026-07-20): **15G-4 IN PROGRESS — plain self-heal cohort certified (175 → 180/937).**
+   Audited the corpus healing family and bucketed by op. The normalizer's `AddHealing` already emits a
+   self `heal {healing/100}` from `meta.healing`, so the plain 50% self-recovery moves needed only a
+   `heal` testId rule plus neutral decisions: certified **Recover, Soft-Boiled, Milk Drink, Slack Off,
+   Heal Order** (all `heal → user`, no ailment/stat/weather). Added `HealingConformanceTests` (per-row
+   self-`HealEffect` shape + half-fraction cohort assertion); the `HealEffect` primitive's execution is
+   already proven by the drain/terrain/weather/target-heal battle tests. Regeneration was byte-identical
+   with the corpus digest unchanged and the count moved exactly +5 (no spillover onto other rows). Full
+   solution **1,993/1,993** (1,654 Core, 104 Creator, 21 Runtime, 214 Tools). Deferred gaps surfaced by
+   the audit: weather-scaled heals (Morning Sun/Synthesis/Moonlight/Shore Up — need the `heal` weather
+   table), target-recipient heal (Heal Pulse), Roost (Flying-type suppression), Stockpile-linked Swallow,
+   delayed Wish, residual Aqua Ring/Grassy Terrain, Rest (sleep + full heal), and the faint-and-replace
+   heals (Healing Wish/Lunar Dance). Next: the weather-scaled self-heal sub-cohort.
+4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`IN PROGRESS`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;
    revive fraction; and HP match/equalize over active, ally, party, fainted-party, side, and slot.
