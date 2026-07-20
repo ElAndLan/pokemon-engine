@@ -2509,21 +2509,26 @@ intent/trap/candidate matrix as the self-switch selection flow lands.
 
 ### Counter, revenge, and stored-release consumers (Phase 15G-3)
 
-These moves return damage read from the battle's damage memory. Counter and Mirror Coat already return
-2× the **sum** of the physical (resp. special) damage the user took this turn, from the per-turn
-`PhysicalDamageTaken`/`SpecialDamageTaken` accumulators (reset at turn start), fizzling with
-`NoQualifyingDamage` if none. Phase 15G-3 adds the revenge consumer: `revengeDamage { num?, den? }`
-(default 3/2, Metal Burst/Comeuppance) returns `floor(multiplier × (physical + special damage taken
-this turn))` to the target, of any class, with no RNG draw, the cannot-KO floor applied, and the same
-`NoQualifyingDamage` fizzle. Substitute-absorbed damage is already excluded because only damage that
-reduced the user's own HP feeds the accumulators. Overflow-safe multiplication uses checked arithmetic.
+These moves return damage read from the battle's damage memory. Counter and Mirror Coat return 2× the
+**last** physical (resp. special) hit the user took this turn — not the turn's sum — matching the
+corpus wording ("twice the damage the user received from the last physical hit it took"). The value is
+the `ActualHpRemoved` of the most recently resolved qualifying `BattleDamageRecord` targeting the user
+this turn, read via `BattleActionHistory.LastActualDamageTo(user, turn, class?)`; the move fizzles with
+`NoQualifyingDamage` if none. The revenge consumer `revengeDamage { num?, den? }` (default 3/2, Metal
+Burst/Comeuppance) returns `floor(multiplier × last hit taken this turn)` of any class, with the same
+history source, no RNG draw, the cannot-KO floor, and the same fizzle. In single-hit singles last and
+sum coincide; they diverge only under multi-hit moves or multiple attackers (doubles). Substitute-
+absorbed damage is excluded because only connected hits that removed the user's own HP are recorded.
+Overflow-safe multiplication uses checked arithmetic. (The earlier per-turn
+`PhysicalDamageTaken`/`SpecialDamageTaken` accumulators are removed — the per-hit history is the single
+source of truth.)
 
 The stored-release consumer `bide { turns? }` (default 2) is the cross-turn variant. On selection the
 user spends PP, starts biding, and is force-locked into Bide for the stored turns (like a multi-turn
 lock: the submitted action is replaced by the forced Bide, switching is blocked, and no attack lands
 while storing). All move damage the user takes while biding accumulates in a dedicated `BideDamage`
-counter — separate from the per-turn Counter accumulators, so it survives across turns — and is
-cleared on switch-out, faint, or unleash. On the turn the last stored turn elapses, the user unleashes
+counter — a running cross-turn sum (unlike Counter's single last-hit read) — and is cleared on
+switch-out, faint, or unleash. On the turn the last stored turn elapses, the user unleashes
 `2 × BideDamage` at its opponent with no RNG draw and the cannot-KO floor, fizzling with
 `NoQualifyingDamage` if nothing was stored. Storing turns emit `BideStoring`; the unleash emits
 `BideUnleashed`. Like Counter, only damage that reduced the user's own HP feeds the store (indirect

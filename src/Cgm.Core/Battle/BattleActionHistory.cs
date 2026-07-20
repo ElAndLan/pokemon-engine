@@ -312,6 +312,21 @@ public sealed class BattleActionHistory
     public int TotalActualDamageTo(BattleHistoryOwner target, int turn) =>
         checked(DamageTo(target, turn).Sum(record => record.ActualHpRemoved));
 
+    /// <summary>Actual HP removed by the most recent connected hit against <paramref name="target"/>
+    /// on <paramref name="turn"/>, optionally filtered by class — the "last hit" damage-memory input
+    /// for Counter/Mirror Coat/revenge. Zero if no qualifying hit exists. `DamageTo` is already ordered
+    /// by (action sequence, hit number), so the last element is the most recently resolved hit.</summary>
+    public int LastActualDamageTo(BattleHistoryOwner target, int turn, DamageClass? ofClass = null)
+    {
+        if (ofClass is { } value && !Enum.IsDefined(value))
+            throw new ArgumentOutOfRangeException(nameof(ofClass));
+        return DamageTo(target, turn)
+            .Where(record => record.Connected && record.ActualHpRemoved > 0
+                && (ofClass is null || record.DamageClass == ofClass))
+            .Select(record => record.ActualHpRemoved)
+            .LastOrDefault();
+    }
+
     public void EndBattle()
     {
         _attempts.Clear();

@@ -608,13 +608,9 @@ public sealed class BattleController
     private void ResolveDoublesMoveScheduling(IReadOnlyList<AdmittedAction> actions)
     {
         _redirects.Clear();
-        // Flinch lasts only for a turn; Counter/Mirror Coat only see this turn's hits.
+        // Flinch lasts only for a turn.
         foreach (BattleSlot slot in Topology.Slots)
-        {
-            BattleCreature active = Active(slot);
-            active.ClearFlinch();
-            active.ResetDamageTaken();
-        }
+            Active(slot).ClearFlinch();
 
         var scheduled = new List<BattleScheduledAction>();
         foreach (AdmittedAction action in actions)
@@ -1020,7 +1016,7 @@ public sealed class BattleController
                     effectiveness, traceAction);
                 DamageApplication applied = intercepted ?? DealMoveDamage(targetContext.Target,
                     targetContext.TargetSlot, damage, effectiveness, crit, HpStatusFormulas.CannotKoFloor(move));
-                targetContext.Target.RecordDamageTaken(moveIdentity.EffectiveClass, applied.ActualHpRemoved);
+                targetContext.Target.AccumulateBideDamage(applied.ActualHpRemoved);
                 targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
                 RecordDamage(attempt, sourceOwner, HistoryOwner(targetContext.TargetSlot), move,
                     BattleDamageCause.Standard, hit + 1, attempted: true, intercepted is not null
@@ -1437,11 +1433,7 @@ public sealed class BattleController
     {
         // Flinch lasts only for a turn; conditions own protection duration.
         foreach (BattleSlot slot in actions.Topology.Slots)
-        {
-            BattleCreature active = Active(slot);
-            active.ClearFlinch();
-            active.ResetDamageTaken(); // Counter/Mirror Coat only see this turn's hits
-        }
+            Active(slot).ClearFlinch();
 
         var scheduled = new List<BattleScheduledAction>();
         foreach (BattleActionSubmission submission in actions.Actions)
@@ -2499,8 +2491,8 @@ public sealed class BattleController
         }
         else if (move.CounterCategory is { } counterCat)
         {
-            // Counter/Mirror Coat: return 2× the damage of that category taken this turn (no draw).
-            int received = counterCat == DamageClass.Physical ? attacker.PhysicalDamageTaken : attacker.SpecialDamageTaken;
+            // Counter/Mirror Coat: return 2× the damage of the last hit of that category this turn (no draw).
+            int received = _actionHistory.LastActualDamageTo(sourceOwner, Turn, counterCat);
             if (received > 0)
             {
                 int dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target,
@@ -2523,8 +2515,8 @@ public sealed class BattleController
         }
         else if (move.SecondaryEffects.OfType<RevengeDamageEffect>().SingleOrDefault() is { } revenge)
         {
-            // Metal Burst/Comeuppance: return a multiple of this turn's total damage taken (any class), no draw.
-            int received = attacker.PhysicalDamageTaken + attacker.SpecialDamageTaken;
+            // Metal Burst/Comeuppance: return a multiple of the last hit taken this turn (any class), no draw.
+            int received = _actionHistory.LastActualDamageTo(sourceOwner, Turn);
             if (received > 0)
             {
                 int dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target, move,
@@ -2597,7 +2589,7 @@ public sealed class BattleController
                 DamageApplication? intercepted = InterceptWithDecoy(targetSlot, move, dmg, eff, traceAction);
                 DamageApplication applied = intercepted ?? DealMoveDamage(target, targetSlot, dmg, eff, crit,
                     HpStatusFormulas.CannotKoFloor(move));
-                target.RecordDamageTaken(moveIdentity.EffectiveClass, applied.ActualHpRemoved); // for Counter/Mirror Coat
+                target.AccumulateBideDamage(applied.ActualHpRemoved);
                 targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
                 RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Standard, h + 1, true,
                     intercepted is not null ? BattleDamageFailure.Substitute
@@ -3251,7 +3243,7 @@ public sealed class BattleController
             int calculated = targetBefore - sourceBefore;
             DamageApplication applied = DealMoveDamage(ctx.Target, ctx.TargetSlot, calculated, effectiveness,
                 crit: false);
-            ctx.Target.RecordDamageTaken(damageQuery.Identity.EffectiveClass, applied.ActualHpRemoved);
+            ctx.Target.AccumulateBideDamage(applied.ActualHpRemoved);
             ctx.TargetContext!.AddDamage(ctx.Action, applied.ActualHpRemoved);
             BattleHistoryOwner target = HistoryOwner(ctx.TargetSlot);
             RecordDamage(new BattleActionAttemptId(Turn, ctx.TraceAction), HistoryOwner(ctx.SourceSlot), target,
@@ -3659,7 +3651,7 @@ public sealed class BattleController
         calculated = finalDamage.FinalValue.ToInt32();
         DamageApplication applied = DealMoveDamage(target, targetSlot, calculated, effectiveness,
             crit: false, applySurvival: false);
-        target.RecordDamageTaken(snapshot.DamageClass, applied.ActualHpRemoved);
+        target.AccumulateBideDamage(applied.ActualHpRemoved);
         RecordDelayedDamage(intent, attempt, sourceOwner, targetOwner, payload, calculated,
             applied, applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage);
         _actionHistory.Complete(attempt, applied.ActualHpRemoved > 0

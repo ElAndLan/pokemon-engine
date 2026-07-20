@@ -61,6 +61,28 @@ public sealed class BattleCounterTests
     }
 
     [Fact]
+    public void Counter_ReturnsTwiceTheLastHitOnly_NotTheSumOfAMultiHitMove()
+    {
+        // Canon: Counter reflects the LAST physical hit, not the turn's total. A 2-hit move must
+        // return 2× only its second strike.
+        var twoHit = new BattleMove(EntityId.Parse("move:double"), Normal, DamageClass.Physical, 60, null, 10,
+            0, 0, multiHitMin: 2, multiHitMax: 2);
+        var player = Slow(3000, Counter());  // -5 priority + slow → counters after both hits land
+        var enemy = Fast(6000, twoHit);
+        var battle = new BattleController(player, enemy, Chart(), new Rng(3));
+
+        int before = enemy.CurrentHp;
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+        int[] hits = events.OfType<DamageDealt>().Where(e => e.Target == BattleSide.Player)
+            .Select(e => e.Amount).ToArray();
+        Assert.Equal(2, hits.Length);
+        int dealtToEnemy = before - enemy.CurrentHp;
+        Assert.Equal(hits[^1] * 2, dealtToEnemy);            // last hit only
+        Assert.NotEqual((hits[0] + hits[1]) * 2, dealtToEnemy); // would be the old sum behavior
+    }
+
+    [Fact]
     public void Counter_ResetsBetweenTurns()
     {
         var player = Slow(2000, Counter(), Inert());

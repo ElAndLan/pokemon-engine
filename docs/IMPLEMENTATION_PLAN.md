@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 175/937 certified; 15G-3 IN PROGRESS (Counter/Mirror Coat/revenge/Bide certified; per-hit/last-versus-sum history consumers + doubles source-addressed targeting remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 175/937 certified; 15G-3 IN PROGRESS (Counter/Mirror Coat/revenge/Bide certified + last-hit history semantics; doubles source-addressed targeting + close-out review remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3037,6 +3037,19 @@ Ordered feature packages:
    `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, byte-identical on rerun.
    Extended `DamageMemoryConformanceTests` to accept `BideEffect` and added a Target=User unleash test.
    Full solution **1,982/1,982** (1,649 Core, 104 Creator, 21 Runtime, 208 Tools).
+
+   Progress (2026-07-20): **15G-3 last-versus-sum consumer fixed (Counter/Mirror Coat/revenge → last
+   hit).** A corpus scan showed Counter's wording is "twice the damage from the **last physical hit**"
+   — not the turn sum my accumulators computed. Added `BattleActionHistory.LastActualDamageTo(target,
+   turn, class?)` (most recently resolved qualifying per-hit `ActualHpRemoved`) and switched the Counter
+   and revenge branches to it. Deleted the now-dead per-turn `PhysicalDamageTaken`/`SpecialDamageTaken`
+   accumulators and `ResetDamageTaken`; the per-hit history is the single source of truth, and
+   `RecordDamageTaken` collapsed into a Bide-only `AccumulateBideDamage(int)`. Behavior is identical in
+   single-hit singles (last == sum) and now correct under multi-hit/doubles. New
+   `Counter_ReturnsTwiceTheLastHitOnly_NotTheSumOfAMultiHitMove` proves the divergence (2-hit move →
+   2× the second strike, not 2× the sum). Full solution **1,983/1,983** (1,650 Core, 104 Creator, 21
+   Runtime, 208 Tools). Spec updated. Remaining for 15G-3: doubles source-addressed targeting for
+   counter/revenge/Bide, then a review pass to close the package.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`PLANNED`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

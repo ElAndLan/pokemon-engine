@@ -414,10 +414,6 @@ public sealed class BattleCreature
     /// <summary>Shared consecutive protection-success count. Active protection lives in the condition store.</summary>
     public int ProtectChain { get; private set; }
 
-    /// <summary>Damage taken this turn by category, for Counter/Mirror Coat (catalog §9.2). Reset each turn.</summary>
-    public int PhysicalDamageTaken { get; private set; }
-    public int SpecialDamageTaken { get; private set; }
-
     /// <summary>Two-turn move mid-charge (catalog §7.2 charge): the move index locked in until it fires.</summary>
     public int? ChargingMoveIndex { get; private set; }
     public bool IsCharging => ChargingMoveIndex is not null;
@@ -687,13 +683,10 @@ public sealed class BattleCreature
     public void AdvanceProtectChain() => ProtectChain++;
     public void ResetProtectChain() => ProtectChain = 0;
 
-    /// <summary>Records damage taken this turn for Counter/Mirror Coat (status hits contribute nothing).</summary>
-    public void RecordDamageTaken(DamageClass damageClass, int amount)
+    /// <summary>Feeds move damage the user takes into its Bide store while biding (no-op otherwise).
+    /// ponytail: indirect damage (residual/OHKO/fixed) doesn't route here — a known Bide ceiling.</summary>
+    public void AccumulateBideDamage(int amount)
     {
-        if (damageClass == DamageClass.Physical) PhysicalDamageTaken += amount;
-        else if (damageClass == DamageClass.Special) SpecialDamageTaken += amount;
-        // ponytail: Bide stores move damage routed through here; indirect damage (residual/OHKO/fixed)
-        // is a known ceiling — same blind spot Counter/Mirror Coat already accept.
         if (IsBiding) BideDamage = checked(BideDamage + amount);
     }
 
@@ -708,8 +701,6 @@ public sealed class BattleCreature
     /// <summary>Consumes one storing turn; the caller unleashes once this reports <see cref="IsBiding"/> false.</summary>
     public void AdvanceBide() { if (BideTurns > 0) BideTurns--; }
     public void EndBide() { BideTurns = 0; BideDamage = 0; }
-
-    public void ResetDamageTaken() { PhysicalDamageTaken = 0; SpecialDamageTaken = 0; }
 
     public bool HasConsumedHeldEffect(string op) => _consumedHeldEffects.Contains(op);
     public bool ConsumeHeldEffect(string op) => _consumedHeldEffects.Add(op);
