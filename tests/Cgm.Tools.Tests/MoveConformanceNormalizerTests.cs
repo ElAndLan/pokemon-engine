@@ -67,7 +67,7 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
     [Fact]
     public void Build_RegistersFormulaVectorsAndRejectsUnownedSinglesRows()
     {
-        WriteMove("neutral_formula", 900, "selected-pokemon");
+        WriteMove("neutral_formula", 900, "selected-pokemon", statChanges: false);
         var formula = new Effect
         {
             Op = "targetHpThresholdPower",
@@ -85,7 +85,7 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
         MoveConformanceRecord record = Assert.Single(MoveConformanceNormalizer.Build(_folder, decisions).Entries);
         Assert.Equal(["HpStatusFormulaConformanceTests.Certified(move-0900)"], record.TestIds);
 
-        WriteMove("neutral_speed_formula", 901, "selected-pokemon", power: null);
+        WriteMove("neutral_speed_formula", 901, "selected-pokemon", power: null, statChanges: false);
         var speedFormula = new Effect
         {
             Op = "speedRatioPower",
@@ -123,7 +123,7 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
     [Fact]
     public void Build_RegistersTypeMutationVectors()
     {
-        WriteMove("neutral_soak", 902, "selected-pokemon");
+        WriteMove("neutral_soak", 902, "selected-pokemon", statChanges: false);
         var typeMutation = new Effect
         {
             Op = "typeMutation",
@@ -140,9 +140,13 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
         Assert.Contains("typeMutation", record.MechanicFamilies);
     }
 
-    private string WriteMove(string name, int id, string target = "all-opponents", int? power = 40)
+    private string WriteMove(string name, int id, string target = "all-opponents", int? power = 40,
+        bool statChanges = true)
     {
         string powerJson = power?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null";
+        string statChangesJson = statChanges
+            ? "\"stat_changes\": [{ \"change\": -1, \"stat\": { \"name\": \"special-defense\" } }],"
+            : "\"stat_changes\": [],";
         string json = $$"""
         {
           "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -157,7 +161,7 @@ public sealed class MoveConformanceNormalizerTests : IDisposable
             "pp": 20,
             "priority": 0,
             "target": { "name": "{{target}}" },
-            "stat_changes": [{ "change": -1, "stat": { "name": "special-defense" } }],
+            {{statChangesJson}}
             "meta": {
               "ailment": { "name": "none" },
               "ailment_chance": 0,
