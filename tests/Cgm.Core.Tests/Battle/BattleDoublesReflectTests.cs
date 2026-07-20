@@ -86,6 +86,31 @@ public sealed class BattleDoublesReflectTests
 
     // target: User so the move validates in doubles without a selection — the reflect addresses the
     // attacker from damage memory and ignores the declared target regardless.
+    [Fact]
+    public void Counter_FizzlesGracefullyWhenOpposingSlotZeroIsEmpty()
+    {
+        // The ally KOs foe slot 0 first, emptying it; the Counter user then fizzles (took no hit).
+        // Recording the fizzle must not touch the now-empty slot 0.
+        BattleCreature counterer = Slow(Counter());
+        BattleCreature ally = Fast(Strike());          // acts first, KOs enemy0
+        BattleCreature enemy0 = Frail(Wait());         // 1 HP → faints to the ally's strike
+        BattleCreature enemy1 = Fast(Wait());          // never attacks → nothing to counter
+        var battle = new BattleController([counterer, ally], [enemy0, enemy1], BattleTopology.Doubles,
+            [0, 1], [0, 1], Chart(), new Rng(5));
+
+        IReadOnlyList<BattleEvent> events = battle.ResolveTurn(new BattleTurnActions(BattleTopology.Doubles,
+        [
+            new BattleActionSubmission(new(BattleSide.Player, 0), new UseMove(0)),               // Counter (slow)
+            new BattleActionSubmission(new(BattleSide.Player, 1), new UseMove(0),
+                new ActiveSlotSelection(new BattleSlot(BattleSide.Enemy, 0))),                    // ally KOs enemy0
+            new BattleActionSubmission(new(BattleSide.Enemy, 0), new Pass()),
+            new BattleActionSubmission(new(BattleSide.Enemy, 1), new Pass()),
+        ]));
+
+        Assert.True(enemy0.IsFainted);
+        Assert.Contains(events, e => e is MoveMissed { Slot: { Side: BattleSide.Player, Position: 0 } });
+    }
+
     private static BattleMove Counter() =>
         new(EntityId.Parse("move:counter"), Normal, DamageClass.Physical, null, null, 25, priority: -5, 0,
             counterCategory: DamageClass.Physical, target: MoveTarget.User);
@@ -110,6 +135,9 @@ public sealed class BattleDoublesReflectTests
 
     private static BattleCreature Fast(BattleMove move) => new(
         EntityId.Parse("species:fast"), "fast", 50, [Normal], new Stats(4000, 100, 100, 100, 100, 100), [move]);
+
+    private static BattleCreature Frail(BattleMove move) => new(
+        EntityId.Parse("species:frail"), "frail", 50, [Normal], new Stats(1, 100, 100, 100, 100, 50), [move]);
 
     private static TypeChart Chart() => new([new TypeDef { Id = Normal }]);
 }

@@ -914,7 +914,10 @@ public sealed class BattleController
             return applied.ActualHpRemoved > 0 ? BattleActionResult.Connected : BattleActionResult.Failed;
         }
         _log.Add(new MoveMissed(sourceSlot, move.Move)); // nothing to reflect → fizzles
-        RecordDamage(attempt, sourceOwner, HistoryOwner(new BattleSlot(Opponent(sourceSlot.Side), 0)), move,
+        // Nominal self-owner: the opposing slot 0 can be empty mid-turn (a foe fainted, awaiting
+        // replacement) and HistoryOwner would throw. A NoQualifyingDamage record isn't Connected, so it
+        // never feeds a future reflect read.
+        RecordDamage(attempt, sourceOwner, sourceOwner, move,
             BattleDamageCause.Counter, 0, false, BattleDamageFailure.NoQualifyingDamage, 0, default,
             critical: false, effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
         return BattleActionResult.Failed;

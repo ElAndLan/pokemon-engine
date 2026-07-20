@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 175/937 certified; 15G-3 IN PROGRESS (Counter/Mirror Coat/revenge/Bide certified + last-hit semantics + doubles source-addressed reflection; only Bide-in-doubles + close-out review remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 175/937 certified; 15G-4 (healing/costs/cures/transfer/revival/HP-equalization) is the next package** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -431,7 +431,7 @@ Current readiness ledger:
 | 15D timing/queue/lock families | 15D-1/2/3/4/5/6 SPEC READY; 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4/5/6 IMPLEMENTED; 15D-7 NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, multi-turn locks, condition-backed selection legality, ruleset fallback, and AI parity use shared deterministic paths; apply 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
 | 15F mutation/snapshots | 15F-1/2/3/4/5/6/7 SPEC LOCKED | 15F-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete: overlays, item/ability/creature-type/stat mutation, decoy/Transform/Mimic snapshots, and the unified move selector/executor over effective move lists |
-| 15G switch/recovery/memory/non-battle | 15G-1/2 SPEC LOCKED; 15G-3+ PLANNED — SPEC LOCK AUTHORIZED | 15G-1/2 IMPLEMENTED; 15G-3+ NOT ACTIVE | Unified switch intents (Baton Pass/pivot/trap, ADR-012) and bounded action/damage memory are complete; counter/revenge consumers land in 15G-3 |
+| 15G switch/recovery/memory/non-battle | 15G-1/2/3 COMPLETE; 15G-4+ PLANNED — SPEC LOCK AUTHORIZED | 15G-1/2/3 IMPLEMENTED; 15G-4+ NOT ACTIVE | Switch intents (ADR-012), bounded action/damage memory, and the damage-memory consumers (Counter/Mirror Coat/revenge/Bide, last-hit + doubles source-addressed) are complete; healing/recovery lands in 15G-4 |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
 | 15I AI awareness | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15I-1 through 15I-5 legality/scoring/tuning defaults after mechanics stabilize |
 | 15J certification/closeout | PROCESS READY | NOT COMPLETE | Generated manifest, registered tests, scans, fuzz/soak, and GO review |
@@ -3062,6 +3062,22 @@ Ordered feature packages:
    Core, 104 Creator, 21 Runtime, 208 Tools). Only residual 15G-3 item: Bide-in-doubles, which needs the
    deferred doubles forced-action handling — a `cgm-review-pass` should confirm that deferral and close
    the package.
+
+   Progress (2026-07-20): **15G-3 COMPLETE — `cgm-review-pass`: GO.** Review of the damage-memory change
+   set found one **FIX-NOW**, now fixed: the doubles-reflect fizzle recorded against
+   `HistoryOwner(opposing slot 0)`, which throws when that slot is empty (a foe fainted mid-turn awaiting
+   replacement) — a latent crash on a doubles Counter/revenge fizzle. Switched the nominal owner to
+   `sourceOwner` (always valid; a non-`Connected` `NoQualifyingDamage` record never feeds a future
+   reflect read) and added `Counter_FizzlesGracefullyWhenOpposingSlotZeroIsEmpty` (ally KOs foe slot 0,
+   then Counter fizzles). Other dimensions clean: Core-pure, deterministic (no reflect RNG draws; history
+   reads are deterministically ordered), no new deps, no serialized-schema change (the conformance JSON
+   is a tools artifact; corpus digest unchanged), closed named ops only. **Bide-in-doubles is an
+   accepted scoped deferral** — biding is force-locked in doubles too, but its unleash is a benign no-op
+   there (state clears safely via `AdvanceBide`/`EndBide`/`ClearVolatiles`; `BideDamage` is never read
+   outside the singles branch); it rides the deferred doubles forced-action layer. Full solution
+   **1,987/1,987** (1,654 Core, 104 Creator, 21 Runtime, 208 Tools). 175/937 certified. Next package:
+   **15G-4** (healing/costs/cures/transfer/revival/HP-equalization) — audit first; several ops already
+   exist, so it should be a batch-certification cohort.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`PLANNED`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;
