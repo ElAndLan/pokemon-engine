@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 257/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + secondary-ailment/flinch/stat-drop attacker cohorts certified; target/delayed/cure/transfer/revival heals remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 268/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + secondary-ailment/flinch/stat-drop/self-buff attacker cohorts certified; target/delayed/cure/transfer/revival heals remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3167,6 +3167,21 @@ Ordered feature packages:
    which now (correctly) triggers the statStage family — gave the fixture a `statChanges` toggle and
    disabled it for the formula/type/unowned cases. Byte-identical regen, digest unchanged, count +27
    exactly. Full solution **2,115/2,115** (1,654 Core, 104 Creator, 21 Runtime, 336 Tools).
+
+   Progress (2026-07-20): **15G-4 self-buff attacker cohort certified + onSelf normalizer bug fixed
+   (257 → 268/937).** Audit of the `damage-raise` moves exposed a real bug: `AddStatChanges` computed
+   `onSelf` against the literal `"damage+raise"` (plus) while the corpus category is `"damage-raise"`
+   (hyphen), so damaging self-buffs were mis-normalized as **target** buffs — three already-certified
+   moves (Diamond Storm, move-0336, move-0597) carried the wrong `onSelf`. Fixed the literal; regeneration
+   corrected those rows (e.g. Diamond Storm Def+2 now `onSelf:true`). Added a regression Fact —
+   *every positive stat change on a damaging move must be OnSelf* — which encodes "damaging moves buff
+   themselves, not the target" and would have caught the bug. Then certified eleven clean chance-based
+   self-buff attackers: **Steel Wing** (Def), **Metal Claw/Meteor Mash/Power-Up Punch** (Atk),
+   **Charge Beam/Fiery Dance** (SpA), **Flame Charge/Aura Wheel** (Spe), **Ancient Power/Silver Wind/
+   Ominous Wind** (all five stats +1). Deferred: Rapid Spin (hazard/trap removal), Zippy Zap (always-crit),
+   the empty-category newer self-buffers (Torch Song/Aqua Step/Trailblaze/Electro Shot — need a separate
+   onSelf path). Byte-identical regen, digest unchanged, count +11. Full solution **2,127/2,127** (1,654
+   Core, 104 Creator, 21 Runtime, 348 Tools).
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`IN PROGRESS`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

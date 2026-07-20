@@ -261,6 +261,17 @@
     { "referenceKey": "move-0583", "makesContact": true },
     { "referenceKey": "move-0585", "makesContact": false },
     { "referenceKey": "move-0708", "makesContact": false },
-    { "referenceKey": "move-0710", "makesContact": true }
+    { "referenceKey": "move-0710", "makesContact": true },
+    { "referenceKey": "move-0211", "makesContact": true },
+    { "referenceKey": "move-0232", "makesContact": true },
+    { "referenceKey": "move-0309", "makesContact": true },
+    { "referenceKey": "move-0246", "makesContact": false },
+    { "referenceKey": "move-0318", "makesContact": false },
+    { "referenceKey": "move-0466", "makesContact": false },
+    { "referenceKey": "move-0451", "makesContact": false },
+    { "referenceKey": "move-0552", "makesContact": false },
+    { "referenceKey": "move-0488", "makesContact": true },
+    { "referenceKey": "move-0612", "makesContact": true },
+    { "referenceKey": "move-0783", "makesContact": true }
   ]
 }

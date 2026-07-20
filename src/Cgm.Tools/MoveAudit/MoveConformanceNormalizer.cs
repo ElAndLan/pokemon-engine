@@ -259,7 +259,7 @@ public static class MoveConformanceNormalizer
         if (!payload.TryGetProperty("stat_changes", out JsonElement changes) || changes.ValueKind != JsonValueKind.Array)
             return;
         string category = ReferenceName(meta, "category", path);
-        bool onSelf = category == "damage+raise" || target == MoveTarget.User;
+        bool onSelf = category == "damage-raise" || target == MoveTarget.User;
         int chance = OptionalInt(meta, "stat_chance") is > 0 and var value ? value : 100;
         foreach (JsonElement change in changes.EnumerateArray())
         {

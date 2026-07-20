@@ -60,8 +60,9 @@ Starting baseline:
   elemental punches/Poison Jab/Lick) raises it to 210/937, and the secondary-flinch attacker cohort
   (Headbutt/Bite/Air Slash/Iron Head/Dark Pulse/Icicle Crash/… twenty moves) raises it to 230/937, and
   the secondary stat-stage attacker cohort (Shadow Ball/Crunch/Bubblebeam/Moonblast/… twenty-seven
-  moves) raises it to 257/937. 15G-4 continues with target/delayed/cure/transfer/revival heals. Deferred
-  environment
+  moves) raises it to 257/937, and the self-buff attacker cohort (Metal Claw/Meteor Mash/Ancient Power/
+  Charge Beam/… eleven moves, with the onSelf category bug fixed) raises it to 268/937. 15G-4 continues
+  with target/delayed/cure/transfer/revival heals. Deferred environment
   consumers, doubles Bide unleash, and individual conformance vectors remain with their owning later
   packages without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

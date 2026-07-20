@@ -44,6 +44,22 @@ public sealed class StatStageConformanceTests
         Assert.NotEmpty(attackers); // Shadow Ball, Crunch, Bubblebeam, Moonblast, …
     }
 
+    [Fact]
+    public void DamagingMovesRaiseTheirOwnStatNeverTheTargets()
+    {
+        // A damaging move that raises a stat buffs the user (damage-raise), so any positive stat change
+        // on a damaging move must be OnSelf. Guards the category→onSelf normalization.
+        foreach (MoveConformanceRecord entry in Catalog().Entries.Where(entry =>
+            entry.TestIds.Any(id => id.StartsWith("StatStageConformanceTests.Certified(", StringComparison.Ordinal))))
+        {
+            BattleMove move = MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(entry.ReferenceKey));
+            if (move.Power is not > 0)
+                continue;
+            Assert.All(move.SecondaryEffects.OfType<StatChangeEffect>().Where(s => s.Delta > 0),
+                raise => Assert.True(raise.OnSelf, $"{entry.ReferenceKey} raises a stat on the target"));
+        }
+    }
+
     private static MoveConformanceCatalog Catalog() => CgmJson.Deserialize<MoveConformanceCatalog>(
         File.ReadAllText(Path.Combine(RepoRoot(), "docs", "move-conformance", "definitions.v1.json")));
 
