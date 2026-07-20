@@ -5,8 +5,8 @@ using Cgm.Tools.MoveAudit;
 
 namespace Cgm.Tools.Tests;
 
-/// <summary>15G-4 healing cohort: each certified row compiles to a self HealEffect of its authored
-/// fraction (the plain 50% self-recovery family — Recover/Soft-Boiled/Milk Drink/Slack Off/Heal Order).</summary>
+/// <summary>15G-4 healing cohorts: each certified row compiles to one typed HealEffect with its
+/// authored recipient, base fraction, and environment replacement table.</summary>
 public sealed class HealingConformanceTests
 {
     public static IEnumerable<object[]> CertifiedRows() => Catalog().Entries
@@ -21,7 +21,7 @@ public sealed class HealingConformanceTests
         MoveConformanceRecord entry = Catalog().Entries.Single(row => row.ReferenceKey == referenceKey);
         BattleMove move = MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(referenceKey));
         HealEffect heal = Assert.Single(move.SecondaryEffects.OfType<HealEffect>());
-        Assert.Equal(HpFractionRecipient.Self, heal.Recipient);
+        Assert.True(Enum.IsDefined(heal.Recipient));
         Assert.True(heal.Fraction.Num > 0 && heal.Fraction.Den > 0);
         Assert.Equal(DamageClass.Status, move.DamageClass);
         Assert.Null(move.Power);
@@ -30,17 +30,16 @@ public sealed class HealingConformanceTests
     [Fact]
     public void PlainSelfHealCohortHealsHalfOfMaxHp()
     {
-        BattleMove[] moves = Catalog().Entries
+        HealEffect[] heals = Catalog().Entries
             .Where(entry => entry.TestIds.Any(id => id.StartsWith("HealingConformanceTests.Certified(",
                 StringComparison.Ordinal)))
-            .Select(entry => MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(entry.ReferenceKey))).ToArray();
+            .Select(entry => MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(entry.ReferenceKey))
+                .SecondaryEffects.OfType<HealEffect>().Single())
+            .Where(heal => heal.Recipient == HpFractionRecipient.Self)
+            .ToArray();
 
-        Assert.NotEmpty(moves);
-        Assert.All(moves, move =>
-        {
-            Fraction fraction = move.SecondaryEffects.OfType<HealEffect>().Single().Fraction;
-            Assert.Equal(fraction.Den, fraction.Num * 2); // one-half, whether stored as 1/2 or 50/100
-        });
+        Assert.NotEmpty(heals);
+        Assert.All(heals, heal => Assert.Equal(heal.Fraction.Den, heal.Fraction.Num * 2));
     }
 
     [Fact]
@@ -61,6 +60,30 @@ public sealed class HealingConformanceTests
             // at least one weather heals strictly more than the 1/2 base (the favoured weather).
             Assert.Contains(heal.WeatherFractions!.Values, f => f.Num * heal.Fraction.Den > heal.Fraction.Num * f.Den);
         });
+    }
+
+    [Fact]
+    public void SelectedTargetHealCohortUsesHalfFractionAndAuthoredTerrainReplacement()
+    {
+        BattleMove[] moves = Catalog().Entries
+            .Where(entry => entry.TestIds.Any(id => id.StartsWith("HealingConformanceTests.Certified(",
+                StringComparison.Ordinal)))
+            .Select(entry => MoveCompiler.ToBattleMove(entry.Mechanics.ToMove(entry.ReferenceKey)))
+            .Where(move => move.Target == MoveTarget.Selected
+                && move.SecondaryEffects.OfType<HealEffect>().Single().Recipient == HpFractionRecipient.Target)
+            .ToArray();
+
+        Assert.NotEmpty(moves);
+        Assert.All(moves, move =>
+        {
+            Assert.Equal(MoveTarget.Selected, move.Target);
+            HealEffect heal = move.SecondaryEffects.OfType<HealEffect>().Single();
+            Assert.Equal(heal.Fraction.Den, heal.Fraction.Num * 2);
+        });
+        Assert.Contains(moves.SelectMany(move => move.SecondaryEffects).OfType<HealEffect>(),
+            heal => heal.TerrainFractions is not null
+                && heal.TerrainFractions.TryGetValue(Terrain.Grassy, out Fraction fraction)
+                && fraction == new Fraction(2, 3));
     }
 
     private static MoveConformanceCatalog Catalog() => CgmJson.Deserialize<MoveConformanceCatalog>(

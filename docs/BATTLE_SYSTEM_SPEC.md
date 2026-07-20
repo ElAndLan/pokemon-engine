@@ -258,6 +258,8 @@ the ops and their tests are unambiguous. All damage/heal amounts are **≥1** un
   fraction cannot exceed one. The active row replaces the authored fraction before amount
   calculation, so `maxHp=101` at `2/3` restores 67 rather than scaling a pre-rounded half-HP amount.
   Missing weather, absent weather, and unlisted weather use the authored fraction.
+  `recipient: target` requires an externally targeted active-creature scope; self-only and field
+  targets are rejected during compilation. The same target-shape rule applies to `hpFraction`.
 - **hpFraction** — applies a fractional HP mutation to `recipient: self|target`. Params are
   `{ recipient, operation: "heal"|"damage", basis: "maxHp"|"currentHp", num, den }`;
   all are required and `num`/`den` must be positive. The amount is

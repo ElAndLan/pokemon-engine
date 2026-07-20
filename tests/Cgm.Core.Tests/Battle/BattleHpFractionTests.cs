@@ -80,6 +80,9 @@ public sealed class BattleHpFractionTests
         Assert.Throws<ArgumentException>(() => Compile(MoveTarget.Selected, Op("hpFraction",
             ("recipient", "target"), ("operation", "damage"), ("basis", "currentHp"), ("num", 0), ("den", 2))));
         Assert.Throws<ArgumentException>(() => Compile(MoveTarget.Selected, Op("heal", ("recipient", "other"))));
+        Assert.Throws<ArgumentException>(() => Compile(MoveTarget.User, Op("heal", ("recipient", "target"))));
+        Assert.Throws<ArgumentException>(() => Compile(MoveTarget.EntireField, Op("hpFraction",
+            ("recipient", "target"), ("operation", "heal"), ("basis", "maxHp"), ("num", 1), ("den", 2))));
     }
 
     [Fact]

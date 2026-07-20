@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B plus the 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, 15G-2, and the 15E-3 weather and terrain families are complete; Phase 15 conformance continues at 84/937.**
+Status: **Phase 15 is active at 270/937 strict certifications; 15G-4 is in progress after the selected-target healing cohort.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -376,6 +376,12 @@ refresh/expiry and owner/source switch cleanup; multi-turn selection-block termi
 infatuation draw/event/PP boundaries; singles/doubles owner isolation; Smart-AI legality parity; and
 nine sanitized generated vectors. Repeated normalization must be byte-identical. The corpus remains
 937 entries and strict certification advances to 130/937.
+
+The 15G-4 selected-target healing cohort proves strict compiler rejection of target-recipient HP
+effects on self-only and field scopes; typed compilation of a selected-target half heal; terrain
+replacement data; shared resolver healing, clamp, event, and target isolation; per-reference
+conformance; and byte-identical regeneration. It adds no RNG, schema, dependency, or named-move
+behavior and advances strict certification from 268 to 270/937.
 
 ## Golden format
 

@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 268/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + secondary-ailment/flinch/stat-drop/self-buff attacker cohorts certified; target/delayed/cure/transfer/revival heals remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, 15G-2, and 15G-3 complete; 937 inventoried, 270/937 certified; 15G-4 IN PROGRESS (heal/drain/recoil + target-heal and secondary-ailment/flinch/stat-drop/self-buff attacker cohorts certified; delayed/cure/transfer/revival heals remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3182,6 +3182,24 @@ Ordered feature packages:
    the empty-category newer self-buffers (Torch Song/Aqua Step/Trailblaze/Electro Shot — need a separate
    onSelf path). Byte-identical regen, digest unchanged, count +11. Full solution **2,127/2,127** (1,654
    Core, 104 Creator, 21 Runtime, 348 Tools).
+
+   Progress (2026-07-20): **15G-4 selected-target healing cohort certified (268 → 270/937).**
+   The corpus audit found two complete selected-target fraction-heal rows: a plain `1/2` heal and a
+   `1/2` heal with a Grassy-terrain `2/3` replacement. Both now author the existing generic
+   `heal { recipient: target }` effect; no resolver or named-move branch was added. The compiler now
+   rejects `recipient: target` for self-only and field scopes for both `heal` and `hpFraction`, closing
+   an invalid-payload gap. `HealingConformanceTests` proves the recipient, base fraction, and terrain
+   replacement for every row while existing Core fraction-heal tests prove execution, event, clamp,
+   and target isolation. Focused compiler/resolver tests passed **5/5** and focused normalizer/healing
+   conformance passed **19/19**. Two complete regenerations were byte-identical at 937 inventoried /
+   **270 certified**, with unchanged corpus digest
+   `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`,
+   definitions SHA-256 `345C6122EF5364CEFABFB216A4B3D0DC2B89F7B3A117A9B29EF90FB3070A716D`,
+   and manifest SHA-256 `3DB4647BE4345188523478A4A6B211A9778D13288935DDCD32C2084386176E6B`.
+   Full build passed with 0 warnings/errors; full tests passed **2,130/2,130** (1,654 Core, 104
+   Creator, 21 Runtime, 351 Tools). Schema, dependency, saved-data, presentation, and RNG impact:
+   none. Remaining 15G-4 work includes multi-target/formula/residual healing, cures/transfer,
+   sacrifice/revival, costs, and the package boundary/golden matrix.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`IN PROGRESS`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

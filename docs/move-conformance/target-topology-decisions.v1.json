@@ -272,6 +272,8 @@
     { "referenceKey": "move-0552", "makesContact": false },
     { "referenceKey": "move-0488", "makesContact": true },
     { "referenceKey": "move-0612", "makesContact": true },
-    { "referenceKey": "move-0783", "makesContact": true }
+    { "referenceKey": "move-0783", "makesContact": true },
+    { "referenceKey": "move-0505", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 2, "recipient": "target" } }] },
+    { "referenceKey": "move-0666", "makesContact": false, "additionalEffects": [{ "op": "heal", "params": { "num": 1, "den": 2, "recipient": "target", "terrain": "Grassy:2/3" } }] }
   ]
 }

@@ -280,6 +280,7 @@ public static class MoveCompiler
                     HpFractionRecipient healRecipient = e.Params?.ContainsKey("recipient") == true
                         ? Parse<HpFractionRecipient>(Str(e, "recipient"), "recipient")
                         : HpFractionRecipient.Self;
+                    ValidateHpRecipient(move.Target, healRecipient, "heal");
                     if (healRecipient == HpFractionRecipient.Self)
                         heal = healFraction;
                     IReadOnlyDictionary<Weather, Fraction>? healWeather = ParseWeatherFractions(e);
@@ -296,8 +297,10 @@ public static class MoveCompiler
                     Fraction hpFraction = new(Int(e, "num"), Int(e, "den"));
                     if (hpFraction.Num <= 0 || hpFraction.Den <= 0)
                         throw new ArgumentException("hpFraction num and den must be positive.");
+                    HpFractionRecipient hpRecipient = Parse<HpFractionRecipient>(Str(e, "recipient"), "recipient");
+                    ValidateHpRecipient(move.Target, hpRecipient, "hpFraction");
                     effects.Add(new HpFractionEffect(
-                        Parse<HpFractionRecipient>(Str(e, "recipient"), "recipient"),
+                        hpRecipient,
                         Parse<HpFractionOperation>(Str(e, "operation"), "operation"),
                         Parse<HpFractionBasis>(Str(e, "basis"), "basis"),
                         hpFraction));
@@ -1901,6 +1904,12 @@ public static class MoveCompiler
     private static bool IsActiveCreatureTarget(MoveTarget target) => target is not
         (MoveTarget.UsersField or MoveTarget.OpponentsField or MoveTarget.EntireField
             or MoveTarget.FaintingPokemon or MoveTarget.SpecificMove);
+
+    private static void ValidateHpRecipient(MoveTarget target, HpFractionRecipient recipient, string op)
+    {
+        if (recipient == HpFractionRecipient.Target && (!IsActiveCreatureTarget(target) || target == MoveTarget.User))
+            throw new ArgumentException($"{op} target recipient requires an externally targeted active creature.");
+    }
 
     private static List<MoveEffect> BindStatusChance(List<MoveEffect> effects)
     {

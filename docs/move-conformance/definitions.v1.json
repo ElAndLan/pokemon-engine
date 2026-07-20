@@ -7114,6 +7114,40 @@
       ]
     },
     {
+      "referenceKey": "move-0505",
+      "sourceFileHash": "47cc58dd3994be5dfac46ad940008a6b6dfbd226428baf9d29856ae01f6c34eb",
+      "payloadContentHash": "29ad15b690cd2d3b28cdcbea20c58028a92b9f48e6893837df7ffae7bfd48599",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "heal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_14",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "heal",
+            "params": {
+              "num": 1,
+              "den": 2,
+              "recipient": "target"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "aa71a422f5d9bcd24e40e40b2a8ba862a7b72186508de49d913d56fb7fb12317",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0505)"
+      ]
+    },
+    {
       "referenceKey": "move-0506",
       "sourceFileHash": "1b013da0c1b63fb2f46eafdfe7415bc026422d8274c9518cff1abea4739e82b7",
       "payloadContentHash": "9fcdbe6a3ea6c1cc3c29b5255ecd3c5962e9af9ae7beb27f9de2c50306685c88",
@@ -9035,6 +9069,41 @@
       "normalizedDefinitionHash": "714ea62d730dad2f01a7e205f54f76051f271a079cbc827d291efaadc48f3a1a",
       "testIds": [
         "ActionGateConformanceTests.Certified(move-0660)"
+      ]
+    },
+    {
+      "referenceKey": "move-0666",
+      "sourceFileHash": "9cfa4a27f340a7572bffc9ad781dd8520150ae1dcbd6d30e54415624181501b3",
+      "payloadContentHash": "4b9423445641ecc461af79a40950bad4eb271845feef26886ae14804dbe406d8",
+      "requiredRuleset": "modern_reference",
+      "requiredTopology": "singles-or-doubles",
+      "mechanicFamilies": [
+        "heal",
+        "targetTopology"
+      ],
+      "mechanics": {
+        "type": "type:reference_18",
+        "damageClass": "status",
+        "pp": 10,
+        "priority": 0,
+        "critStage": 0,
+        "makesContact": false,
+        "target": "selected",
+        "effects": [
+          {
+            "op": "heal",
+            "params": {
+              "num": 1,
+              "den": 2,
+              "recipient": "target",
+              "terrain": "Grassy:2/3"
+            }
+          }
+        ]
+      },
+      "normalizedDefinitionHash": "fdd475dbb8689842c3e065a48b3d8468eb52fefbed36e5772fc39c0e8d3e1453",
+      "testIds": [
+        "HealingConformanceTests.Certified(move-0666)"
       ]
     },
     {
