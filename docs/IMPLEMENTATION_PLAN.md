@@ -163,7 +163,7 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 175/937 certified; 15G-3 IN PROGRESS (Counter/Mirror Coat/revenge/Bide certified + last-hit history semantics; doubles source-addressed targeting + close-out review remain)** |
+| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6/7, 15G-1, and 15G-2 complete; 937 inventoried, 175/937 certified; 15G-3 IN PROGRESS (Counter/Mirror Coat/revenge/Bide certified + last-hit semantics + doubles source-addressed reflection; only Bide-in-doubles + close-out review remain)** |
 | 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
@@ -3050,6 +3050,18 @@ Ordered feature packages:
    2× the second strike, not 2× the sum). Full solution **1,983/1,983** (1,650 Core, 104 Creator, 21
    Runtime, 208 Tools). Spec updated. Remaining for 15G-3: doubles source-addressed targeting for
    counter/revenge/Bide, then a review pass to close the package.
+
+   Progress (2026-07-20): **15G-3 doubles source-addressed reflection landed (Counter/Mirror
+   Coat/revenge).** The doubles resolver silently no-op'd these no-power moves (the `!HasBasePower`
+   fallthrough); now `ResolveDoublesReflect` intercepts them before target materialization and reflects
+   at the exact attacker on the last qualifying `BattleDamageRecord.Source` — not the opposing slot 0 —
+   fizzling `NoQualifyingDamage` when nothing qualifies or that attacker has left the field. Added
+   `BattleActionHistory.LastDamageRecordTo` (record-returning sibling of `LastActualDamageTo`, which now
+   delegates to it). New `BattleDoublesReflectTests`: Counter reflects to the slot-1 attacker leaving
+   slot 0 untouched, Metal Burst any-class, wrong-category fizzle. Full solution **1,986/1,986** (1,653
+   Core, 104 Creator, 21 Runtime, 208 Tools). Only residual 15G-3 item: Bide-in-doubles, which needs the
+   deferred doubles forced-action handling — a `cgm-review-pass` should confirm that deferral and close
+   the package.
 4. **15G-4 — Healing, costs, cures, transfer, revival, and HP equalization (`PLANNED`; prerequisites
    15C-2 and typed selections).** Lock flat/fraction/full/formula/damage-derived healing; current/max
    HP damage and costs; drain/recoil/crash; persistent/volatile cure; status transfer; sacrifice;

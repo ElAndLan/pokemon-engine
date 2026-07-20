@@ -2523,6 +2523,13 @@ Overflow-safe multiplication uses checked arithmetic. (The earlier per-turn
 `PhysicalDamageTaken`/`SpecialDamageTaken` accumulators are removed — the per-hit history is the single
 source of truth.)
 
+In **doubles**, these consumers are source-addressed: they reflect at the exact attacker recorded on
+the last qualifying `BattleDamageRecord` (`record.Source`), not the opposing slot 0, and fizzle with
+`NoQualifyingDamage` if no qualifying hit exists or that attacker has left the field (fainted/switched).
+The doubles resolver intercepts them before target materialization — their declared target is
+irrelevant — via `ResolveDoublesReflect`. (Bide in doubles rides the deferred doubles forced-action
+handling; only its singles path is implemented today.)
+
 The stored-release consumer `bide { turns? }` (default 2) is the cross-turn variant. On selection the
 user spends PP, starts biding, and is force-locked into Bide for the stored turns (like a multi-turn
 lock: the submitted action is replaced by the forced Bide, switching is blocked, and no attack lands

@@ -756,23 +756,35 @@ public sealed class BattleController
                 continue;
             }
             attacker.RecordMoveUse(move.Move);
-            IReadOnlyList<BattleSlot>? targets = MaterializeLiveTargets(effectiveSubmission, move, traceAction,
-                out BattleTargetScopeKind scopeKind, out BattleSide? scopeSide);
             BattleActionResult result;
-            BattleHistoryOwner[] targetOwners = targets?.Select(HistoryOwner).ToArray() ?? [];
-            if (targets is { Count: 0 })
+            BattleHistoryOwner[] targetOwners;
+            // Counter/Mirror Coat/revenge address the last attacker from damage memory, not a declared
+            // target, so they resolve before (and independent of) target materialization.
+            if (move.CounterCategory is not null || move.SecondaryEffects.OfType<RevengeDamageEffect>().Any())
             {
-                _log.Add(new MoveFailed(action.Submission.Source, move.Move, MoveFailureReason.TargetUnavailable));
-                result = BattleActionResult.Failed;
+                result = ResolveDoublesReflect(action.Submission.Source, sourceOwner, move, traceAction,
+                    attempt, out BattleSlot? reflectSlot);
+                targetOwners = reflectSlot is { } slot ? [HistoryOwner(slot)] : [];
             }
-            else if (targets is { } materializedTargets)
-                result = ResolveDoublesMove(action.Submission.Source, sourceOwner, move, materializedTargets,
-                    ppBeforeSpend, traceAction, attempt);
-            else if (scopeKind is BattleTargetScopeKind.Side or BattleTargetScopeKind.Field)
-                result = ResolveDoublesScopedMove(action.Submission.Source, move, scopeSide, traceAction);
             else
             {
-                result = BattleActionResult.Failed;
+                IReadOnlyList<BattleSlot>? targets = MaterializeLiveTargets(effectiveSubmission, move, traceAction,
+                    out BattleTargetScopeKind scopeKind, out BattleSide? scopeSide);
+                targetOwners = targets?.Select(HistoryOwner).ToArray() ?? [];
+                if (targets is { Count: 0 })
+                {
+                    _log.Add(new MoveFailed(action.Submission.Source, move.Move, MoveFailureReason.TargetUnavailable));
+                    result = BattleActionResult.Failed;
+                }
+                else if (targets is { } materializedTargets)
+                    result = ResolveDoublesMove(action.Submission.Source, sourceOwner, move, materializedTargets,
+                        ppBeforeSpend, traceAction, attempt);
+                else if (scopeKind is BattleTargetScopeKind.Side or BattleTargetScopeKind.Field)
+                    result = ResolveDoublesScopedMove(action.Submission.Source, move, scopeSide, traceAction);
+                else
+                {
+                    result = BattleActionResult.Failed;
+                }
             }
             if (result == BattleActionResult.Connected && _currentPair is { } pair
                 && pair.Slot == action.Submission.Source
@@ -874,6 +886,42 @@ public sealed class BattleController
                 break;
         return actionContext.Failed ? BattleActionResult.Failed : BattleActionResult.Succeeded;
     }
+
+    /// <summary>Doubles Counter/Mirror Coat/revenge: reflect the last qualifying hit back at the exact
+    /// attacker recorded in damage memory (source-addressed), not a declared target. Fizzles with
+    /// NoQualifyingDamage when nothing qualifies or that attacker is gone.</summary>
+    private BattleActionResult ResolveDoublesReflect(BattleSlot sourceSlot, BattleHistoryOwner sourceOwner,
+        BattleMove move, int traceAction, BattleActionAttemptId attempt, out BattleSlot? reflectSlot)
+    {
+        BattleCreature attacker = Active(sourceSlot);
+        BattleMoveIdentityQueryResult moveIdentity = EffectiveMoveIdentity(sourceSlot, move, traceAction);
+        EntityId moveType = moveIdentity.EffectiveType;
+        BattleDamageRecord? last = _actionHistory.LastDamageRecordTo(sourceOwner, Turn, move.CounterCategory);
+        reflectSlot = last is { } rec && rec.Source.Slot != sourceSlot && Topology.Contains(rec.Source.Slot)
+            && HistoryOwner(rec.Source.Slot).PartyIndex == rec.Source.PartyIndex
+            && !Active(rec.Source.Slot).IsFainted ? rec.Source.Slot : null;
+        if (reflectSlot is { } targetSlot && last is { } record)
+        {
+            BattleCreature target = Active(targetSlot);
+            int reflected = move.CounterCategory is not null ? checked(record.ActualHpRemoved * 2)
+                : checked(record.ActualHpRemoved * RevengeMultiplier(move).Num / RevengeMultiplier(move).Den);
+            int dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target, move, reflected, traceAction);
+            DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, 1.0, crit: false,
+                HpStatusFormulas.CannotKoFloor(move));
+            RecordDamage(attempt, sourceOwner, HistoryOwner(targetSlot), move, BattleDamageCause.Counter, 1, true,
+                applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
+                dmg, applied, critical: false, effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
+            return applied.ActualHpRemoved > 0 ? BattleActionResult.Connected : BattleActionResult.Failed;
+        }
+        _log.Add(new MoveMissed(sourceSlot, move.Move)); // nothing to reflect → fizzles
+        RecordDamage(attempt, sourceOwner, HistoryOwner(new BattleSlot(Opponent(sourceSlot.Side), 0)), move,
+            BattleDamageCause.Counter, 0, false, BattleDamageFailure.NoQualifyingDamage, 0, default,
+            critical: false, effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
+        return BattleActionResult.Failed;
+    }
+
+    private static Fraction RevengeMultiplier(BattleMove move) =>
+        move.SecondaryEffects.OfType<RevengeDamageEffect>().Single().Multiplier;
 
     private BattleActionResult ResolveDoublesMove(BattleSlot sourceSlot, BattleHistoryOwner sourceOwner,
         BattleMove move, IReadOnlyList<BattleSlot> targetSlots, int ppBeforeSpend, int traceAction,

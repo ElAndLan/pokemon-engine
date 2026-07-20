@@ -316,14 +316,19 @@ public sealed class BattleActionHistory
     /// on <paramref name="turn"/>, optionally filtered by class — the "last hit" damage-memory input
     /// for Counter/Mirror Coat/revenge. Zero if no qualifying hit exists. `DamageTo` is already ordered
     /// by (action sequence, hit number), so the last element is the most recently resolved hit.</summary>
-    public int LastActualDamageTo(BattleHistoryOwner target, int turn, DamageClass? ofClass = null)
+    public int LastActualDamageTo(BattleHistoryOwner target, int turn, DamageClass? ofClass = null) =>
+        LastDamageRecordTo(target, turn, ofClass)?.ActualHpRemoved ?? 0;
+
+    /// <summary>The most recently resolved qualifying hit against <paramref name="target"/> on
+    /// <paramref name="turn"/> (optionally filtered by class), or null if none. Carries the attacker's
+    /// identity in <see cref="BattleDamageRecord.Source"/> for source-addressed reflection in doubles.</summary>
+    public BattleDamageRecord? LastDamageRecordTo(BattleHistoryOwner target, int turn, DamageClass? ofClass = null)
     {
         if (ofClass is { } value && !Enum.IsDefined(value))
             throw new ArgumentOutOfRangeException(nameof(ofClass));
         return DamageTo(target, turn)
             .Where(record => record.Connected && record.ActualHpRemoved > 0
                 && (ofClass is null || record.DamageClass == ofClass))
-            .Select(record => record.ActualHpRemoved)
             .LastOrDefault();
     }
 
