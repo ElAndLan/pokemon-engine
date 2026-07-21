@@ -13,7 +13,8 @@ public sealed record RuntimeContent(GameDb Db, Map StartMap, RuntimeConfig Confi
 /// state. Failure stops immediately; later steps never run to accumulate diagnostics.</summary>
 public static class BootLoader
 {
-    public const string RuntimeVersion = ExportedGameBoot.RuntimeVersion;
+    /// <summary>The runtime version a pack must require. Bumped only with a breaking host change.</summary>
+    public const string RuntimeVersion = "1.0.0";
 
     public static bool TryLoad(BootArgs args, string exeDir, out RuntimeContent? content,
         out BootDiagnostic? error)

@@ -3210,6 +3210,37 @@ resumes, contract deltas are reconciled at that boundary before further certific
    `BootLoaderTests` and 7 the new start-position rule cases. Next: 16A showcase-content removal
    (delete `ExportedGameBoot`'s hardcoded move/trainer/item IDs and fallback party construction,
    with the content-neutrality scan), then 16B.
+
+   Progress (2026-07-21): **16A showcase-content removal COMPLETE; 16A closes except `IAssetSource`.**
+   `ExportedGameBoot` is deleted. Its hardcoded `move:leaf_jab`/`move:root_guard`/`move:cinder_burst`,
+   `trainer:expert_rematch_mira`, `item:bloom_stone`/`storm_band`/`surge_sash`, and its
+   `FirstOrDefault` fallback species/trainer/move selection no longer exist in Runtime. `RuntimeHost`
+   takes `RuntimeContent` instead of `ExportedGame`, and its showcase battle update, battle screen,
+   creature panels, rect fill, and built-in glyph font are removed: 16A reaches a validated aggregate
+   and clears the screen, because presentation is 16B's renderer and 16C's `BootScene`. `Program.cs`
+   is now one parse-load-run path with no showcase branch. `RuntimeVersion` moved to `BootLoader`,
+   which owns pack version checking. Runtime source is 819 -> 758 lines while gaining the loader.
+
+   Coverage was relocated, not dropped. The Phase 15 integration script that drove form activation,
+   switching, weather, held-item consumption, and battle end through an exported pack now boots via
+   the real 16A loader and builds its battle from `ShowcaseBattleFixture` in the test project, where
+   naming sample content is legitimate. Runtime's battle construction proper is 16F, driven by Core.
+
+   `ContentNeutralityTests` enforces the acceptance-matrix content-neutrality row permanently: five
+   rules scan every Runtime source line for `category:slug` literals across all twelve entity
+   categories, `EntityId.Parse`, `FirstOrDefault`/`LastOrDefault`/`SingleOrDefault` fallback
+   selection, sample/fixture/pokeapi paths, and official franchise terms. Each rule carries an
+   example line it must still match, so a scan cannot pass because its pattern silently rotted, and
+   a scan-reads-source test asserts the walk covers the project. Verified adversarially: planting
+   `EntityId.Parse("species:asterling")` in `Program.cs` failed two rules with file and line before
+   being reverted. Schema impact: none. Dependency impact: none. RNG impact: none. Golden impact:
+   none. Verification: build passed with 0 warnings/errors; the full solution passed **2,057/2,057**
+   (1,654 Core, 104 Creator, 92 Runtime, 207 Tools); both samples reach smoke success through
+   `--project` and unknown arguments still return exit 2.
+
+   16A remaining: `IAssetSource` only, deferred with cause (packs carry no assets; see the previous
+   entry). Next package: **16B fixed-step host and renderer**, whose spec lock also carries the
+   mandated 240x160 -> 256x192 `VirtualResolution` default change and its test updates.
 2. **16B — Fixed-step host and renderer (`PLANNED`; prerequisite 16A).**
    - **Spec lock:** exact host loop, `IRenderer` calls, coordinate systems, blend/sort rules, atlas/
      texture lifetime, context-loss refusal, and frame diagnostics.
