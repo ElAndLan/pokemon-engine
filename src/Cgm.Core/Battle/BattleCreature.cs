@@ -345,7 +345,7 @@ public sealed class BattleCreature
         IReadOnlyList<EntityId> types, Stats stats, IReadOnlyList<BattleMove> moves, int catchRate = 45,
         IReadOnlyList<AbilityHook>? abilityHooks = null, IReadOnlyList<Effect>? heldItemBattleEffects = null,
         EntityId? heldItem = null, int weightHectograms = 1, int heightDecimeters = 1, int friendship = 70,
-        EntityId? ability = null)
+        EntityId? ability = null, string? formId = null)
     {
         if (weightHectograms <= 0)
             throw new ArgumentOutOfRangeException(nameof(weightHectograms), "Battle weight must be positive.");
@@ -369,6 +369,7 @@ public sealed class BattleCreature
         WeightHectograms = weightHectograms;
         HeightDecimeters = heightDecimeters;
         Friendship = friendship;
+        _baseFormId = FormId = formId;
         _baseStats = stats;
         _baseTypes = types;
         _baseAbility = ability;
@@ -392,6 +393,7 @@ public sealed class BattleCreature
     public int WeightHectograms { get; }
     public int HeightDecimeters { get; }
     public int Friendship { get; }
+    public string? FormId { get; private set; }
 
     public PersistentStatus? Status { get; private set; }
     public int StatusCounter { get; private set; }
@@ -443,10 +445,14 @@ public sealed class BattleCreature
     private readonly IReadOnlyList<AbilityHook> _baseAbilityHooks;
     private readonly IReadOnlyList<BattleMove> _baseMoves;
     private IReadOnlyList<BattleFormRuntime> _forms = [];
+    private readonly string? _baseFormId;
     private string? _activeConditionFormId;
     private string? _activeTemporaryFormId;
     private string? _activeTimedFormId;
     private int _timedFormTurns;
+
+    public bool HasActiveBattleForm => _activeConditionFormId is not null
+        || _activeTemporaryFormId is not null || _activeTimedFormId is not null;
 
     public bool IsFainted => CurrentHp <= 0;
 
@@ -476,7 +482,8 @@ public sealed class BattleCreature
         Stats stats = StatCalc.Compute(form?.StatOverrides ?? species.BaseStats, instance.Ivs, instance.Evs, instance.Nature, instance.Level);
         var creature = new BattleCreature(instance.Species, instance.Nickname ?? species.Name, instance.Level,
             form?.TypeOverrides ?? species.Types, stats, moves, species.CatchRate, ability?.Hooks, held?.BattleEffects,
-            instance.HeldItem, species.WeightHectograms, species.HeightDecimeters, instance.Happiness, abilityId);
+            instance.HeldItem, species.WeightHectograms, species.HeightDecimeters, instance.Happiness, abilityId,
+            form?.FormId);
         creature._forms = BuildRuntimeForms(species, instance, db, abilityId, ability?.Hooks ?? []);
         creature.TakeDamage(stats.Hp - Math.Clamp(instance.CurHp, 0, stats.Hp));
         if (instance.Status is { } status)
@@ -571,16 +578,17 @@ public sealed class BattleCreature
 
         Stats stats = form?.Stats ?? _baseStats;
         if (form?.HpMultiplierPercent is { } hpMultiplier)
-            stats = stats with { Hp = Math.Max(1, stats.Hp * hpMultiplier / 100) };
+            stats = stats with { Hp = Math.Max(1, checked((int)((long)stats.Hp * hpMultiplier / 100))) };
 
         Stats = stats;
         Types = form?.Types ?? _baseTypes;
         Ability = form?.Ability ?? _baseAbility;
         AbilityHooks = form?.AbilityHooks ?? _baseAbilityHooks;
+        FormId = form?.FormId ?? _baseFormId;
         ApplyMoveRemap(form);
         MaxHp = Stats.Hp;
 
-        CurrentHp = oldHp <= 0 ? 0 : Math.Max(1, oldHp * MaxHp / oldMax);
+        CurrentHp = oldHp <= 0 ? 0 : Math.Max(1, (int)((long)oldHp * MaxHp / oldMax));
     }
 
     private void ApplyMoveRemap(BattleFormRuntime? form)
@@ -747,6 +755,7 @@ public sealed class BattleCreature
         MultiTurnPowerBoost = new Fraction(1, 1);
     }
     public void SetChoiceLock(int moveIndex) => ChoiceLockedMoveIndex ??= moveIndex;
+    public void ClearChoiceLock() => ChoiceLockedMoveIndex = null;
     public void RecordMoveUse(EntityId move) { ActionsSinceSwitch++; LastMoveUsed = move; }
 
     /// <summary>Clears volatile state on switch-out / battle end (stages handled separately).</summary>

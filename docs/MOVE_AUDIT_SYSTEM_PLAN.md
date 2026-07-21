@@ -18,6 +18,9 @@ state scope, ruleset, or targeting primitive it actually needs. Named presets ar
 
 ## Inputs
 
+- Binding migration workflow: `docs/MOVE_MIGRATION_MASTER_PLAN.md`. Its contract gate, family-first
+  package rule, cohort policy, proof levels, blocker taxonomy, and certification matrix apply to all
+  work routed through this audit plan.
 - Exact row audit: `MOVE_AUDIT_RESULTS.md`.
 - Local mechanics reference: `docs/pokeapi-results/move/*.json`.
 - Battle contract: `docs/BATTLE_SYSTEM_SPEC.md`.
@@ -813,9 +816,11 @@ Moves: `burn-up`, `camouflage`, `conversion`, `conversion-2`, `double-shock`, `e
 
 ### Move Copy, Call, Replace, And Forced Execution
 
-Add a move-reference selector and one `executeResolvedMove` path for random calls, last-move
-calls, copied moves, party move calls, forced repeat execution, and permanent move replacement.
-It must preserve PP ownership, event ownership, target legality, and deterministic RNG order.
+The shared selector and `executeResolvedMove` path own random calls, last-move calls, copied moves,
+party move calls, and forced repeat execution. Phase 15F-6 separately owns temporary battle-only
+self-slot replacement through the shared snapshot overlay/history surfaces. Permanent learned-move
+replacement remains deferred to its schema-owning package. Every path must preserve PP ownership,
+event ownership, target legality, and deterministic RNG order.
 
 Moves: `assist`, `copycat`, `instruct`, `me-first`, `metronome`, `mimic`, `mirror-move`,
 `nature-power`, `psych-up`, `reflect-type`, `sketch`, `sleep-talk`, `snatch`.

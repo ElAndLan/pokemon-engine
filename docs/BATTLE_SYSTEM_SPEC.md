@@ -2349,6 +2349,300 @@ Acceptance vectors: `ability-mutation-compile-validation`, `ability-operation-ma
 `ability-ai-parity`, `ability-event-trace-order`, `ability-definition-immutable`, and
 `ability-mutation-golden`.
 
+### Creature and move type overlays (Phase 15F-4)
+
+Creature typing mutates only through battle-owned effective-value overlays; species, forms, saved
+creatures, moves, and type definitions remain immutable. The closed authored ops are
+`typeRequire { subject, type }`,
+`typeMutation { operation, subject?, source?, type?, fallbackType?, environment?, duration?, required? }`,
+`moveTypeQuery { source }`, and
+`moveTypeOverride { subject, type, matchType?, duration }`. Creature operations are `replace`,
+`add`, `remove`, and `copy`; subjects and copy sources are `user` or `target`. Replacement sources
+are `fixed`, `target`, `firstMove`, `environment`, and `resistantToLastDamage`. `fixed` requires one
+`type:*` ID, `target` copies the source's complete effective list, `firstMove` reads the user's first
+effective move row, `environment` reads a complete authored `BattleEnvironment` table from the
+shared effective environment, and `resistantToLastDamage` samples the type catalog in ordinal ID
+order for types whose chart contribution against the last connected damaging type is zero or one
+half. It excludes types already effective on the user, fails on missing history or an empty pool,
+and consumes exactly one bounded RNG draw only when more than one type is eligible.
+
+An effective creature has at most three types. Every input and output is a nonempty `type:*` list;
+duplicates are removed while preserving first occurrence. Replace and copy fail when their final
+list is unchanged, add fails when its type is already present or the cap is reached, and required
+remove fails when the requested type is absent. If removal would empty the list, its required
+authored `fallbackType` becomes the sole effective type; otherwise `fallbackType` is forbidden.
+`required:false` makes an absent removal a successful no-op and exists for compound effects whose
+other behavior still succeeds. A failed mutation writes no overlay, event, or partial state.
+Replace/copy/remove use permanent-instance replacement overlays; add uses one keyed additive
+contribution. All clear on switch, faint, or battle end. A positive `duration` of one is allowed
+only for remove and adds turn-end cleanup for current-turn typing.
+
+`typeRequire` is evaluated before PP, accuracy, damage, or effect RNG. It reads the same effective
+list and fails the action when the required type is absent. `moveTypeQuery` is chance-free and
+query-only; its currently closed source is `userPrimary`, the first effective user type. A
+`moveTypeOverride` applies a turn-scoped move-type rule to the selected target creature or every
+active creature. `matchType` filters against the type resolved by earlier stages; an omitted filter
+replaces every ordinary move type. Overrides require duration one, expire at `TurnEnd`, and clear on
+switch, faint, or battle end.
+
+Move-type precedence is immutable authored type, per-slot form/snapshot overlay, move-local
+`moveTypeQuery`, weather/terrain/paired-action query replacement, then matching field and creature
+turn rules in overlay sequence order. Each later matching rule replaces the current value. The
+final type is the sole input to STAB, effectiveness, immunity, damage history, type-derived
+item/field queries, and Smart AI. Grounded, status immunity, hazards, and weather stat queries
+consume the same final effective creature list; no consumer may reconstruct base or added types
+independently.
+
+Successful creature changes emit one `TypesMutated` event containing stable owner identity and
+before/after lists. Successful turn rules emit one `MoveTypeOverrideApplied` per affected owner.
+Every attempt records one `TypeMutation` or `MoveTypeOverride` effect trace with its exact event
+range. Move-local queries emit no event. Type mutations draw no RNG except the documented
+resistance-source selection; overlay resolution and move-type rules draw none.
+
+Acceptance vectors: `type-overlay-compile-validation`, `type-operation-matrix`,
+`type-cap-duplicate-empty-fallback`, `type-copy-environment-history`,
+`type-overlay-conflict-precedence`, `move-type-query-and-turn-rules`,
+`type-stab-effectiveness-immunity-grounding`, `type-derived-item-field-query`,
+`type-switch-faint-end-cleanup`, `type-resolver-ai-parity`, `type-event-trace-rng`, and
+`type-mutation-golden`.
+
+### Stage, derived-stat, and metric mutation (Phase 15F-5)
+
+Stage mutation reuses the battle creature's existing seven clamped stage slots and the established
+switch reset; it does not create an overlay copy of stage state. The chance-free closed op is
+`statStageMutation { operation, subject?, stat?, delta? }`. `maximize` requires one non-HP `stat`
+and sets that slot to +6. `random` requires a positive `delta` in `1..6`, selects from the subject's
+slots below +6 in the fixed Atk, Def, SpA, SpD, Spe, Accuracy, Evasion order, skips RNG for zero or
+one eligible slot, and otherwise draws exactly once with `Next(eligibleCount)`. `steal` has fixed
+target-to-user ownership: it snapshots all seven slots, removes every positive target stage, and
+adds each removed value to the matching user slot with the ordinary +6 clamp. Negative and zero
+target stages are unchanged. On a damaging move, steal resolves after target admission and accuracy
+but before the same hit's damage query, then is excluded from ordinary post-hit dispatch so it runs
+exactly once. `subject` is `self` or `target`, defaults from the move target for
+maximize/random, and is fixed to `target` for steal. Fainted/absent recipients are resolver no-ops.
+All operations commit from their pre-mutation snapshot, emit existing `StatStageChanged` rows only
+for actual clamped deltas, and record one `StatStageMutation` trace. Maximize-at-cap, random with an
+empty pool, and steal with no positive stages are successful visible trace no-ops. Side stage-drop
+guards do not apply to set/swap/steal operations because they are not stage reductions.
+
+Derived-stat mutation uses one chance-free `derivedStatMutation` family over effective Atk, Def,
+SpA, SpD, and Spe values. Closed operations are `average` (floor one paired user/target value),
+`split` (the same average over offense Atk/SpA or defense Def/SpD), and `swap` (exchange one named
+stat). Every output is calculated from one effective pre-mutation snapshot and committed through
+battle-owned replacement overlays; no stage, species, form, or saved-creature definition changes.
+Replacement overlays clear on switch, faint, and battle end. Existing query hooks and stages apply
+after the replaced derived value, so resolver and Smart AI observe the same result.
+
+Metric mutation uses chance-free `metricMutation { operation, subject, metric, value?, duration? }`
+over effective positive weight/height. `replace` requires a positive value, `add` requires a nonzero
+signed delta and clamps each application to at least one, and `swap` atomically exchanges user and
+target values. Permanent-instance rows clear on switch/faint/battle end; an optional positive
+duration uses TurnEnd cleanup. Physical-metric formulas consume the ordinary effective snapshot.
+Derived-stat operations require one live materialized target. Metric replace/add require one
+explicit self/target subject; swap has fixed user/target ownership and forbids a subject param.
+Every multi-owner write is prevalidated and admitted as one atomic overlay batch. Runtime integer
+overflow or a fainted required participant fails the effect without a partial overlay or event;
+identical outputs are successful trace-visible no-ops. Successful changes emit one
+`DerivedStatMutated` or `MetricMutated` event per changed owner/stat or owner/metric in stat order
+then user/target order, followed by one `DerivedStatMutation` or `MetricMutation` effect trace.
+These operations draw no RNG. Smart AI names them without speculative value; later choices and
+damage/formula previews consume the same resulting effective snapshot as the resolver.
+
+The stage-pass whitelist is the seven stage slots plus explicitly registered transferable volatile
+state; item, ability, type, form, decoy HP, move PP, status, HP, action locks, and side/field state are
+excluded. This package owns immutable snapshot capture and application; 15G-1 owns selecting and
+completing the switch that consumes it. A pass snapshot is single-use, creature-identity-owned, and
+discarded on failed/cancelled switching, faint, or battle end without mutating a prospective target.
+`BattleStagePassState` keys pending snapshots by side plus party index rather than active slot,
+captures the seven slots in the fixed order Atk, Def, SpA, SpD, Speed, Accuracy, Evasion, and replaces
+the incoming creature's stage values in that order. Capture from a fainted creature fails and clears
+an older pending snapshot. Every consume attempt removes the snapshot before validating same-creature
+or fainted-target failure, so retries cannot duplicate state. Cancellation, source faint, and battle
+end use explicit discard hooks. No transferable creature-condition profile is registered yet; 15G-1
+may add only registry-tagged conditions when it locks switch execution, without widening this stage
+snapshot or making excluded creature fields passable. Capture, consume, and discard draw no RNG and
+emit no presentation event before 15G-1 owns the completed switch event sequence.
+
+Acceptance vectors: `stat-mutation-compile-validation`, `stat-maximize-cap`,
+`stat-random-zero-one-many`, `stat-steal-positive-mixed-clamp`, `stat-mutation-atomic-event-trace`,
+`derived-stat-average-odd-mixed`, `derived-stat-split-swap-overlay-precedence`,
+`metric-replace-add-swap-positive`, `stat-metric-switch-faint-end-cleanup`,
+`stage-pass-whitelist-single-use`, `stat-mutation-ai-parity`, and `stat-mutation-golden`.
+
+### Decoy lifecycle (Phase 15F-6)
+
+The chance-free closed op is `decoy { num?, den? }`. It is valid only on a status move targeting
+`User`; omitted components default to `1/4`, and the compiled fraction must be positive and less
+than one. Creation costs `max(1, floor(user.maxHp * num / den))` current HP. The complete operation
+fails without an HP or overlay change when a live decoy already exists, the user is fainted, or the
+user's current HP is less than or equal to the cost. Success pays the exact cost through the shared
+HP-cost event path, then creates a switch/faint/battle-end-cleanup `DecoyOverlay` with current and
+maximum decoy HP equal to that cost. Creation and interception draw no RNG.
+
+An opposing move targets the live decoy before its owner unless the compiled move has the `sound` or
+`decoy_bypass` tag. Damage uses the ordinary effective damage query against the owner, then removes
+`min(calculated damage, decoy current HP)` from the decoy. Survival effects and owner HP floors do
+not apply. Excess damage never spills through on the breaking hit; a later hit of the same multi-hit
+action re-materializes state and may damage the owner after the decoy is gone. Decoy damage counts
+as connected action/target damage for drain, recoil, crash, and action outcome, but removes no owner
+HP and is recorded in typed damage memory as `Substitute=true`, `Connected=false`, failure
+`Substitute`, and `ActualHpRemoved=0`. It never contributes to owner damage-taken memory.
+
+While a non-bypassing opposing move encounters a live decoy, eligible target mutations are blocked:
+persistent status, confusion, flinch, seed/bind, forced movement, target stage/type/item/ability/
+derived-stat/metric mutation, and other creature-targeted secondary effects. The same blocking
+snapshot applies to post-damage effects when that hit damaged or broke the decoy. User/ally effects,
+direct healing of the owner, side/field effects, pre-admission move gates, and the attacker's self
+effects remain eligible.
+Bypass tags route both damage and target mutation directly to the owner. A status move blocked only
+by a decoy succeeds as an action but applies no target mutation.
+
+Creation emits `HpCostPaid` then `DecoyCreated`. Interception emits `DecoyDamaged` and, when HP
+reaches zero, `DecoyBroken`; a blocked target effect emits `DecoyBlocked`. Failed creation emits
+`DecoyCreationFailed` with `AlreadyActive`, `InsufficientHp`, or `SourceFainted`. Each compiled
+decoy effect records one `Decoy` trace; each intercepted hit and blocked effect records one trace
+with the exact event range. Smart AI rejects creation when the same deterministic preflight would
+fail, otherwise names the effect without speculative scoring. Resolver and AI read the same
+effective overlay, and switch/faint/battle-end cleanup uses the overlay store's existing owner
+lifecycle with no additional presentation event.
+
+Acceptance vectors: `decoy-compile-validation`, `decoy-cost-and-creation`,
+`decoy-insufficient-and-duplicate-atomicity`, `decoy-damage-break-no-overflow`,
+`decoy-multi-hit-rematerialization`, `decoy-status-and-secondary-block`, `decoy-bypass-matrix`,
+`decoy-damage-memory`, `decoy-drain-recoil-outcome`, `decoy-switch-faint-end-cleanup`,
+`decoy-resolver-ai-parity`, `decoy-event-trace-rng`, and `decoy-golden`.
+
+### Transform snapshot lifecycle (Phase 15F-6)
+
+The chance-free closed op is `transform {}`. It is valid exactly once on a status move targeting one
+selected opposing creature and accepts no params. At hit resolution it captures the target's current
+effective values into one `FormOrSnapshot` overlay owned by the user. The capture copies Atk, Def,
+SpA, SpD, and Speed while retaining the user's authored HP stat and current/max HP; effective creature
+types; effective ability ID; effective form ID; effective weight; all seven current stat stages; and
+the effective ordered move list. The user's held item, height, level, friendship, persistent/volatile
+status, decoy, action/history identity, and all other creature state remain unchanged. No sprite or
+presentation identity is part of the Core snapshot.
+
+Each copied move is a new battle-runtime `BattleMove` with the captured definition/type/class and an
+independent PP pool of `min(5, captured max PP)` current and maximum PP. Spending it changes neither
+the target's PP nor the user's original move slots. Empty move lists are invalid battle input; the
+snapshot preserves move order and supports the same selection, legality, targeting, query, called-move,
+and Smart-AI paths as an authored move list. Snapshot collections and PP pools never share mutable
+storage with the source effective values or either creature definition.
+
+The operation fails atomically when the user or target is fainted, when either participant already
+owns an active Transform snapshot, or when ordinary decoy interception blocks the target effect.
+Failure emits `TransformFailed`; success clears the user's existing choice-lock slot, copies stages
+from one pre-mutation target snapshot, applies the composite overlay, and emits `Transformed`. Neither
+path draws RNG. Later target mutations do not change the capture. Within the shared overlay layer,
+sequence order remains authoritative: an earlier type/ability/form/stat/metric/move overlay feeds the
+capture, the Transform snapshot supersedes earlier values on the user, and later overlays may
+supersede individual effective fields without modifying the captured payload.
+
+The Transform overlay clears on owner switch, faint, or battle end. Ordinary switch/replacement flow
+also resets stat stages and volatile locks, so the original move list and PP pools become visible
+without restoration writes. Cleanup emits only the existing overlay trace; it does not mutate target,
+species, saved creature, form, or move definitions. Every attempt records one `Transform` effect trace.
+Resolver and Smart AI consume the same effective move/stat/type/ability/form/weight snapshot.
+
+Acceptance vectors: `transform-compile-validation`, `transform-field-whitelist`,
+`transform-snapshot-depth-independence`, `transform-copied-pp-independence`,
+`transform-stage-copy`, `transform-nested-failure-atomicity`, `transform-decoy-block`,
+`transform-effective-query-and-move-legality`, `transform-overlay-precedence`,
+`transform-switch-faint-end-cleanup`, `transform-resolver-ai-parity`,
+`transform-event-trace-no-rng`, and `transform-golden`.
+
+### Form transition lifecycle (Phase 15F-6)
+
+Every condition, battle-temporary, and battle-timed form transition keeps the existing authored
+form calculation as the single source of its stats, types, ability, move remap, and max HP. After
+that calculation succeeds, the controller atomically projects Stats, creature types, ability, move
+list, and form identity as five same-owner `FormOrSnapshot` overlays. The group is applied after all
+older form/snapshot entries, so it supersedes an older Transform or type snapshot field by field;
+later overlays retain normal sequence precedence. Removing the group reveals any surviving older
+snapshot without restoration writes. PP remains owned by the original move slot.
+
+Max-HP transitions preserve `floor(oldCurrentHp * newMaxHp / oldMaxHp)` using wide intermediate
+arithmetic. A living creature is clamped to at least 1 HP; a fainted creature remains at 0. Stat
+stages, persistent status, held item, identity, and non-form overlays do not reset. A battle-timed
+form removes its overlay group after weather/end-turn processing on its final authored turn.
+Battle-temporary and timed groups follow their creature across switches, revert on faint and battle
+end, and condition forms re-project after their weather/held-item condition changes.
+
+The battle-temporary resource is side-owned and set only after successful activation. Its trainer
+key item is required but not consumed. Admission rejects two allied temporary activations in one
+turn before any form, HP, PP, event, overlay, or RNG mutation. Once spent, the resource remains spent
+after switch, faint, or reversion, so another creature on that side cannot activate a temporary
+form. Timed forms do not spend this resource. Form activation and reversion draw no RNG and emit one
+slot-addressed `FormChanged`; ordinary overlay resolution supplies deterministic precedence trace.
+Resolver and Smart AI consume the same effective overlay values.
+
+Acceptance vectors: `form-hp-ratio-wide-floor-and-living-minimum`,
+`form-side-once-across-owner-switch`, `form-doubles-collective-atomicity`,
+`form-overlay-prior-and-later-precedence`, `form-move-slot-pp-preservation`,
+`form-switch-faint-end-and-timed-reversion`, `form-resolver-ai-parity`, and
+`form-transition-golden`.
+
+### Temporary move replacement lifecycle (Phase 15F-6)
+
+The chance-free closed op is `temporaryMoveReplacement {}`. It is valid exactly once on a status
+move targeting one selected opponent and accepts no params. After the move reaches its selected
+target, it replaces its own current effective move slot with the target's last successfully used
+effective move. The replacement is a deep battle-runtime `BattleMove` copy with an independent
+current and maximum PP pool of exactly 5. Spending or restoring that pool changes neither the
+target's PP nor the source creature's authored slot. The target definition, source definition, and
+saved/learned move lists remain immutable.
+
+Resolution uses the battle action history's last successful move identity and the target's current effective move
+list. Missed, prevented, and failed later attempts do not overwrite that successful identity. It
+fails atomically when either participant is fainted; the target has no move since its latest switch;
+the target's latest completed attempt in the current turn was prevented, missed, or failed; the
+identity is no longer in the target's effective list; the target move is fallback or carries the
+`temporary_replacement_blocked` tag; the source already knows that effective move identity; the
+executing move no longer owns an effective source slot; or ordinary decoy interception blocks the
+target effect. Every move containing this op is automatically tagged
+`temporary_replacement_blocked`. Candidate selection is identity-based, stable move-list order,
+and zero RNG.
+
+Success adds one slot-specific `FormOrSnapshot` move overlay with switch, faint, and battle-end
+cleanup. It captures the selected move's current effective type and class but no other move slot.
+An older form/Transform move list therefore feeds the copy; a later whole-list form/Transform
+overlay hides it by sequence order; removing that later overlay reveals the still-live replacement;
+and removing the replacement reveals the surviving earlier list without restoration writes. The
+replacement itself does not expire at TurnEnd. Action admission, legality/action filters, move
+references, PP restore, damage queries, ability hooks, and Smart AI consume the same effective slot.
+
+Every attempt emits one slot-addressed `TemporaryMoveReplacementApplied` or
+`TemporaryMoveReplacementFailed` event and one `MoveReplacement` trace. Failure marks the status
+action failed; success clears a choice lock on the replaced slot and draws no RNG.
+
+Acceptance vectors: `temporary-move-replacement-compile-validation`,
+`temporary-move-replacement-last-success-and-failure`,
+`temporary-move-replacement-independent-five-pp`,
+`temporary-move-replacement-known-excluded-fallback-and-decoy-atomicity`,
+`temporary-move-replacement-slot-only-overlay-precedence`,
+`temporary-move-replacement-switch-faint-end-cleanup`,
+`temporary-move-replacement-legality-reference-query-ai-parity`,
+`temporary-move-replacement-event-trace-no-rng`, and `temporary-move-replacement-golden`.
+
+### Phase 15F-6 cumulative snapshot package exit
+
+The package exit composes all four completed families on one creature-owned effective-value path.
+A decoy remains an independent field while Transform supplies an older composite snapshot, temporary
+move replacement supersedes exactly one Transform move slot, and a later form group supersedes its
+owned stats/types/ability/move-list/form keys without deleting the older entries. Removing the form
+group reveals the temporary replacement over the surviving Transform; removing that slot overlay
+reveals the Transform move; removing Transform reveals authored base values while the decoy remains.
+No step performs restoration writes or mutates any authored/runtime PP pool it did not create.
+
+The cumulative cleanup matrix proves that switch removes decoy, Transform, and temporary replacement
+while transferring a live timed/temporary form group; faint then removes that transferred group; and
+battle end removes every family together. Resolution before and after each transition must retain
+stable sequence/trace ordering, exact owner identity, definition immutability, resolver/AI-effective
+value parity, and zero overlay-resolution RNG. `snapshot-package.golden` records the complete reveal,
+switch-transfer, faint, and battle-end sequence. This matrix plus every family acceptance vector above
+is the Phase 15F-6 exit; it does not authorize the 15F-7 selector/executor package.
+
 ### Event trace contract
 
 `BattleEvent` remains the stable presentation-facing statement of what happened. Phase 15 also

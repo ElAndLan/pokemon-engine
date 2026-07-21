@@ -265,6 +265,37 @@ Capabilities beyond Beginner:
   that item. `itemMutation` adds only a zero-value `itemMutation` evidence component: AI does not
   speculate about hidden opposing item identity or future hook value. Preview is read-only and
   consumes no RNG.
+- Phase 15F-5 stage-mutation preview reads only visible stage slots. Self maximize/random rows feed
+  the existing named `setup` component and survival gate; a status-class candidate whose only
+  executable rows are stage mutation and HP cost receives `statStageMutationNoEffect` when every
+  mutation is visibly capped or empty. Positive-stage steal observes the visible target stages but
+  adds no speculative debuff component. Preview preserves effect order, mutates no stage, and draws
+  no random-stat RNG; the resolver alone samples a multi-candidate eligible-stat pool.
+- Derived-stat and metric mutation candidates add named neutral evidence components. AI does not
+  speculate about the value of a future split/swap/metric change or mutate the overlay store.
+  After resolution, ordinary damage, Speed, and physical-metric previews consume the same effective
+  snapshot as the resolver, including stage and hook ordering, without additional AI RNG.
+- Phase 15F-6 decoy creation adds a neutral `decoy` evidence component. The candidate receives the
+  deterministic `decoyUnavailable` rejection only when the visible effective overlay already owns a
+  live decoy, the user is fainted, or current HP cannot exceed the compiled cost. Preview mutates no
+  HP/overlay state, predicts no opposing action, and consumes no RNG.
+- Phase 15F-6 Transform adds a neutral `transform` evidence component. It rejects the candidate with
+  `transformUnavailable` only when visible state proves that the user or selected target already owns
+  a Transform snapshot, is fainted, or a visible target decoy blocks the move's tags. Preview never
+  copies state or PP. After success, candidate
+  enumeration, legality, expected damage, Speed, type/ability hooks, and called-move preview read the
+  same effective copied move/stat/type/ability snapshot as the resolver, without AI-only RNG.
+- Phase 15F-6 form transitions require no parallel AI form simulation. After activation, candidate
+  enumeration, legality, expected damage, Speed, type/ability hooks, form identity, and remapped
+  move PP read the same atomic `FormOrSnapshot` overlay group as resolution. Older snapshots and
+  later overlays use the same sequence precedence. AI does not spend or predict the side-owned
+  once-per-battle form resource, consume the trainer key item, mutate HP, or add RNG.
+- Phase 15F-6 temporary move replacement adds a neutral `moveReplacement` evidence component. It
+  adds `moveReplacementUnavailable` only when visible effective move lists, visible last-move/
+  completed-attempt history, faint state, duplicate identity, exclusion/fallback state, or a visible
+  target decoy proves the op cannot apply. It does not read the player's selected action, predict an
+  unresolved attempt, copy PP during preview, mutate overlays, or draw RNG. After success, candidate
+  enumeration and every ordinary move consumer read the same slot-specific effective overlay.
 - Terrain summon/change/duration hooks mutate only the shared visible condition snapshot. Smart AI
   consumes the resulting terrain through its existing grounded/query paths; it does not score a
   hidden hook component, predict nested hook execution, or consume additional AI RNG.

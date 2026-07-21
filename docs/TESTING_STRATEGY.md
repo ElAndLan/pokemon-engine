@@ -1,6 +1,6 @@
 # TESTING_STRATEGY
 
-Status: **Phase 15B plus the 15C-1/2/3/4/5, 15D-1, 15E-1/2, 15F-1, 15G-2, and the 15E-3 weather and terrain families are complete; Phase 15 conformance continues at 84/937.**
+Status: **Phase 15B, 15C-1 through 15C-7, 15D-1 through 15D-7, 15E-1 through 15E-7, 15F-1 through 15F-6, and 15G-2 are complete; Phase 15 conformance continues at 173/937 and 15F-7 is next.**
 xUnit suites and deterministic Core tests are active. The corpus manifest/inventory contract is
 implemented in Cgm.Tools. Stable JSON/text snapshots use existing BCL serialization; Verify remains
 unnecessary unless a later decision demonstrates value.
@@ -377,6 +377,113 @@ infatuation draw/event/PP boundaries; singles/doubles owner isolation; Smart-AI 
 nine sanitized generated vectors. Repeated normalization must be byte-identical. The corpus remains
 937 entries and strict certification advances to 130/937.
 
+## Phase 15F-4 type-overlay evidence
+
+The type-overlay exit covers strict compilation for requirements, replace/add/remove/copy,
+environment and damage-history sources, move-local queries, and target/all-active turn rules;
+atomic failure and immutable definitions; the three-type cap, duplicate/empty fallback rules,
+overlay precedence and cleanup; shared STAB/effectiveness/grounding and resolver/AI consumers;
+stable doubles owner/event order; exact resistance-selection draws and trace ranges; and the neutral
+`type-mutation.golden`. Eleven sanitized generated vectors cover every currently eligible reference
+row, raising strict certification to 163/937. Three typeless-state rows remain routed to 15H because
+the locked effective-type model requires a nonempty list, and two Tera/form rows remain routed to
+15F-6. Repeated normalization is byte-identical.
+
+## Phase 15F-5 stage-mutation checkpoint evidence
+
+The first 15F-5 checkpoint covers strict `statStageMutation` compilation and malformed siblings;
+maximize with ordinary +6 clamping; random eligible-stat pools at zero, one, and many candidates;
+fixed enum ordering and the exact one-draw/bound policy; atomic positive-stage steal from a mixed
+positive/negative snapshot; capped user gains; stable existing stage events; typed no-op and applied
+traces; Smart-AI setup/no-effect parity without preview RNG; and damaging-steal ordering before the
+same hit's damage query in both singles and doubles.
+
+The second checkpoint covers strict `derivedStatMutation` and `metricMutation` compilation;
+effective pre-snapshot average/split/swap with odd-floor arithmetic; terminal additive-layer values
+that do not double earlier contributions; derived Speed and physical-metric formula consumption;
+positive metric replacement, add-to-one clamping, and user/target swap; atomic batch validation and
+overflow/fainted rollback; switch/faint/end and TurnEnd cleanup; immutable base definitions; stable
+owner/stat event and typed trace order; zero RNG; and named neutral Smart-AI visibility.
+
+The third checkpoint covers the stage-pass seam independently of 15G-1 switch selection: immutable
+seven-slot capture in fixed stat order, side/party identity across slot changes and doubles positions,
+replacement of an incoming creature's prior stages, single-use consumption, same-creature and fainted
+target failure without prospective mutation, cancellation/source-faint/battle-end discard, and an
+explicit exclusion matrix for HP, status, PP, types, ability, held item, confusion, critical stage,
+seed, trap, and action locks. The transferable-condition registry remains empty until 15G-1.
+
+The package-close matrix composes pre-damage stage steal, damage, atomic derived-stat split, and
+metric mutation in `stat-mutation.golden`, asserts byte-stable replay, and registers seven sanitized
+generated reference vectors covering maximize plus HP cost, random target selection, offense and
+defense split, weight addition, Speed swap, and damaging positive-stage steal. Repeated normalization
+is byte-identical and strict certification advances from 163/937 to 170/937.
+
+## Phase 15F-6 decoy lifecycle checkpoint evidence
+
+`BattleDecoyTests` covers strict closed-op compilation; default/custom fractions; malformed chance,
+target, class, range, and duplicate rows; exact HP cost; duplicate/insufficient atomicity; immutable
+base values; breaking-hit no-overflow; post-break secondary blocking; substitute damage-memory
+fields; multi-hit rematerialization; status and damage bypass; drain/recoil accounting; direct target
+healing; switch cleanup; delayed damage; doubles owner isolation; Smart-AI preflight; stable events,
+traces, no extra RNG, and `decoy-lifecycle.golden`. `DecoyConformanceTests` owns the single eligible
+generated row. Repeated normalization is byte-identical and strict certification advances from
+170/937 to 171/937. Transform, copied PP, form transitions, and temporary move replacement remain
+required before the encompassing 15F-6 package can close.
+
+## Phase 15F-6 Transform snapshot checkpoint evidence
+
+`BattleTransformTests` owns strict compile validation; exact copied/excluded field matrices; effective
+pre-state capture; immutable collection and definition regressions; independent five-PP move pools;
+stage capture; nested/fainted/decoy atomic failures; action selection, legality, damage/type/Speed and
+ability-hook consumption; prior/later overlay precedence; switch/faint/end cleanup; doubles owner
+isolation; Smart-AI parity; stable events/traces; no extra RNG; and `transform-snapshot.golden`.
+Generated Transform conformance owns one sanitized reference vector. Form transition ownership and
+temporary move replacement remain required before the encompassing 15F-6 package can close. The
+focused resolver suite passes 11 tests, generated conformance passes 2 tests, the Battle regression
+filter passes 1,345 tests, and the full solution passes 1,962 tests; repeated generation is byte
+identical and strict certification advances from 171/937 to 172/937.
+
+## Phase 15F-6 form-transition checkpoint evidence
+
+The existing `BattleV6HookExecutionTests` form matrix now also owns wide-intermediate HP-ratio
+flooring and the living 1-HP boundary; the side-owned once-per-battle resource after switching to a
+second eligible creature; atomic doubles rejection of two allied temporary activations; and prior/
+later same-layer overlay precedence through the shared effective-value resolver. The deterministic
+`form-transition.golden` composes activation, remapped move use on both active turns, timed expiry,
+HP-ratio reversion, and exact form-overlay removal. Existing form tests retain key-item requirement,
+pre-move activation and Speed ordering, PP-slot preservation, condition/weather/held-item changes,
+faint/capture/battle-end reversion, stage preservation, and immutable authored-form coverage.
+Battle regression proof covers resolver/Smart-AI consumers of the shared overlay result. No move row
+is newly certifiable from this controller action alone, so strict certification remains 172/937.
+Two repeated normalization/audit runs are byte-identical at the existing definitions and manifest
+hashes.
+
+## Phase 15F-6 temporary move-replacement checkpoint evidence
+
+`BattleTemporaryMoveReplacementTests` owns the closed compiler shape; automatic exclusion tag;
+last-successful history despite a later miss; exact independent five-PP runtime copy; fallback,
+tagged, duplicate-known, missing, failed-current-turn, and decoy failure atomicity; slot-only overlay
+precedence; switch/faint/battle-end cleanup; effective type/class capture; event/trace/no-RNG behavior;
+Smart-AI parity; and the deterministic `temporary-move-replacement.golden`. Shared action-history
+coverage proves successful identities survive passes and unsuccessful attempts but clear on switch,
+faint, and battle end. Generated conformance owns one sanitized reference vector and advances strict
+certification from 172/937 to 173/937. The encompassing 15F-6 package still requires its cumulative
+nested interaction/reversion matrix and package golden before closure. Focused replacement/history
+tests pass 35/35, generated conformance passes 2/2, the Battle regression filter passes 1,359/1,359,
+and the full solution passes 1,977/1,977 (1,645 Core, 104 Creator, 21 Runtime, 207 Tools).
+
+## Phase 15F-6 package-close evidence
+
+`BattleOverlayStoreTests` now composes decoy, Transform, temporary move replacement, and a later form
+group on one owner. The matrix proves form-first visibility, exact field-by-field reveal back through
+replacement, Transform, authored values, and independent decoy state; immutable base PP; switch
+removal of decoy/Transform/replacement while the form group transfers; transferred-form faint cleanup;
+and atomic all-family battle-end cleanup. `snapshot-package.golden` records the same reveal and cleanup
+sequence twice with byte-identical state/trace output. The five family/overlay suites pass 88/88,
+affected generated conformance passes 6/6, the Battle regression filter passes 1,361/1,361, and the
+full solution passes 1,979/1,979 (1,647 Core, 104 Creator, 21 Runtime, 207 Tools). Together with the
+four family checkpoints above, this closes 15F-6 at 173/937 without a new certifiable reference row.
+
 ## Golden format
 
 A golden input records ruleset ID, topology, RNG seed/state, immutable definitions, initial battle
@@ -398,7 +505,7 @@ names, prose, assets, URLs, or raw reference JSON.
 
 - Tool unit tests pass without the local corpus.
 - The Phase 15A baseline command (without a decision catalog) reports exactly 937 entries and 0
-   certified; the current Phase 15 command with its decision catalog reports 138 certified.
+   certified; the current Phase 15 command with its decision catalog reports 163 certified.
 - Regenerating the manifest from unchanged files is byte-identical.
 - Generated output contains no payload names or source filenames.
 - Full solution build/tests remain green.

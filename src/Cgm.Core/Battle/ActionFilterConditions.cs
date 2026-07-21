@@ -108,14 +108,17 @@ public static class BattleActionLegality
         Func<BattleConditionSource, BattleCreature?> sourceCreature,
         bool suppressHeldItems = false,
         bool ignorePp = false,
-        bool ignoreChoice = false)
+        bool ignoreChoice = false,
+        IReadOnlyList<BattleMove>? effectiveMoves = null,
+        Func<BattleConditionSource, IReadOnlyList<BattleMove>?>? sourceMoves = null)
     {
         ArgumentNullException.ThrowIfNull(actor);
         ArgumentNullException.ThrowIfNull(conditions);
         ArgumentNullException.ThrowIfNull(sourceCreature);
-        if (moveIndex < 0 || moveIndex >= actor.Moves.Count)
+        IReadOnlyList<BattleMove> moves = effectiveMoves ?? actor.Moves;
+        if (moveIndex < 0 || moveIndex >= moves.Count)
             throw new ArgumentOutOfRangeException(nameof(moveIndex));
-        BattleMove move = actor.Moves[moveIndex];
+        BattleMove move = moves[moveIndex];
         if (!ignorePp && !move.HasPp)
             return Block(ActionLegalityReason.NoPp);
         if (!ignoreChoice && !suppressHeldItems && actor.ChoiceLockedMoveIndex is { } choice && choice != moveIndex)
@@ -146,7 +149,8 @@ public static class BattleActionLegality
             && condition.Owner.Side != slot.Side))
         {
             BattleCreature? source = sourceCreature(condition.Source);
-            if (source is not null && source.Moves.Any(known => known.Move == move.Move))
+            IReadOnlyList<BattleMove>? knownMoves = sourceMoves?.Invoke(condition.Source) ?? source?.Moves;
+            if (knownMoves is not null && knownMoves.Any(known => known.Move == move.Move))
                 return Block(ActionLegalityReason.SourceKnownMoveBlocked, condition.Definition.Id);
         }
         return new ActionLegalityResult(true);
@@ -165,9 +169,15 @@ public static class BattleActionLegality
 
     public static IReadOnlyList<int> LegalMoves(BattleCreature actor, BattleSlot slot, int partyIndex,
         IReadOnlyList<BattleConditionInstance> conditions, Func<BattleConditionSource, BattleCreature?> sourceCreature,
-        bool suppressHeldItems = false) => Enumerable.Range(0, actor.Moves.Count)
-        .Where(index => Move(actor, index, slot, partyIndex, conditions, sourceCreature, suppressHeldItems).Allowed)
-        .ToArray();
+        bool suppressHeldItems = false, IReadOnlyList<BattleMove>? effectiveMoves = null,
+        Func<BattleConditionSource, IReadOnlyList<BattleMove>?>? sourceMoves = null)
+    {
+        IReadOnlyList<BattleMove> moves = effectiveMoves ?? actor.Moves;
+        return Enumerable.Range(0, moves.Count)
+            .Where(index => Move(actor, index, slot, partyIndex, conditions, sourceCreature, suppressHeldItems,
+                effectiveMoves: moves, sourceMoves: sourceMoves).Allowed)
+            .ToArray();
+    }
 
     private static int StoredMove(BattleConditionInstance condition) =>
         condition.Counters.TryGetValue(ActionFilterConditions.MoveIndexCounter, out int index) ? index : -1;

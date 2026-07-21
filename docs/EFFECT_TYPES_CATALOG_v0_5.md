@@ -481,6 +481,66 @@ for uncopyable/unswappable/unreplaceable/unsuppressible abilities. Ignore is del
 effective-query option over a known suppression sequence, not a state mutation or blanket hook
 bypass. The primitive draws no RNG and emits ordered `AbilityMutated` events plus one resolver trace.
 
+Phase 15F-4 realizes `modify_type_state` through four closed ops. `typeRequire` is the pre-PP
+effective-type gate. `typeMutation` performs replace/add/remove/copy over immutable-base creature
+overlays with fixed, target-copy, first-effective-move, effective-environment, or
+resistant-to-last-damage sources. `moveTypeQuery { source:userPrimary }` replaces the current
+action's queried type without state mutation. `moveTypeOverride` installs a one-turn target or
+all-active replacement rule with an optional current-type filter. The effective creature cap is
+three, duplicate order is stable, empty removal requires an authored fallback, and every consumer
+uses the shared overlay/query result. Only eligible resistance selection draws RNG; all other type
+ops are deterministic and emit the typed events/traces specified by `BATTLE_SYSTEM_SPEC.md`.
+
+Phase 15F-5 extends `set_or_reset_stat_stage` with chance-free `statStageMutation` operations for
+maximize, deterministic random eligible-stage selection, and positive-stage steal. It reuses the
+existing seven stage slots, clamp/set path, switch reset, and `StatStageChanged` event. Random pools
+use fixed stage-enum order and draw once only when more than one slot is eligible; every operation
+records one `StatStageMutation` trace. The same package owns atomic derived-stat average/split/swap,
+implemented as `derivedStatMutation`, plus positive weight/height replacement/add/swap through
+`metricMutation`, and a single-use transfer whitelist consumed
+by the later switch-flow package. Exact params, cleanup, exclusions, and acceptance vectors are in
+`BATTLE_SYSTEM_SPEC.md` under “Stage, derived-stat, and metric mutation.”
+`BattleStagePassState` is the battle-owned helper for that seam: it snapshots only the seven stage
+slots by creature identity, applies them once in fixed stage order, and exposes explicit cancellation,
+faint, and battle-end discard. The transferable-condition registry is empty until 15G-1 registers
+switch-compatible creature conditions; excluded state is never inferred from `BattleCreature`.
+
+Phase 15F-6 realizes `substitute` through the chance-free closed op `decoy { num?, den? }`, valid
+only for a status move targeting `User`. Its default positive fraction is `1/4`. The resolver pays
+the exact non-fainting HP cost, owns decoy HP in `DecoyOverlay`, intercepts ordinary opposing damage
+without breaking-hit overflow, blocks eligible target effects, and honors only the `sound` and
+`decoy_bypass` move tags. Multi-hit actions re-read the overlay after each hit. Events, traces,
+damage-memory attribution, AI preflight, and cleanup are specified in `BATTLE_SYSTEM_SPEC.md` under
+“Decoy lifecycle.” This op never mutates creature definitions or saved data and never draws RNG.
+
+The same package adds chance-free `transform {}` for one selected opposing creature. It captures one
+composite effective-state snapshot: non-HP derived stats, creature types, ability, form identity,
+weight, seven stat stages, and the ordered effective move list. Each copied move receives a distinct
+battle-runtime PP pool capped at five; user HP/current HP, held item, height, status, identity, decoy,
+and unrelated volatile state are excluded. Nested Transform snapshots fail atomically. The snapshot
+uses the existing form/snapshot precedence layer and switch/faint/battle-end cleanup, participates in
+ordinary resolver and Smart-AI queries, and never rewrites species, saved creatures, or authored move
+definitions. Exact selection, events, traces, precedence, and acceptance vectors are specified in
+`BATTLE_SYSTEM_SPEC.md` under “Transform snapshot lifecycle.”
+
+Form activation in the same package remains the existing typed `ActivateForm(formId, moveIndex)`
+action, not a named-move op. A successful condition, battle-temporary, or battle-timed transition
+atomically projects stats, creature types, ability, move list/PP owner, and form identity as a
+same-owner `FormOrSnapshot` overlay group. Sequence order supplies nested Transform/type precedence;
+wide integer HP-ratio arithmetic preserves living/fainted boundaries. Battle-temporary use is a
+side-owned, non-resetting once-per-battle resource with collective doubles admission. Timed expiry,
+faint, condition changes, and battle end remove the exact group and reveal surviving older state.
+The transition draws no RNG and uses `FormChanged` plus ordinary overlay resolution trace.
+
+Phase 15F-6 also adds chance-free `temporaryMoveReplacement {}` for one selected opponent. It
+replaces only the executing move's effective slot with a deep five-PP copy of the target's last
+successfully used effective move. `temporary_replacement_blocked`, fallback, duplicate-known,
+missing/failed-history, faint, decoy, and unowned-slot candidates fail before mutation. The
+slot-specific `FormOrSnapshot` overlay reuses normal effective-move consumers and switch/faint/end
+cleanup; sequence order composes with earlier and later form/Transform lists without freezing
+unrelated slots. Exact events, trace, precedence, PP ownership, and acceptance vectors are in
+`BATTLE_SYSTEM_SPEC.md` under “Temporary move replacement lifecycle.”
+
 ### 4.8 Move Tag And Filter Helpers
 
 | Helper | Purpose |

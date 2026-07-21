@@ -1,0 +1,8 @@
+active:active_form:ability:base_trait:type:tide:form_zero@20,form_one@20:12
+without-form:captured_form:ability:new_trait:type:ember:replacement@5,transform_one@5:12
+without-replacement:captured_form:ability:new_trait:type:ember:transform_zero@5,transform_one@5:12
+authored-plus-decoy:base:ability:base_trait:type:normal:base_zero@20,base_one@20:12
+after-switch:base:ability:base_trait:type:normal:base_zero@20,base_one@20:0
+nested-switch:Removed/Switch=3,Transferred/None=5:active_form:ability:base_trait:type:tide:form_zero@20,form_one@20:0
+nested-faint:Removed/Faint=5:0
+battle-end:Removed/BattleEnd=8:0

@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Animation Artist"
+  short_description: "Plan readable, grounded, registered pixel animation."
+  default_prompt: "Use $cgm-animation-artist to plan this focused sprite animation."

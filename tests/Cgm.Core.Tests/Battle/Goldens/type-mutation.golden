@@ -1,0 +1,3 @@
+used:Player:move:type_replay
+types:Enemy:0:type:normal:type:tide:Replace
+trace:0:1:Player:Enemy:True:1:1-2

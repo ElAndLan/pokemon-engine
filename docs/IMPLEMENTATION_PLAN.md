@@ -163,8 +163,8 @@ whitespace checks passed.
 | 12 | Pack and Export Data Path | PARTIAL | Data pack/template copy/smoke exist; assets/self-contained templates/UI/VM gate absent |
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
-| **15** | **Complete Core Game Logic and Move Conformance** | **IN PROGRESS** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2 complete; 937 inventoried, 152/937 certified; next eligible package is 15F-4 creature and move type overlays** |
-| 16 | Reusable Runtime Engine Completion | NOT STARTED | Begins only after Phase 15 |
+| **15** | **Complete Core Game Logic and Move Conformance** | **PAUSED (2026-07-21 user directive; resume requires explicit user decision — §10 item 10)** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6, and 15G-2 complete; 937 inventoried, 173/937 certified; 15F-7 is next** |
+| 16 | Reusable Runtime Engine Completion | IN PROGRESS — ACTIVE FOCUS | Activated by the 2026-07-21 user directive; Phase 15 is PAUSED (see §10 pause record); consumes the paused Core contract per §6 prerequisite note |
 | 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
 | 19 | Release Hardening and 1.0 | NOT STARTED | Distribution, docs, migration matrix, beta, legal sweep |
@@ -430,7 +430,7 @@ Current readiness ledger:
 | 15C-7 accuracy/critical/priority/final-damage/healing queries | SPEC READY | IMPLEMENTED | Shared action-query helpers, strict ops, one-shot conditions, resolver/Smart-AI parity, traces, RNG matrix, doubles isolation, and golden evidence |
 | 15D timing/queue/lock families | 15D-1/2/3/4/5/6 SPEC READY; 15D-7 PLANNED — SPEC LOCK AUTHORIZED | 15D-1/2/3/4/5/6 IMPLEMENTED; 15D-7 NOT ACTIVE | Typed intent queue, action gates, recharge, charge release, semi-invulnerability, delayed slot actions, multi-turn locks, condition-backed selection legality, ruleset fallback, and AI parity use shared deterministic paths; apply 15D-7 lifecycle defaults |
 | 15E scoped conditions/hooks | 15E-1/2/3/4/5/6/7 SPEC READY | 15E-1/2/3/4/5/6/7 IMPLEMENTED | Workstream complete; retain focused regression coverage while later packages consume the shared conditions |
-| 15F mutation/snapshots | 15F-1 SPEC READY; 15F-2 through 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Immutable effective-value overlays and cleanup/trace evidence are complete; apply 15F-2 through 15F-7 mutation/reversion defaults after their prerequisites |
+| 15F mutation/snapshots | 15F-1/2/3/4/5/6 SPEC READY; 15F-7 PLANNED — SPEC LOCK AUTHORIZED | 15F-1/2/3/4/5/6 IMPLEMENTED; 15F-7 NOT ACTIVE | Immutable overlays plus held-item, ability, creature/move type, stage, derived-stat, metric, stage-pass, decoy, Transform, form-transition, temporary replacement, and the cumulative interaction/reversion matrix are complete |
 | 15G switch/recovery/memory/non-battle | 15G-2 SPEC READY; others PLANNED — SPEC LOCK AUTHORIZED | 15G-2 IMPLEMENTED; LATER FAMILIES NOT ACTIVE | Bounded action/damage memory is complete; counter/revenge consumers remain with 15G-3 after the intervening prerequisite order |
 | 15H reference closure/normalization | PROCESS READY | NOT COMPLETE | Per-entry research record and routing contract below; capability implementation remains with 15B-15G |
 | 15I AI awareness | PLANNED — SPEC LOCK AUTHORIZED | NOT IMPLEMENTED | Apply 15I-1 through 15I-5 legality/scoring/tuning defaults after mechanics stabilize |
@@ -2405,19 +2405,19 @@ Ordered feature packages:
    checkpoint, never halfway through the hook enumeration that changed them. **Acceptance:** operation
    matrix, protection, hook activation timing, suppression/ignore distinction, switch/faint/end
    reversion, doubles identity, and events/traces.
-4. **15F-4 — Creature and move type overlays (`PLANNED`; prerequisites 15F-1 and 15C-6).** Lock
+4. **15F-4 — Creature and move type overlays (`COMPLETE`; prerequisites 15F-1 and 15C-6).** Lock
    replace/add/remove/copy operations, maximum effective type count, duplicate elimination preserving
    first occurrence, empty-type fallback, source/duration/cleanup, and move-type override precedence.
    Grounded, STAB, effectiveness, immunity, and type-derived item/field queries consume the same
    effective list. **Acceptance:** mono/dual/add/remove/copy, duplicates/empty, overlay conflicts,
    STAB/effectiveness/grounding integration, switch cleanup, and conformance vectors.
-5. **15F-5 — Stage, derived-stat, and metric mutation (`PLANNED`; prerequisites 15F-1 and 15C
+5. **15F-5 — Stage, derived-stat, and metric mutation (`COMPLETE`; prerequisites 15F-1 and 15C
    queries).** Reuse stage bounds and lock set, maximize, average with floor, split, swap, steal,
    random-stat selection, pass, and temporary derived-stat/metric overlays. Operations calculate all
    outputs from one pre-mutation snapshot and commit atomically; random eligible stats use enum order
    and one draw only for multiple choices. **Acceptance:** bounds, odd averages, mixed positive/
    negative, empty random pool, atomic multi-target state, exact draw, pass whitelist, and cleanup.
-6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`PLANNED`;
+6. **15F-6 — Decoy, Transform, snapshots, forms, and temporary move replacement (`COMPLETE`;
    prerequisites 15F-1/4/5 and 15D-7).** Lock decoy HP creation/cost/interception/bypass; snapshot
    copied fields and exclusions; copied move PP pool; original HP ratio preservation on max-HP form
    changes; once-per-battle form ownership; replacement duration; and switch/faint/end reversion.
@@ -2517,6 +2517,307 @@ the focused ability/validation package passed 15 tests, focused ability plus rec
 passed 18 tests, the full Battle filter passed **1,291/1,291**, and the full solution passed
 **1,881/1,881** (1,577 Core, 104 Creator, 21 Runtime, 179 Tools). Next eligible package:
 **15F-4 creature and move type overlays**.
+
+Progress (2026-07-18): **15F-4 COMPLETE — focused review: GO.** The locked
+`typeRequire`, `typeMutation`, `moveTypeQuery`, and `moveTypeOverride` vocabulary is now reachable
+through `BattleController`: type requirements gate before PP/accuracy, mutations and one-turn move
+rules write only to `BattleOverlayStore`, effective move identity consumes query/environment/rule
+precedence, and successful changes emit stable events plus typed traces. Focused
+`BattleTypeStateTests` cover atomic replace/add/remove/fallback behavior, ordered filtered move-type
+rules, and compiler acceptance/rejection cases (3/3); a controller regression now proves a type
+overlay plus `moveTypeQuery` feeds the shared damage-query type/STAB result without mutating the
+authored move. A mutation regression now clears stale additive type contributions before permanent
+replace/remove overlays, preventing removed types from reappearing through layer precedence.
+Controller cleanup coverage now proves switch, faint, and battle-end reversion for creature types
+and move-type rules. Move-local query, environment replacement, and ordered overlay-rule precedence
+now live in the shared damage-query identity path used by resolver and Smart AI; a parity regression
+proves AI observes the same final effective type without new score terms or hidden information.
+The doubles matrix now proves one entire-field override applies to all four active owners in stable
+owner order, affects a later same-turn damage query, expires at TurnEnd, and leaves authored moves
+immutable. Resolver/Smart-AI grounding parity is now proven through a real battle type mutation:
+both consumers observe the same effective creature types and terrain state while the authored
+Flying type remains unchanged. The resistance-source matrix now proves previous-turn connected
+damage ownership, ordinal eligible-type ordering, zero draws for zero/one candidates, exactly one
+bounded draw for multiple candidates, selected-type application, and matching controller event and
+trace ranges. A neutral `type-mutation.golden` pins mutation event/trace ordering. The generated
+cohort certifies 11 eligible rows and raises strict conformance from 152 to **163/937**, leaving 774
+inventory-only and zero normalized, compiled, blocked, or invalid rows. Three sole-type removal
+references remain routed to 15H because their exact temporary typeless state conflicts with the
+locked nonempty effective-type list; two Tera/form references remain routed to 15F-6. Repeated
+generation was byte-identical with definitions SHA-256
+`69e2b82fe53ac8ac72167bf9fd3ff90321fa9ed89c32903d332be07b4c1d80f4`, manifest SHA-256
+`51f9ecee30a976f95a8c16464a4b2005bafe2db613a3751646ef501cabb0ea58`, and unchanged corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`.
+Schema/migration impact: none. Dependency impact: none. RNG impact: only the documented
+resistance-source draw. Golden impact: one new neutral golden; no existing golden changed. Focused
+review fixed selected-target copy context after finding the controller had supplied the user as
+both mutation participants, then found no remaining blocking scope, determinism, schema,
+dependency, IP, AI-fairness, or architecture issue. Verification: focused Core type integration
+passed **31/31**; focused generated type/action-gate conformance passed **23/23**; full solution build
+passed with 0 warnings/errors; full solution tests passed **1,910/1,910** (1,593 Core, 104 Creator,
+21 Runtime, 192 Tools). Next eligible package: **15F-5 stage, derived-stat, and metric mutation**.
+
+Progress (2026-07-19): **15F-5 IN PROGRESS — stage-mutation acceptance criterion COMPLETE.** The
+battle spec and effect catalog now lock the complete 15F-5 stage/derived-stat/metric/pass contract.
+The normal resolver path compiles and applies chance-free `statStageMutation` maximize, random, and
+steal operations through the existing seven-slot stage state, clamp/set helper, switch reset, and
+`StatStageChanged` event. Maximize emits only the actual capped delta; random uses fixed stage order,
+draws exactly once only for multiple eligible slots, and visibly no-ops for an empty pool; steal
+snapshots both creatures before atomically removing positive target stages and adding their values
+to the user with ordinary clamping. Every attempt emits one typed trace. Smart AI rejects a visible
+no-effect-only mutation and values self maximize/random through its existing named setup component
+without preview RNG. Strict validation rejects chance, HP, missing/mistyped operation
+params, invalid deltas/subjects, and target-incompatible rows.
+
+Evidence: `BattleStatStageMutationTests` adds four compiler/controller tests covering malformed
+siblings, maximize-at-cap, random zero/one/many pools, exact draw/bound, mixed positive/negative
+steal, capped gains, atomic event order, no-op traces, and Smart-AI setup/no-effect parity; the
+focused filter passed **5/5**.
+`D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0 warnings/errors;
+`D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build` passed **1,915/1,915** (1,598 Core,
+104 Creator, 21 Runtime, 192 Tools); `git diff --check` passed. Files for this criterion:
+`BATTLE_SYSTEM_SPEC.md`, `BATTLE_AI_SPEC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`, `TESTING_STRATEGY.md`, `SCOPE_GUARD.md`,
+`IMPLEMENTATION_PLAN.md`, `MoveEffects.cs`, `MoveCompiler.cs`, `BattleController.cs`,
+`EffectTrace.cs`, `SmartAi.cs`, and `BattleStatStageMutationTests.cs`. RNG change: only the authored
+random-stage op adds the documented single bounded draw for a pool larger than one. Event/trace
+change: existing stage events plus `StatStageMutation`; no schema or dependency change. Manifest:
+unchanged at **163/937** because no reference cohort advances before the complete 15F-5 package
+review. Remaining acceptance: atomic derived-stat average/split/swap overlays, metric
+replace/add/swap and cleanup, the stage-pass whitelist/single-use snapshot seam, interaction and
+golden evidence, affected conformance regeneration, and focused package review. Resume **15F-5**;
+the next coherent criterion is derived-stat and metric overlay mutation over one pre-state snapshot.
+
+Progress (2026-07-19): **15F-5 IN PROGRESS — derived-stat/metric acceptance criterion COMPLETE.**
+Chance-free `derivedStatMutation` now averages with floor, splits the offense or defense pair, and
+swaps one derived stat from a single effective pre-mutation snapshot. `metricMutation` replaces,
+adds with a positive floor and checked upper bound, or swaps weight/height through the same shared
+effective-value path consumed by physical formulas. Terminal additive payloads prevent earlier
+deltas from being applied twice, while the new batch overlay operation validates capacity and every
+sibling before appending any entry. Switch, faint, battle-end, and optional TurnEnd cleanup remain
+owned by `BattleOverlayStore`; authored creature definitions stay immutable. Resolver attempts emit
+stable per-owner events and typed traces, failed preflight mutates nothing, and Smart AI observes the
+same effective snapshot with neutral mechanics-only components and no preview RNG.
+
+Evidence: `BattleStatMetricMutationTests` adds six tests covering strict operation/parameter/target
+validation, odd-floor average, offense/defense split, swap, prior-overlay composition, physical
+formula integration, positive metric clamping, checked overflow, fainted participants, switch/faint/
+battle-end/TurnEnd cleanup, stable event/trace order, and malformed batch rollback. The combined
+stage/metric/overlay/physical-formula regression filter passed **62/62**. Full solution build passed
+with 0 warnings/errors; full solution tests passed **1,921/1,921** (1,604 Core, 104 Creator,
+21 Runtime, 192 Tools), and `git diff --check` passed.
+Files added or changed for this criterion: `BattleStatMetricState.cs`, `BattleOverlays.cs`,
+`MoveEffects.cs`, `MoveCompiler.cs`, `BattleController.cs`, `BattleEvents.cs`, `EffectTrace.cs`,
+`SmartAi.cs`, `BattleStatMetricMutationTests.cs`, `BATTLE_SYSTEM_SPEC.md`, `BATTLE_AI_SPEC.md`,
+`EFFECT_TYPES_CATALOG_v0_5.md`, `TESTING_STRATEGY.md`, `SCOPE_GUARD.md`, and this plan. RNG, schema,
+dependency, golden, and manifest impact: none; certification remains **163/937**. Remaining
+acceptance: the stage-pass whitelist/single-use snapshot seam, interaction and golden evidence,
+affected conformance regeneration, and focused package review. Resume **15F-5**; the next coherent
+criterion is stage-pass snapshot transfer.
+
+Progress (2026-07-19): **15F-5 IN PROGRESS — stage-pass acceptance criterion COMPLETE.**
+`BattleStagePassState` now captures an immutable seven-slot stage snapshot in fixed Atk, Def, SpA,
+SpD, Speed, Accuracy, Evasion order and keys it to side plus party identity rather than the active
+slot. Consumption removes the snapshot before same-creature or fainted-target validation, applies
+the captured values once in fixed order, and reports only changed slots. Explicit cancellation,
+source-faint, and battle-end hooks discard pending state; `BattleController` invokes the latter two
+through its ordinary lifecycle. Capture from a fainted source also clears any older pending row.
+The whitelist does not copy HP, status, PP, types, ability, held item, form, decoy, confusion,
+critical stage, seed, trap, action locks, side/field conditions, or queues. The transferable creature-
+condition registry remains intentionally empty until 15G-1 owns switch selection and registers only
+compatible condition profiles. This seam draws no RNG and emits no premature switch presentation
+event or trace.
+
+Evidence: four `BattleStagePassStateTests` cover immutable capture after source mutation, all seven
+positive/negative boundaries, fixed change order, prior destination replacement, slot-independent
+party identity, separate doubles-position owners, single use, same-owner/fainted source/fainted
+target failure, cancellation/source-faint/battle-end discard, the excluded-state matrix, and a real
+controller faint lifecycle. The combined 15F-5 stage/derived-stat/metric/pass filter passed **15/15**.
+Full solution build passed with 0 warnings/errors; full solution tests passed **1,925/1,925**
+(1,608 Core, 104 Creator, 21 Runtime, 192 Tools), and `git diff --check` passed.
+Files added or changed for this criterion: `BattleStagePassState.cs`, `BattleController.cs`,
+`BattleStagePassStateTests.cs`, `BATTLE_SYSTEM_SPEC.md`, `EFFECT_TYPES_CATALOG_v0_5.md`,
+`TESTING_STRATEGY.md`, `SCOPE_GUARD.md`, and this plan. Schema, dependency, RNG, existing-golden,
+and manifest impact: none; certification remains **163/937**. Remaining acceptance is the cumulative
+15F-5 interaction/golden matrix, affected conformance regeneration, and focused package review.
+Resume **15F-5**; the next coherent criterion is package closure, not another mechanic.
+
+Progress (2026-07-19): **15F-5 COMPLETE — focused review: GO.** Package closure adds the cumulative
+`stat-mutation.golden`, composing a damaging positive-stage steal before the same hit's damage query,
+ordinary damage, atomic offense split, and a metric overlay in stable event/trace order. A FIX-NOW
+timing correction makes this generic pre-damage rule identical in singles and doubles and excludes
+the steal from the ordinary post-hit pass, so it applies exactly once. The closeout conformance
+family registers seven sanitized source rows: maximize with half-HP cost, random target stat +2,
+defense split, offense split, self weight -1000 with a positive floor, Speed swap, and damaging
+positive-stage steal. No resolver branch names a reference move or ID.
+
+Evidence: `BattleStatStageMutationTests` proves pre-damage order, same-hit damage consumption, and
+single application; `BattleStatMetricMutationTests` adds the deterministic cumulative lifecycle
+golden; `StatMutationConformanceTests` supplies seven per-row theories plus an exact family cohort
+matrix. Generated definitions and manifest remain byte-identical across a second run. Inventory is
+**937**, corpus digest is `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`,
+and strict certification advances **163 → 170/937**. Focused stage tests passed **6/6**, focused
+conformance passed **8/8**, and the cumulative golden passed. Full solution build passed with 0
+warnings/errors; full solution tests passed **1,936/1,936** (1,610 Core, 104 Creator, 21 Runtime,
+201 Tools); `git diff --check` and the focused scope/determinism/schema/dependency review passed.
+Files added or changed for closure: `BattleController.cs`, `MoveConformanceNormalizer.cs`,
+`StatMutationConformanceTests.cs`, `BattleStatStageMutationTests.cs`,
+`BattleStatMetricMutationTests.cs`, `stat-mutation.golden`, the three conformance JSON artifacts,
+`TargetTopologyConformanceTests.cs`, `BATTLE_SYSTEM_SPEC.md`, `TESTING_STRATEGY.md`,
+`SCOPE_GUARD.md`, and this plan. Schema and dependency
+impact: none. RNG impact: only the already locked random-stat bounded draw. Next eligible package:
+**15F-6 — decoy, Transform, snapshots, forms, and temporary move replacement**.
+
+Progress (2026-07-19): **15F-6 IN PROGRESS — decoy lifecycle criterion COMPLETE.** The battle spec
+and effect catalog now lock the chance-free `decoy` op, exact non-fainting max-HP cost, atomic
+duplicate/insufficient failure, overlay-owned HP, ordinary damage interception, breaking-hit
+no-overflow, per-hit rematerialization, `sound`/`decoy_bypass` routing, target-effect blocking,
+opponent-healing exception, drain/recoil/action accounting, typed substitute damage memory, stable
+events/traces, Smart-AI preflight, and switch/faint/battle-end cleanup. Singles, delayed damage,
+doubles owner isolation, immutable base values, and the deterministic lifecycle golden use the same
+effective overlay. One generic corpus decision registers `move-0164`; inventory remains 937, digest
+remains `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, and strict certification
+advances **170 → 171/937**. Repeated generation is byte-identical. Schema/dependency impact: none;
+RNG impact: none. The focused decoy suite passed 11 tests, decoy conformance passed 2, and the Battle
+regression filter passed 1,334 tests. The full build passed with 0 warnings/errors; full-solution
+tests passed **1,949/1,949** (1,621 Core, 104 Creator, 21 Runtime, 203 Tools), and
+`git diff --check` passed.
+Remaining 15F-6 work: Transform/effective snapshot capture and copied PP, form/HP-ratio and
+once-per-battle ownership, temporary move replacement, their nested precedence/reversion matrices,
+conformance rows, and the cumulative package golden. The next coherent criterion is **Transform and
+snapshot capture with independent copied move PP**; do not mark 15F-6 complete before the remaining
+matrix is green.
+
+Progress (2026-07-19): **15F-6 IN PROGRESS — Transform/effective-snapshot criterion COMPLETE.** The
+owning battle and effect specs now lock chance-free `transform {}` over one selected opponent. The
+resolver atomically captures effective non-HP stats, types, ability, form identity, weight, seven stat
+stages, dynamic move types/classes, and the ordered move list while preserving user HP/current HP,
+item, height, status, identity, decoy, and unrelated volatile state. Every copied move owns a deep,
+independent `min(5, maxPp)` runtime PP pool; target, user definition, and original user-slot PP remain
+unchanged. Effective action admission, legality/action filters, move references, PP restore, damage
+queries, ability hooks, and Smart AI now consume the same overlay move list. Nested snapshots, faint
+participants, and ordinary decoy interception fail without writes; choice lock clears on success;
+later target mutation cannot change the capture; later user overlays retain normal precedence; and
+switch, faint, and live battle end remove the snapshot through the shared lifecycle.
+
+Evidence: `BattleTransformTests` passes **11/11** tests covering closed compiler validation, exact
+copied/excluded fields, prior effective-state and dynamic move-type capture, immutable collection/PP
+depth, copied-PP use and action legality, stage/choice-lock handling, ability-hook and Speed-query
+parity, nested/decoy atomic failure with no Transform RNG, later-overlay precedence, switch/faint/
+live-end cleanup, Smart AI, doubles selected-target isolation, and `transform-snapshot.golden`.
+`TransformConformanceTests` passes **2/2** and certifies sanitized `move-0144`; the Battle regression
+filter passes **1,345/1,345**. Deterministic regeneration remains 937 inventoried with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, advances strict
+certification from 171 to **172/937**, and is byte-identical on repetition: definitions SHA-256
+`A3C87F418B043F36681AA103993A58E6F1CF86FBB80CDB31B9135D81ABF06DE0`, manifest SHA-256
+`EE3AE3C183B1C4CA9C11892A42F577F9E4ED45E884E001FA4C12216CB844F4EE`.
+
+Verification: `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx --no-restore` passed with 0
+warnings/errors; full solution tests passed **1,962/1,962** (1,632 Core, 104 Creator, 21 Runtime,
+205 Tools); and `git diff --check` passed. Changed production surfaces are `ActionFilterConditions`,
+`BattleController`, `BattleCreature`, `BattleEvents`, `BattleOverlays`, `EffectTrace`, `MoveCompiler`,
+`MoveEffects`, `PhysicalMetricFormulas`, `SmartAi`, and the conformance normalizer, plus owning specs,
+generated conformance artifacts, focused tests, and the golden. Schema, dependency, saved-data, and
+presentation impact: none. RNG impact: none in Transform; ordinary surrounding battle gates retain
+their existing draws. Remaining 15F-6 work is **form transition HP-ratio preservation and once-per-
+battle ownership**, then temporary move replacement, nested interaction/reversion matrices, and the
+cumulative package golden. Resume 15F-6; the next coherent criterion is the complete form-transition
+lifecycle, not a form flag or isolated HP helper.
+
+Progress (2026-07-19): **15F-6 IN PROGRESS — form-transition lifecycle criterion COMPLETE.** The
+existing authored form calculation remains the only source of alternate stats, types, ability,
+move remap, and max HP. Each successful condition, battle-temporary, or battle-timed transition now
+atomically projects Stats, creature types, ability, effective move list/PP owner, and form identity
+as one five-entry `FormOrSnapshot` overlay group. A later form therefore supersedes older Transform/
+type fields in shared sequence order, later overlays still win normally, and exact group removal
+reveals surviving older state without restoration writes. Timed expiry, condition reevaluation,
+faint, switch transfer, and battle-end cleanup use the same creature-owned overlay lifecycle.
+
+Max-HP transitions now calculate `floor(oldHp * newMax / oldMax)` with wide intermediates, retain a
+living minimum of 1 HP, and keep fainted creatures at 0. The side-owned temporary-form resource is
+spent only by successful activation, survives switch/faint/reversion, is never consumed from trainer
+key-item stock, and rejects two allied doubles activations during collective admission before any
+HP, PP, event, overlay, or RNG mutation. Remapped moves retain original-slot PP and form changes
+retain stages/status/item/identity. `FormChanged` is slot-addressed; form resolution adds no RNG and
+Smart AI reads the same effective overlay surface.
+
+Evidence: the focused `BattleV6HookExecutionTests` suite passes **48/48**, including four new tests
+for the 1-HP and integer-overflow HP-ratio edges, side ownership across a second eligible creature,
+atomic doubles conflict, prior/later overlay precedence, and deterministic `form-transition.golden`.
+The Battle regression filter passes **1,350/1,350**. Full solution build passes with 0 warnings/errors;
+full solution tests pass **1,966/1,966** (1,636 Core, 104 Creator, 21 Runtime, 205 Tools), and
+`git diff --check` passes. Two complete conformance regenerations remain byte-identical at 937
+inventoried / 172 certified with corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, definitions SHA-256
+`A3C87F418B043F36681AA103993A58E6F1CF86FBB80CDB31B9135D81ABF06DE0`, and manifest SHA-256
+`EE3AE3C183B1C4CA9C11892A42F577F9E4ED45E884E001FA4C12216CB844F4EE`. Changed production files are `BattleController.cs`, `BattleCreature.cs`,
+and `BattleOverlays.cs`; the focused form test/golden and owning battle/effect/AI/testing/scope/plan
+documents changed with them. Schema, migration, saved-data, dependency, presentation, RNG, and
+generated-conformance impact: none; certification remains **172/937**. Focused review: GO, with no
+scope, determinism, Core-purity, schema, dependency, or named-move finding. Remaining 15F-6 work is
+**temporary move replacement**, followed by the package-level nested interaction/reversion matrix
+and cumulative golden. Resume 15F-6; do not begin 15F-7.
+
+Progress (2026-07-19): **15F-6 IN PROGRESS — temporary move-replacement lifecycle criterion
+COMPLETE.** The chance-free closed `temporaryMoveReplacement {}` op now replaces only its executing
+effective slot with a deep battle-runtime copy of the selected target's last successfully used
+effective move. The copy owns exact independent current/max PP of 5, captures the target's effective
+type/class, preserves every unrelated slot and authored/learned definition, clears an affected choice
+lock, and reverts through the shared switch/faint/battle-end overlay lifecycle without TurnEnd expiry.
+The shared action history now retains last-successful identity across passes and later failed/missed/
+prevented attempts while clearing it on switch, faint, and battle end; resolver and Smart AI consume
+that same value. Stable identity lookup, current-turn failure, missing/unavailable history, duplicate-
+known, fallback, automatic `temporary_replacement_blocked`, unowned slot, faint, and decoy gates fail
+atomically with typed events/traces and zero effect RNG. Slot-specific `MoveSlotOverlay` composes with
+older and newer whole-list form/Transform overlays without freezing sibling slots or restoration
+writes.
+
+Changed production files: `BattleActionHistory.cs`, `BattleController.cs`, `BattleEvents.cs`,
+`BattleOverlays.cs`, `EffectTrace.cs`, `MoveCompiler.cs`, `MoveEffects.cs`, `SmartAi.cs`, and
+`MoveConformanceNormalizer.cs`. New/expanded proof lives in `BattleTemporaryMoveReplacementTests.cs`,
+`BattleActionHistoryFormulaTests.cs`, `TemporaryMoveReplacementConformanceTests.cs`, and
+`temporary-move-replacement.golden`; the owning battle/effect/AI/audit/testing/scope/plan documents
+and generated decision/definition/manifest artifacts were reconciled in the same criterion.
+
+Evidence: focused replacement/history tests pass **35/35**, generated conformance passes **2/2**,
+and the Battle regression filter passes **1,359/1,359**. Full solution build passes with 0 warnings/
+errors; full tests pass **1,977/1,977** (1,645 Core, 104 Creator, 21 Runtime, 207 Tools), and
+`git diff --check` passes. Two complete normalization/audit runs are byte-identical at 937 inventoried
+/ **173/937 certified**, corpus digest
+`5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, definitions SHA-256
+`3102E9E178705CEEEA35748ABE566D91BBEB4294453CD0F4D3884D05C7DF1E5B`, and manifest SHA-256
+`A7F1A9ACF29BEFA5876F272B3CBA9CCBE92BF0F8329D6DC92E52B65926D3CB0D`.
+Schema, migration, saved-data, dependency, presentation, and effect-RNG impact: none. Focused review:
+GO, with no scope, determinism, Core-purity, schema, dependency, or named-move implementation finding.
+Remaining 15F-6 work is the **package-level cumulative nested interaction/reversion matrix and
+golden** across decoy, Transform, form transitions, and temporary replacement. Resume that complete
+package exit criterion; do not begin 15F-7.
+
+Progress (2026-07-19): **15F-6 COMPLETE — cumulative snapshot interaction/reversion exit GO.**
+The package-close matrix composes one creature-owned decoy, older Transform snapshot, later
+slot-specific temporary replacement, and newest five-field form group on the shared overlay store.
+It proves the form group wins only its owned keys while decoy remains independent; exact group
+removal reveals the replacement over Transform; replacement removal reveals the captured Transform
+move; Transform removal reveals immutable authored values; and no transition performs restoration
+writes or changes an unrelated PP pool. The lifecycle clone proves switch removes decoy, Transform,
+and replacement while transferring the form group, faint removes that transferred group, and battle
+end removes all eight family entries together with exact typed trace reasons. Resolver/preview
+resolution is byte-stable, consumes no RNG, and `snapshot-package.golden` records the full reveal,
+switch-transfer, faint, and battle-end sequence.
+
+This closure required no production change: the existing shared overlay sequence and owner lifecycle
+already satisfied the encompassing contract. Changed files are `BattleOverlayStoreTests.cs`, the new
+`snapshot-package.golden`, and the owning battle/testing/scope/roadmap documents. Schema, migration,
+saved-data, dependency, presentation, and RNG impact: none. The complete five-suite snapshot/form
+focus passes **88/88**, affected generated conformance passes **6/6**, and the Battle regression
+filter passes **1,361/1,361**. Full build passes with 0 warnings/errors; full tests pass
+**1,979/1,979** (1,647 Core, 104 Creator, 21 Runtime, 207 Tools), and `git diff --check` passes.
+Two normalization/audit runs remain byte-identical at 937 inventoried / **173/937 certified**, corpus
+digest `5f4649b3ab84f1ac3c77ec91bfea3f89238d3fb858622ff07d6dadc18b492c5f`, definitions SHA-256
+`3102E9E178705CEEEA35748ABE566D91BBEB4294453CD0F4D3884D05C7DF1E5B`, and manifest SHA-256
+`A7F1A9ACF29BEFA5876F272B3CBA9CCBE92BF0F8329D6DC92E52B65926D3CB0D`.
+Focused review found no FIX-NOW scope, determinism, Core-purity, schema, dependency, IP, lifecycle,
+definition-mutation, PP-ownership, event/trace, or named-move issue. Next eligible package:
+**15F-7 — unified move selector/executor**; begin with its authorized owning-spec lock.
 
 Required evidence: mutation legality/event tests; switch/faint/end reversion matrices; immutable
 definition regression tests; hook lookup after ability/item changes; type/STAB/effectiveness tests;
@@ -2802,14 +3103,23 @@ content pack. Those belong to Phases 16–18.
 
 Goal: turn the completed Core into a content-agnostic playable engine.
 
-Prerequisite: Phase 15 is GO and the Core action/state/event/trace contract is frozen. Runtime may
-adapt presentation and IO around that contract; it may not add or reinterpret game rules.
+Prerequisite (amended 2026-07-21 by user directive): Phase 15 is **PAUSED**, not GO. Phase 16
+consumes the Core action/state/event/trace contract **as of the pause baseline** (last Phase 15
+commit) as a working baseline rather than a frozen one. Runtime may adapt presentation and IO
+around that contract; it may not add or reinterpret game rules. During the pause, Core changes are
+permitted only as targeted regression fixes for a rule Runtime demonstrably needs, each recorded in
+the 16x package progress record; bulk corpus/certification work stays paused. When Phase 15
+resumes, contract deltas are reconciled at that boundary before further certification. Demo content
+(16H) may reference only moves certified at content-authoring time.
 
 ### 6.1 Locked Runtime defaults
 
 - Target is Windows `win-x64`, OpenGL 3.3 core, 60 fixed simulation ticks/second, maximum five catch-up
   ticks per rendered frame, and render interpolation that never mutates simulation state.
-- Default virtual resolution is 240×160. Scale is the largest positive integer fitting the client;
+- Default virtual resolution is 256×192 (single screen; amended 2026-07-21 from 240×160 for Gen 4
+  DS-era alignment per user directive — dual-screen and touch input remain excluded; the
+  `ENGINE_RUNTIME_SPEC`/`VirtualResolution` default and its tests are updated at the 16B spec
+  lock). Scale is the largest positive integer fitting the client;
   smaller windows use scale 1 with symmetric clipping/letterbox. Black letterbox bars; nearest-neighbor
   texture sampling; no mipmaps, rotation, shaders beyond textured/color quads, or dynamic atlasing.
 - Input actions are Up/Down/Left/Right/Confirm/Cancel/Menu/Run plus DebugToggle in debug builds.
@@ -2836,7 +3146,8 @@ adapt presentation and IO around that contract; it may not add or reinterpret ga
 
 ### 6.2 Ordered Runtime packages
 
-1. **16A — Content-agnostic host and raw/pack parity (`PLANNED`; prerequisite Phase 15 GO).**
+1. **16A — Content-agnostic host and raw/pack parity (`PLANNED`; prerequisite: Phase 15 pause
+   baseline recorded per the §6 prerequisite note).**
    - **Spec lock:** complete `ENGINE_RUNTIME_SPEC` boot arguments, error taxonomy, data/asset database,
      ownership/disposal, and startup state machine using the defaults above.
    - Remove showcase move/species/map IDs, embedded battle construction, and implicit fixture paths.
@@ -2936,9 +3247,22 @@ adapt presentation and IO around that contract; it may not add or reinterpret ga
      transitions, resource/performance report, keyboard+gamepad smoke, malformed-content errors, full
      build/tests, and focused review GO. Exit: the Phase 16 fixture loop passes end to end.
 
-Phase 16 excludes Creator workflows, export-template production, original demo breadth, Core rule
-changes, scripting, localization, networking, installer, and additional renderer backends. A missing
-Core rule is recorded as a Phase 15 regression and fixed there before Runtime consumes it.
+8. **16H — Interactive playable demo gate (`PLANNED`; prerequisites 16A-G).**
+   - Detailed plan: `docs/PHASE_16_DEMO_PLAN.md` (user directive 2026-07-21). The 16G neutral
+     fixture is made human-playable: one fixture map with tall-grass encounters, one trainer,
+     heal point, warp, and ledges; 4-6 original species using only Phase 15-certified moves;
+     an original capture item; Gen 4-style battle layout instantiated purely from 16C
+     primitives and 16F event consumption at 256×192.
+   - **Acceptance:** live keyboard+gamepad playthrough of overworld → wild/trainer battle →
+     EXP/level-up → capture with Core-resolved shake/break-out; seeded capture-distribution
+     harness matches the Core formula; scripted equivalent replays byte-identical twice;
+     raw/pack parity; zero-IP scan; no demo content ID in Runtime code; 16G budgets hold.
+     Exit: a person with no repo knowledge plays the full lifecycle against the demo pack.
+
+Phase 16 excludes Creator workflows, export-template production, original demo breadth beyond the
+fixed 16H fixture inventory, Core rule changes, scripting, localization, networking, installer, and
+additional renderer backends. A missing Core rule is recorded as a Phase 15 regression and fixed
+there before Runtime consumes it.
 
 Phase 16 GO requires all:
 
@@ -2948,6 +3272,8 @@ Phase 16 GO requires all:
 - [ ] Fixed-step, renderer/resource, input, scene, overworld, player/save/audio, and battle event
       matrices pass; the approved OpenAL reference is added only in Phase 16E.
 - [ ] The complete fixture route and singles/doubles presentation pass keyboard and gamepad smoke.
+- [ ] 16H is VERIFIED: the interactive demo lifecycle (move → grass/trainer battle → EXP/capture
+      with Core break-out) passes live and scripted per `docs/PHASE_16_DEMO_PLAN.md`.
 - [ ] Runtime performance/resource budgets and focused review are GO.
 
 ## 7. Phase 17 — Creator Application Completion
@@ -3285,17 +3611,27 @@ items across a numbered gate merely to keep a model busy:
    statuses/test IDs through tooling.
 5. **COMPLETE — 15B-5, 15B-6, and 15B exit.** Redirection/position, outcome/replacement, the
    cumulative golden, remaining target-only certification, and focused exit review are GO.
-6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3, and 15G-2. ACTIVE — 15F-4.** Follow this remaining topological package order; each ID means spec lock → implementation →
+6. **COMPLETE — 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6, and 15G-2. NEXT — 15F-7.** Follow the remaining topological package order; each ID means spec lock → implementation →
    affected normalization/conformance → focused review → commit before the next ID:
-   **15F-4** through **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
+   **15F-7**; **15G-1**; then **15G-3** through **15G-6**. This order resolves every declared
    cross-workstream prerequisite; do not substitute the alphabetical workstream order.
 7. Run 15H-1 through 15H-3 continuously alongside each completed capability package: enrich blocked
    references, regenerate normalized definitions, route newly exposed capabilities, and certify every
    now-complete cohort. Run 15H-4 only after 15B-15G and require zero gaps.
 8. Complete **15I-1** through **15I-5** in order after 15H-4, including catalog completeness and
    seeded singles/doubles measurements.
-9. Run 15J only after primitive semantics and normalization stabilize. Do not begin Phase 16 until
-   every Phase 15 exit checkbox is generated/evidenced and the focused review verdict is GO.
+9. ~~Run 15J only after primitive semantics and normalization stabilize. Do not begin Phase 16 until
+   every Phase 15 exit checkbox is generated/evidenced and the focused review verdict is GO.~~
+   **Superseded 2026-07-21.**
+10. **PAUSE RECORD (2026-07-21, user directive).** Phase 15 is PAUSED effective the last Phase 15
+    commit (`7d60f2f` era baseline; 173/937 certified). Items 6–9 above are suspended: do **not**
+    take 15F-7, 15G-x, 15H, 15I, or 15J while the pause stands. Resuming Phase 15 requires an
+    explicit user decision recorded here.
+11. **Phase 16 is the active queue.** Take the first incomplete package in order: 16A → 16B → 16C →
+    16D → 16E → 16F → 16G → 16H (§6.2 and `docs/PHASE_16_DEMO_PLAN.md`). Each package follows the
+    same discipline as Phase 15 packages: spec lock in `ENGINE_RUNTIME_SPEC.md` first, then
+    implementation, tests, focused review, progress record, commit. Core edits during Phase 16 are
+    restricted to the targeted-regression rule in the §6 prerequisite note.
 
 ## 11. Change control
 
@@ -3310,28 +3646,31 @@ The user may hand the repository to another model with this prompt:
 
 > Continue Creature Game Maker from the authoritative roadmap. Read `/AGENTS.md`,
 > `docs/SCOPE_GUARD.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/ARCHITECTURE_ADDENDUM.md`,
-> `docs/MASTER_PLAN.md`, `docs/AGENTS.md`, and the owning specs completely before acting. Current
-> work is Phase 15. Take the first incomplete eligible feature package from IMPLEMENTATION_PLAN
-> section 10 and complete the whole reusable behavior family. Implement `SPEC READY`; for `PLANNED —
-> SPEC LOCK AUTHORIZED`, complete its named specification package and readiness evidence before implementation;
-> a capability description alone is not permission to invent execution rules. Do not implement a
-> named move, move-ID branch,
-> one-off handler, arbitrary script op, UI, or future-phase feature. Use the promotion ladder in
-> section 5.7; update the battle spec before code; add strict validation, typed compilation, normal
-> resolver behavior, events/traces, cleanup, AI visibility, and every applicable test from
-> TESTING_STRATEGY. Per-move certification requires normalized definitions and conformance vectors;
-> never hand-edit counts or treat representative tests as certification. Run the focused tests,
-> `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx`, and
+> `docs/MASTER_PLAN.md`, `docs/AGENTS.md`, `docs/ENGINE_RUNTIME_SPEC.md`, and
+> `docs/PHASE_16_DEMO_PLAN.md` completely before acting. Current work is **Phase 16** (Runtime
+> engine + interactive demo); Phase 15 is PAUSED per the §10 pause record — do not take any 15x
+> package, and touch Core only under the targeted-regression rule in §6's prerequisite note, with
+> each Core edit recorded in the package progress record. Take the first incomplete package in
+> order 16A → 16H from IMPLEMENTATION_PLAN §6.2/§10. For each package: complete its **spec lock**
+> in `ENGINE_RUNTIME_SPEC.md` first using §6.1's locked defaults (256×192 virtual resolution,
+> 60 Hz fixed step, OpenGL 3.3 quad batch, exit-code taxonomy), then implement the minimum that
+> satisfies the package's acceptance list, with every listed test. Runtime never computes game
+> rules, never predicts damage/legality/faint, and consumes Core events in order; an unknown event
+> fails tests rather than disappearing. No content ID or game-rule branch in Runtime code. No new
+> dependencies except `Silk.NET.OpenAL` 2.23.0 at 16E exactly as recorded in TECH_STACK.md. All
+> randomness through injected `IRng`; no wall-clock reads in simulation. The Gen 4 experience
+> target governs presentation only (layout, pacing, single 256×192 screen — no dual-screen, no
+> touch); it never justifies new mechanics, official assets, names, cries, music, or maps. Run
+> `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` and
 > `D:\dotnet\dotnet.exe test CreatureGameMaker.slnx --no-build`. Fix change-caused failures, update
-> the package progress record and immediate queue, review for scope/spec/determinism/schema drift,
-> commit the complete change, and stop only if complete or genuinely blocked. Do not advance to
-> Phase 16 until every Phase 15 exit gate is evidenced and the focused review is GO. Missing spec
-> prose is not a blocker when v4 supplies locked defaults; reconcile the spec and proceed. Escalate
-> only the reserved decisions in v4 §2.1. A package may span multiple model turns. Do not stop merely
-> because the refactor is substantial or cannot finish in one response: implement a normal-path green
-> checkpoint, mark the package IN PROGRESS if a context boundary forces handoff, and resume the same
-> session/package until complete. A zero-change response without a demonstrated blocker is not a
-> valid iteration. Never start the next package while one is IN PROGRESS.
+> the package progress record and §10 queue, review for scope/spec/determinism/schema drift, commit
+> the complete change, and stop only if complete or genuinely blocked. Missing spec prose is not a
+> blocker when §6.1 or PHASE_16_DEMO_PLAN supplies locked defaults; reconcile the spec and proceed.
+> Escalate only reserved decisions (§2.1) and PHASE_16_DEMO_PLAN §5 D1. A package may span multiple
+> turns: implement a normal-path green checkpoint, mark the package IN PROGRESS at a context
+> boundary, and resume the same package until complete. A zero-change response without a
+> demonstrated blocker is not a valid iteration. Never start the next package while one is
+> IN PROGRESS.
 
 The implementing model should report: package outcome, reusable behavior added, audit groups/reference
 keys affected, files/specs changed, tests and counts, RNG/events/trace implications, manifest status

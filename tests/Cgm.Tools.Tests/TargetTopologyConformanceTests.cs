@@ -50,7 +50,7 @@ public sealed class TargetTopologyConformanceTests
         BattleSlot source = new(BattleSide.Player, 0);
         BattleActionSelection? selection = move.Target switch
         {
-            MoveTarget.Ally => new ActiveSlotSelection(new(BattleSide.Player, 1)),
+            MoveTarget.Ally or MoveTarget.UserOrAlly => new ActiveSlotSelection(new(BattleSide.Player, 1)),
             MoveTarget.SelectedPokemonMeFirst => new ActiveSlotSelection(new(BattleSide.Enemy, 0)),
             _ => null,
         };
@@ -151,7 +151,7 @@ public sealed class TargetTopologyConformanceTests
         MoveTarget.AllOpponents => [new(BattleSide.Enemy, 0), new(BattleSide.Enemy, 1)],
         MoveTarget.AllOtherPokemon => [new(BattleSide.Player, 1), new(BattleSide.Enemy, 0), new(BattleSide.Enemy, 1)],
         MoveTarget.RandomOpponent or MoveTarget.SelectedPokemonMeFirst => [new(BattleSide.Enemy, 0)],
-        MoveTarget.Ally => [new(BattleSide.Player, 1)],
+        MoveTarget.Ally or MoveTarget.UserOrAlly => [new(BattleSide.Player, 1)],
         MoveTarget.UserAndAllies => [new(BattleSide.Player, 0), new(BattleSide.Player, 1)],
         _ => throw new InvalidDataException($"Unexpected certified target {target}."),
     };

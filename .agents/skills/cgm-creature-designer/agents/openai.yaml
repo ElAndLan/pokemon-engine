@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Creature Designer"
+  short_description: "Design original, readable, animation-ready creatures."
+  default_prompt: "Use $cgm-creature-designer to develop this original creature concept or family."

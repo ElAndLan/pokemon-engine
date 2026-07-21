@@ -272,6 +272,32 @@ public sealed class BattleDamageQueryTests
     }
 
     [Fact]
+    public void SmartAiUsesSharedMoveTypeQueryAndOverlayRulePrecedence()
+    {
+        BattleMove move = Move("type_parity", Neutral, DamageClass.Special,
+            new MoveTypeQueryEffect(MoveTypeQuerySource.UserPrimary));
+        BattleCreature source = Creature("type_source", [Tide], Stats(), move);
+        BattleCreature target = Creature("type_target", [Flare], Stats(), Wait());
+        var overlays = new BattleOverlayStore();
+        var owner = new BattleOverlayOwner(BattleSide.Enemy, 0, new BattleSlot(BattleSide.Enemy, 0));
+        overlays.Apply(new BattleOverlayApplication(owner, new BattleOverlaySource(),
+            BattleOverlayLayer.Additive,
+            new MoveTypeRuleOverlay("type_parity", new BattleMoveTypeRule(Leaf, Tide)), 0, 0));
+
+        BattleEffectiveValues values = PhysicalMetricFormulas.EffectiveValues(source, overlays, owner);
+        BattleMoveIdentityQueryResult identity = BattleDamageQueries.Identity(move, 0, source, values,
+            BattleEnvironmentState.Resolve(BattleEnvironment.Building));
+        double withoutRule = DamageScore(new SmartAiContext([source], 0, [target], 0, Chart(),
+            new FakeRng(doubles: [0.5]), Weights: new SmartAiWeights { NoiseFraction = 0 }));
+        double withRule = DamageScore(new SmartAiContext([source], 0, [target], 0, Chart(),
+            new FakeRng(doubles: [0.5]), Weights: new SmartAiWeights { NoiseFraction = 0 },
+            Overlays: overlays));
+
+        Assert.Equal(Leaf, identity.EffectiveType);
+        Assert.True(withRule < withoutRule);
+    }
+
+    [Fact]
     public void DamageQueryFamily_MatchesDeterministicGolden()
     {
         static string Run()

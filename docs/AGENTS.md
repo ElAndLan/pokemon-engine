@@ -6,7 +6,9 @@
 3. `docs/IMPLEMENTATION_PLAN.md` - ordered roadmap, package status, and phase gates
 4. `docs/ARCHITECTURE_ADDENDUM.md` - wins over MASTER_PLAN.md on conflicts
 5. `docs/MASTER_PLAN.md` - product vision and older full plan as amended above
-6. The owning spec for your task (map below). An incomplete section must be completed before code.
+6. For move-engine, move-normalization, move-conformance, or move-migration work, read
+   `docs/MOVE_MIGRATION_MASTER_PLAN.md` before the detailed battle/effect/audit specs.
+7. The owning spec for your task (map below). An incomplete section must be completed before code.
    `IMPLEMENTATION_PLAN.md` v4 package defaults are already user-authorized: reconcile them into the
    spec and proceed without another confirmation. Block only under v4 §2.1's reserved decisions or
    when neither the plan nor spec supplies a mechanically significant rule.
@@ -26,9 +28,11 @@
 | Runtime loop, renderer, input, scenes | ENGINE_RUNTIME_SPEC.md | Implemented baseline; detailed 16A-16G contracts locked, implementation awaits Phase 15 GO |
 | Import/slicing layers, pack format | ASSET_PIPELINE_SPEC.md | v0-v2/v5 implemented; remaining 17B/18C spec locks authorized by plan v4 §§7-8 |
 | Map editor tools & layers | MAP_EDITOR_SPEC.md | Tool baseline implemented; remaining 17C spec lock authorized by plan v4 §7 |
-| Battle formulas, effect ops, events, AI | BATTLE_SYSTEM_SPEC.md + MOVE_AUDIT_SYSTEM_PLAN.md | **Phase 15 active** - 15B plus 15C-1/2/3/4/5 query/formula, 15D-1 intent, 15E-1/2 condition/hook, 15F-1 overlay, and 15G-2 damage-memory foundations are complete; 84 generated certifications; 15E-3 weather interactions are in progress through healing |
+| Internal demo art direction, asset profiles, prompts, and visual approval | ART_BIBLE.md + docs/art/ | Project-team guidance only; does not constrain end-user games or authorize product implementation |
+| Move migration workflow, batching, evidence, and certification | MOVE_MIGRATION_MASTER_PLAN.md | **Binding for all move-engine and conformance work** |
+| Battle formulas, effect ops, events, AI | MOVE_MIGRATION_MASTER_PLAN.md + BATTLE_SYSTEM_SPEC.md + MOVE_AUDIT_SYSTEM_PLAN.md | **Phase 15 active** - 15B, 15C-1 through 15C-7, 15D-1 through 15D-7, 15E-1 through 15E-7, 15F-1 through 15F-6, and 15G-2 are complete; 173 generated certifications; 15F-7 unified move selection/execution is next |
 | Export & smoke test | EXPORT_PIPELINE_SPEC.md | Data path implemented; remaining 18C-18E/19C spec locks authorized by plan v4 §§8-9 |
-| Phase status and current/future work | IMPLEMENTATION_PLAN.md | **Executable v4.0; Phase 15 active at 84/937 strict certification** |
+| Phase status and current/future work | IMPLEMENTATION_PLAN.md | **Executable v4.0; Phase 15 active at 173/937 strict certification** |
 | Test policy, goldens, fixtures | TESTING_STRATEGY.md | Active Phase 15 matrices plus authorized Phase 16-19 product evidence contract |
 | Vision & legal boundary | PROJECT_OVERVIEW.md | See MASTER_PLAN §1–2 until written |
 

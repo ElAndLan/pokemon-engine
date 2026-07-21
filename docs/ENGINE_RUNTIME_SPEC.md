@@ -228,7 +228,10 @@ interpolation history before the next tick. Simulation never receives render del
 - Logical UI and world units are virtual pixels with origin at top-left, +X right, +Y down.
 - Tile positions convert through the project `tileSize`. Camera coordinates are the world pixel at
   the virtual viewport top-left. Rendering subtracts the camera; Core positions stay tile-based.
-- Default virtual size is 240×160. The scale is the greatest positive integer that fits both axes.
+- Default virtual size is 256×192 (amended 2026-07-21, Gen 4 DS-era single-screen alignment per
+  user directive; was 240×160 — the implemented `VirtualResolution` default and its tests are
+  updated to match during the 16B package, in the same change as its spec lock). The scale is the
+  greatest positive integer that fits both axes.
   If the client is smaller, scale remains 1 and the virtual image is symmetrically clipped.
 - Odd remainder pixels put the extra pixel on the right/bottom. Letterbox pixels are opaque black.
   Mouse mapping is not part of Phase 16.

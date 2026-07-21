@@ -32,12 +32,15 @@ internal sealed class BattleTargetContext(BattleCreature target, BattleSlot targ
     public BattleSlot TargetSlot { get; } = targetSlot;
     public BattleSide TargetSide => TargetSlot.Side;
     public int TotalDamage { get; private set; }
+    public bool EncounteredDecoy { get; private set; }
 
     internal void AddDamage(BattleActionContext action, int amount)
     {
         TotalDamage += amount;
         action.AddDamage(amount);
     }
+
+    internal void MarkDecoyEncountered() => EncounteredDecoy = true;
 }
 
 /// <summary>Per-effect view of one action and one ordered target.</summary>

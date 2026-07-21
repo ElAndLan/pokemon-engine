@@ -200,6 +200,18 @@ public static class MoveConformanceNormalizer
             testIds.Add($"ItemMutationConformanceTests.Certified({referenceKey})");
         if (mechanics.Effects.Any(effect => effect.Op == "abilityMutation"))
             testIds.Add($"AbilityMutationConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "typeRequire" or "typeMutation"
+                or "moveTypeQuery" or "moveTypeOverride"))
+            testIds.Add($"TypeMutationConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op is "statStageMutation" or "derivedStatMutation"
+                or "metricMutation"))
+            testIds.Add($"StatMutationConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op == "decoy"))
+            testIds.Add($"DecoyConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op == "transform"))
+            testIds.Add($"TransformConformanceTests.Certified({referenceKey})");
+        if (mechanics.Effects.Any(effect => effect.Op == "temporaryMoveReplacement"))
+            testIds.Add($"TemporaryMoveReplacementConformanceTests.Certified({referenceKey})");
         if (testIds.Count == 0)
             throw Invalid(path, "decision has no registered conformance family");
         return new MoveConformanceRecord(

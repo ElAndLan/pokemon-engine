@@ -1,0 +1,10 @@
+used:Player:move:create_decoy
+cost:Player:25
+created:Player:25
+used:Enemy:move:golden_hit
+damaged:Player:25:0
+broken:Player
+blocked:Player
+trace:Player:Player:False:25:1-3
+trace:Enemy:Player:False:25:4-6
+trace:Enemy:Player:False:0:6-7

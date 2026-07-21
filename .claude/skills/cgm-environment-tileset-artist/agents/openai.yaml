@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Environment and Tileset Artist"
+  short_description: "Design reusable terrain, tilesets, and outdoor props."
+  default_prompt: "Use $cgm-environment-tileset-artist to brief this environment or tileset asset."

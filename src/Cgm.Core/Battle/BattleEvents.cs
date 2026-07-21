@@ -151,6 +151,31 @@ public sealed record HpCostPaid(BattleSlot Slot, int Amount) : BattleEvent
     public BattleSide Side => Slot.Side;
     public HpCostPaid(BattleSide side, int amount) : this(new BattleSlot(side, 0), amount) { }
 }
+public enum DecoyCreationFailure { AlreadyActive, InsufficientHp, SourceFainted }
+public sealed record DecoyCreated(BattleSlot Slot, int Hp) : BattleEvent;
+public sealed record DecoyCreationFailed(BattleSlot Slot, DecoyCreationFailure Reason) : BattleEvent;
+public sealed record DecoyDamaged(BattleSlot Slot, int Amount, int RemainingHp) : BattleEvent;
+public sealed record DecoyBroken(BattleSlot Slot) : BattleEvent;
+public sealed record DecoyBlocked(BattleSlot Slot) : BattleEvent;
+public enum TransformFailure { SourceFainted, TargetFainted, SourceTransformed, TargetTransformed, TargetBlocked }
+public sealed record Transformed(BattleSlot Source, BattleSlot Target) : BattleEvent;
+public sealed record TransformFailed(BattleSlot Source, BattleSlot Target, TransformFailure Reason) : BattleEvent;
+public enum TemporaryMoveReplacementFailure
+{
+    SourceFainted,
+    TargetFainted,
+    NoTargetMove,
+    TargetMoveFailed,
+    TargetMoveUnavailable,
+    TargetMoveExcluded,
+    AlreadyKnown,
+    SourceSlotUnavailable,
+    TargetBlocked,
+}
+public sealed record TemporaryMoveReplacementApplied(BattleSlot Source, BattleSlot Target, int MoveSlot,
+    EntityId OriginalMove, EntityId ReplacementMove) : BattleEvent;
+public sealed record TemporaryMoveReplacementFailed(BattleSlot Source, BattleSlot Target,
+    TemporaryMoveReplacementFailure Reason) : BattleEvent;
 public sealed record BattleItemUsed(BattleSlot Slot, EntityId Item, int TargetPartyIndex) : BattleEvent
 {
     public BattleSide Side => Slot.Side;
@@ -174,6 +199,31 @@ public sealed record AbilityMutated(
     EntityId? Before,
     EntityId? After,
     BattleAbilityOperation Operation) : BattleEvent;
+public sealed record TypesMutated(
+    BattleSide Side,
+    int PartyIndex,
+    IReadOnlyList<EntityId> Before,
+    IReadOnlyList<EntityId> After,
+    BattleTypeOperation Operation) : BattleEvent;
+public sealed record DerivedStatMutated(
+    BattleSide Side,
+    int PartyIndex,
+    StatKind Stat,
+    int Before,
+    int After,
+    BattleDerivedStatOperation Operation) : BattleEvent;
+public sealed record MetricMutated(
+    BattleSide Side,
+    int PartyIndex,
+    BattleMetric Metric,
+    int Before,
+    int After,
+    BattleMetricMutationOperation Operation) : BattleEvent;
+public sealed record MoveTypeOverrideApplied(
+    BattleSide Side,
+    int PartyIndex,
+    EntityId Type,
+    EntityId? MatchType) : BattleEvent;
 public sealed record Recoiled(BattleSlot Slot, int Amount) : BattleEvent
 {
     public BattleSide Side => Slot.Side;

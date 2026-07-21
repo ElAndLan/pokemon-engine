@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Asset Review Auditor"
+  short_description: "Audit art direction and file-level production readiness."
+  default_prompt: "Use $cgm-asset-review-auditor to review this art prompt or asset."

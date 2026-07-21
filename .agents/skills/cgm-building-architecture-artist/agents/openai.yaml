@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Building and Architecture Artist"
+  short_description: "Design modular exteriors and regional architecture."
+  default_prompt: "Use $cgm-building-architecture-artist to brief this building or architecture kit."

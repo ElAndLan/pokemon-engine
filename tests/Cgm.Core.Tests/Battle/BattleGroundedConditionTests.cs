@@ -122,6 +122,35 @@ public sealed class BattleGroundedConditionTests
     }
 
     [Fact]
+    public void TypeMutationFeedsResolverAndSmartAiGroundingThroughSharedOverlays()
+    {
+        BattleMove becomeGrounded = new(EntityId.Parse("move:become_grounded"), Normal,
+            DamageClass.Status, null, null, 10, 0, 0,
+            secondaryEffects: [new TypeMutationEffect(BattleTypeOperation.Replace,
+                BattleTypeSubject.User, BattleTypeSource.Fixed, Normal)]);
+        BattleMove electric = Hit(Electric, 40, "overlay_electric");
+        BattleMove normal = Hit(Normal, 30, "overlay_normal");
+        BattleCreature attacker = Creature("overlay_attacker", [Flying], becomeGrounded, electric, normal);
+        BattleCreature target = Creature("overlay_target", [Normal], Inert("overlay_target_wait"));
+        var battle = new BattleController(target, attacker, Chart(), new Rng(1),
+            fieldInputs: new BattleFieldInputs(BattleRulesets.ModernReference,
+                InitialTerrain: Terrain.Electric));
+
+        battle.ResolveTurn(new Pass(), new UseMove(0));
+        Assert.True(battle.IsGrounded(EnemySlot));
+
+        SmartAiDecision decision = SmartAi.ChooseAction(new SmartAiContext(
+            [attacker], 0, [target], 0, Chart(), new Rng(1),
+            Weights: new SmartAiWeights { NoiseFraction = 0 }, Overlays: battle.Overlays,
+            Conditions: battle.ConditionSnapshot, Ruleset: BattleRulesets.ModernReference));
+
+        Assert.Equal(new UseMove(1), decision.Action);
+        Assert.Equal([Normal], PhysicalMetricFormulas.EffectiveValues(attacker, battle.Overlays,
+            new BattleOverlayOwner(BattleSide.Enemy, 0, EnemySlot)).CreatureTypes);
+        Assert.Equal([Flying], attacker.Types);
+    }
+
+    [Fact]
     public void TargetGroundedState_MaterializesEveryDoublesTargetWithStableCreatureIdentity()
     {
         BattleMove spread = new(EntityId.Parse("move:spread_airborne"), Normal, DamageClass.Status,

@@ -10,7 +10,18 @@ implementation. Only the reserved decisions in v4 §2.1 require another user res
 
 ## Current phase
 
-**Phase 15 — Complete Core Game Logic and Move Conformance**
+**Phase 16 — Reusable Runtime Engine Completion + Interactive Demo Gate (16H)**
+
+2026-07-21 user directive: Phase 15 is **PAUSED** at the 173/937-certified baseline; Phase 16 is
+the active focus, per `IMPLEMENTATION_PLAN.md` §6 (prerequisite note), §10 items 10–11, and
+`docs/PHASE_16_DEMO_PLAN.md`. No 15x package may be taken while the pause stands; Core edits are
+limited to recorded targeted regressions Runtime demonstrably needs. The Gen 4 alignment decision
+(256×192 single-screen virtual resolution) governs presentation only and authorizes no official
+assets, names, or mechanics.
+
+Phase 15 record at pause (retained for resume):
+
+**Phase 15 — Complete Core Game Logic and Move Conformance (PAUSED)**
 
 Starting baseline:
 
@@ -44,8 +55,22 @@ Starting baseline:
   three certified vectors (121/937 total), including fixed power ramps and their keyed switch-scoped
   boost interaction. The complete 15D-6 selection-lock/action-filter family adds nine certified
   vectors (130/937 total), including shared controller/AI legality and ruleset fallback. The complete
-  15D-7 move-reference/order package and 15F-2 held-item mutation package raise the generated total
-  to 144/937. The next eligible work is 15F-3 ability mutation. Deferred
+  15D-7 move-reference/order package, 15F-2 held-item mutation, 15F-3 ability mutation, and 15F-4
+  creature/move type overlays raise the generated total to 163/937. The complete 15F-5
+  maximize/random/steal stage-mutation, atomic derived-stat/metric, and single-use stage-pass package
+  adds seven generated vectors and raises strict certification to 170/937. The first 15F-6
+  criterion completes the reusable decoy lifecycle and adds one generated vector, raising strict
+  certification to 171/937. The next complete criterion adds the Core-only Transform effective-
+  snapshot lifecycle with independent copied PP and one generated vector, raising strict
+  certification to 172/937; it excludes sprite/presentation identity, schema changes, and permanent
+  learned-move mutation. The next complete 15F-6 criterion
+  projects every active form transition through the shared form/snapshot overlay sequence, preserves
+  HP ratios with wide floor arithmetic, and enforces side-owned once-per-battle temporary-form use;
+  it adds no move row, so strict certification remains 172/937. The next complete criterion adds
+  temporary battle-only self-slot move replacement, independent copied PP, shared successful-move history,
+  and one generated vector, raising strict certification to 173/937. The cumulative nested interaction,
+  reveal, switch/faint/end cleanup, and deterministic package-golden matrix closes 15F-6 without another
+  generated row. The next eligible package is 15F-7 unified move selection/execution. Deferred
   environment consumers and individual conformance vectors remain with their owning later packages
   without advancing those packages.
 - The 2026-07-11 Phase 15B specification-lock baseline had 979 green tests. Later package reports in

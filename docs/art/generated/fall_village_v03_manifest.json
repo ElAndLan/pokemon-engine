@@ -1,0 +1,439 @@
+{
+  "status": "production candidate; visual cleanup review still required",
+  "profile": "internal-demo-v1",
+  "terrain": {
+    "file": "fall_village_terrain_32_v03.png",
+    "size": [
+      256,
+      160
+    ],
+    "cell": [
+      32,
+      32
+    ],
+    "columns": 8,
+    "rows": 5,
+    "rowOrder": [
+      "grass variants 0-7",
+      "earth variants 0-7",
+      "path connectivity masks 0-7",
+      "path connectivity masks 8-15",
+      "transparent tall-grass overlays 0-7"
+    ],
+    "pathBitOrder": {
+      "north": 1,
+      "east": 2,
+      "south": 4,
+      "west": 8
+    },
+    "pathNames": [
+      "isolated",
+      "north_end",
+      "east_end",
+      "north_east_corner",
+      "south_end",
+      "north_south_straight",
+      "south_east_corner",
+      "north_east_south_t",
+      "west_end",
+      "north_west_corner",
+      "east_west_straight",
+      "west_north_east_t",
+      "south_west_corner",
+      "south_west_north_t",
+      "east_south_west_t",
+      "four_way_cross"
+    ],
+    "pathHashes": [
+      "4bf74716a0c97385c309de77b9f2b04aa56d6b40a337393dcd34380aab8294b1",
+      "2359cbdc89ae5e7909a926cb7d34da93cbb9516ff83d3919de8494fe8ec4deea",
+      "1d41cbf25f2a22e3dc58711c816731280f3c94f0dd0eb23070acf2919010e73e",
+      "3ffbadc6dc62ae85c7735d503f48101f778674fe0d43f15897c6b7c1bf4d8167",
+      "3a9c036c5524612184bafc3eb9136a9776919ba509d5e51c0ee1bc41d74eb6fe",
+      "b5d38b13d0e421784bd0d5803dcec7f2f29aafe2ac6badfe7e234e994c7133f3",
+      "14b26ac2c295cafc2e14dd5cbcdaf8463550cfdb040ceee693b67898bccd2088",
+      "f633330860ab569316466441e6df443487d29c2c595b63b644938acbebdbfb66",
+      "2934d7ecda93c116a309a80129b729e4a6f8d46ab51a5b63e23dec34b570652d",
+      "3482ac3d12d64d0dbdb24883b8e81ab2d01ea82cbc0d368511c821d5c816fc44",
+      "315e0bafc412a0718389d4f18a9425a9a4997dc40d4fd7b1fdb4874b58a52419",
+      "db1df34215bb40d228bfc0aefc42b372bb8c139514d79b4ef4af00681f8c37f3",
+      "1afd1a5fbacaea1d40e9b8dc2b7179a4d854dff79290096d019621d64b4182b4",
+      "6700c9211ba1cdf9b0ffcfffd4e087623af775ba237c87b833174fd188006772",
+      "f900eafcb358ad7a1a62433772ee440d99e45ce5f5e1aa0658c2ea72036341f7",
+      "f8c986e3ac0253a9f8e0c98539a79ea61dcec51e7d797a4a7a29439409ec1ce0"
+    ]
+  },
+  "objects": {
+    "file": "fall_village_objects_v03.png",
+    "size": [
+      640,
+      640
+    ],
+    "cell": [
+      128,
+      160
+    ],
+    "columns": 5,
+    "rows": 4,
+    "entries": [
+      {
+        "name": "tree_gold",
+        "cell": {
+          "column": 0,
+          "row": 0
+        },
+        "pixelBounds": [
+          16,
+          4,
+          112,
+          156
+        ],
+        "anchor": {
+          "x": 64,
+          "y": 155
+        }
+      },
+      {
+        "name": "tree_orange",
+        "cell": {
+          "column": 1,
+          "row": 0
+        },
+        "pixelBounds": [
+          146,
+          4,
+          238,
+          156
+        ],
+        "anchor": {
+          "x": 192,
+          "y": 155
+        }
+      },
+      {
+        "name": "tree_red",
+        "cell": {
+          "column": 2,
+          "row": 0
+        },
+        "pixelBounds": [
+          275,
+          4,
+          364,
+          156
+        ],
+        "anchor": {
+          "x": 319,
+          "y": 155
+        }
+      },
+      {
+        "name": "tree_green",
+        "cell": {
+          "column": 3,
+          "row": 0
+        },
+        "pixelBounds": [
+          404,
+          4,
+          492,
+          156
+        ],
+        "anchor": {
+          "x": 448,
+          "y": 155
+        }
+      },
+      {
+        "name": "tree_young",
+        "cell": {
+          "column": 4,
+          "row": 0
+        },
+        "pixelBounds": [
+          523,
+          15,
+          629,
+          156
+        ],
+        "anchor": {
+          "x": 576,
+          "y": 155
+        }
+      },
+      {
+        "name": "tree_bare",
+        "cell": {
+          "column": 0,
+          "row": 1
+        },
+        "pixelBounds": [
+          4,
+          187,
+          124,
+          316
+        ],
+        "anchor": {
+          "x": 64,
+          "y": 315
+        }
+      },
+      {
+        "name": "stump",
+        "cell": {
+          "column": 1,
+          "row": 1
+        },
+        "pixelBounds": [
+          132,
+          219,
+          252,
+          316
+        ],
+        "anchor": {
+          "x": 192,
+          "y": 315
+        }
+      },
+      {
+        "name": "boulder_large",
+        "cell": {
+          "column": 2,
+          "row": 1
+        },
+        "pixelBounds": [
+          260,
+          207,
+          380,
+          316
+        ],
+        "anchor": {
+          "x": 320,
+          "y": 315
+        }
+      },
+      {
+        "name": "boulder_medium",
+        "cell": {
+          "column": 3,
+          "row": 1
+        },
+        "pixelBounds": [
+          388,
+          219,
+          508,
+          316
+        ],
+        "anchor": {
+          "x": 448,
+          "y": 315
+        }
+      },
+      {
+        "name": "boulder_small",
+        "cell": {
+          "column": 4,
+          "row": 1
+        },
+        "pixelBounds": [
+          527,
+          228,
+          624,
+          316
+        ],
+        "anchor": {
+          "x": 575,
+          "y": 315
+        }
+      },
+      {
+        "name": "log_horizontal",
+        "cell": {
+          "column": 0,
+          "row": 2
+        },
+        "pixelBounds": [
+          4,
+          420,
+          124,
+          476
+        ],
+        "anchor": {
+          "x": 64,
+          "y": 475
+        }
+      },
+      {
+        "name": "log_diagonal",
+        "cell": {
+          "column": 1,
+          "row": 2
+        },
+        "pixelBounds": [
+          143,
+          350,
+          241,
+          476
+        ],
+        "anchor": {
+          "x": 192,
+          "y": 475
+        }
+      },
+      {
+        "name": "log_mossy",
+        "cell": {
+          "column": 2,
+          "row": 2
+        },
+        "pixelBounds": [
+          260,
+          424,
+          380,
+          476
+        ],
+        "anchor": {
+          "x": 320,
+          "y": 475
+        }
+      },
+      {
+        "name": "shrub_plain",
+        "cell": {
+          "column": 3,
+          "row": 2
+        },
+        "pixelBounds": [
+          395,
+          380,
+          501,
+          476
+        ],
+        "anchor": {
+          "x": 448,
+          "y": 475
+        }
+      },
+      {
+        "name": "shrub_berry",
+        "cell": {
+          "column": 4,
+          "row": 2
+        },
+        "pixelBounds": [
+          522,
+          377,
+          630,
+          476
+        ],
+        "anchor": {
+          "x": 576,
+          "y": 475
+        }
+      },
+      {
+        "name": "leaf_pile_gold",
+        "cell": {
+          "column": 0,
+          "row": 3
+        },
+        "pixelBounds": [
+          4,
+          548,
+          124,
+          636
+        ],
+        "anchor": {
+          "x": 64,
+          "y": 635
+        }
+      },
+      {
+        "name": "leaf_pile_orange",
+        "cell": {
+          "column": 1,
+          "row": 3
+        },
+        "pixelBounds": [
+          132,
+          541,
+          252,
+          636
+        ],
+        "anchor": {
+          "x": 192,
+          "y": 635
+        }
+      },
+      {
+        "name": "leaf_pile_red",
+        "cell": {
+          "column": 2,
+          "row": 3
+        },
+        "pixelBounds": [
+          260,
+          561,
+          380,
+          636
+        ],
+        "anchor": {
+          "x": 320,
+          "y": 635
+        }
+      },
+      {
+        "name": "signpost",
+        "cell": {
+          "column": 3,
+          "row": 3
+        },
+        "pixelBounds": [
+          398,
+          484,
+          498,
+          636
+        ],
+        "anchor": {
+          "x": 448,
+          "y": 635
+        }
+      },
+      {
+        "name": "mushroom_cluster",
+        "cell": {
+          "column": 4,
+          "row": 3
+        },
+        "pixelBounds": [
+          520,
+          568,
+          632,
+          636
+        ],
+        "anchor": {
+          "x": 576,
+          "y": 635
+        }
+      }
+    ]
+  },
+  "previews": {
+    "composition": "fall_village_validation_preview_v03.png",
+    "pathMatrix": "fall_village_path_matrix_preview_v03.png"
+  },
+  "validation": {
+    "grassUnique": 8,
+    "earthUnique": 8,
+    "pathUnique": 16,
+    "tallGrassUnique": 8,
+    "objectCellsUnique": 20,
+    "pathConnectionsMatchBits": true,
+    "grassVariantEdgesIdentical": true,
+    "earthVariantEdgesIdentical": true,
+    "terrainColorCountExcludingAlpha": 12,
+    "objectColorCountExcludingAlpha": 24,
+    "terrainTransparentCorner": true,
+    "objectsTransparentCorners": true
+  }
+}

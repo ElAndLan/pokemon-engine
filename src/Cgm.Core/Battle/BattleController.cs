@@ -23,12 +23,16 @@ public sealed class BattleController
     private sealed record MoveInvocation(BattleMove Caller, BattleMove Executed, BattleMove PpOwner,
         BattleActionSubmission Submission, IReadOnlyList<(EntityId Caller, EntityId Called)> Chain,
         MoveCallFailureReason? Failure);
-    private readonly record struct DamageApplication(int AppliedDamage, int ActualHpRemoved);
+    private readonly record struct DamageApplication(int AppliedDamage, int ActualHpRemoved, bool Decoy = false)
+    {
+        public int DamageForEffects => Decoy ? AppliedDamage : ActualHpRemoved;
+    }
 
     private readonly List<BattleCreature>[] _parties;
     private readonly BattleActiveSlots _activeSlots;
     private readonly Dictionary<EntityId, int>[] _itemStock = [[], []];
     private readonly bool[] _temporaryFormUsed = [false, false];
+    private readonly Dictionary<(BattleSide Side, int PartyIndex), long[]> _formOverlaySequences = [];
     private readonly TypeChart _chart;
     private readonly IRng _rng;
     private readonly IReadOnlyDictionary<EntityId, Item> _itemData;
@@ -42,6 +46,9 @@ public sealed class BattleController
     private readonly BattleOverlayStore _overlays = new();
     private readonly BattleItemState _items;
     private readonly BattleAbilityState _abilities;
+    private readonly BattleTypeState _types;
+    private readonly BattleStatMetricState _statMetrics;
+    private readonly BattleStagePassState _stagePasses = new();
     private readonly BattleActionHistory _actionHistory = new();
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
@@ -81,7 +88,9 @@ public sealed class BattleController
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _items = new BattleItemState(_overlays, _itemData);
-        _abilities = new BattleAbilityState(_overlays, (abilityData ?? []).ToDictionary(ability => ability.Id));
+        _abilities = new BattleAbilityState(_overlays, BuildAbilityCatalog(abilityData));
+        _types = new BattleTypeState(_overlays, _chart);
+        _statMetrics = new BattleStatMetricState(_overlays);
         _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
         TriggerInitialTerrainSeeds();
@@ -122,7 +131,9 @@ public sealed class BattleController
         _rng = rng;
         _itemData = (itemData ?? []).ToDictionary(item => item.Id);
         _items = new BattleItemState(_overlays, _itemData);
-        _abilities = new BattleAbilityState(_overlays, (abilityData ?? []).ToDictionary(ability => ability.Id));
+        _abilities = new BattleAbilityState(_overlays, BuildAbilityCatalog(abilityData));
+        _types = new BattleTypeState(_overlays, _chart);
+        _statMetrics = new BattleStatMetricState(_overlays);
         _moveCatalog = BuildMoveCatalog(moveData);
         _ruleset = InitializeField(fieldInputs);
         TriggerInitialTerrainSeeds();
@@ -142,6 +153,7 @@ public sealed class BattleController
     public BattleOverlayStore Overlays => _overlays;
     public BattleItemState Items => _items;
     public BattleAbilityState Abilities => _abilities;
+    public BattleStagePassState StagePasses => _stagePasses;
     public BattleActionHistory ActionHistory => _actionHistory;
     public IReadOnlyList<BattleConditionInstance> ConditionSnapshot => _conditions.Snapshot();
     public IReadOnlyList<BattleConditionTraceEntry> ConditionTrace => _conditionTrace;
@@ -156,6 +168,15 @@ public sealed class BattleController
     public BattleEnvironment NaturalEnvironment => Environment.Natural;
     public BattleEnvironment EffectiveEnvironment => Environment.Effective;
     public string Ruleset => _ruleset;
+
+    private IReadOnlyDictionary<EntityId, Ability> BuildAbilityCatalog(IEnumerable<Ability>? abilityData)
+    {
+        Dictionary<EntityId, Ability> catalog = (abilityData ?? []).ToDictionary(ability => ability.Id);
+        foreach (BattleCreature creature in _parties.SelectMany(party => party))
+            if (creature.Ability is { } id)
+                catalog.TryAdd(id, new Ability { Id = id, Name = id.Slug, Hooks = creature.AbilityHooks });
+        return catalog;
+    }
 
     private IReadOnlyDictionary<EntityId, BattleMove> BuildMoveCatalog(IEnumerable<BattleMove>? moveData)
     {
@@ -210,7 +231,7 @@ public sealed class BattleController
         if (active.IsLocked)
             return [new UseMove(active.LockedMoveIndex)];
         IReadOnlyList<int> legal = BattleActionLegality.LegalMoves(active, slot, ActiveIndex(slot),
-            ConditionSnapshot, SourceCreature, ItemsSuppressed);
+            ConditionSnapshot, SourceCreature, ItemsSuppressed, EffectiveMoveDefinitions(slot), SourceMoves);
         return legal.Count == 0 ? [new UseFallback()] : legal.Select(index => (BattleAction)new UseMove(index)).ToArray();
     }
 
@@ -224,7 +245,8 @@ public sealed class BattleController
         if (kind is ActionFilterKind.DisableMove or ActionFilterKind.ForceMove)
         {
             EntityId? last = Active(ownerSlot).LastMoveUsed;
-            int index = last is null ? -1 : Active(ownerSlot).Moves.ToList().FindIndex(move => move.Move == last);
+            int index = last is null ? -1 : EffectiveMoveDefinitions(ownerSlot).ToList()
+                .FindIndex(move => move.Move == last);
             if (index < 0)
                 throw new ArgumentException("Move-specific action filters require an owner last-used move.");
             counters = new() { [ActionFilterConditions.MoveIndexCounter] = index };
@@ -581,6 +603,7 @@ public sealed class BattleController
                 creature.ActivateTemporaryForm(form.FormId);
                 _temporaryFormUsed[(int)action.Submission.Source.Side] = true;
             }
+            SyncFormOverlays(action.Submission.Source);
             _log.Add(new FormChanged(action.Submission.Source, form.FormId));
         }
     }
@@ -923,6 +946,8 @@ public sealed class BattleController
             return sideProtected || priorityBlocked ? BattleActionResult.Failed : BattleActionResult.Missed;
         }
 
+        ApplyBeforeDamageEffects(actionContext, accurateTargets);
+
         if (move.SecondaryEffects.OfType<DelayedDamageEffect>().SingleOrDefault() is { } delayedDamage)
         {
             bool queued = true;
@@ -947,8 +972,9 @@ public sealed class BattleController
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Immunity,
                     false, null, effectiveness <= 0 ? 0 : 1, _log.Count, _log.Count);
                 DamageApplication applied = DealMoveDamage(targetContext.Target, targetContext.TargetSlot,
-                    damage, effectiveness, crit: false, HpStatusFormulas.CannotKoFloor(move));
-                targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
+                    damage, effectiveness, crit: false, HpStatusFormulas.CannotKoFloor(move),
+                    sourceSlot: sourceSlot, move: move, targetContext: targetContext);
+                targetContext.AddDamage(actionContext, applied.DamageForEffects);
                 BattleDamageCause cause = move.Ohko ? BattleDamageCause.OneHitKnockout
                     : move.FixedDamageLevel ? BattleDamageCause.Level : BattleDamageCause.Fixed;
                 RecordDamage(attempt, sourceOwner, HistoryOwner(targetContext.TargetSlot), move, cause,
@@ -993,16 +1019,17 @@ public sealed class BattleController
                 }
                 DamageApplication applied = DealMoveDamage(targetContext.Target, targetContext.TargetSlot, damage,
                     effectiveness, crit,
-                    HpStatusFormulas.CannotKoFloor(move));
+                    HpStatusFormulas.CannotKoFloor(move), sourceSlot: sourceSlot, move: move,
+                    targetContext: targetContext);
                 targetContext.Target.RecordDamageTaken(moveIdentity.EffectiveClass, applied.ActualHpRemoved);
-                targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
+                targetContext.AddDamage(actionContext, applied.DamageForEffects);
                 RecordDamage(attempt, sourceOwner, HistoryOwner(targetContext.TargetSlot), move,
                     BattleDamageCause.Standard, hit + 1, attempted: true, effectiveness <= 0
                         ? BattleDamageFailure.Immune
                         : applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
                     damage, applied, crit, effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
                 AddTrace(traceAction, sourceSlot, targetContext.TargetSlot, EffectTraceKind.Damage, false, null,
-                    applied.ActualHpRemoved,
+                    applied.DamageForEffects,
                     _log.Count - 1, _log.Count);
             }
         }
@@ -1020,7 +1047,8 @@ public sealed class BattleController
         {
             var context = new EffectContext(actionContext, targetContext);
             foreach (MoveEffect effect in actionContext.Move.SecondaryEffects.Where(effect =>
-                IsTargetScoped(effect) && effect is not RemoveSideConditionEffect))
+                IsTargetScoped(effect) && effect is not RemoveSideConditionEffect
+                    && !IsBeforeDamageEffect(actionContext.Move, effect)))
                 ApplyEffect(context, effect);
             ApplyContactEffects(actionContext.Move, actionContext.SourceSlot, actionContext.Source, targetContext.TargetSlot,
                 actionContext.TraceAction);
@@ -1036,15 +1064,30 @@ public sealed class BattleController
         }
 
         var actionEffectContext = new EffectContext(actionContext, targetContexts[0]);
-        foreach (MoveEffect effect in actionContext.Move.SecondaryEffects.Where(effect => !IsTargetScoped(effect)))
+        foreach (MoveEffect effect in actionContext.Move.SecondaryEffects.Where(effect =>
+            !IsTargetScoped(effect) && !IsBeforeDamageEffect(actionContext.Move, effect)))
             if (!ApplyEffect(actionEffectContext, effect))
                 break;
     }
 
+    private void ApplyBeforeDamageEffects(
+        BattleActionContext actionContext,
+        IReadOnlyList<BattleTargetContext> targetContexts)
+    {
+        foreach (BattleTargetContext targetContext in targetContexts)
+            foreach (MoveEffect effect in actionContext.Move.SecondaryEffects
+                .Where(effect => IsBeforeDamageEffect(actionContext.Move, effect)))
+                ApplyEffect(new EffectContext(actionContext, targetContext), effect);
+    }
+
+    private static bool IsBeforeDamageEffect(BattleMove move, MoveEffect effect) =>
+        move.DamageClass != DamageClass.Status
+        && effect is StatStageMutationEffect { Operation: StatStageMutationOperation.Steal };
+
     private static bool IsTargetScoped(MoveEffect effect) => effect switch
     {
         AilmentEffect or ConfusionEffect or FlinchEffect or LeechSeedEffect or BindEffect or ForceSwitchEffect
-            or PositionSwapEffect or TurnOrderIntentEffect => true,
+            or PositionSwapEffect or TurnOrderIntentEffect or TemporaryMoveReplacementEffect => true,
         StatChangeEffect { OnSelf: false } or StatChangeAllEffect { OnSelf: false } or StatInvertEffect { OnSelf: false } => true,
         StatResetEffect { Scope: not StageEffectScope.Self } => true,
         StatCopyEffect { From: StageEffectScope.Target } or StatCopyEffect { To: StageEffectScope.Target } or StatSwapEffect => true,
@@ -1059,6 +1102,9 @@ public sealed class BattleController
         ItemMutationEffect { Subject: BattleItemSubject.Target }
             or ItemMutationEffect { Operation: BattleItemOperation.Give or BattleItemOperation.Steal or BattleItemOperation.Swap }
             => true,
+        TypeRequireEffect { Subject: BattleTypeSubject.Target }
+            or TypeMutationEffect { Subject: BattleTypeSubject.Target }
+            or MoveTypeOverrideEffect { Subject: BattleTypeSubject.Target } => true,
         _ => false,
     };
 
@@ -1119,7 +1165,7 @@ public sealed class BattleController
         if (actor.IsFainted)
             return false;
         return action.MoveId is null || MoveIndex(action.Submission.Action) is { } moveIndex
-            && moveIndex < actor.Moves.Count
+            && moveIndex < EffectiveMoveDefinitions(action.Submission.Source).Count
             && MoveAt(action.Submission.Source, EffectiveMoveIndex(action.Submission.Source, moveIndex)).Move == action.MoveId;
     }
 
@@ -1150,7 +1196,7 @@ public sealed class BattleController
 
             case UseFallback:
                 if (BattleActionLegality.LegalMoves(Active(slot), slot, ActiveIndex(slot), ConditionSnapshot,
-                        SourceCreature, ItemsSuppressed).Count != 0)
+                        SourceCreature, ItemsSuppressed, EffectiveMoveDefinitions(slot), SourceMoves).Count != 0)
                     throw new ArgumentException($"{side} may use the fallback only when no ordinary move is legal.");
                 BattleMove fallback = MoveAt(slot, -1);
                 ValidateSelection(slot, fallback.Target, selection);
@@ -1158,7 +1204,7 @@ public sealed class BattleController
 
             case ActivateForm form:
                 ValidateMoveUse(slot, form.MoveIndex);
-                BattleMove formMove = Active(slot).Moves[EffectiveMoveIndex(slot, form.MoveIndex)];
+                BattleMove formMove = MoveAt(slot, EffectiveMoveIndex(slot, form.MoveIndex));
                 ValidateSelectionMoveGates(slot, formMove);
                 ValidateSelection(slot, formMove.Target, selection);
                 BattleCreature active = Active(slot);
@@ -1268,7 +1314,7 @@ public sealed class BattleController
                 break;
             case MoveReferenceSelection move:
                 if (target != MoveTarget.SpecificMove || !Topology.Contains(move.Slot)
-                    || move.MoveIndex < 0 || move.MoveIndex >= Active(move.Slot).Moves.Count)
+                    || move.MoveIndex < 0 || move.MoveIndex >= EffectiveMoveDefinitions(move.Slot).Count)
                     throw new ArgumentException("Move-reference selection is invalid.", nameof(selection));
                 break;
             default:
@@ -1280,12 +1326,13 @@ public sealed class BattleController
     {
         BattleCreature c = Active(slot);
         BattleSide side = slot.Side;
-        if (moveIndex < 0 || moveIndex >= c.Moves.Count)
+        IReadOnlyList<BattleMove> moves = EffectiveMoveDefinitions(slot);
+        if (moveIndex < 0 || moveIndex >= moves.Count)
             throw new ArgumentException($"{side} move index {moveIndex} out of range.");
         if (!c.IsCharging && !c.IsLocked)
         {
             ActionLegalityResult result = BattleActionLegality.Move(c, moveIndex, slot, ActiveIndex(slot),
-                ConditionSnapshot, SourceCreature, ItemsSuppressed);
+                ConditionSnapshot, SourceCreature, ItemsSuppressed, effectiveMoves: moves, sourceMoves: SourceMoves);
             if (!result.Allowed)
                 throw new ArgumentException($"{side} move {moveIndex} is not legal: {result.Reason}.");
         }
@@ -1323,6 +1370,7 @@ public sealed class BattleController
             active.ActivateTemporaryForm(form.FormId);
             _temporaryFormUsed[(int)side] = true;
         }
+        SyncFormOverlays(new BattleSlot(side, 0));
         _log.Add(new FormChanged(side, form.FormId));
     }
 
@@ -1463,7 +1511,7 @@ public sealed class BattleController
         BattleCreature c = Active(slot);
         if (!c.IsLocked)
             return;
-        BattleMove move = c.Moves[c.LockedMoveIndex];
+        BattleMove move = MoveAt(slot, c.LockedMoveIndex);
         MultiTurnLockProfile profile = move.MultiTurnLockProfile!;
         if (profile.EndOnFailure && result != BattleActionResult.Connected)
         {
@@ -1485,7 +1533,7 @@ public sealed class BattleController
     {
         if (!creature.IsLocked)
             return;
-        EntityId move = creature.Moves[creature.LockedMoveIndex].Move;
+        EntityId move = MoveAt(slot, creature.LockedMoveIndex).Move;
         creature.EndLock();
         _log.Add(new MultiTurnLockEnded(slot, move, reason));
     }
@@ -1801,8 +1849,8 @@ public sealed class BattleController
     }
 
     private BattleMove MoveAt(BattleSlot slot, int moveIndex) => moveIndex >= 0
-        ? Active(slot).Moves[moveIndex]
-        : BattleFallbackRules.Compile(Ruleset, Active(slot).Moves[0].Type);
+        ? EffectiveMoveDefinitions(slot)[moveIndex]
+        : BattleFallbackRules.Compile(Ruleset, EffectiveValues(slot).Moves[0].Type);
 
     private void LogMoveCallChain(BattleSlot source,
         IReadOnlyList<(EntityId Caller, EntityId Called)> chain)
@@ -1984,7 +2032,8 @@ public sealed class BattleController
         BattleSlot? targetSlot = ReferenceTarget(sourceSlot, submission.Selection);
         BattleCreature? target = targetSlot is { } slot ? Active(slot) : null;
         IEnumerable<MoveReferenceCandidate> Known(BattleCreature creature, BattleSlot? ownerSlot, int partyIndex) =>
-            creature.Moves.Select((move, index) => new MoveReferenceCandidate(move, ownerSlot, partyIndex, index));
+            EffectiveMoveDefinitions(creature, new BattleOverlayOwner(ownerSlot?.Side ?? sourceSlot.Side, partyIndex, ownerSlot))
+                .Select((move, index) => new MoveReferenceCandidate(move, ownerSlot, partyIndex, index));
         return profile.Selector switch
         {
             MoveReferenceSelector.UserKnown => Known(source, sourceSlot, ActiveIndex(sourceSlot)),
@@ -2006,7 +2055,7 @@ public sealed class BattleController
                 _moveCatalog.TryGetValue(selected, out BattleMove? environmentMove)
                     ? [new MoveReferenceCandidate(environmentMove, null, -1, -1)] : [],
             MoveReferenceSelector.ExplicitReference when submission.Selection is MoveReferenceSelection reference =>
-                [new MoveReferenceCandidate(Active(reference.Slot).Moves[reference.MoveIndex], reference.Slot,
+                [new MoveReferenceCandidate(EffectiveMoveDefinitions(reference.Slot)[reference.MoveIndex], reference.Slot,
                     ActiveIndex(reference.Slot), reference.MoveIndex)],
             _ => [],
         };
@@ -2167,7 +2216,7 @@ public sealed class BattleController
     {
         if (creature.ChargingMoveIndex is not { } moveIndex)
             return;
-        EntityId move = creature.Moves[moveIndex].Move;
+        EntityId move = MoveAt(slot, moveIndex).Move;
         creature.StopCharging();
         _log.Add(new ChargeCancelled(slot, move));
     }
@@ -2363,6 +2412,7 @@ public sealed class BattleController
         }
 
         ApplyBeforeDamageSideRemovals(actionContext, [targetContext]);
+        ApplyBeforeDamageEffects(actionContext, [targetContext]);
         int? randomPower = SelectRandomPower(sourceSlot, move, traceAction);
 
         if (move.CounterCategory is { } counterCat)
@@ -2374,8 +2424,9 @@ public sealed class BattleController
                 int dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target,
                     move, checked(received * 2), traceAction);
                 DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, 1.0, crit: false,
-                    HpStatusFormulas.CannotKoFloor(move));
-                targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
+                    HpStatusFormulas.CannotKoFloor(move), sourceSlot: sourceSlot, move: move,
+                    targetContext: targetContext);
+                targetContext.AddDamage(actionContext, applied.DamageForEffects);
                 RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Counter, 1, true,
                     applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
                     dmg, applied, critical: false, effectiveType: moveType,
@@ -2402,8 +2453,9 @@ public sealed class BattleController
             dmg = TraceUnmodifiedFinalDamage(sourceSlot, targetSlot, attacker, target, move, dmg,
                 traceAction, eff > 0);
             DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, eff, crit: false,
-                HpStatusFormulas.CannotKoFloor(move));
-            targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
+                HpStatusFormulas.CannotKoFloor(move), sourceSlot: sourceSlot, move: move,
+                targetContext: targetContext);
+            targetContext.AddDamage(actionContext, applied.DamageForEffects);
             BattleDamageCause cause = move.Ohko ? BattleDamageCause.OneHitKnockout
                 : move.FixedDamageLevel ? BattleDamageCause.Level : BattleDamageCause.Fixed;
             RecordDamage(attempt, sourceOwner, targetOwner, move, cause, 1, true,
@@ -2437,15 +2489,16 @@ public sealed class BattleController
                         damageRollDraw, damageRollDraw is { } roll ? roll + 85 : null, _log.Count, _log.Count, 16);
                 }
                 DamageApplication applied = DealMoveDamage(target, targetSlot, dmg, eff, crit,
-                    HpStatusFormulas.CannotKoFloor(move));
+                    HpStatusFormulas.CannotKoFloor(move), sourceSlot: sourceSlot, move: move,
+                    targetContext: targetContext);
                 target.RecordDamageTaken(moveIdentity.EffectiveClass, applied.ActualHpRemoved); // for Counter/Mirror Coat
-                targetContext.AddDamage(actionContext, applied.ActualHpRemoved);
+                targetContext.AddDamage(actionContext, applied.DamageForEffects);
                 RecordDamage(attempt, sourceOwner, targetOwner, move, BattleDamageCause.Standard, h + 1, true,
                     eff <= 0 ? BattleDamageFailure.Immune
                         : applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage,
                     dmg, applied, crit, effectiveType: moveType, effectiveClass: moveIdentity.EffectiveClass);
                 AddTrace(traceAction, sourceSlot, targetSlot, EffectTraceKind.Damage, false, null,
-                    applied.ActualHpRemoved,
+                    applied.DamageForEffects,
                     _log.Count - 1, _log.Count);
             }
         }
@@ -2457,7 +2510,7 @@ public sealed class BattleController
         // dispatch each to a shared primitive. Order matches the historical pipeline (target secondaries,
         // then leech/drain/heal/recoil/crit/faint), so the RNG draw order is unchanged.
         var ctx = new EffectContext(actionContext, targetContext);
-        foreach (MoveEffect effect in move.SecondaryEffects)
+        foreach (MoveEffect effect in move.SecondaryEffects.Where(effect => !IsBeforeDamageEffect(move, effect)))
             if (!ApplyEffect(ctx, effect))
                 break;
         ApplyContactEffects(move, sourceSlot, attacker, targetSlot, traceAction);
@@ -2529,6 +2582,30 @@ public sealed class BattleController
     /// order is preserved.</summary>
     private bool ApplyEffect(EffectContext ctx, MoveEffect effect)
     {
+        if (ShouldBlockByDecoy(ctx, effect))
+        {
+            int start = _log.Count;
+            _log.Add(new DecoyBlocked(ctx.TargetSlot));
+            if (effect is TransformEffect)
+                _log.Add(new TransformFailed(ctx.SourceSlot, ctx.TargetSlot, TransformFailure.TargetBlocked));
+            if (effect is TemporaryMoveReplacementEffect)
+                _log.Add(new TemporaryMoveReplacementFailed(ctx.SourceSlot, ctx.TargetSlot,
+                    TemporaryMoveReplacementFailure.TargetBlocked));
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.Decoy,
+                false, null, 0, start, _log.Count);
+            if (effect is TransformEffect)
+                AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.Transform,
+                    false, null, 0, start, _log.Count);
+            if (effect is TemporaryMoveReplacementEffect)
+            {
+                AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.MoveReplacement,
+                    false, null, 0, start, _log.Count);
+                ctx.Action.MarkFailed();
+                return false;
+            }
+            return true;
+        }
+
         switch (effect)
         {
             case AilmentEffect a: ApplyAilment(ctx, a); break;
@@ -2539,10 +2616,19 @@ public sealed class BattleController
                 if (!paid)
                     ctx.Action.MarkFailed();
                 return paid;
+            case DecoyEffect decoy:
+                return ApplyDecoy(ctx, decoy);
+            case TransformEffect:
+                return ApplyTransform(ctx);
+            case TemporaryMoveReplacementEffect:
+                return ApplyTemporaryMoveReplacement(ctx);
             case StatResetEffect r: ApplyStatReset(ctx, r); break;
             case StatCopyEffect copy: ApplyStatCopy(ctx, copy); break;
             case StatSwapEffect s: ApplyStatSwap(ctx, s); break;
             case StatInvertEffect i: ApplyStatInvert(ctx, i); break;
+            case StatStageMutationEffect mutation: ApplyStatStageMutation(ctx, mutation); break;
+            case DerivedStatMutationEffect mutation: return ApplyDerivedStatMutation(ctx, mutation);
+            case MetricMutationEffect mutation: return ApplyMetricMutation(ctx, mutation);
             case ConfusionEffect confusion: ApplyConfusion(ctx, confusion); break;
             case FlinchEffect f: ApplyFlinch(ctx, f); break;
             case LeechSeedEffect: ApplyLeechSeed(ctx); break;
@@ -2563,6 +2649,12 @@ public sealed class BattleController
                 return ApplyItemMutation(ctx, item);
             case AbilityMutationEffect ability:
                 return ApplyAbilityMutation(ctx, ability);
+            case TypeMutationEffect type:
+                return ApplyTypeMutation(ctx, type);
+            case MoveTypeOverrideEffect typeOverride:
+                return ApplyMoveTypeOverride(ctx, typeOverride);
+            case TypeRequireEffect:
+                break; // evaluated before PP and accuracy in PassesMoveGates.
             case RedirectEffect redirect: _redirects.Add(new RedirectCondition(ctx.SourceSlot, redirect.Priority,
                 redirect.AcceptedClasses, redirect.BypassClasses, redirect.AcceptedTags, redirect.BypassTags)); break;
             case DrainEffect d when ctx.ActionDamageDealt > 0:
@@ -2753,6 +2845,81 @@ public sealed class BattleController
             ctx.Action.MarkFailed();
         _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
             EffectTraceKind.AbilityMutation, result.Succeeded, null,
+            result.Succeeded ? result.Changes.Count : -(int)result.Failure, start, _log.Count));
+        return result.Succeeded;
+    }
+
+    private bool ApplyTypeMutation(EffectContext ctx, TypeMutationEffect effect)
+    {
+        int start = _log.Count;
+        BattleTypeMutationResult result = _types.Mutate(effect,
+            OverlayOwner(ctx.SourceSlot), PhysicalMetricFormulas.BaseEffectiveValues(ctx.Source), ctx.Source.IsFainted,
+            OverlayOwner(ctx.TargetSlot), PhysicalMetricFormulas.BaseEffectiveValues(ctx.Target), ctx.Target.IsFainted,
+            Environment.Effective, _actionHistory, _rng, Turn, ctx.TraceAction);
+        if (result.Succeeded)
+            foreach ((BattleOverlayOwner owner, IReadOnlyList<EntityId> before, IReadOnlyList<EntityId> after) in result.Changes)
+                _log.Add(new TypesMutated(owner.Side, owner.PartyIndex, before, after, effect.Operation));
+        else
+            ctx.Action.MarkFailed();
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot,
+            ctx.TargetContext?.TargetSlot, EffectTraceKind.TypeMutation, result.Succeeded,
+            result.Draw, result.Succeeded ? result.Changes.Count : -(int)result.Failure, start, _log.Count)
+        { DrawBound = result.DrawBound });
+        return result.Succeeded;
+    }
+
+    private bool ApplyMoveTypeOverride(EffectContext ctx, MoveTypeOverrideEffect effect)
+    {
+        IEnumerable<BattleOverlayOwner> owners = effect.Subject switch
+        {
+            BattleTypeSubject.User => [OverlayOwner(ctx.SourceSlot)],
+            BattleTypeSubject.Target => [OverlayOwner(ctx.TargetSlot)],
+            BattleTypeSubject.AllActive => Topology.Slots.Where(IsLive).Select(OverlayOwner),
+            _ => throw new ArgumentOutOfRangeException(nameof(effect.Subject)),
+        };
+        int start = _log.Count;
+        BattleMoveTypeOverrideResult result = _types.ApplyOverride(effect, owners,
+            new BattleOverlaySource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot)), Turn, ctx.TraceAction);
+        foreach ((BattleOverlayOwner owner, EntityId type, EntityId? matchType) in result.Changes)
+            _log.Add(new MoveTypeOverrideApplied(owner.Side, owner.PartyIndex, type, matchType));
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot,
+            ctx.TargetContext?.TargetSlot, EffectTraceKind.MoveTypeOverride, true, null,
+            result.Changes.Count, start, _log.Count));
+        return true;
+    }
+
+    private bool ApplyDerivedStatMutation(EffectContext ctx, DerivedStatMutationEffect effect)
+    {
+        int start = _log.Count;
+        DerivedStatMutationResult result = _statMetrics.Mutate(effect,
+            OverlayOwner(ctx.SourceSlot), PhysicalMetricFormulas.BaseEffectiveValues(ctx.Source), ctx.Source.IsFainted,
+            OverlayOwner(ctx.TargetSlot), PhysicalMetricFormulas.BaseEffectiveValues(ctx.Target), ctx.Target.IsFainted,
+            Turn, ctx.TraceAction);
+        foreach (DerivedStatMutationChange change in result.Changes)
+            _log.Add(new DerivedStatMutated(change.Owner.Side, change.Owner.PartyIndex,
+                change.Stat, change.Before, change.After, effect.Operation));
+        if (!result.Succeeded)
+            ctx.Action.MarkFailed();
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
+            EffectTraceKind.DerivedStatMutation, result.Changes.Count > 0, null,
+            result.Succeeded ? result.Changes.Count : -(int)result.Failure, start, _log.Count));
+        return result.Succeeded;
+    }
+
+    private bool ApplyMetricMutation(EffectContext ctx, MetricMutationEffect effect)
+    {
+        int start = _log.Count;
+        MetricMutationResult result = _statMetrics.Mutate(effect,
+            OverlayOwner(ctx.SourceSlot), PhysicalMetricFormulas.BaseEffectiveValues(ctx.Source), ctx.Source.IsFainted,
+            OverlayOwner(ctx.TargetSlot), PhysicalMetricFormulas.BaseEffectiveValues(ctx.Target), ctx.Target.IsFainted,
+            Turn, ctx.TraceAction);
+        foreach (MetricMutationChange change in result.Changes)
+            _log.Add(new MetricMutated(change.Owner.Side, change.Owner.PartyIndex,
+                change.Metric, change.Before, change.After, effect.Operation));
+        if (!result.Succeeded)
+            ctx.Action.MarkFailed();
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot,
+            ctx.TargetContext?.TargetSlot, EffectTraceKind.MetricMutation, result.Changes.Count > 0, null,
             result.Succeeded ? result.Changes.Count : -(int)result.Failure, start, _log.Count));
         return result.Succeeded;
     }
@@ -3002,6 +3169,18 @@ public sealed class BattleController
             ? 1.0 : TypeChart.ToDouble(damageQuery.Effectiveness.FinalValue);
         if (damageQuery is not null && effectiveness <= 0)
             amount = 0;
+        if (effect.Recipient == HpFractionRecipient.Target
+            && DamageDecoy(slot, amount, ctx.SourceSlot, ctx.Move, ctx.TargetContext) is { } decoyDamage)
+        {
+            ctx.TargetContext!.AddDamage(ctx.Action, decoyDamage.DamageForEffects);
+            BattleHistoryOwner decoyTarget = HistoryOwner(ctx.TargetSlot);
+            RecordDamage(new BattleActionAttemptId(Turn, ctx.TraceAction), HistoryOwner(ctx.SourceSlot), decoyTarget,
+                ctx.Move, BattleDamageCause.HpFormula, NextDamageHitNumber(ctx.TraceAction, decoyTarget), true,
+                BattleDamageFailure.Substitute, calculated, decoyDamage, critical: false,
+                effectiveType: damageQuery!.Identity.EffectiveType,
+                effectiveClass: damageQuery.Identity.EffectiveClass);
+            return;
+        }
         int floor = HpStatusFormulas.CannotKoFloor(ctx.Move);
         if (floor > 0)
             amount = Math.Min(amount, Math.Max(0, recipient.CurrentHp - floor));
@@ -3045,9 +3224,9 @@ public sealed class BattleController
             }
             int calculated = targetBefore - sourceBefore;
             DamageApplication applied = DealMoveDamage(ctx.Target, ctx.TargetSlot, calculated, effectiveness,
-                crit: false);
+                crit: false, sourceSlot: ctx.SourceSlot, move: ctx.Move, targetContext: ctx.TargetContext);
             ctx.Target.RecordDamageTaken(damageQuery.Identity.EffectiveClass, applied.ActualHpRemoved);
-            ctx.TargetContext!.AddDamage(ctx.Action, applied.ActualHpRemoved);
+            ctx.TargetContext!.AddDamage(ctx.Action, applied.DamageForEffects);
             BattleHistoryOwner target = HistoryOwner(ctx.TargetSlot);
             RecordDamage(new BattleActionAttemptId(Turn, ctx.TraceAction), HistoryOwner(ctx.SourceSlot), target,
                 ctx.Move, BattleDamageCause.HpFormula, NextDamageHitNumber(ctx.TraceAction, target), true,
@@ -3099,6 +3278,22 @@ public sealed class BattleController
     {
         if (timing == MoveGateTiming.BeforeMove)
         {
+            foreach (TypeRequireEffect requirement in move.SecondaryEffects.OfType<TypeRequireEffect>())
+            {
+                BattleSlot requirementSlot = requirement.Subject == BattleTypeSubject.User
+                    ? slot : targetSlot ?? new BattleSlot(Opponent(slot.Side), 0);
+                bool passed = IsLive(requirementSlot)
+                    && _types.Requires(requirement.Subject, requirement.Type,
+                        OverlayOwner(slot), PhysicalMetricFormulas.BaseEffectiveValues(Active(slot)),
+                        OverlayOwner(requirementSlot), PhysicalMetricFormulas.BaseEffectiveValues(Active(requirementSlot)));
+                int start = _log.Count;
+                if (!passed)
+                    _log.Add(new MoveFailed(slot, move.Move, MoveFailureReason.ConditionRequirementNotMet));
+                AddTrace(traceAction, slot, requirement.Subject == BattleTypeSubject.Target ? requirementSlot : null,
+                    EffectTraceKind.TypeRequire, passed, null, passed ? 1 : 0, start, _log.Count);
+                if (!passed)
+                    return false;
+            }
             foreach (ItemRequireEffect requirement in move.SecondaryEffects.OfType<ItemRequireEffect>())
             {
                 BattleSlot requirementSlot = requirement.Subject == BattleItemSubject.User
@@ -3397,6 +3592,8 @@ public sealed class BattleController
 
         BattleCreature target = Active(targetSlot);
         DelayedDamageSnapshot snapshot = payload.Snapshot;
+        BattleMove? sourceMove = _moveCatalog.TryGetValue(intent.SourceMove, out BattleMove? catalogMove)
+            ? catalogMove : null;
         var context = new BattleQueryContext(payload.SourceSlot, null, targetSlot, target,
             CurrentWeather, intent.Ruleset, CurrentTerrain);
         BattleQueryValue authoredEffectiveness = new(1);
@@ -3417,7 +3614,7 @@ public sealed class BattleController
         if (effectiveness <= 0)
         {
             DamageApplication immune = DealMoveDamage(target, targetSlot, 0, effectiveness,
-                crit: false, applySurvival: false);
+                crit: false, applySurvival: false, sourceSlot: payload.SourceSlot, move: sourceMove);
             RecordDelayedDamage(intent, attempt, sourceOwner, targetOwner, payload,
                 0, immune, BattleDamageFailure.Immune);
             _actionHistory.Complete(attempt, BattleActionResult.Failed, [targetOwner]);
@@ -3453,11 +3650,11 @@ public sealed class BattleController
             payload.SourceSlot, targetSlot, finalDamage));
         calculated = finalDamage.FinalValue.ToInt32();
         DamageApplication applied = DealMoveDamage(target, targetSlot, calculated, effectiveness,
-            crit: false, applySurvival: false);
+            crit: false, applySurvival: false, sourceSlot: payload.SourceSlot, move: sourceMove);
         target.RecordDamageTaken(snapshot.DamageClass, applied.ActualHpRemoved);
         RecordDelayedDamage(intent, attempt, sourceOwner, targetOwner, payload, calculated,
             applied, applied.ActualHpRemoved > 0 ? BattleDamageFailure.None : BattleDamageFailure.NoDamage);
-        _actionHistory.Complete(attempt, applied.ActualHpRemoved > 0
+        _actionHistory.Complete(attempt, applied.DamageForEffects > 0
             ? BattleActionResult.Connected : BattleActionResult.Failed, [targetOwner]);
         _log.Add(new DelayedActionResolved(targetSlot, intent.SourceMove, intent.Payload.Kind));
     }
@@ -3493,12 +3690,15 @@ public sealed class BattleController
         BattleHistoryOwner source, BattleHistoryOwner target, DelayedDamageIntent payload,
         int calculated, DamageApplication damage, BattleDamageFailure failure)
     {
-        bool connected = damage.ActualHpRemoved > 0;
+        bool substitute = damage.Decoy;
+        if (substitute)
+            failure = BattleDamageFailure.Substitute;
+        bool connected = damage.ActualHpRemoved > 0 && !substitute;
         _actionHistory.RecordDamage(new BattleDamageRecord(
             attempt, source, target, intent.SourceMove,
             payload.Snapshot.DamageClass, payload.Snapshot.MoveType, BattleDamageCause.Standard,
             1, true, connected, failure, calculated, damage.AppliedDamage, damage.ActualHpRemoved,
-            false, false, false, connected && Active(target.Slot).IsFainted));
+            false, false, substitute, connected && Active(target.Slot).IsFainted));
     }
 
     private void ResolveDelayedHeal(BattleIntent intent, DelayedHealIntent payload, int traceAction)
@@ -3597,7 +3797,7 @@ public sealed class BattleController
             bool needsRestore = !target.IsFainted
                 && (restore.RestoreHp && target.CurrentHp < target.MaxHp
                     || restore.CureStatus && target.Status is not null
-                    || restore.RestorePp && target.Moves.Any(move => move.Pp < move.MaxPp));
+                    || restore.RestorePp && EffectiveMoveDefinitions(slot).Any(move => move.Pp < move.MaxPp));
             if (!needsRestore)
             {
                 AddIntentTrace(intent, EffectTraceKind.IntentDeferred, false, _log.Count, _log.Count);
@@ -3618,7 +3818,7 @@ public sealed class BattleController
             }
             if (restore.RestorePp)
             {
-                int restored = target.Moves.Sum(move => move.RestorePp());
+                int restored = EffectiveMoveDefinitions(slot).Sum(move => move.RestorePp());
                 if (restored > 0)
                     _log.Add(new PpRestored(slot, restored));
             }
@@ -3968,6 +4168,174 @@ public sealed class BattleController
         return !ctx.Source.IsFainted;
     }
 
+    private bool ApplyDecoy(EffectContext ctx, DecoyEffect effect)
+    {
+        int start = _log.Count;
+        int cost = Math.Max(1, ctx.Source.MaxHp * effect.Fraction.Num / effect.Fraction.Den);
+        BattleEffectiveValues current = EffectiveValues(ctx.SourceSlot);
+        DecoyCreationFailure? failure = ctx.Source.IsFainted ? DecoyCreationFailure.SourceFainted
+            : current.Decoy is not null ? DecoyCreationFailure.AlreadyActive
+            : ctx.Source.CurrentHp <= cost ? DecoyCreationFailure.InsufficientHp
+            : null;
+        if (failure is { } reason)
+        {
+            _log.Add(new DecoyCreationFailed(ctx.SourceSlot, reason));
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.SourceSlot, EffectTraceKind.Decoy,
+                false, null, 0, start, _log.Count);
+            ctx.Action.MarkFailed();
+            return false;
+        }
+
+        Sap(ctx.Source, ctx.SourceSlot, cost, amount => new HpCostPaid(ctx.SourceSlot, amount));
+        _overlays.Apply(new BattleOverlayApplication(
+            OverlayOwner(ctx.SourceSlot),
+            new BattleOverlaySource(ctx.SourceSlot, ActiveIndex(ctx.SourceSlot), ctx.Move.Move),
+            BattleOverlayLayer.FormOrSnapshot,
+            new DecoyOverlay(new BattleDecoyState(cost, cost)),
+            Turn,
+            ctx.TraceAction,
+            Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+        _log.Add(new DecoyCreated(ctx.SourceSlot, cost));
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.SourceSlot, EffectTraceKind.Decoy,
+            false, null, cost, start, _log.Count);
+        return true;
+    }
+
+    private bool ShouldBlockByDecoy(EffectContext ctx, MoveEffect effect)
+    {
+        if (ctx.TargetContext is null || ctx.SourceSide == ctx.TargetSide || BypassesDecoy(ctx.Move)
+            || !DecoyBlocksEffect(effect))
+            return false;
+        return ctx.TargetContext.EncounteredDecoy || EffectiveValues(ctx.TargetSlot).Decoy is not null;
+    }
+
+    private static bool DecoyBlocksEffect(MoveEffect effect) => IsTargetScoped(effect)
+        && effect is not RemoveSideConditionEffect and not ApplyActionFilterEffect
+            and not HealEffect and not HpFractionEffect { Operation: HpFractionOperation.Heal }
+        || effect is StatStageMutationEffect { Operation: StatStageMutationOperation.Steal }
+            or DerivedStatMutationEffect
+            or MetricMutationEffect { Operation: BattleMetricMutationOperation.Swap }
+            or MetricMutationEffect { Subject: StageEffectScope.Target }
+            or AbilityMutationEffect
+            or TransformEffect
+            or TemporaryMoveReplacementEffect
+            or TypeMutationEffect { Subject: BattleTypeSubject.Target }
+            or TypeMutationEffect { Source: BattleTypeSource.Target };
+
+    private static bool BypassesDecoy(BattleMove move) =>
+        move.Tags.Contains("sound", StringComparer.Ordinal)
+        || move.Tags.Contains("decoy_bypass", StringComparer.Ordinal);
+
+    private bool ApplyTransform(EffectContext ctx)
+    {
+        int start = _log.Count;
+        BattleOverlayOwner sourceOwner = OverlayOwner(ctx.SourceSlot);
+        BattleOverlayOwner targetOwner = OverlayOwner(ctx.TargetSlot);
+        TransformFailure? failure = ctx.Source.IsFainted ? TransformFailure.SourceFainted
+            : ctx.Target.IsFainted ? TransformFailure.TargetFainted
+            : _overlays.HasTransform(sourceOwner) ? TransformFailure.SourceTransformed
+            : _overlays.HasTransform(targetOwner) ? TransformFailure.TargetTransformed
+            : null;
+        if (failure is { } reason)
+        {
+            _log.Add(new TransformFailed(ctx.SourceSlot, ctx.TargetSlot, reason));
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.Transform,
+                false, null, 0, start, _log.Count);
+            ctx.Action.MarkFailed();
+            return false;
+        }
+
+        BattleEffectiveValues source = EffectiveValues(ctx.SourceSlot);
+        BattleEffectiveValues target = EffectiveValues(ctx.TargetSlot);
+        BattleEffectiveMove[] moves = target.Moves.Select((move, index) =>
+        {
+            int pp = Math.Min(5, move.Definition.MaxPp);
+            BattleMove copy = move.Definition.WithPpPool(pp, pp);
+            EntityId type = BattleDamageQueries.EffectiveType(move.Definition, target, move.Type);
+            return new BattleEffectiveMove(copy, index, type, move.DamageClass);
+        }).ToArray();
+        var stats = target.Stats with { Hp = source.Stats.Hp };
+        int[] stages = AllStageSlots.Select(ctx.Target.Stage).ToArray();
+        _overlays.Apply(new BattleOverlayApplication(sourceOwner,
+            new BattleOverlaySource(ctx.TargetSlot, targetOwner.PartyIndex, ctx.Move.Move),
+            BattleOverlayLayer.FormOrSnapshot,
+            new TransformOverlay(target.Ability, target.CreatureTypes, stats, moves, target.FormId,
+                target.Metrics[BattleMetric.Weight]),
+            Turn, ctx.TraceAction, Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint
+                | BattleOverlayCleanup.BattleEnd));
+        for (int i = 0; i < AllStageSlots.Length; i++)
+            ctx.Source.SetStage(AllStageSlots[i], stages[i]);
+        ctx.Source.ClearChoiceLock();
+        _log.Add(new Transformed(ctx.SourceSlot, ctx.TargetSlot));
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.Transform,
+            true, null, 1, start, _log.Count);
+        return true;
+    }
+
+    private bool ApplyTemporaryMoveReplacement(EffectContext ctx)
+    {
+        int start = _log.Count;
+        bool Fail(TemporaryMoveReplacementFailure reason)
+        {
+            _log.Add(new TemporaryMoveReplacementFailed(ctx.SourceSlot, ctx.TargetSlot, reason));
+            AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.MoveReplacement,
+                false, null, 0, start, _log.Count);
+            ctx.Action.MarkFailed();
+            return false;
+        }
+
+        if (ctx.Source.IsFainted)
+            return Fail(TemporaryMoveReplacementFailure.SourceFainted);
+        if (ctx.Target.IsFainted)
+            return Fail(TemporaryMoveReplacementFailure.TargetFainted);
+        BattleHistoryOwner targetOwner = HistoryOwner(ctx.TargetSlot);
+        if (_actionHistory.LastSuccessfulMove(targetOwner) is not { } targetMoveId)
+            return Fail(TemporaryMoveReplacementFailure.NoTargetMove);
+
+        BattleActionAttempt? currentAttempt = _actionHistory.Snapshot().LastOrDefault(attempt =>
+            attempt.Id.Turn == Turn && attempt.Source.Side == targetOwner.Side
+                && attempt.Source.PartyIndex == targetOwner.PartyIndex);
+        if (currentAttempt is { Result: BattleActionResult.Prevented or BattleActionResult.Failed
+                or BattleActionResult.Missed })
+            return Fail(TemporaryMoveReplacementFailure.TargetMoveFailed);
+
+        BattleEffectiveValues source = EffectiveValues(ctx.SourceSlot);
+        int sourceMoveSlot = MoveSlot(source.Moves, ctx.Move, allowUnowned: true);
+        if (sourceMoveSlot < 0)
+            return Fail(TemporaryMoveReplacementFailure.SourceSlotUnavailable);
+
+        BattleEffectiveValues target = EffectiveValues(ctx.TargetSlot);
+        BattleEffectiveMove? selected = target.Moves.FirstOrDefault(move => move.Definition.Move == targetMoveId);
+        if (selected is null)
+            return Fail(TemporaryMoveReplacementFailure.TargetMoveUnavailable);
+        if (selected.Definition.IsFallback
+            || selected.Definition.Tags.Contains(TemporaryMoveReplacementEffect.ExclusionTag,
+                StringComparer.Ordinal))
+            return Fail(TemporaryMoveReplacementFailure.TargetMoveExcluded);
+        if (source.Moves.Any(move => move.Definition.Move == targetMoveId))
+            return Fail(TemporaryMoveReplacementFailure.AlreadyKnown);
+
+        BattleMove copy = selected.Definition.WithPpPool(TemporaryMoveReplacementEffect.CopiedPp,
+            TemporaryMoveReplacementEffect.CopiedPp);
+        EntityId type = BattleDamageQueries.EffectiveType(selected.Definition, target, selected.Type);
+        var replacement = new BattleEffectiveMove(copy, sourceMoveSlot, type, selected.DamageClass);
+        _overlays.Apply(new BattleOverlayApplication(
+            OverlayOwner(ctx.SourceSlot),
+            new BattleOverlaySource(ctx.TargetSlot, targetOwner.PartyIndex, ctx.Move.Move),
+            BattleOverlayLayer.FormOrSnapshot,
+            new MoveSlotOverlay(sourceMoveSlot, replacement),
+            Turn,
+            ctx.TraceAction,
+            Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+        if (ctx.Source.ChoiceLockedMoveIndex == sourceMoveSlot)
+            ctx.Source.ClearChoiceLock();
+        _log.Add(new TemporaryMoveReplacementApplied(ctx.SourceSlot, ctx.TargetSlot, sourceMoveSlot,
+            ctx.Move.Move, copy.Move));
+        AddTrace(ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot, EffectTraceKind.MoveReplacement,
+            true, null, sourceMoveSlot, start, _log.Count);
+        return true;
+    }
+
     private void ApplyStatReset(EffectContext ctx, StatResetEffect effect)
     {
         (BattleCreature Creature, BattleSlot Slot)[] recipients = StageRecipients(ctx, effect.Scope)
@@ -4034,6 +4402,61 @@ public sealed class BattleController
         foreach (StatKind stat in AllStageSlots)
             SetStage(recipient, recipientSlot, stat, -recipient.Stage(stat));
         TraceEffectChance(ctx, chance, start);
+    }
+
+    private void ApplyStatStageMutation(EffectContext ctx, StatStageMutationEffect effect)
+    {
+        int start = _log.Count;
+        int? draw = null;
+        int? drawBound = null;
+        switch (effect.Operation)
+        {
+            case StatStageMutationOperation.Maximize:
+            {
+                (BattleCreature creature, BattleSlot slot) = StageRecipient(ctx, effect.Subject);
+                SetStage(creature, slot, effect.Stat!.Value, StatStages.Max);
+                break;
+            }
+            case StatStageMutationOperation.Random:
+            {
+                (BattleCreature creature, BattleSlot slot) = StageRecipient(ctx, effect.Subject);
+                StatKind[] eligible = AllStageSlots.Where(stat => creature.Stage(stat) < StatStages.Max).ToArray();
+                if (eligible.Length == 0)
+                    break;
+                int selected = 0;
+                if (eligible.Length > 1)
+                {
+                    drawBound = eligible.Length;
+                    draw = _rng.Next(eligible.Length);
+                    selected = draw.Value;
+                }
+                StatKind stat = eligible[selected];
+                SetStage(creature, slot, stat, creature.Stage(stat) + effect.Delta!.Value);
+                break;
+            }
+            case StatStageMutationOperation.Steal:
+            {
+                int[] sourceBefore = AllStageSlots.Select(ctx.Source.Stage).ToArray();
+                int[] targetBefore = AllStageSlots.Select(ctx.Target.Stage).ToArray();
+                for (int i = 0; i < AllStageSlots.Length; i++)
+                {
+                    int stolen = Math.Max(0, targetBefore[i]);
+                    if (stolen == 0)
+                        continue;
+                    SetStage(ctx.Target, ctx.TargetSlot, AllStageSlots[i], 0);
+                    SetStage(ctx.Source, ctx.SourceSlot, AllStageSlots[i], sourceBefore[i] + stolen);
+                }
+                break;
+            }
+            default:
+                throw new ArgumentOutOfRangeException(nameof(effect), effect.Operation, "Unknown stat-stage mutation.");
+        }
+
+        _trace.Add(new EffectTraceEntry(Turn, ctx.TraceAction, ctx.SourceSlot, ctx.TargetSlot,
+            EffectTraceKind.StatStageMutation, _log.Count > start, draw, _log.Count - start, start, _log.Count)
+        {
+            DrawBound = drawBound,
+        });
     }
 
     private void SetStage(BattleCreature creature, BattleSlot slot, StatKind stat, int value)
@@ -4289,8 +4712,13 @@ public sealed class BattleController
     /// crit's stat-stage ignore rule and burn. Returned <c>eff</c> feeds the DamageDealt event.</summary>
     private DamageApplication DealMoveDamage(BattleCreature target, BattleSlot targetSlot, int amount,
         double effectiveness, bool crit,
-        int hpFloor = 0, bool applySurvival = true)
+        int hpFloor = 0, bool applySurvival = true, BattleSlot? sourceSlot = null,
+        BattleMove? move = null, BattleTargetContext? targetContext = null)
     {
+        DamageApplication? decoy = DamageDecoy(targetSlot, amount, sourceSlot, move, targetContext);
+        if (decoy is { } intercepted)
+            return intercepted;
+
         int before = target.CurrentHp;
         if (applySurvival)
             amount = ApplySurviveFromFull(target, targetSlot, amount);
@@ -4304,11 +4732,44 @@ public sealed class BattleController
         return new DamageApplication(amount, dealt);
     }
 
+    private DamageApplication? DamageDecoy(BattleSlot targetSlot, int amount, BattleSlot? sourceSlot,
+        BattleMove? move, BattleTargetContext? targetContext)
+    {
+        if (amount <= 0 || sourceSlot is null || sourceSlot.Value.Side == targetSlot.Side
+            || move is not null && BypassesDecoy(move))
+            return null;
+        BattleDecoyState? decoy = EffectiveValues(targetSlot).Decoy;
+        if (decoy is null)
+            return null;
+
+        int absorbed = Math.Min(amount, decoy.Hp);
+        int remaining = decoy.Hp - absorbed;
+        int start = _log.Count;
+        _overlays.Apply(new BattleOverlayApplication(
+            OverlayOwner(targetSlot),
+            new BattleOverlaySource(Entity: move?.Move),
+            BattleOverlayLayer.FormOrSnapshot,
+            new DecoyOverlay(remaining > 0 ? decoy with { Hp = remaining } : null),
+            Turn,
+            _traceActionSequence,
+            Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+        targetContext?.MarkDecoyEncountered();
+        _log.Add(new DecoyDamaged(targetSlot, absorbed, remaining));
+        if (remaining == 0)
+            _log.Add(new DecoyBroken(targetSlot));
+        AddTrace(_traceActionSequence, sourceSlot.Value, targetSlot, EffectTraceKind.Decoy,
+            false, null, absorbed, start, _log.Count);
+        return new DamageApplication(absorbed, 0, Decoy: true);
+    }
+
     private void RecordDamage(BattleActionAttemptId attempt, BattleHistoryOwner source,
         BattleHistoryOwner target, BattleMove move, BattleDamageCause cause, int hitNumber, bool attempted,
         BattleDamageFailure failure, int calculatedDamage, DamageApplication damage, bool critical,
         bool substitute = false, EntityId? effectiveType = null, DamageClass? effectiveClass = null)
     {
+        substitute |= damage.Decoy;
+        if (substitute)
+            failure = BattleDamageFailure.Substitute;
         bool connected = damage.ActualHpRemoved > 0 && !substitute;
         _actionHistory.RecordDamage(new BattleDamageRecord(
             attempt, source, target, move.Move, effectiveClass ?? move.DamageClass, effectiveType ?? move.Type, cause, hitNumber,
@@ -4344,6 +4805,7 @@ public sealed class BattleController
         CancelCharge(slot, Active(slot));
         EndMultiTurnLock(slot, Active(slot), MultiTurnLockEndReason.Faint);
         Active(slot).ClearMultiTurnPowerBoost();
+        _stagePasses.OwnerFainted(slot.Side, ActiveIndex(slot));
         TraceCancelled(_intentQueue.OwnerFainted(slot.Side, ActiveIndex(slot)));
         _log.Add(new Fainted(slot));
         _actionHistory.RecordFaint(HistoryOwner(slot));
@@ -4455,7 +4917,7 @@ public sealed class BattleController
                 new BattleQueryValue(scheduledBoost.Boost.Num, scheduledBoost.Boost.Den),
                 InsertionOrder: powerModifiers.Count));
         }
-        if (attacker.IsLocked && attacker.Moves[attacker.LockedMoveIndex].Move == move.Move
+        if (attacker.IsLocked && MoveAt(sourceSlot, attacker.LockedMoveIndex).Move == move.Move
             && move.MultiTurnLockProfile is { MaxPowerStep: > 0 } lockProfile
             && attacker.LockPowerStep > 0)
         {
@@ -4846,6 +5308,9 @@ public sealed class BattleController
     private BattleMoveIdentityQueryResult EffectiveMoveIdentity(BattleSlot sourceSlot, BattleMove move,
         int traceAction)
     {
+        BattleEffectiveValues effectiveValues = EffectiveValues(sourceSlot);
+        BattleCreature source = Active(sourceSlot);
+        int slot = MoveSlot(effectiveValues.Moves, move, allowUnowned: true);
         EntityId? conditionType = null;
         if (move.SecondaryEffects.OfType<WeatherMoveEffect>().SingleOrDefault() is { } weatherEffect)
         {
@@ -4865,11 +5330,10 @@ public sealed class BattleController
         }
         if (_currentPair is { } pair && pair.Slot == sourceSlot && pair.Type is { } pairedType)
             conditionType = pairedType;
-        BattleCreature source = Active(sourceSlot);
-        int slot = MoveSlot(source, move, allowUnowned: true);
         return slot >= 0
-            ? BattleDamageQueries.Identity(move, slot, source, EffectiveValues(sourceSlot), Environment, conditionType)
-            : new BattleMoveIdentityQueryResult(move.Type, conditionType ?? move.Type,
+            ? BattleDamageQueries.Identity(move, slot, source, effectiveValues, Environment, conditionType)
+            : new BattleMoveIdentityQueryResult(move.Type,
+                BattleDamageQueries.EffectiveType(move, effectiveValues, move.Type, conditionType),
                 move.DamageClass, move.DamageClass, Environment.Natural, Environment.Effective);
     }
 
@@ -4879,18 +5343,35 @@ public sealed class BattleController
     private DamageClass EffectiveDamageClass(BattleSlot sourceSlot, BattleMove move)
     {
         BattleCreature source = Active(sourceSlot);
-        int slot = MoveSlot(source, move, allowUnowned: true);
+        BattleEffectiveValues values = EffectiveValues(sourceSlot);
+        int slot = MoveSlot(values.Moves, move, allowUnowned: true);
         return slot >= 0 ? BattleDamageQueries.Identity(move, slot, source,
-            EffectiveValues(sourceSlot), Environment).EffectiveClass : move.DamageClass;
+            values, Environment).EffectiveClass : move.DamageClass;
     }
 
     private BattleEffectiveValues EffectiveValues(BattleSlot slot) => PhysicalMetricFormulas.EffectiveValues(
         Active(slot), _overlays, new BattleOverlayOwner(slot.Side, ActiveIndex(slot), slot));
 
-    private static int MoveSlot(BattleCreature source, BattleMove move, bool allowUnowned = false)
+    private IReadOnlyList<BattleMove> EffectiveMoveDefinitions(BattleSlot slot) =>
+        EffectiveValues(slot).Moves.Select(move => move.Definition).ToArray();
+
+    private IReadOnlyList<BattleMove> EffectiveMoveDefinitions(BattleCreature creature, BattleOverlayOwner owner) =>
+        PhysicalMetricFormulas.EffectiveValues(creature, _overlays, owner).Moves
+            .Select(move => move.Definition).ToArray();
+
+    private IReadOnlyList<BattleMove>? SourceMoves(BattleConditionSource source)
     {
-        for (int index = 0; index < source.Moves.Count; index++)
-            if (ReferenceEquals(source.Moves[index], move))
+        BattleCreature? creature = SourceCreature(source);
+        if (creature is null || source.Slot is not { } slot || source.PartyIndex is not { } partyIndex)
+            return null;
+        BattleSlot? activeSlot = _activeSlots.IsActive(slot.Side, partyIndex) ? ActiveSlotForParty(slot.Side, partyIndex) : null;
+        return EffectiveMoveDefinitions(creature, new BattleOverlayOwner(slot.Side, partyIndex, activeSlot));
+    }
+
+    private static int MoveSlot(IReadOnlyList<BattleEffectiveMove> moves, BattleMove move, bool allowUnowned = false)
+    {
+        for (int index = 0; index < moves.Count; index++)
+            if (ReferenceEquals(moves[index].Definition, move))
                 return index;
         return move.IsFallback || allowUnowned ? -1
             : throw new InvalidOperationException("The resolved move is not owned by its source creature.");
@@ -5134,7 +5615,8 @@ public sealed class BattleController
     private ActionLegalityResult LockedMoveLegality(BattleCreature creature, BattleSlot slot, int moveIndex) =>
         !creature.IsLocked ? new ActionLegalityResult(true)
             : BattleActionLegality.Move(creature, moveIndex, slot, ActiveIndex(slot), ConditionSnapshot,
-                SourceCreature, ItemsSuppressed, ignorePp: true, ignoreChoice: true);
+                SourceCreature, ItemsSuppressed, ignorePp: true, ignoreChoice: true,
+                effectiveMoves: EffectiveMoveDefinitions(slot), sourceMoves: SourceMoves);
 
     private bool CanAct(BattleCreature c, BattleSlot sourceSlot, int traceAction)
     {
@@ -5429,7 +5911,10 @@ public sealed class BattleController
     {
         (bool changed, string? formId) = Active(slot).ReevaluateConditionForm(CurrentWeather);
         if (changed)
+        {
+            SyncFormOverlays(slot);
             _log.Add(new FormChanged(slot, formId));
+        }
     }
 
     private void TickTimedForms()
@@ -5437,6 +5922,7 @@ public sealed class BattleController
         foreach (BattleSlot slot in Topology.Slots)
             if (Active(slot).TickTimedForm())
             {
+                SyncFormOverlays(slot);
                 _log.Add(new FormChanged(slot, null));
                 ReevaluateConditionForm(slot);
             }
@@ -5444,10 +5930,12 @@ public sealed class BattleController
 
     private void RevertFaintedBattleForms()
     {
-        foreach (BattleSide side in (ReadOnlySpan<BattleSide>)[BattleSide.Player, BattleSide.Enemy])
-            foreach (BattleCreature creature in _parties[(int)side])
-                if (creature.RevertActiveBattleFormIfFainted())
-                    _log.Add(new FormChanged(side, null));
+        foreach (BattleSlot slot in Topology.Slots)
+            if (Active(slot).RevertActiveBattleFormIfFainted())
+            {
+                SyncFormOverlays(slot);
+                _log.Add(new FormChanged(slot, null));
+            }
     }
 
     private void RevertBattleEndForms()
@@ -5456,6 +5944,36 @@ public sealed class BattleController
             foreach (BattleCreature creature in _parties[(int)side])
                 if (creature.RevertActiveBattleForm())
                     _log.Add(new FormChanged(side, null));
+    }
+
+    private void SyncFormOverlays(BattleSlot slot)
+    {
+        int partyIndex = ActiveIndex(slot);
+        var key = (slot.Side, partyIndex);
+        if (_formOverlaySequences.Remove(key, out long[]? existing))
+            _overlays.Remove(existing, Turn, _traceActionSequence);
+
+        BattleCreature creature = Active(slot);
+        if (!creature.HasActiveBattleForm)
+            return;
+
+        BattleEffectiveValues values = PhysicalMetricFormulas.BaseEffectiveValues(creature);
+        var source = new BattleOverlaySource(slot, partyIndex);
+        BattleOverlayCleanup cleanup = BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd;
+        BattleOverlayChangeSet applied = _overlays.ApplyMany(
+        [
+            new(OverlayOwner(slot), source, BattleOverlayLayer.FormOrSnapshot,
+                new StatsOverlay(values.Stats), Turn, _traceActionSequence, Cleanup: cleanup),
+            new(OverlayOwner(slot), source, BattleOverlayLayer.FormOrSnapshot,
+                new CreatureTypesOverlay(values.CreatureTypes), Turn, _traceActionSequence, Cleanup: cleanup),
+            new(OverlayOwner(slot), source, BattleOverlayLayer.FormOrSnapshot,
+                new AbilityOverlay(values.Ability), Turn, _traceActionSequence, Cleanup: cleanup),
+            new(OverlayOwner(slot), source, BattleOverlayLayer.FormOrSnapshot,
+                new MoveListOverlay(values.Moves), Turn, _traceActionSequence, Cleanup: cleanup),
+            new(OverlayOwner(slot), source, BattleOverlayLayer.FormOrSnapshot,
+                new FormOverlay(values.FormId), Turn, _traceActionSequence, Cleanup: cleanup),
+        ]);
+        _formOverlaySequences[key] = applied.Affected.Select(entry => entry.Sequence).ToArray();
     }
 
     private void RequestReplacements()
@@ -5511,6 +6029,7 @@ public sealed class BattleController
         foreach (BattleSlot slot in Topology.Slots)
             CancelCharge(slot, Active(slot));
         TraceCancelled(_intentQueue.EndBattle());
+        _stagePasses.EndBattle();
         _overlays.EndBattle(Turn, _traceActionSequence);
         _items.EndBattle();
         RecordConditionChanges(_conditions.EndBattle(Turn, _traceActionSequence));

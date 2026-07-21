@@ -27,3 +27,6 @@ docs/pokeapi-results/
 # OS/editor
 Thumbs.db
 .DS_Store
+
+# Generated creature/tileset art (see convert-images.bat, normalize-sprites.ps1)
+raw_images/

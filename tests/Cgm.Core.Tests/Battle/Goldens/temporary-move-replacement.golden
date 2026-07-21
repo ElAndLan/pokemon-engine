@@ -1,0 +1,9 @@
+used:Enemy:move:golden_copy
+used:Player:move:replacement
+replaced:Player:0:move:replacement>move:golden_copy
+used:Player:move:golden_copy
+switched:Player:1
+trace:Player:Enemy:True:0
+pp:9:4:19
+overlay:0
+rng:0

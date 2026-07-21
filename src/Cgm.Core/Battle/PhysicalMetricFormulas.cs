@@ -114,6 +114,7 @@ public static class PhysicalMetricFormulas
             creature.Types,
             creature.Stats,
             creature.Moves.Select(BattleEffectiveMove.FromBase).ToArray(),
+            creature.FormId,
             metrics: new Dictionary<BattleMetric, int>
             {
                 [BattleMetric.Weight] = creature.WeightHectograms,

@@ -20,6 +20,7 @@ public enum BattleEffectiveValueKind
     Form,
     Decoy,
     Metric,
+    Transform,
 }
 
 public enum BattleMetric { Weight, Height }
@@ -41,11 +42,14 @@ public sealed record BattleEffectiveMove(
     }
 }
 
+public sealed record BattleMoveTypeRule(EntityId Type, EntityId? MatchType = null);
+
 public sealed record BattleEffectiveValues
 {
     public BattleEffectiveValues(EntityId? heldItem, EntityId? ability, IReadOnlyList<EntityId> creatureTypes,
         Stats stats, IReadOnlyList<BattleEffectiveMove> moves, string? formId = null,
-        BattleDecoyState? decoy = null, IReadOnlyDictionary<BattleMetric, int>? metrics = null)
+        BattleDecoyState? decoy = null, IReadOnlyDictionary<BattleMetric, int>? metrics = null,
+        IReadOnlyList<BattleMoveTypeRule>? moveTypeRules = null)
     {
         ArgumentNullException.ThrowIfNull(creatureTypes);
         ArgumentNullException.ThrowIfNull(moves);
@@ -60,6 +64,7 @@ public sealed record BattleEffectiveValues
         foreach ((BattleMetric metric, int value) in metrics ?? new Dictionary<BattleMetric, int>())
             capturedMetrics.Add(metric, value);
         Metrics = new ReadOnlyDictionary<BattleMetric, int>(capturedMetrics);
+        MoveTypeRules = Array.AsReadOnly((moveTypeRules ?? []).ToArray());
     }
 
     public EntityId? HeldItem { get; internal init; }
@@ -70,6 +75,7 @@ public sealed record BattleEffectiveValues
     public string? FormId { get; internal init; }
     public BattleDecoyState? Decoy { get; internal init; }
     public IReadOnlyDictionary<BattleMetric, int> Metrics { get; internal init; }
+    public IReadOnlyList<BattleMoveTypeRule> MoveTypeRules { get; internal init; }
 }
 
 public sealed record BattleOverlayOwner(BattleSide Side, int PartyIndex, BattleSlot? Slot = null);
@@ -112,6 +118,12 @@ public sealed record MoveListOverlay(IReadOnlyList<BattleEffectiveMove> Moves) :
     public override string ResolutionKey => "move_list";
 }
 
+public sealed record MoveSlotOverlay(int MoveSlot, BattleEffectiveMove Move) : BattleOverlayPayload
+{
+    public override BattleEffectiveValueKind Kind => BattleEffectiveValueKind.MoveList;
+    public override string ResolutionKey => $"move_list_slot_{MoveSlot}";
+}
+
 public sealed record MoveTypeOverlay(int MoveSlot, EntityId Type) : BattleOverlayPayload
 {
     public override BattleEffectiveValueKind Kind => BattleEffectiveValueKind.MoveType;
@@ -142,10 +154,28 @@ public sealed record MetricOverlay(BattleMetric Metric, int Value) : BattleOverl
     public override string ResolutionKey => $"metric_{Metric.ToString().ToLowerInvariant()}";
 }
 
+public sealed record TransformOverlay(
+    EntityId? Ability,
+    IReadOnlyList<EntityId> Types,
+    Stats Stats,
+    IReadOnlyList<BattleEffectiveMove> Moves,
+    string? FormId,
+    int Weight) : BattleOverlayPayload
+{
+    public override BattleEffectiveValueKind Kind => BattleEffectiveValueKind.Transform;
+    public override string ResolutionKey => "transform";
+}
+
 public sealed record TypeAdditionOverlay(string ContributionKey, IReadOnlyList<EntityId> Types) : BattleOverlayPayload
 {
     public override BattleEffectiveValueKind Kind => BattleEffectiveValueKind.CreatureTypes;
     public override string ResolutionKey => $"creature_types_add_{ContributionKey}";
+}
+
+public sealed record MoveTypeRuleOverlay(string ContributionKey, BattleMoveTypeRule Rule) : BattleOverlayPayload
+{
+    public override BattleEffectiveValueKind Kind => BattleEffectiveValueKind.MoveType;
+    public override string ResolutionKey => $"move_type_rule_{ContributionKey}";
 }
 
 public sealed record StatDeltaOverlay(string ContributionKey, Stats Delta) : BattleOverlayPayload
@@ -154,10 +184,22 @@ public sealed record StatDeltaOverlay(string ContributionKey, Stats Delta) : Bat
     public override string ResolutionKey => $"stats_add_{ContributionKey}";
 }
 
+public sealed record DerivedStatOverlay(StatKind Stat, int Value) : BattleOverlayPayload
+{
+    public override BattleEffectiveValueKind Kind => BattleEffectiveValueKind.Stats;
+    public override string ResolutionKey => $"stats_value_{Stat.ToString().ToLowerInvariant()}";
+}
+
 public sealed record MetricDeltaOverlay(string ContributionKey, BattleMetric Metric, int Delta) : BattleOverlayPayload
 {
     public override BattleEffectiveValueKind Kind => BattleEffectiveValueKind.Metric;
     public override string ResolutionKey => $"metric_{Metric.ToString().ToLowerInvariant()}_add_{ContributionKey}";
+}
+
+public sealed record MetricValueOverlay(BattleMetric Metric, int Value) : BattleOverlayPayload
+{
+    public override BattleEffectiveValueKind Kind => BattleEffectiveValueKind.Metric;
+    public override string ResolutionKey => $"metric_value_{Metric.ToString().ToLowerInvariant()}";
 }
 
 public sealed record SuppressionOverlay(BattleEffectiveValueKind SuppressedKind) : BattleOverlayPayload
@@ -220,16 +262,32 @@ public sealed class BattleOverlayStore
     public BattleOverlayChangeSet Apply(BattleOverlayApplication application)
     {
         ArgumentNullException.ThrowIfNull(application);
-        BattleOverlayPayload payload = ValidateApplication(application);
-        if (_nextSequence == long.MaxValue)
+        return ApplyMany([application]);
+    }
+
+    public BattleOverlayChangeSet ApplyMany(IReadOnlyList<BattleOverlayApplication> applications)
+    {
+        ArgumentNullException.ThrowIfNull(applications);
+        if (applications.Count == 0)
+            return new BattleOverlayChangeSet([], []);
+        BattleOverlayPayload[] payloads = applications.Select(ValidateApplication).ToArray();
+        if (applications.Count > long.MaxValue - _nextSequence)
             throw new OverflowException("Battle overlay sequence is exhausted.");
 
-        var instance = new BattleOverlayInstance(_nextSequence++, application.Owner, application.Source,
-            application.Layer, payload, application.Turn, application.ActionSequence, application.Duration,
-            application.DurationCheckpoint, application.Cleanup);
-        _entries.Add(instance);
-        return new BattleOverlayChangeSet([instance], [Trace(application.Turn, application.ActionSequence,
-            BattleOverlayTraceKind.Applied, instance, null, instance.Owner, null, instance.RemainingDuration)]);
+        var instances = new BattleOverlayInstance[applications.Count];
+        var trace = new BattleOverlayTraceEntry[applications.Count];
+        for (int i = 0; i < applications.Count; i++)
+        {
+            BattleOverlayApplication application = applications[i];
+            var instance = new BattleOverlayInstance(_nextSequence++, application.Owner, application.Source,
+                application.Layer, payloads[i], application.Turn, application.ActionSequence, application.Duration,
+                application.DurationCheckpoint, application.Cleanup);
+            _entries.Add(instance);
+            instances[i] = instance;
+            trace[i] = Trace(application.Turn, application.ActionSequence, BattleOverlayTraceKind.Applied,
+                instance, null, instance.Owner, null, instance.RemainingDuration);
+        }
+        return new BattleOverlayChangeSet(instances, trace);
     }
 
     public BattleEffectiveResult Resolve(BattleOverlayOwner owner, BattleEffectiveValues baseValues,
@@ -350,6 +408,25 @@ public sealed class BattleOverlayStore
     public BattleOverlayChangeSet EndBattle(int turn, int actionSequence) =>
         RemoveWhere(_ => true, turn, actionSequence, BattleOverlayRemovalReason.BattleEnd);
 
+    public BattleOverlayChangeSet RemoveTypeAdditions(BattleOverlayOwner owner, int turn, int actionSequence)
+    {
+        ValidateOwner(owner);
+        return RemoveWhere(entry => SameCreature(entry.Owner, owner)
+            && entry.Layer == BattleOverlayLayer.Additive
+            && entry.Payload is TypeAdditionOverlay,
+            turn, actionSequence, BattleOverlayRemovalReason.Expired);
+    }
+
+    public BattleOverlayChangeSet Remove(IReadOnlyCollection<long> sequences, int turn, int actionSequence)
+    {
+        ArgumentNullException.ThrowIfNull(sequences);
+        if (sequences.Any(sequence => sequence < 0))
+            throw new ArgumentOutOfRangeException(nameof(sequences), "Overlay sequences cannot be negative.");
+        var selected = sequences.ToHashSet();
+        return RemoveWhere(entry => selected.Contains(entry.Sequence), turn, actionSequence,
+            BattleOverlayRemovalReason.Expired);
+    }
+
     public IReadOnlyList<BattleOverlayInstance> Snapshot() => _entries
         .OrderBy(entry => entry.Owner.Side)
         .ThenBy(entry => entry.Owner.Slot?.Position ?? int.MaxValue)
@@ -357,6 +434,12 @@ public sealed class BattleOverlayStore
         .ThenBy(entry => entry.Layer)
         .ThenBy(entry => entry.Sequence)
         .ToArray();
+
+    public bool HasTransform(BattleOverlayOwner owner)
+    {
+        ValidateOwner(owner);
+        return _entries.Any(entry => SameCreature(entry.Owner, owner) && entry.Payload is TransformOverlay);
+    }
 
     private BattleOverlayChangeSet RemoveWhere(Func<BattleOverlayInstance, bool> predicate,
         int turn, int actionSequence, BattleOverlayRemovalReason reason)
@@ -376,6 +459,7 @@ public sealed class BattleOverlayStore
         CreatureTypesOverlay types => values with { CreatureTypes = types.Types },
         StatsOverlay stats => values with { Stats = stats.Stats },
         MoveListOverlay moves => values with { Moves = moves.Moves },
+        MoveSlotOverlay move => values with { Moves = ReplaceMove(values.Moves, move.MoveSlot, _ => move.Move) },
         MoveTypeOverlay type => values with { Moves = ReplaceMove(values.Moves, type.MoveSlot,
             move => move with { Type = type.Type }) },
         MoveClassOverlay moveClass => values with { Moves = ReplaceMove(values.Moves, moveClass.MoveSlot,
@@ -383,12 +467,27 @@ public sealed class BattleOverlayStore
         FormOverlay form => values with { FormId = form.FormId },
         DecoyOverlay decoy => values with { Decoy = decoy.Decoy },
         MetricOverlay metric => values with { Metrics = SetMetric(values.Metrics!, metric.Metric, metric.Value) },
+        TransformOverlay transform => values with
+        {
+            Ability = transform.Ability,
+            CreatureTypes = transform.Types,
+            Stats = transform.Stats,
+            Moves = transform.Moves,
+            FormId = transform.FormId,
+            Metrics = SetMetric(values.Metrics!, BattleMetric.Weight, transform.Weight),
+        },
         TypeAdditionOverlay types => values with { CreatureTypes = AddTypes(values.CreatureTypes, types.Types) },
+        MoveTypeRuleOverlay rule => values with { MoveTypeRules = values.MoveTypeRules.Append(rule.Rule).ToArray() },
         StatDeltaOverlay stats => values with { Stats = AddStats(values.Stats, stats.Delta) },
+        DerivedStatOverlay stat => values with { Stats = SetStat(values.Stats, stat.Stat, stat.Value) },
         MetricDeltaOverlay metric => values with
         {
             Metrics = SetMetric(values.Metrics!, metric.Metric,
                 Math.Max(1, checked(values.Metrics!.GetValueOrDefault(metric.Metric, 1) + metric.Delta))),
+        },
+        MetricValueOverlay metric => values with
+        {
+            Metrics = SetMetric(values.Metrics!, metric.Metric, metric.Value),
         },
         _ => throw new ArgumentOutOfRangeException(nameof(payload), payload.GetType().Name, "Unknown overlay payload."),
     };
@@ -424,6 +523,16 @@ public sealed class BattleOverlayStore
         Math.Max(1, checked(value.Def + delta.Def)), Math.Max(1, checked(value.Spa + delta.Spa)),
         Math.Max(1, checked(value.Spd + delta.Spd)), Math.Max(1, checked(value.Spe + delta.Spe)));
 
+    private static Stats SetStat(Stats value, StatKind stat, int replacement) => stat switch
+    {
+        StatKind.Atk => value with { Atk = replacement },
+        StatKind.Def => value with { Def = replacement },
+        StatKind.Spa => value with { Spa = replacement },
+        StatKind.Spd => value with { Spd = replacement },
+        StatKind.Spe => value with { Spe = replacement },
+        _ => throw new ArgumentOutOfRangeException(nameof(stat), stat, "Only derived stats can be overlaid."),
+    };
+
     private static IReadOnlyDictionary<BattleMetric, int> SetMetric(
         IReadOnlyDictionary<BattleMetric, int> metrics, BattleMetric metric, int value)
     {
@@ -451,11 +560,16 @@ public sealed class BattleOverlayStore
                 throw new ArgumentException("Base metrics require defined keys and positive values.", nameof(values));
             metrics.Add(metric, value);
         }
+        BattleMoveTypeRule[] moveTypeRules = values.MoveTypeRules.ToArray();
+        if (moveTypeRules.Any(rule => !ValidEntity(rule.Type, EntityCategory.Type)
+                || rule.MatchType is { } match && !ValidEntity(match, EntityCategory.Type)))
+            throw new ArgumentException("Base move-type rules require valid type IDs.", nameof(values));
         return values with
         {
             CreatureTypes = Array.AsReadOnly(types),
             Moves = Array.AsReadOnly(moves),
             Metrics = new ReadOnlyDictionary<BattleMetric, int>(metrics),
+            MoveTypeRules = Array.AsReadOnly(moveTypeRules),
         };
     }
 
@@ -470,6 +584,11 @@ public sealed class BattleOverlayStore
             StatsOverlay stats when Positive(stats.Stats) => stats,
             StatsOverlay => throw new ArgumentException("Replacement stats must all be positive.", nameof(payload)),
             MoveListOverlay moves => moves with { Moves = Array.AsReadOnly(NormalizeMoves(moves.Moves)) },
+            MoveSlotOverlay move when move.MoveSlot >= 0 => move with
+            {
+                Move = NormalizeMoves([move.Move])[0],
+            },
+            MoveSlotOverlay => throw new ArgumentException("Move-slot overlays require a valid slot.", nameof(payload)),
             MoveTypeOverlay type when type.MoveSlot >= 0 && ValidEntity(type.Type, EntityCategory.Type) => type,
             MoveTypeOverlay => throw new ArgumentException("Move-type overlays require a valid slot and type ID.", nameof(payload)),
             MoveClassOverlay moveClass when moveClass.MoveSlot >= 0 && Enum.IsDefined(moveClass.DamageClass) => moveClass,
@@ -478,13 +597,23 @@ public sealed class BattleOverlayStore
             DecoyOverlay decoy => ValidDecoy(decoy.Decoy, decoy),
             MetricOverlay metric when Enum.IsDefined(metric.Metric) && metric.Value > 0 => metric,
             MetricOverlay => throw new ArgumentException("Replacement metrics must be defined and positive.", nameof(payload)),
+            TransformOverlay transform => NormalizeTransform(transform),
             TypeAdditionOverlay addition when BattleConditionId.ValidToken(addition.ContributionKey)
                 => addition with { Types = Array.AsReadOnly(NormalizeTypes(addition.Types, "Type additions")) },
             TypeAdditionOverlay => throw new ArgumentException("Type additions require a lowercase contribution key.", nameof(payload)),
+            MoveTypeRuleOverlay rule when BattleConditionId.ValidToken(rule.ContributionKey)
+                && ValidEntity(rule.Rule.Type, EntityCategory.Type)
+                && (rule.Rule.MatchType is null || ValidEntity(rule.Rule.MatchType.Value, EntityCategory.Type)) => rule,
+            MoveTypeRuleOverlay => throw new ArgumentException("Move-type rules require a lowercase key and valid type IDs.", nameof(payload)),
             StatDeltaOverlay delta when BattleConditionId.ValidToken(delta.ContributionKey) => delta,
             StatDeltaOverlay => throw new ArgumentException("Stat deltas require a lowercase contribution key.", nameof(payload)),
+            DerivedStatOverlay stat when stat.Stat is (StatKind.Atk or StatKind.Def or StatKind.Spa
+                or StatKind.Spd or StatKind.Spe) && stat.Value > 0 => stat,
+            DerivedStatOverlay => throw new ArgumentException("Derived-stat values require a non-HP battle stat and positive value.", nameof(payload)),
             MetricDeltaOverlay delta when BattleConditionId.ValidToken(delta.ContributionKey) && Enum.IsDefined(delta.Metric) => delta,
             MetricDeltaOverlay => throw new ArgumentException("Metric deltas require a lowercase key and defined metric.", nameof(payload)),
+            MetricValueOverlay metric when Enum.IsDefined(metric.Metric) && metric.Value > 0 => metric,
+            MetricValueOverlay => throw new ArgumentException("Metric values require a defined metric and positive value.", nameof(payload)),
             SuppressionOverlay suppression when suppression.SuppressedKind is BattleEffectiveValueKind.HeldItem
                 or BattleEffectiveValueKind.Ability => suppression,
             SuppressionOverlay => throw new ArgumentException("Only held-item and ability suppression is supported.", nameof(payload)),
@@ -504,8 +633,10 @@ public sealed class BattleOverlayStore
         {
             BattleOverlayLayer.PermanentInstance or BattleOverlayLayer.FormOrSnapshot
                 => payload is HeldItemOverlay or AbilityOverlay or CreatureTypesOverlay or StatsOverlay
-                    or MoveListOverlay or MoveTypeOverlay or MoveClassOverlay or FormOverlay or DecoyOverlay or MetricOverlay,
-            BattleOverlayLayer.Additive => payload is TypeAdditionOverlay or StatDeltaOverlay or MetricDeltaOverlay,
+                    or MoveListOverlay or MoveSlotOverlay or MoveTypeOverlay or MoveClassOverlay or FormOverlay or DecoyOverlay or MetricOverlay
+                    or TransformOverlay,
+            BattleOverlayLayer.Additive => payload is TypeAdditionOverlay or MoveTypeRuleOverlay
+                or StatDeltaOverlay or DerivedStatOverlay or MetricDeltaOverlay or MetricValueOverlay,
             BattleOverlayLayer.Suppression => payload is SuppressionOverlay,
             _ => false,
         };
@@ -566,6 +697,26 @@ public sealed class BattleOverlayStore
                 throw new ArgumentException("Effective moves require move/type IDs, a defined class, and nonnegative PP owner.", nameof(moves));
         }
         return result;
+    }
+
+    private static TransformOverlay NormalizeTransform(TransformOverlay transform)
+    {
+        ValidateEntity(transform.Ability, EntityCategory.Ability, "Transform ability");
+        EntityId[] types = NormalizeTypes(transform.Types, "Transform types");
+        ValidatePositiveStats(transform.Stats, "Transform stats");
+        BattleEffectiveMove[] moves = NormalizeMoves(transform.Moves)
+            .Select(move => move with
+            {
+                Definition = move.Definition.WithPpPool(move.Definition.Pp, move.Definition.MaxPp),
+            }).ToArray();
+        if (moves.Length == 0 || transform.Weight <= 0)
+            throw new ArgumentException("Transform snapshots require moves and positive weight.", nameof(transform));
+        ValidateToken(transform.FormId, "Transform form ID");
+        return transform with
+        {
+            Types = Array.AsReadOnly(types),
+            Moves = Array.AsReadOnly(moves),
+        };
     }
 
     private static EntityId[] NormalizeTypes(IReadOnlyList<EntityId> types, string label)

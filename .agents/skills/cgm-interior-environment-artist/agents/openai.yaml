@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Interior Environment Artist"
+  short_description: "Design modular interiors that match their exteriors."
+  default_prompt: "Use $cgm-interior-environment-artist to brief this interior environment kit."

@@ -119,6 +119,34 @@ public sealed class BattleControllerTests
         Assert.Equal(4, player.Moves[0].Pp);
     }
 
+    [Fact]
+    public void MoveTypeOverlayFeedsDamageQueryTypeAndStabWithoutMutatingAuthoredMove()
+    {
+        BattleMove overrideMove = new(EntityId.Parse("move:override"), Fire, DamageClass.Status,
+            null, null, 10, 0, 0,
+            secondaryEffects: [new TypeMutationEffect(BattleTypeOperation.Replace, BattleTypeSubject.User,
+                BattleTypeSource.Fixed, Grass)]);
+        BattleMove attack = new(EntityId.Parse("move:attack"), Fire, DamageClass.Special,
+            40, 100, 10, 0, 0,
+            secondaryEffects: [new MoveTypeQueryEffect(MoveTypeQuerySource.UserPrimary)]);
+        BattleCreature player = Creature(Fire, hp: 200, spe: 100, overrideMove, attack);
+        BattleCreature enemy = Creature(Grass, hp: 200, spe: 10, M(power: 1));
+        BattleController battle = Battle(player, enemy);
+
+        battle.ResolveTurn(new UseMove(0), new Pass());
+        Assert.Contains(battle.Trace, item => item.Kind == EffectTraceKind.TypeMutation);
+        Assert.Equal([Grass], battle.Overlays.Resolve(
+            new BattleOverlayOwner(BattleSide.Player, 0, new BattleSlot(BattleSide.Player, 0)),
+            PhysicalMetricFormulas.BaseEffectiveValues(player)).Values.CreatureTypes);
+        battle.ResolveTurn(new UseMove(1), new Pass());
+
+        BattleDamageQueryTraceEntry query = Assert.Single(battle.DamageQueryTrace);
+        Assert.Equal(Fire, query.Result.Identity.AuthoredType);
+        Assert.Equal(Grass, query.Result.Identity.EffectiveType);
+        Assert.Equal(new BattleQueryValue(3, 2), query.Result.Stab);
+        Assert.Equal(Fire, player.Moves[1].Type);
+    }
+
     [Theory]
     [InlineData(5)]   // out of range
     [InlineData(-1)]

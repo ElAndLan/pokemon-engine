@@ -311,6 +311,116 @@ public sealed class BattleV6HookExecutionTests
     }
 
     [Fact]
+    public void FormHpRatio_UsesWideFloorArithmeticAndKeepsLivingMinimum()
+    {
+        BattleCreature player = TimedFormCandidate();
+        player.TakeDamage(player.MaxHp - 1);
+        var battle = new BattleController(player, Slow(Inert()), Chart(), new Rng(1));
+
+        battle.ResolveTurn(new ActivateForm("giant", 0), new UseMove(0));
+
+        Assert.Equal(320, player.MaxHp);
+        Assert.Equal(2, player.CurrentHp);
+        battle.ResolveTurn(new UseMove(0), new UseMove(0));
+        Assert.Equal(160, player.MaxHp);
+        Assert.Equal(1, player.CurrentHp);
+
+        BattleCreature wide = TimedFormCandidate(20_000_000);
+        var wideBattle = new BattleController(wide, Slow(Inert()), Chart(), new Rng(1));
+        wideBattle.ResolveTurn(new ActivateForm("giant", 0), new UseMove(0));
+        Assert.Equal(32_000_000, wide.MaxHp);
+        Assert.Equal(32_000_000, wide.CurrentHp);
+    }
+
+    [Fact]
+    public void BattleTemporaryForm_OncePerSideSurvivesSwitchToAnotherEligibleOwner()
+    {
+        BattleCreature first = TemporaryFormCandidate();
+        BattleCreature second = TemporaryFormCandidate();
+        var battle = new BattleController([first, second], [Slow(Inert())], Chart(), new Rng(1));
+        battle.SetBattleItemStock(BattleSide.Player, TrainerKeyId, 1);
+
+        battle.ResolveTurn(new ActivateForm("burst", 0), new UseMove(0));
+        battle.ResolveTurn(new Switch(1), new UseMove(0));
+
+        Assert.Throws<ArgumentException>(() =>
+            battle.ResolveTurn(new ActivateForm("burst", 0), new UseMove(0)));
+        Assert.Equal("held", second.FormId);
+    }
+
+    [Fact]
+    public void BattleTemporaryForm_DoublesConflictRejectsWholeTurnBeforeMutation()
+    {
+        BattleCreature first = TemporaryFormCandidate();
+        BattleCreature second = TemporaryFormCandidate();
+        var battle = new BattleController([first, second], [Slow(Inert()), Slow(Inert())],
+            BattleTopology.Doubles, [0, 1], [0, 1], Chart(), new Rng(1));
+        battle.SetBattleItemStock(BattleSide.Player, TrainerKeyId, 1);
+        BattleSlot enemy0 = new(BattleSide.Enemy, 0);
+        BattleSlot enemy1 = new(BattleSide.Enemy, 1);
+
+        var actions = new BattleTurnActions(BattleTopology.Doubles,
+        [
+            new(new(BattleSide.Player, 0), new ActivateForm("burst", 0), new ActiveSlotSelection(enemy0)),
+            new(new(BattleSide.Player, 1), new ActivateForm("burst", 0), new ActiveSlotSelection(enemy1)),
+            new(enemy0, new Pass()),
+            new(enemy1, new Pass()),
+        ]);
+
+        Assert.Throws<ArgumentException>(() => battle.ResolveTurn(actions));
+        Assert.Equal([Normal], first.Types);
+        Assert.Equal([Normal], second.Types);
+        Assert.DoesNotContain(battle.Overlays.Snapshot(), item => item.Payload is FormOverlay);
+    }
+
+    [Fact]
+    public void FormTransition_UsesSharedOverlaySequenceAndMatchesGolden()
+    {
+        static string Run()
+        {
+            BattleCreature player = TimedFormCandidate();
+            player.TakeDamage(80);
+            var battle = new BattleController(player, Slow(Inert()), Chart(), new Rng(1));
+            BattleSlot slot = new(BattleSide.Player, 0);
+            var owner = new BattleOverlayOwner(BattleSide.Player, 0, slot);
+            battle.Overlays.Apply(new BattleOverlayApplication(owner, new(slot, 0),
+                BattleOverlayLayer.FormOrSnapshot, new CreatureTypesOverlay([Water]), 0, 0,
+                Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+
+            IReadOnlyList<BattleEvent> first = battle.ResolveTurn(new ActivateForm("giant", 0), new UseMove(0));
+            BattleEffectiveResult during = battle.Overlays.Resolve(owner,
+                PhysicalMetricFormulas.BaseEffectiveValues(player));
+            int duringMaxHp = player.MaxHp;
+            battle.Overlays.Apply(new BattleOverlayApplication(owner, new(slot, 0),
+                BattleOverlayLayer.FormOrSnapshot, new CreatureTypesOverlay([Water]), battle.Turn, 0,
+                Cleanup: BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd));
+            BattleEffectiveResult later = battle.Overlays.Resolve(owner,
+                PhysicalMetricFormulas.BaseEffectiveValues(player));
+            IReadOnlyList<BattleEvent> second = battle.ResolveTurn(new UseMove(0), new UseMove(0));
+
+            return string.Join('\n',
+            [
+                .. first.Concat(second).Select(item => item switch
+                {
+                    FormChanged changed when changed.Slot.Side == BattleSide.Player
+                        => $"form:{changed.FormId ?? "base"}",
+                    MoveUsed used when used.Slot.Side == BattleSide.Player => $"move:{used.Move}",
+                    _ => null,
+                }).Where(item => item is not null),
+                $"during:{during.Values.FormId}:{during.Values.CreatureTypes.Single()}:{duringMaxHp}",
+                $"later:{later.Values.FormId}:{later.Values.CreatureTypes.Single()}",
+                $"reverted:{player.FormId ?? "base"}:{player.CurrentHp}/{player.MaxHp}",
+                $"form-overlays:{battle.Overlays.Snapshot().Count(item => item.Payload is StatsOverlay
+                    or AbilityOverlay or MoveListOverlay or FormOverlay)}",
+            ]);
+        }
+
+        string first = Run();
+        Assert.Equal(first, Run());
+        Assert.Equal(Golden("form-transition"), first);
+    }
+
+    [Fact]
     public void WeatherSummon_AbilitySetsWeatherOnSwitchIn()
     {
         var reserve = new BattleCreature(SpeciesId, "Rain", 50, [Normal], new Stats(300, 100, 100, 100, 100, 100),
@@ -906,7 +1016,7 @@ public sealed class BattleV6HookExecutionTests
         Moves = [new MoveSlot(MoveId, 25)],
     }, Db());
 
-    private static BattleCreature TimedFormCandidate() => BattleCreature.FromInstance(new CreatureInstance
+    private static BattleCreature TimedFormCandidate(int? hpMultiplierPercent = null) => BattleCreature.FromInstance(new CreatureInstance
     {
         Species = SpeciesId,
         Level = 50,
@@ -914,9 +1024,9 @@ public sealed class BattleV6HookExecutionTests
         CurHp = 999,
         Ability = QuietAbilityId.ToString(),
         Moves = [new MoveSlot(MoveId, 25)],
-    }, Db());
+    }, Db(hpMultiplierPercent));
 
-    private static GameDb Db() => new(new ProjectSettings { Name = "T" },
+    private static GameDb Db(int? timedHpMultiplierPercent = null) => new(new ProjectSettings { Name = "T" },
     [
         new TypeDef { Id = Normal, Name = "Normal" },
         new TypeDef { Id = Water, Name = "Water" },
@@ -1037,7 +1147,7 @@ public sealed class BattleV6HookExecutionTests
                     FormId = "giant",
                     Activation = FormActivation.BattleTimed,
                     Turns = 2,
-                    HpMultiplierPercent = 200,
+                    HpMultiplierPercent = timedHpMultiplierPercent ?? 200,
                     TypeOverrides = [Fire],
                     MoveRemap = new Dictionary<EntityId, EntityId> { [MoveId] = FormMoveId },
                     Sprites = new SpeciesSprites
@@ -1115,6 +1225,10 @@ public sealed class BattleV6HookExecutionTests
             KeyItem = true,
         },
     ]);
+
+    private static string Golden(string name) => File.ReadAllText(Path.Combine(
+        AppContext.BaseDirectory, "Battle", "Goldens", $"{name}.golden"))
+        .Replace("\r\n", "\n").TrimEnd();
 
     private static IReadOnlyDictionary<string, JsonElement> Params(params (string Key, object Value)[] values) =>
         values.ToDictionary(v => v.Key, v => JsonSerializer.SerializeToElement(v.Value));

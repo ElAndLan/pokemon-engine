@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Character Portrait Artist"
+  short_description: "Create consistent dialogue portraits and expressions."
+  default_prompt: "Use $cgm-character-portrait-artist to brief this character portrait."

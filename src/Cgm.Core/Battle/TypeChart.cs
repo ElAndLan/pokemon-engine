@@ -13,6 +13,9 @@ public sealed class TypeChart
 
     public TypeChart(IEnumerable<TypeDef> types) => _types = types.ToDictionary(t => t.Id);
 
+    public IReadOnlyList<EntityId> TypeIds => _types.Keys.OrderBy(id => id.ToString(), StringComparer.Ordinal).ToArray();
+    public bool Contains(EntityId type) => _types.ContainsKey(type);
+
     /// <summary>Multiplier of <paramref name="moveType"/> attacking one defender type.</summary>
     public double Single(EntityId moveType, EntityId defenderType)
         => ToDouble(SingleValue(moveType, defenderType));

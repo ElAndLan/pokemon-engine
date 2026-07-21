@@ -77,6 +77,36 @@ public sealed class BattleActionHistoryFormulaTests
     }
 
     [Fact]
+    public void LastSuccessfulMove_IgnoresFailuresAndPassesAndClearsAtLifecycleBoundaries()
+    {
+        var history = new BattleActionHistory();
+        BattleHistoryOwner source = Owner(BattleSide.Player, 0, Player0);
+        BattleHistoryOwner incoming = Owner(BattleSide.Player, 1, Player0);
+        BattleHistoryOwner target = Owner(BattleSide.Enemy, 0, Enemy0);
+        history.BeginTurn(0, Plans(source, target));
+        Complete(history, 1, source, Chain, BattleActionResult.Succeeded, target);
+        Complete(history, 2, target, Other, BattleActionResult.Missed, source);
+
+        history.BeginTurn(1, [new(source, BattlePlannedActionKind.Other),
+            new(target, BattlePlannedActionKind.Move)]);
+        Assert.Equal(Chain, history.LastSuccessfulMove(source));
+        Assert.Null(history.LastSuccessfulMove(target));
+
+        history.RecordSwitch(source, incoming);
+        Assert.Null(history.LastSuccessfulMove(source));
+        Assert.Null(history.LastSuccessfulMove(incoming));
+
+        history.BeginTurn(2, Plans(incoming, target));
+        Complete(history, 1, incoming, Other, BattleActionResult.Connected, target);
+        Assert.Equal(Other, history.LastSuccessfulMove(incoming));
+        history.RecordFaint(incoming);
+        Assert.Null(history.LastSuccessfulMove(incoming));
+
+        history.EndBattle();
+        Assert.Null(history.LastSuccessfulMove(source));
+    }
+
+    [Fact]
     public void SideHistory_CountsOneAttemptedTurnAcrossAlliesAndAgesAfterGap()
     {
         var history = new BattleActionHistory();

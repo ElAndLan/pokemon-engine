@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Creature Sprite Artist"
+  short_description: "Translate approved creatures into registered sprites."
+  default_prompt: "Use $cgm-creature-sprite-artist to brief this creature sprite asset."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Art Director"
+  short_description: "Route and guard internal demo art production."
+  default_prompt: "Use $cgm-art-director to classify and direct this Creature Game Maker art request."

@@ -1,0 +1,8 @@
+form:giant
+move:move:stone_hit
+move:move:stone_hit
+form:base
+during:giant:type:fire:320
+later:giant:type:water
+reverted:base:80/160
+form-overlays:0

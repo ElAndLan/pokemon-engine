@@ -1,0 +1,4 @@
+used:Player:move:transform
+transformed:Player:Enemy
+trace:Player:Enemy:True:1:1-2
+state:140:type:flame:ability:target:golden_form:240:2:move:golden_copy:5

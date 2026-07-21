@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM UI and HUD Artist"
+  short_description: "Design readable pixel UI systems and component states."
+  default_prompt: "Use $cgm-ui-hud-artist to brief this UI or HUD component system."

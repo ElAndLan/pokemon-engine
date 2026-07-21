@@ -27,12 +27,14 @@ public sealed class SmartAiMemory
     public int RepeatedPlayerMoveCount { get; private set; }
     public HashSet<EntityId> SeenPlayerMoves { get; } = [];
 
-    public void ObservePlayerAction(BattleAction action, BattleCreature player)
+    public void ObservePlayerAction(BattleAction action, BattleCreature player,
+        IReadOnlyList<BattleMove>? effectiveMoves = null)
     {
-        if (action is not UseMove use || use.MoveIndex < 0 || use.MoveIndex >= player.Moves.Count)
+        IReadOnlyList<BattleMove> moves = effectiveMoves ?? player.Moves;
+        if (action is not UseMove use || use.MoveIndex < 0 || use.MoveIndex >= moves.Count)
             return;
 
-        EntityId move = player.Moves[use.MoveIndex].Move;
+        EntityId move = moves[use.MoveIndex].Move;
         RepeatedPlayerMoveCount = move == LastPlayerMove ? RepeatedPlayerMoveCount + 1 : 1;
         LastPlayerMove = move;
         SeenPlayerMoves.Add(move);
@@ -73,6 +75,8 @@ public sealed record SmartAiDecision(BattleAction Action, IReadOnlyList<AiCandid
 
 public static class SmartAi
 {
+    private static readonly StatKind[] StageStats =
+        [StatKind.Atk, StatKind.Def, StatKind.Spa, StatKind.Spd, StatKind.Spe, StatKind.Accuracy, StatKind.Evasion];
     private const int MidpointRoll = 92;
 
     public static int ChooseMove(BattleCreature attacker, BattleCreature defender, TypeChart chart, IRng rng,
@@ -111,6 +115,8 @@ public static class SmartAi
                 new BattleSlot(BattleSide.Enemy, 0))) == true;
         BattleSlot activeSlot = new(BattleSide.Enemy, 0);
         IReadOnlyList<BattleConditionInstance> conditions = context.Conditions ?? [];
+        IReadOnlyList<BattleMove> activeMoves = EffectiveMoves(active, context);
+        IReadOnlyList<BattleMove> targetMoves = EffectiveMoves(target, context);
         BattleCreature? SourceCreature(BattleConditionSource source)
         {
             if (source.Slot is not { } slot || source.PartyIndex is not { } index)
@@ -121,11 +127,13 @@ public static class SmartAi
         }
 
         IReadOnlyList<int> legalMoves = BattleActionLegality.LegalMoves(active, activeSlot,
-            context.EnemyActive, conditions, SourceCreature);
+            context.EnemyActive, conditions, SourceCreature, effectiveMoves: activeMoves,
+            sourceMoves: source => SourceCreature(source) is { } creature ? EffectiveMoves(creature, context) : null);
         foreach (int i in legalMoves)
             if (BattleActionGates.SourceHistoryAllows(
-                    active.Moves[i], active, previousActionFailed))
-                scores.Add(ScoreMove(new UseMove(i), active, target, context, weights, context.Rng));
+                    activeMoves[i], active, previousActionFailed))
+                scores.Add(ScoreMove(new UseMove(i), active, target, activeMoves, targetMoves,
+                    context, weights, context.Rng));
         if (legalMoves.Count == 0)
             scores.Add(new AiCandidateScore(new UseFallback(), 0, [new("fallback", 0)]));
 
@@ -145,10 +153,12 @@ public static class SmartAi
     }
 
     private static AiCandidateScore ScoreMove(UseMove action, BattleCreature attacker, BattleCreature defender,
+        IReadOnlyList<BattleMove> attackerMoves, IReadOnlyList<BattleMove> defenderMoves,
         SmartAiContext context, SmartAiWeights weights, IRng rng)
     {
-        BattleMove authoredMove = attacker.Moves[action.MoveIndex];
-        BattleMove? calledPreview = PreviewCalledMove(authoredMove, attacker, defender, context);
+        BattleMove authoredMove = attackerMoves[action.MoveIndex];
+        BattleMove? calledPreview = PreviewCalledMove(authoredMove, attacker, defender,
+            attackerMoves, defenderMoves, context);
         BattleMove move = calledPreview ?? authoredMove;
         var c = new List<AiScoreComponent>();
         if (authoredMove.SecondaryEffects.OfType<CallMoveEffect>().Any())
@@ -161,6 +171,87 @@ public static class SmartAi
             c.Add(new("itemMutation", 0));
         if (authoredMove.SecondaryEffects.OfType<AbilityMutationEffect>().Any())
             c.Add(new("abilityMutation", 0));
+        if (authoredMove.SecondaryEffects.OfType<DerivedStatMutationEffect>().Any())
+            c.Add(new("derivedStatMutation", 0));
+        if (authoredMove.SecondaryEffects.OfType<MetricMutationEffect>().Any())
+            c.Add(new("metricMutation", 0));
+        if (authoredMove.SecondaryEffects.OfType<DecoyEffect>().SingleOrDefault() is { } decoy)
+        {
+            c.Add(new("decoy", 0));
+            int cost = Math.Max(1, attacker.MaxHp * decoy.Fraction.Num / decoy.Fraction.Den);
+            var owner = new BattleOverlayOwner(BattleSide.Enemy, context.EnemyActive,
+                new BattleSlot(BattleSide.Enemy, 0));
+            BattleEffectiveValues values = context.Overlays is null
+                ? PhysicalMetricFormulas.BaseEffectiveValues(attacker)
+                : PhysicalMetricFormulas.EffectiveValues(attacker, context.Overlays, owner);
+            if (attacker.IsFainted || attacker.CurrentHp <= cost || values.Decoy is not null)
+            {
+                c.Add(new("decoyUnavailable", -1_000_000));
+                return new AiCandidateScore(action, c.Sum(component => component.Value), c);
+            }
+        }
+        if (authoredMove.SecondaryEffects.OfType<TransformEffect>().Any())
+        {
+            c.Add(new("transform", 0));
+            var sourceOwner = new BattleOverlayOwner(BattleSide.Enemy, context.EnemyActive,
+                new BattleSlot(BattleSide.Enemy, 0));
+            var targetOwner = new BattleOverlayOwner(BattleSide.Player, context.PlayerActive,
+                new BattleSlot(BattleSide.Player, 0));
+            if (attacker.IsFainted || defender.IsFainted || context.Overlays?.HasTransform(sourceOwner) == true
+                || context.Overlays?.HasTransform(targetOwner) == true
+                || context.Overlays is { } overlays
+                    && PhysicalMetricFormulas.EffectiveValues(defender, overlays, targetOwner).Decoy is not null
+                    && !authoredMove.Tags.Contains("sound", StringComparer.Ordinal)
+                    && !authoredMove.Tags.Contains("decoy_bypass", StringComparer.Ordinal))
+            {
+                c.Add(new("transformUnavailable", -1_000_000));
+                return new AiCandidateScore(action, c.Sum(component => component.Value), c);
+            }
+        }
+        if (authoredMove.SecondaryEffects.OfType<TemporaryMoveReplacementEffect>().Any())
+        {
+            c.Add(new("moveReplacement", 0));
+            BattleActionAttempt? currentTargetAttempt = context.ActionHistory?.Snapshot().LastOrDefault(attempt =>
+                attempt.Id.Turn == context.Turn && attempt.Source.Side == BattleSide.Player
+                    && attempt.Source.PartyIndex == context.PlayerActive);
+            var targetHistoryOwner = new BattleHistoryOwner(BattleSide.Player, context.PlayerActive,
+                new BattleSlot(BattleSide.Player, 0));
+            EntityId? lastSuccessful = context.ActionHistory is { } history
+                ? history.LastSuccessfulMove(targetHistoryOwner)
+                : defender.LastMoveUsed;
+            BattleMove? replacement = lastSuccessful is { } last
+                ? defenderMoves.FirstOrDefault(candidate => candidate.Move == last) : null;
+            var targetOwner = new BattleOverlayOwner(BattleSide.Player, context.PlayerActive,
+                new BattleSlot(BattleSide.Player, 0));
+            if (attacker.IsFainted || defender.IsFainted || replacement is null
+                || currentTargetAttempt is { Result: BattleActionResult.Prevented or BattleActionResult.Failed
+                    or BattleActionResult.Missed }
+                || replacement.IsFallback
+                || replacement.Tags.Contains(TemporaryMoveReplacementEffect.ExclusionTag,
+                    StringComparer.Ordinal)
+                || attackerMoves.Any(candidate => candidate.Move == replacement.Move)
+                || context.Overlays is { } overlays
+                    && PhysicalMetricFormulas.EffectiveValues(defender, overlays, targetOwner).Decoy is not null
+                    && !authoredMove.Tags.Contains("sound", StringComparer.Ordinal)
+                    && !authoredMove.Tags.Contains("decoy_bypass", StringComparer.Ordinal))
+            {
+                c.Add(new("moveReplacementUnavailable", -1_000_000));
+                return new AiCandidateScore(action, c.Sum(component => component.Value), c);
+            }
+        }
+        StatStageMutationEffect[] stageMutations = authoredMove.SecondaryEffects
+            .OfType<StatStageMutationEffect>().ToArray();
+        if (stageMutations.Length > 0)
+        {
+            c.Add(new("statStageMutation", 0));
+            if (stageMutations.All(effect => !StatStageMutationWouldChange(effect, attacker, defender))
+                && authoredMove.DamageClass == DamageClass.Status
+                && authoredMove.SecondaryEffects.All(effect => effect is StatStageMutationEffect or HpCostEffect))
+            {
+                c.Add(new("statStageMutationNoEffect", -1_000_000));
+                return new AiCandidateScore(action, c.Sum(component => component.Value), c);
+            }
+        }
         if (KnownItemRequirementFails(authoredMove, attacker, context))
         {
             c.Add(new("itemRequirement", -1_000_000));
@@ -256,6 +347,18 @@ public static class SmartAi
         if (move.StageEffect is { OnSelf: true, Delta: > 0 } setup
             && !ThreatensKo(defender, attacker, context.Chart, context))
             c.Add(new("setup", weights.SetupValue * setup.Delta));
+        if (!ThreatensKo(defender, attacker, context.Chart, context))
+        {
+            int setupStages = stageMutations.Where(effect => effect.Subject == StageEffectScope.Self)
+                .Sum(effect => effect.Operation switch
+                {
+                    StatStageMutationOperation.Maximize => StatStages.Max - attacker.Stage(effect.Stat!.Value),
+                    StatStageMutationOperation.Random => effect.Delta!.Value,
+                    _ => 0,
+                });
+            if (setupStages > 0)
+                c.Add(new("setup", weights.SetupValue * setupStages));
+        }
 
         if (move.SecondaryEffects.OfType<SetEntryHazardEffect>().Any(effect =>
                 CanAddHazard(context, BattleSide.Player, effect.Hazard))
@@ -340,8 +443,22 @@ public static class SmartAi
         });
     }
 
+    private static bool StatStageMutationWouldChange(StatStageMutationEffect effect,
+        BattleCreature attacker, BattleCreature defender)
+    {
+        BattleCreature subject = effect.Subject == StageEffectScope.Self ? attacker : defender;
+        return effect.Operation switch
+        {
+            StatStageMutationOperation.Maximize => subject.Stage(effect.Stat!.Value) < StatStages.Max,
+            StatStageMutationOperation.Random => StageStats.Any(stat => subject.Stage(stat) < StatStages.Max),
+            StatStageMutationOperation.Steal => StageStats.Any(stat => defender.Stage(stat) > 0),
+            _ => false,
+        };
+    }
+
     private static BattleMove? PreviewCalledMove(BattleMove authored, BattleCreature attacker,
-        BattleCreature defender, SmartAiContext context)
+        BattleCreature defender, IReadOnlyList<BattleMove> attackerMoves,
+        IReadOnlyList<BattleMove> defenderMoves, SmartAiContext context)
     {
         BattleMove current = authored;
         for (int depth = 0; depth < MoveReferenceResolver.MaximumDepth; depth++)
@@ -354,10 +471,10 @@ public static class SmartAi
                 .Concat(context.MoveData?.Values ?? []);
             IEnumerable<BattleMove> candidates = call.Profile.Selector switch
             {
-                MoveReferenceSelector.UserKnown => attacker.Moves,
-                MoveReferenceSelector.TargetKnown => defender.Moves,
-                MoveReferenceSelector.UserLastUsed => attacker.Moves.Where(move => move.Move == attacker.LastMoveUsed),
-                MoveReferenceSelector.TargetLastUsed => defender.Moves.Where(move => move.Move == defender.LastMoveUsed),
+                MoveReferenceSelector.UserKnown => attackerMoves,
+                MoveReferenceSelector.TargetKnown => defenderMoves,
+                MoveReferenceSelector.UserLastUsed => attackerMoves.Where(move => move.Move == attacker.LastMoveUsed),
+                MoveReferenceSelector.TargetLastUsed => defenderMoves.Where(move => move.Move == defender.LastMoveUsed),
                 MoveReferenceSelector.PartyKnown => context.EnemyParty
                     .Where((_, partyIndex) => partyIndex != context.EnemyActive)
                     .SelectMany(creature => creature.Moves),
@@ -438,7 +555,7 @@ public static class SmartAi
 
     private static double BestDamage(BattleCreature attacker, BattleCreature defender, TypeChart chart,
         SmartAiContext? context = null, IReadOnlyList<BattleCreature>? sourceParty = null, int sourceIndex = 0) =>
-        attacker.Moves.Where(m => m.HasPp).Select(move =>
+        EffectiveMoves(attacker, context).Where(m => m.HasPp).Select(move =>
         {
             if (context is null)
                 return ExpectedDamage(attacker, defender, move, chart);
@@ -462,7 +579,7 @@ public static class SmartAi
     {
         if (context.Memory?.RepeatedPlayerMoveCount >= 2
             && context.Memory.LastPlayerMove is { } last
-            && attacker.Moves.FirstOrDefault(m => m.Move == last && m.HasPp) is { } repeated)
+            && EffectiveMoves(attacker, context).FirstOrDefault(m => m.Move == last && m.HasPp) is { } repeated)
         {
             FieldMovePreview weather = PreviewFieldMove(context, repeated, attacker, defender);
             return ExpectedDamage(attacker, defender, repeated, context.Chart, weather: weather,
@@ -488,7 +605,7 @@ public static class SmartAi
     {
         BattleEffectiveValues sourceValues = EffectiveValues(attacker, context);
         BattleEffectiveValues targetValues = EffectiveValues(defender, context);
-        int moveSlot = MoveSlot(attacker, move);
+        int moveSlot = MoveSlot(sourceValues.Moves, move);
         EntityId? conditionType = weather is { TypeOverridden: true } ? weather.Type : null;
         BattleMoveIdentityQueryResult identity = BattleDamageQueries.Identity(move, moveSlot,
             attacker, sourceValues, context?.Environment ?? BattleEnvironmentState.Resolve(BattleEnvironment.Building),
@@ -954,10 +1071,13 @@ public static class SmartAi
             new BattleOverlayOwner(side, partyIndex, slot));
     }
 
-    private static int MoveSlot(BattleCreature creature, BattleMove move)
+    private static IReadOnlyList<BattleMove> EffectiveMoves(BattleCreature creature, SmartAiContext? context) =>
+        EffectiveValues(creature, context).Moves.Select(move => move.Definition).ToArray();
+
+    private static int MoveSlot(IReadOnlyList<BattleEffectiveMove> moves, BattleMove move)
     {
-        for (int index = 0; index < creature.Moves.Count; index++)
-            if (ReferenceEquals(creature.Moves[index], move))
+        for (int index = 0; index < moves.Count; index++)
+            if (ReferenceEquals(moves[index].Definition, move))
                 return index;
         throw new InvalidOperationException("AI move preview requires a move owned by the source creature.");
     }
@@ -1047,11 +1167,4 @@ public static class SmartAi
 
     private static double HpFraction(BattleCreature c) => c.CurrentHp / (double)c.MaxHp;
 
-    private static int FirstUsableOrZero(BattleCreature attacker)
-    {
-        for (int i = 0; i < attacker.Moves.Count; i++)
-            if (attacker.Moves[i].HasPp)
-                return i;
-        return 0;
-    }
 }

@@ -227,6 +227,93 @@ public sealed class BattleOverlayStoreTests
         Assert.Throws<ArgumentOutOfRangeException>(() => store.Resolve(Owner, Base()));
     }
 
+    [Fact]
+    public void Phase15F6NestedSnapshotMatrixRevealsAndCleansExactFamilies()
+    {
+        var package = SnapshotPackage();
+        BattleEffectiveResult resolver = package.Store.Resolve(Owner, package.Base, turn: 1, actionSequence: 1);
+        BattleEffectiveResult preview = package.Store.Resolve(Owner, package.Base, turn: 1, actionSequence: 1);
+        Assert.Equal(resolver.Trace, preview.Trace);
+        BattleEffectiveValues activeForm = resolver.Values;
+        Assert.Equal("active_form", activeForm.FormId);
+        Assert.Equal([Tide], activeForm.CreatureTypes);
+        Assert.Equal(new BattleDecoyState(12, 12), activeForm.Decoy);
+        Assert.Equal(["form_zero", "form_one"], activeForm.Moves.Select(move => move.Definition.Move.Slug));
+
+        package.Store.Remove(package.FormSequences, 1, 1);
+        BattleEffectiveValues replacement = package.Store.Resolve(Owner, package.Base).Values;
+        Assert.Equal("captured_form", replacement.FormId);
+        Assert.Equal(["replacement", "transform_one"], replacement.Moves
+            .Select(move => move.Definition.Move.Slug));
+        Assert.Equal((5, 5), (replacement.Moves[0].Definition.Pp, replacement.Moves[0].Definition.MaxPp));
+        Assert.Equal(new BattleDecoyState(12, 12), replacement.Decoy);
+
+        package.Store.Remove([package.ReplacementSequence], 1, 2);
+        Assert.Equal(["transform_zero", "transform_one"], package.Store.Resolve(Owner, package.Base).Values.Moves
+            .Select(move => move.Definition.Move.Slug));
+        package.Store.Remove([package.TransformSequence], 1, 3);
+        BattleEffectiveValues authored = package.Store.Resolve(Owner, package.Base).Values;
+        Assert.Equal(["base_zero", "base_one"], authored.Moves.Select(move => move.Definition.Move.Slug));
+        Assert.Equal(new BattleDecoyState(12, 12), authored.Decoy);
+        Assert.All(package.Base.Moves, move => Assert.Equal((20, 20),
+            (move.Definition.Pp, move.Definition.MaxPp)));
+
+        package.Store.OwnerSwitched(BattleSide.Player, 2, Player1, 2, 1);
+        Assert.Null(package.Store.Resolve(Owner with { Slot = Player1 }, package.Base).Values.Decoy);
+
+        var lifecycle = SnapshotPackage();
+        BattleOverlayChangeSet switched = lifecycle.Store.OwnerSwitched(
+            BattleSide.Player, 2, Player1, 2, 2);
+        BattleOverlayOwner destination = Owner with { Slot = Player1 };
+        Assert.Equal("active_form", lifecycle.Store.Resolve(destination, lifecycle.Base).Values.FormId);
+        Assert.Equal(3, switched.Trace.Count(trace => trace.Kind == BattleOverlayTraceKind.Removed
+            && trace.RemovalReason == BattleOverlayRemovalReason.Switch));
+        Assert.Equal(5, switched.Trace.Count(trace => trace.Kind == BattleOverlayTraceKind.Transferred));
+        BattleOverlayChangeSet fainted = lifecycle.Store.OwnerFainted(BattleSide.Player, 2, 2, 3);
+        Assert.Equal(5, fainted.Trace.Count(trace => trace.RemovalReason == BattleOverlayRemovalReason.Faint));
+        Assert.Empty(lifecycle.Store.Snapshot());
+
+        var ending = SnapshotPackage();
+        BattleOverlayChangeSet ended = ending.Store.EndBattle(3, 1);
+        Assert.Equal(8, ended.Trace.Count(trace => trace.RemovalReason == BattleOverlayRemovalReason.BattleEnd));
+        Assert.Empty(ending.Store.Snapshot());
+    }
+
+    [Fact]
+    public void Phase15F6PackageLifecycleMatchesCumulativeGolden()
+    {
+        static string Run()
+        {
+            var reveal = SnapshotPackage();
+            var rows = new List<string> { $"active:{PackageState(reveal.Store, Owner, reveal.Base)}" };
+            reveal.Store.Remove(reveal.FormSequences, 1, 1);
+            rows.Add($"without-form:{PackageState(reveal.Store, Owner, reveal.Base)}");
+            reveal.Store.Remove([reveal.ReplacementSequence], 1, 2);
+            rows.Add($"without-replacement:{PackageState(reveal.Store, Owner, reveal.Base)}");
+            reveal.Store.Remove([reveal.TransformSequence], 1, 3);
+            rows.Add($"authored-plus-decoy:{PackageState(reveal.Store, Owner, reveal.Base)}");
+            reveal.Store.OwnerSwitched(BattleSide.Player, 2, Player1, 2, 1);
+            rows.Add($"after-switch:{PackageState(reveal.Store, Owner with { Slot = Player1 }, reveal.Base)}");
+
+            var lifecycle = SnapshotPackage();
+            BattleOverlayChangeSet switched = lifecycle.Store.OwnerSwitched(
+                BattleSide.Player, 2, Player1, 2, 2);
+            rows.Add($"nested-switch:{TraceCounts(switched)}:{PackageState(lifecycle.Store,
+                Owner with { Slot = Player1 }, lifecycle.Base)}");
+            BattleOverlayChangeSet fainted = lifecycle.Store.OwnerFainted(BattleSide.Player, 2, 2, 3);
+            rows.Add($"nested-faint:{TraceCounts(fainted)}:{lifecycle.Store.Snapshot().Count}");
+
+            var ending = SnapshotPackage();
+            BattleOverlayChangeSet ended = ending.Store.EndBattle(3, 1);
+            rows.Add($"battle-end:{TraceCounts(ended)}:{ending.Store.Snapshot().Count}");
+            return string.Join('\n', rows);
+        }
+
+        string first = Run();
+        Assert.Equal(first, Run());
+        Assert.Equal(Golden("snapshot-package"), first);
+    }
+
     private static BattleOverlayApplication App(BattleOverlayPayload payload,
         BattleOverlayLayer layer = BattleOverlayLayer.FormOrSnapshot,
         BattleOverlayCleanup cleanup = BattleOverlayCleanup.BattleEnd,
@@ -246,6 +333,63 @@ public sealed class BattleOverlayStoreTests
             [BattleMetric.Weight] = 100,
             [BattleMetric.Height] = 10,
         });
+
+    private static (BattleOverlayStore Store, BattleEffectiveValues Base, long TransformSequence,
+        long ReplacementSequence, long[] FormSequences) SnapshotPackage()
+    {
+        BattleMove baseZero = Move("base_zero", Normal, DamageClass.Physical);
+        BattleMove baseOne = Move("base_one", Ember, DamageClass.Special);
+        BattleEffectiveValues template = Base();
+        var baseValues = new BattleEffectiveValues(template.HeldItem, template.Ability,
+            template.CreatureTypes, template.Stats,
+            [BattleEffectiveMove.FromBase(baseZero, 0), BattleEffectiveMove.FromBase(baseOne, 1)],
+            template.FormId, template.Decoy, template.Metrics, template.MoveTypeRules);
+        var store = new BattleOverlayStore();
+        BattleOverlayCleanup clearsOnExit = BattleOverlayCleanup.Switch | BattleOverlayCleanup.Faint
+            | BattleOverlayCleanup.BattleEnd;
+        store.Apply(App(new DecoyOverlay(new BattleDecoyState(12, 12)), cleanup: clearsOnExit));
+        BattleMove transformZero = Move("transform_zero", Ember, DamageClass.Special).WithPpPool(5, 5);
+        BattleMove transformOne = Move("transform_one", Tide, DamageClass.Physical).WithPpPool(5, 5);
+        long transform = Assert.Single(store.Apply(App(new TransformOverlay(NewAbility, [Ember],
+            new Stats(80, 81, 82, 83, 84, 85),
+            [BattleEffectiveMove.FromBase(transformZero, 0), BattleEffectiveMove.FromBase(transformOne, 1)],
+            "captured_form", 140), cleanup: clearsOnExit)).Affected).Sequence;
+        BattleMove replacementMove = Move("replacement", Tide, DamageClass.Special).WithPpPool(5, 5);
+        long replacement = Assert.Single(store.Apply(App(new MoveSlotOverlay(0,
+            BattleEffectiveMove.FromBase(replacementMove, 0)), cleanup: clearsOnExit)).Affected).Sequence;
+
+        BattleMove formZero = Move("form_zero", Tide, DamageClass.Special);
+        BattleMove formOne = Move("form_one", Tide, DamageClass.Physical);
+        BattleOverlayCleanup formCleanup = BattleOverlayCleanup.Faint | BattleOverlayCleanup.BattleEnd;
+        long[] form = store.ApplyMany(
+        [
+            App(new StatsOverlay(new Stats(90, 91, 92, 93, 94, 95)), cleanup: formCleanup),
+            App(new CreatureTypesOverlay([Tide]), cleanup: formCleanup),
+            App(new AbilityOverlay(BaseAbility), cleanup: formCleanup),
+            App(new MoveListOverlay([BattleEffectiveMove.FromBase(formZero, 0),
+                BattleEffectiveMove.FromBase(formOne, 1)]), cleanup: formCleanup),
+            App(new FormOverlay("active_form"), cleanup: formCleanup),
+        ]).Affected.Select(entry => entry.Sequence).ToArray();
+        return (store, baseValues, transform, replacement, form);
+    }
+
+    private static string PackageState(BattleOverlayStore store, BattleOverlayOwner owner,
+        BattleEffectiveValues baseValues)
+    {
+        BattleEffectiveValues values = store.Resolve(owner, baseValues).Values;
+        return $"{values.FormId ?? "base"}:{values.Ability}:{string.Join(',', values.CreatureTypes)}:"
+            + $"{string.Join(',', values.Moves.Select(move => $"{move.Definition.Move.Slug}@{move.Definition.Pp}"))}:"
+            + $"{values.Decoy?.Hp ?? 0}";
+    }
+
+    private static string TraceCounts(BattleOverlayChangeSet changes) => string.Join(',', changes.Trace
+        .GroupBy(trace => $"{trace.Kind}/{trace.RemovalReason?.ToString() ?? "None"}")
+        .OrderBy(group => group.Key, StringComparer.Ordinal)
+        .Select(group => $"{group.Key}={group.Count()}"));
+
+    private static string Golden(string name) => File.ReadAllText(Path.Combine(
+        AppContext.BaseDirectory, "Battle", "Goldens", $"{name}.golden"))
+        .Replace("\r\n", "\n").TrimEnd();
 
     private static BattleMove Move(string slug, EntityId type, DamageClass damageClass) =>
         new(EntityId.Parse($"move:{slug}"), type, damageClass, 40, 100, 20, 0, 0);

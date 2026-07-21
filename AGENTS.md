@@ -17,7 +17,10 @@ This file is binding. If anything you are about to do conflicts with it, stop an
 4. `docs/ARCHITECTURE_ADDENDUM.md` - **wins over MASTER_PLAN.md on every conflict.**
 5. `docs/MASTER_PLAN.md` - product vision and older full plan, as amended by the files above.
 6. `docs/AGENTS.md` - task-area to owning-spec map.
-7. The spec that owns your task area. If its relevant section is incomplete, consult
+7. For any move-engine, move-normalization, move-conformance, or move-migration task, read
+   `docs/MOVE_MIGRATION_MASTER_PLAN.md`. Its workflow is binding and must be applied before the
+   detailed battle/effect/audit specs.
+8. The spec that owns your task area. If its relevant section is incomplete, consult
    `IMPLEMENTATION_PLAN.md` v4's package contract. When that contract supplies locked defaults and
    marks specification work authorized, complete/reconcile the owning spec first and proceed without
    another user confirmation. Block only when neither document resolves a mechanically significant

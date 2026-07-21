@@ -81,6 +81,7 @@ public sealed class BattleActionHistory
     private readonly Dictionary<(BattleSide Side, int Party), Streak> _creatureStreaks = [];
     private readonly Dictionary<(BattleSide Side, EntityId Move), Streak> _sideStreaks = [];
     private readonly Dictionary<(BattleSide Side, int Party), BattleActionResult> _lastResults = [];
+    private readonly Dictionary<(BattleSide Side, int Party), EntityId> _lastSuccessfulMoves = [];
     private readonly HashSet<(int Turn, BattleSide Side)> _faints = [];
     private int _currentTurn = -1;
 
@@ -192,6 +193,8 @@ public sealed class BattleActionHistory
             return;
         }
         _lastResults[sourceKey] = result;
+        if (result is BattleActionResult.Succeeded or BattleActionResult.Connected)
+            _lastSuccessfulMoves[sourceKey] = pending.Move;
         if (result == BattleActionResult.Connected)
         {
             Streak next = _creatureStreaks.TryGetValue(sourceKey, out Streak? previous)
@@ -212,6 +215,8 @@ public sealed class BattleActionHistory
         ValidateOwner(incoming);
         ClearCreature(outgoing);
         ClearCreature(incoming);
+        _lastSuccessfulMoves.Remove(Key(outgoing));
+        _lastSuccessfulMoves.Remove(Key(incoming));
         if (_currentTurn >= 0)
             _switched.Add(Key(incoming));
     }
@@ -219,6 +224,7 @@ public sealed class BattleActionHistory
     public void RecordFaint(BattleHistoryOwner owner)
     {
         ValidateOwner(owner);
+        _lastSuccessfulMoves.Remove(Key(owner));
         if (_currentTurn >= 0)
         {
             _faints.Add((_currentTurn, owner.Side));
@@ -244,6 +250,12 @@ public sealed class BattleActionHistory
         ValidateOwner(source);
         return _lastResults.TryGetValue(Key(source), out BattleActionResult result)
             && result is BattleActionResult.Prevented or BattleActionResult.Failed or BattleActionResult.Missed;
+    }
+
+    public EntityId? LastSuccessfulMove(BattleHistoryOwner source)
+    {
+        ValidateOwner(source);
+        return _lastSuccessfulMoves.TryGetValue(Key(source), out EntityId move) ? move : null;
     }
 
     public DamageClass? PlannedMoveClass(BattleHistoryOwner owner)
@@ -324,6 +336,7 @@ public sealed class BattleActionHistory
         _creatureStreaks.Clear();
         _sideStreaks.Clear();
         _lastResults.Clear();
+        _lastSuccessfulMoves.Clear();
         _faints.Clear();
         _currentTurn = -1;
     }

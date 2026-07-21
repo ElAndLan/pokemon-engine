@@ -47,7 +47,7 @@ public static class BattleDamageQueries
                 "Unknown effective damage class.");
         if (conditionType is { } replacementType)
             ValidateType(replacementType, nameof(conditionType));
-        EntityId type = conditionType ?? effectiveMove.Type;
+        EntityId type = EffectiveType(move, sourceValues, effectiveMove.Type, conditionType);
         DamageClass damageClass = effectiveMove.DamageClass;
         if (move.SecondaryEffects.OfType<DamageClassQueryEffect>().SingleOrDefault() is { } classQuery)
         {
@@ -62,6 +62,27 @@ public static class BattleDamageQueries
         }
         return new BattleMoveIdentityQueryResult(move.Type, type, move.DamageClass, damageClass,
             environment.Natural, environment.Effective);
+    }
+
+    public static EntityId EffectiveType(BattleMove move, BattleEffectiveValues sourceValues,
+        EntityId effectiveMoveType, EntityId? conditionType = null)
+    {
+        ArgumentNullException.ThrowIfNull(move);
+        ArgumentNullException.ThrowIfNull(sourceValues);
+        ValidateType(effectiveMoveType, nameof(effectiveMoveType));
+        if (conditionType is { } replacementType)
+            ValidateType(replacementType, nameof(conditionType));
+        EntityId type = move.SecondaryEffects.OfType<MoveTypeQueryEffect>().SingleOrDefault() is
+            { Source: MoveTypeQuerySource.UserPrimary }
+            ? sourceValues.CreatureTypes.First()
+            : effectiveMoveType;
+        if (conditionType is { } replacement)
+            type = replacement;
+        foreach (BattleMoveTypeRule rule in sourceValues.MoveTypeRules)
+            if (rule.MatchType is null || rule.MatchType == type)
+                type = rule.Type;
+        ValidateType(type, nameof(sourceValues));
+        return type;
     }
 
     public static BattleDamageQueryResult Resolve(BattleMove move,

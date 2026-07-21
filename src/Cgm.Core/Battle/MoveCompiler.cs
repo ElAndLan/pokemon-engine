@@ -178,6 +178,92 @@ public static class MoveCompiler
                     effects.Add(new ItemRequireEffect(requireSubject, requirement));
                     break;
 
+                case "typeRequire":
+                    if (chance != 100)
+                        throw new ArgumentException("typeRequire does not support chance.");
+                    CheckAllowedParams(e, "subject", "type");
+                    BattleTypeSubject typeRequireSubject = ParseNamed<BattleTypeSubject>(
+                        Str(e, "subject"), "type requirement subject");
+                    EntityId requiredType = ParseTypeEntityId(Str(e, "type"), "typeRequire type");
+                    if (typeRequireSubject == BattleTypeSubject.AllActive
+                        || typeRequireSubject == BattleTypeSubject.Target && !IsActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("typeRequire subject is incompatible with the move target.");
+                    effects.Add(new TypeRequireEffect(typeRequireSubject, requiredType));
+                    break;
+
+                case "typeMutation":
+                    if (chance != 100)
+                        throw new ArgumentException("typeMutation does not support chance.");
+                    CheckAllowedParams(e, "operation", "subject", "source", "type", "fallbackType",
+                        "environment", "duration", "required");
+                    BattleTypeOperation typeOperation = ParseNamed<BattleTypeOperation>(
+                        Str(e, "operation"), "type mutation operation");
+                    BattleTypeSubject typeSubject = e.Params?.ContainsKey("subject") == true
+                        ? ParseNamed<BattleTypeSubject>(Str(e, "subject"), "type mutation subject")
+                        : typeOperation == BattleTypeOperation.Remove ? BattleTypeSubject.User : BattleTypeSubject.Target;
+                    BattleTypeSource typeSource = e.Params?.ContainsKey("source") == true
+                        ? ParseNamed<BattleTypeSource>(Str(e, "source"), "type mutation source")
+                        : typeOperation == BattleTypeOperation.Copy ? BattleTypeSource.Target : BattleTypeSource.Fixed;
+                    EntityId? mutationType = e.Params?.ContainsKey("type") == true
+                        ? ParseTypeEntityId(Str(e, "type"), "typeMutation type") : null;
+                    EntityId? fallbackType = e.Params?.ContainsKey("fallbackType") == true
+                        ? ParseTypeEntityId(Str(e, "fallbackType"), "typeMutation fallbackType") : null;
+                    IReadOnlyDictionary<BattleEnvironment, EntityId>? environmentTypes =
+                        e.Params?.ContainsKey("environment") == true
+                            ? ParseEnvironmentTypes(Str(e, "environment")) : null;
+                    int? typeDuration = e.Params?.ContainsKey("duration") == true ? Int(e, "duration") : null;
+                    bool typeRequired = e.Params?.ContainsKey("required") != true || RequiredBool(e, "required");
+                    bool fixedOperation = typeOperation is BattleTypeOperation.Add or BattleTypeOperation.Remove
+                        || typeOperation == BattleTypeOperation.Replace && typeSource == BattleTypeSource.Fixed;
+                    bool sourceOperation = typeOperation == BattleTypeOperation.Copy
+                        && typeSource is BattleTypeSource.User or BattleTypeSource.Target
+                        || typeOperation == BattleTypeOperation.Replace
+                            && typeSource is BattleTypeSource.Target or BattleTypeSource.FirstMove
+                                or BattleTypeSource.Environment or BattleTypeSource.ResistantToLastDamage;
+                    if (typeSubject == BattleTypeSubject.AllActive
+                        || typeSubject == BattleTypeSubject.Target && !IsActiveCreatureTarget(move.Target)
+                        || !fixedOperation && !sourceOperation
+                        || fixedOperation != mutationType.HasValue
+                        || (typeSource == BattleTypeSource.Environment) != (environmentTypes is not null)
+                        || typeSource != BattleTypeSource.Environment && environmentTypes is not null
+                        || fallbackType.HasValue != (typeOperation == BattleTypeOperation.Remove)
+                        || typeDuration is not null && (typeOperation != BattleTypeOperation.Remove || typeDuration != 1)
+                        || !typeRequired && typeOperation != BattleTypeOperation.Remove)
+                        throw new ArgumentException("typeMutation parameters do not match its operation, source, or target.");
+                    if (effects.OfType<TypeMutationEffect>().Count() >= 2)
+                        throw new ArgumentException("A move can declare at most two ordered typeMutation effects.");
+                    effects.Add(new TypeMutationEffect(typeOperation, typeSubject, typeSource, mutationType,
+                        fallbackType, environmentTypes, typeDuration, typeRequired));
+                    break;
+
+                case "moveTypeQuery":
+                    if (chance != 100)
+                        throw new ArgumentException("moveTypeQuery does not support chance.");
+                    CheckAllowedParams(e, "source");
+                    if (effects.OfType<MoveTypeQueryEffect>().Any())
+                        throw new ArgumentException("A move can declare only one moveTypeQuery effect.");
+                    effects.Add(new MoveTypeQueryEffect(ParseNamed<MoveTypeQuerySource>(
+                        Str(e, "source"), "move-type query source")));
+                    break;
+
+                case "moveTypeOverride":
+                    if (chance != 100)
+                        throw new ArgumentException("moveTypeOverride does not support chance.");
+                    CheckAllowedParams(e, "subject", "type", "matchType", "duration");
+                    BattleTypeSubject overrideSubject = ParseNamed<BattleTypeSubject>(
+                        Str(e, "subject"), "move-type override subject");
+                    EntityId overrideType = ParseTypeEntityId(Str(e, "type"), "moveTypeOverride type");
+                    EntityId? matchType = e.Params?.ContainsKey("matchType") == true
+                        ? ParseTypeEntityId(Str(e, "matchType"), "moveTypeOverride matchType") : null;
+                    int overrideDuration = Int(e, "duration");
+                    if (overrideDuration != 1 || overrideSubject == BattleTypeSubject.User
+                        || overrideSubject == BattleTypeSubject.Target && !IsActiveCreatureTarget(move.Target)
+                        || overrideSubject == BattleTypeSubject.AllActive && move.Target != MoveTarget.EntireField)
+                        throw new ArgumentException("moveTypeOverride requires duration one and a compatible target scope.");
+                    effects.Add(new MoveTypeOverrideEffect(overrideSubject, overrideType, matchType,
+                        overrideDuration));
+                    break;
+
                 case "itemMutation":
                     if (chance != 100)
                         throw new ArgumentException("itemMutation does not support chance.");
@@ -1271,6 +1357,42 @@ public static class MoveCompiler
                     effects.Add(new HpCostEffect(cost, Bool(e, "allowFaint")));
                     break;
 
+                case "decoy":
+                    if (chance != 100)
+                        throw new ArgumentException("decoy does not support chance.");
+                    CheckAllowedParams(e, "num", "den");
+                    Fraction decoy = ReadFraction(e, 1, 4);
+                    if (move.DamageClass != DamageClass.Status || move.Target != MoveTarget.User
+                        || decoy.Num <= 0 || decoy.Den <= 0 || decoy.Num >= decoy.Den)
+                        throw new ArgumentException("decoy requires a status move targeting User and a fraction between zero and one.");
+                    if (effects.OfType<DecoyEffect>().Any())
+                        throw new ArgumentException("A move can declare only one decoy effect.");
+                    effects.Add(new DecoyEffect(decoy));
+                    break;
+
+                case "transform":
+                    if (chance != 100)
+                        throw new ArgumentException("transform does not support chance.");
+                    CheckAllowedParams(e);
+                    if (move.DamageClass != DamageClass.Status || move.Target != MoveTarget.Selected)
+                        throw new ArgumentException("transform requires a status move targeting Selected.");
+                    if (effects.OfType<TransformEffect>().Any())
+                        throw new ArgumentException("A move can declare only one transform effect.");
+                    effects.Add(new TransformEffect());
+                    break;
+
+                case "temporaryMoveReplacement":
+                    if (chance != 100)
+                        throw new ArgumentException("temporaryMoveReplacement does not support chance.");
+                    CheckAllowedParams(e);
+                    if (move.DamageClass != DamageClass.Status || move.Target != MoveTarget.Selected)
+                        throw new ArgumentException("temporaryMoveReplacement requires a status move targeting Selected.");
+                    if (effects.OfType<TemporaryMoveReplacementEffect>().Any())
+                        throw new ArgumentException("A move can declare only one temporaryMoveReplacement effect.");
+                    effects.Add(new TemporaryMoveReplacementEffect());
+                    moveTags.Add(TemporaryMoveReplacementEffect.ExclusionTag);
+                    break;
+
                 case "statStageReset":
                     CheckAllowedParams(e, "scope");
                     AddChanceEffect(effects, new StatResetEffect(Parse<StageEffectScope>(Str(e, "scope"), "scope")), chance);
@@ -1294,6 +1416,76 @@ public static class MoveCompiler
                 case "statStageInvert":
                     CheckAllowedParams(e, "onSelf");
                     AddChanceEffect(effects, new StatInvertEffect(Bool(e, "onSelf") || move.Target == MoveTarget.User), chance);
+                    break;
+
+                case "statStageMutation":
+                    if (chance != 100)
+                        throw new ArgumentException("statStageMutation does not support chance.");
+                    CheckAllowedParams(e, "operation", "subject", "stat", "delta");
+                    StatStageMutationOperation stageOperation = ParseNamed<StatStageMutationOperation>(
+                        Str(e, "operation"), "stat-stage mutation operation");
+                    StageEffectScope stageSubject = e.Params?.ContainsKey("subject") == true
+                        ? ParseSingleScope(Str(e, "subject"), "subject")
+                        : move.Target == MoveTarget.User ? StageEffectScope.Self : StageEffectScope.Target;
+                    StatKind? mutationStat = e.Params?.ContainsKey("stat") == true
+                        ? ParseStat(Str(e, "stat")) : null;
+                    int? mutationDelta = e.Params?.ContainsKey("delta") == true ? Int(e, "delta") : null;
+                    bool maximize = stageOperation == StatStageMutationOperation.Maximize;
+                    bool random = stageOperation == StatStageMutationOperation.Random;
+                    bool steal = stageOperation == StatStageMutationOperation.Steal;
+                    if (mutationStat == StatKind.Hp
+                        || maximize != mutationStat.HasValue
+                        || random != mutationDelta.HasValue
+                        || mutationDelta is <= 0 or > 6
+                        || steal && (stageSubject != StageEffectScope.Target || mutationStat.HasValue || mutationDelta.HasValue)
+                        || !steal && stageSubject == StageEffectScope.Both
+                        || stageSubject == StageEffectScope.Target
+                            && (move.Target == MoveTarget.User || !IsActiveCreatureTarget(move.Target)))
+                        throw new ArgumentException("statStageMutation parameters are incompatible with its operation or target.");
+                    effects.Add(new StatStageMutationEffect(stageOperation, stageSubject, mutationStat, mutationDelta));
+                    break;
+
+                case "derivedStatMutation":
+                    if (chance != 100)
+                        throw new ArgumentException("derivedStatMutation does not support chance.");
+                    CheckAllowedParams(e, "operation", "stat", "group");
+                    BattleDerivedStatOperation derivedOperation = ParseNamed<BattleDerivedStatOperation>(
+                        Str(e, "operation"), "derived-stat mutation operation");
+                    StatKind? derivedStat = e.Params?.ContainsKey("stat") == true
+                        ? ParseStat(Str(e, "stat")) : null;
+                    BattleDerivedStatGroup? derivedGroup = e.Params?.ContainsKey("group") == true
+                        ? ParseNamed<BattleDerivedStatGroup>(Str(e, "group"), "derived-stat group") : null;
+                    bool split = derivedOperation == BattleDerivedStatOperation.Split;
+                    if (!IsSingleActiveCreatureTarget(move.Target)
+                        || split != derivedGroup.HasValue
+                        || split == derivedStat.HasValue
+                        || derivedStat is StatKind.Hp or StatKind.Accuracy or StatKind.Evasion)
+                        throw new ArgumentException("derivedStatMutation requires one compatible stat or group and one active target.");
+                    effects.Add(new DerivedStatMutationEffect(derivedOperation, derivedStat, derivedGroup));
+                    break;
+
+                case "metricMutation":
+                    if (chance != 100)
+                        throw new ArgumentException("metricMutation does not support chance.");
+                    CheckAllowedParams(e, "operation", "subject", "metric", "value", "duration");
+                    BattleMetricMutationOperation metricOperation = ParseNamed<BattleMetricMutationOperation>(
+                        Str(e, "operation"), "metric mutation operation");
+                    bool hasMetricSubject = e.Params?.ContainsKey("subject") == true;
+                    StageEffectScope metricSubject = hasMetricSubject
+                        ? ParseSingleScope(Str(e, "subject"), "subject") : StageEffectScope.Self;
+                    BattleMetric metric = ParseNamed<BattleMetric>(Str(e, "metric"), "metric");
+                    int? metricValue = e.Params?.ContainsKey("value") == true ? Int(e, "value") : null;
+                    int? metricDuration = e.Params?.ContainsKey("duration") == true ? Int(e, "duration") : null;
+                    bool metricSwap = metricOperation == BattleMetricMutationOperation.Swap;
+                    if (metricSwap == metricValue.HasValue
+                        || metricOperation == BattleMetricMutationOperation.Replace && metricValue <= 0
+                        || metricOperation == BattleMetricMutationOperation.Add && metricValue == 0
+                        || metricSwap == hasMetricSubject
+                        || metricDuration is <= 0
+                        || (metricSwap || metricSubject == StageEffectScope.Target)
+                            && !IsSingleActiveCreatureTarget(move.Target))
+                        throw new ArgumentException("metricMutation parameters are incompatible with its operation or target.");
+                    effects.Add(new MetricMutationEffect(metricOperation, metricSubject, metric, metricValue, metricDuration));
                     break;
 
                 case "flinch":
@@ -1701,6 +1893,22 @@ public static class MoveCompiler
         }
         return rows.Count > 0 ? rows
             : throw new ArgumentException("callMove environment cannot be empty.");
+    }
+
+    private static IReadOnlyDictionary<BattleEnvironment, EntityId> ParseEnvironmentTypes(string value)
+    {
+        var rows = new Dictionary<BattleEnvironment, EntityId>();
+        foreach (string row in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string[] parts = row.Split('=', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2
+                || !Enum.TryParse(parts[0], true, out BattleEnvironment environment)
+                || !Enum.IsDefined(environment)
+                || !rows.TryAdd(environment, ParseTypeEntityId(parts[1], "typeMutation environment type")))
+                throw new ArgumentException("typeMutation environment requires unique environment=type:id rows.");
+        }
+        return rows.Count == Enum.GetValues<BattleEnvironment>().Length ? rows
+            : throw new ArgumentException("typeMutation environment requires one row for every battle environment.");
     }
 
     private static IReadOnlySet<string> ParseLowercaseTokens(string value, string label)

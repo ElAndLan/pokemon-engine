@@ -46,6 +46,7 @@ public sealed record OneShotQueryEffect(OneShotQuery Query, int Duration) : Move
 
 public enum StageEffectScope { Self, Target, Both }
 public enum StageSwapGroup { All, Offense, Defense }
+public enum StatStageMutationOperation { Maximize, Random, Steal }
 public enum MoveGateKind
 {
     FirstAction,
@@ -71,6 +72,26 @@ public enum TerrainMoveSubject { Field, User, Target }
 public enum SideConditionTarget { Source, Target }
 public enum SideConditionTiming { BeforeDamage, AfterHit }
 public enum BattleVolatileStatus { Confusion, Flinch, Bound, Seeded, Protected }
+public enum BattleTypeSubject { User, Target, AllActive }
+public enum BattleTypeOperation { Replace, Add, Remove, Copy }
+public enum BattleTypeSource { Fixed, User, Target, FirstMove, Environment, ResistantToLastDamage }
+public enum MoveTypeQuerySource { UserPrimary }
+public sealed record TypeRequireEffect(BattleTypeSubject Subject, EntityId Type) : MoveEffect;
+public sealed record TypeMutationEffect(
+    BattleTypeOperation Operation,
+    BattleTypeSubject Subject,
+    BattleTypeSource Source,
+    EntityId? Type = null,
+    EntityId? FallbackType = null,
+    IReadOnlyDictionary<BattleEnvironment, EntityId>? Environment = null,
+    int? Duration = null,
+    bool Required = true) : MoveEffect;
+public sealed record MoveTypeQueryEffect(MoveTypeQuerySource Source) : MoveEffect;
+public sealed record MoveTypeOverrideEffect(
+    BattleTypeSubject Subject,
+    EntityId Type,
+    EntityId? MatchType,
+    int Duration) : MoveEffect;
 public sealed record ItemRequireEffect(BattleItemSubject Subject, BattleItemRequirement Requirement) : MoveEffect;
 public sealed record ItemMutationEffect(
     BattleItemOperation Operation,
@@ -104,6 +125,19 @@ public sealed record StatChangeAllEffect(int Delta, bool OnSelf) : MoveEffect;
 /// <summary>pay_cost(percent_max_hp) before later authored effects.</summary>
 public sealed record HpCostEffect(Fraction Fraction, bool AllowFaint) : MoveEffect;
 
+/// <summary>Pays a non-fainting HP cost and creates a battle-owned damage decoy.</summary>
+public sealed record DecoyEffect(Fraction Fraction) : MoveEffect;
+
+/// <summary>Captures the selected target's permitted effective battle state on the user.</summary>
+public sealed record TransformEffect : MoveEffect;
+
+/// <summary>Replaces its own effective slot with the target's last successful move until cleanup.</summary>
+public sealed record TemporaryMoveReplacementEffect : MoveEffect
+{
+    public const string ExclusionTag = "temporary_replacement_blocked";
+    public const int CopiedPp = 5;
+}
+
 /// <summary>reset_stat_stages over self, target, or both active creatures.</summary>
 public sealed record StatResetEffect(StageEffectScope Scope) : MoveEffect;
 
@@ -115,6 +149,25 @@ public sealed record StatSwapEffect(StageSwapGroup Group) : MoveEffect;
 
 /// <summary>invert_stat_stages on the user or target.</summary>
 public sealed record StatInvertEffect(bool OnSelf) : MoveEffect;
+
+/// <summary>Mutates the shared seven-slot stage state without a content-specific branch.</summary>
+public sealed record StatStageMutationEffect(
+    StatStageMutationOperation Operation,
+    StageEffectScope Subject = StageEffectScope.Self,
+    StatKind? Stat = null,
+    int? Delta = null) : MoveEffect;
+
+public sealed record DerivedStatMutationEffect(
+    BattleDerivedStatOperation Operation,
+    StatKind? Stat = null,
+    BattleDerivedStatGroup? Group = null) : MoveEffect;
+
+public sealed record MetricMutationEffect(
+    BattleMetricMutationOperation Operation,
+    StageEffectScope Subject,
+    BattleMetric Metric,
+    int? Value = null,
+    int? Duration = null) : MoveEffect;
 
 /// <summary>apply_condition(volatile:flinch) on the target.</summary>
 public sealed record FlinchEffect : MoveEffect;

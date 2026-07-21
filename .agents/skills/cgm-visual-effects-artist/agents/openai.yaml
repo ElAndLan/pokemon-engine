@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Visual Effects Artist"
+  short_description: "Design restrained, readable battle and world VFX."
+  default_prompt: "Use $cgm-visual-effects-artist to brief this visual effect sheet."

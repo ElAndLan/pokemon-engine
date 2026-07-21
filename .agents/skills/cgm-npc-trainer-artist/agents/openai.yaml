@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM NPC and Trainer Artist"
+  short_description: "Design original human sprites and role silhouettes."
+  default_prompt: "Use $cgm-npc-trainer-artist to design this NPC or trainer sprite set."

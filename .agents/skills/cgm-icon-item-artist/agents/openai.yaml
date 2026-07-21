@@ -1,0 +1,4 @@
+interface:
+  display_name: "CGM Icon and Item Artist"
+  short_description: "Design small readable item and inventory icon families."
+  default_prompt: "Use $cgm-icon-item-artist to brief this item or icon sheet."
