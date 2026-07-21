@@ -16,5 +16,7 @@ public sealed record MapObject : IEntity
     public ObjectLayer Layer { get; init; } = ObjectLayer.Below;
     public EntityId? Sprite { get; init; }
     public EntityId? Anim { get; init; }
-    public string? Interaction { get; init; } // sign/… vocabulary grows Phase 7/16
+    /// <summary>What interacting with this object does, in the same closed vocabulary triggers use
+    /// (DATA_SCHEMA §4.11b). One vocabulary, two call sites.</summary>
+    public IReadOnlyList<TriggerAction> Interaction { get; init; } = [];
 }

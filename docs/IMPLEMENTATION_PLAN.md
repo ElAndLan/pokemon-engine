@@ -3549,10 +3549,37 @@ resumes, contract deltas are reconciled at that boundary before further certific
    passed with 0 warnings/errors; the full solution passed **2,300/2,300** (1,673 Core, 104 Creator,
    316 Runtime, 207 Tools), of which 19 are the new migration and validation tests.
 
-   **16D remains blocked on its second prerequisite:** `TriggerEntity.Actions` and object
-   `interaction` are still open strings. The spec forbids Runtime executing an arbitrary string or
-   interpreting one as script, so a closed vocabulary must land before 16D executes triggers. That is
-   recorded in `DATA_SCHEMA` §4.11a and is the next slice.
+   Progress (2026-07-21): **16D prerequisite — closed world-action vocabulary — COMPLETE (schema
+   v9). Both 16D prerequisites are now met and 16D is unblocked.** `TriggerEntity.Actions` and
+   `MapObject.Interaction` were open strings; the spec forbids Runtime executing an arbitrary string
+   or interpreting one as script. Both now carry the same closed `TriggerAction` list, so there is
+   one vocabulary with two call sites rather than two conventions that drift.
+
+   `TriggerOp` covers exactly the five categories the spec names: `dialogue`, `setFlag`/`clearFlag`,
+   `giveItem`, `heal`, and `startBattle`. Runtime dispatches on the enum, never on a string. Adding a
+   capability means adding an op and its validation, never a new string convention and never a script
+   interpreter — the same closed-palette discipline the battle effect ops follow.
+
+   Validation rule `trigger-action` rejects an unknown op, a missing required field, a wrong entity
+   category (an item where a trainer belongs, or the reverse), a reference to a missing item or
+   trainer, and a non-positive quantity, reporting every offender rather than the first. Because
+   authoring is validated, an action reaching Runtime is already complete: 16D dispatches on the op
+   without interpreting or repairing anything.
+
+   Schema bumps 8 -> 9 with a second data-writing migration. Pre-v9 free strings convert to explicit
+   `dialogue` actions carrying the original text, and object `interaction` also becomes a list — a
+   lossless, hand-correctable conversion that never assumes a string meant something executable.
+   `DATA_SCHEMA` §4.10, §4.11b and §6 record the shape, the op table, the validation rule, and the
+   migration in this same change.
+
+   One test written in the previous loop asserted `SchemaVersions.Current == 8` and broke on this
+   bump — the same brittleness that loop had just fixed in two older tests. Both new version tests
+   now assert through migrated behaviour instead of a literal, so the next bump will not churn them.
+   Schema impact: project schema **v8 -> v9**, migration `V8ToV9`, `DATA_SCHEMA` updated, no field
+   removed. Dependency impact: none. RNG impact: none. Golden impact: none. Verification: build
+   passed with 0 warnings/errors; the full solution passed **2,327/2,327** (1,700 Core, 104 Creator,
+   316 Runtime, 207 Tools), of which 27 are the new vocabulary tests; both samples still boot to
+   smoke success, and no `vocabulary grows` placeholder remains in Core.
 4. **16D — Asset-backed overworld integration (`PLANNED`; prerequisites 16A-C).**
    - **Spec lock:** OverworldScene state ownership, map/entity instantiation, render layers, interaction
      priority, encounter/trainer trigger order, dialogue commands already represented in Core data,

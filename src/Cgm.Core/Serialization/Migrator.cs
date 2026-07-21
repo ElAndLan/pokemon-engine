@@ -21,7 +21,7 @@ public static class Migrator
     public const int CurrentVersion = SchemaVersions.Current;
 
     private static readonly IReadOnlyList<IJsonMigration> Registered =
-        [new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6(), new V6ToV7(), new V7ToV8()];
+        [new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6(), new V6ToV7(), new V7ToV8(), new V8ToV9()];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
 
@@ -123,5 +123,44 @@ public static class Migrator
         private static string? Existing(JsonObject entity) =>
             entity["key"] is JsonValue value && value.TryGetValue(out string? key)
                 && !string.IsNullOrWhiteSpace(key) ? key : null;
+    }
+
+    /// <summary>Closes the world-interaction vocabulary (DATA_SCHEMA §4.11b). Pre-v9 trigger actions
+    /// and object interactions were free strings with no defined meaning. They convert to explicit
+    /// <c>dialogue</c> actions carrying the original text: lossless, hand-correctable, and never
+    /// guessing that a string meant something executable.</summary>
+    private sealed class V8ToV9 : IJsonMigration
+    {
+        public int FromVersion => 8;
+
+        public void Apply(JsonObject json)
+        {
+            if (json["entities"] is JsonArray entities)
+                foreach (JsonNode? node in entities)
+                    if (node is JsonObject entity && entity["kind"]?.GetValue<string>() == "trigger")
+                        entity["actions"] = Convert(entity["actions"]);
+
+            // Object documents carry a single interaction string rather than a list.
+            if (json["interaction"] is JsonValue interaction)
+                json["interaction"] = Convert(interaction);
+        }
+
+        private static JsonArray Convert(JsonNode? legacy)
+        {
+            var actions = new JsonArray();
+            foreach (string text in Strings(legacy))
+                actions.Add(new JsonObject { ["op"] = "dialogue", ["text"] = text });
+            return actions;
+        }
+
+        private static IEnumerable<string> Strings(JsonNode? node) => node switch
+        {
+            JsonArray array => array.OfType<JsonValue>()
+                .Select(value => value.TryGetValue(out string? text) ? text : null)
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .Select(text => text!),
+            JsonValue value when value.TryGetValue(out string? text) && !string.IsNullOrWhiteSpace(text) => [text],
+            _ => [],
+        };
     }
 }

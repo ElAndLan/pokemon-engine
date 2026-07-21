@@ -59,13 +59,19 @@ public sealed class MigratorTests
         public void Apply(JsonObject json) { }
     }
 
+    private sealed class NoOpV8ToV9 : IJsonMigration
+    {
+        public int FromVersion => 8;
+        public void Apply(JsonObject json) { }
+    }
+
     [Fact]
     public void Migrate_AppliesStepAndBumpsVersion()
     {
         var json = new JsonObject { ["schemaVersion"] = 0, ["foo"] = 42 };
         JsonObject result = Migrator.Migrate(json,
             [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4(), new NoOpV4ToV5(),
-                new NoOpV5ToV6(), new NoOpV6ToV7(), new NoOpV7ToV8()]);
+                new NoOpV5ToV6(), new NoOpV6ToV7(), new NoOpV7ToV8(), new NoOpV8ToV9()]);
 
         Assert.Equal(Migrator.CurrentVersion, result["schemaVersion"]!.GetValue<int>());
         Assert.Null(result["foo"]);

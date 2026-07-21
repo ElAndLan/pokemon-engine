@@ -196,7 +196,8 @@ BATTLE_SYSTEM_SPEC.md.
 
 ### 4.10 object (`object:small_tree`)
 `{ footprint: {w,h}, collision: bool[w*h], anchor: {x,y}, layer: below|above,
-   sprite|anim: id, interaction: null|sign|... }` (interaction vocabulary grows Phase 7/16).
+   sprite|anim: id, interaction: Action[] }` — `interaction` is the closed world-action list from
+§4.11b (schema v9; previously a single open string).
 
 ### 4.11 map (`map:route_001`)
 | field | type | notes |
@@ -225,9 +226,30 @@ transition:door|edge|stairs}` · `pickup {key,pos,item,qty,flag}` · `sign {key,
   position, with a `_2`, `_3`… suffix only if that collides with an authored key in the same map.
   Derivation is positional and therefore identical on every machine and every run; it never depends
   on enumeration or filesystem order. Authored keys are always preserved.
-- Not yet closed: `trigger.actions[]` and object `interaction` remain open strings. ENGINE_RUNTIME_SPEC
-  requires a closed vocabulary before 16D executes them; Runtime must never `switch` on an arbitrary
-  string or interpret one as script.
+**4.11b World action vocabulary** (schema **v9**, 2026-07-21, ENGINE_RUNTIME_SPEC 16D prerequisite).
+`trigger.actions[]` and object `interaction[]` share one **closed** set. Runtime dispatches on `op`
+and never on an arbitrary string, so authored data cannot become a script the engine interprets.
+
+`{ op, text?, flag?, value: int = 1, entity?: id }` where `op` is exactly one of:
+
+| op | Required | Meaning |
+|---|---|---|
+| `dialogue` | `text` | Show a dialogue page. Display strings are data, never IDs. |
+| `setFlag` | `flag` | Set a save flag to `value`. |
+| `clearFlag` | `flag` | Reset a save flag to zero. |
+| `giveItem` | `entity` (`item:`), `value` > 0 | Give items through Core inventory rules. |
+| `heal` | — | Restore the party, as a healing service does. |
+| `startBattle` | `entity` (`trainer:`) | Request a trainer battle through the Core battle boundary. |
+
+- Enforced by validation rule `trigger-action`: unknown op, missing required field, wrong entity
+  category, missing referenced entity, or non-positive quantity are all errors. An action reaching
+  Runtime is therefore already complete; Runtime never interprets or repairs one.
+- **Adding a capability means adding an op and its validation**, never a new string convention and
+  never a script interpreter. This is the same closed-palette rule the battle effect ops follow.
+- **Migration v8 → v9:** pre-v9 trigger actions and object interactions were free strings with no
+  defined meaning. Each converts to an explicit `dialogue` action carrying the original text —
+  lossless and hand-correctable, and never guessing that a string meant something executable. Object
+  `interaction` also changes from a single nullable string to a list.
 
 ### 4.12 encounter (`encounter:route_001_grass`)
 `{ method: grass|cave|water|tile|interact, baseRate: float, slots: Slot[] }`.
@@ -314,3 +336,7 @@ or accept the documented fallback-to-defaults path.
   list position, suffixed only to avoid colliding with an authored key in the same map. Derivation
   is positional, so it is reproducible on every machine and independent of enumeration order.
   Authored keys are preserved. Non-map documents are untouched.
+- v8→v9: **data-writing** migration closing the world-action vocabulary (§4.11b). Free-string
+  `trigger.actions[]` entries and object `interaction` become explicit `dialogue` actions carrying
+  the original text; object `interaction` also becomes a list. Lossless and hand-correctable — no
+  string is ever assumed to mean something executable.

@@ -28,6 +28,72 @@ public sealed class MapEntityKeyRule : IValidationRule
     }
 }
 
+/// <summary>Every authored world action must carry the fields its op needs and reference the right
+/// entity category. Checked at author time so Runtime can dispatch on the op alone: an action that
+/// reaches the engine is already complete, and Runtime never has to interpret or repair one.</summary>
+public sealed class TriggerActionRule : IValidationRule
+{
+    public string Id => "trigger-action";
+
+    public IEnumerable<ValidationIssue> Check(Project project)
+    {
+        foreach (Map map in project.All<Map>())
+            foreach (TriggerEntity trigger in map.Entities.OfType<TriggerEntity>())
+                foreach (ValidationIssue issue in Actions(project, map.Id, $"trigger '{trigger.Key}'", trigger.Actions))
+                    yield return issue;
+
+        foreach (MapObject obj in project.All<MapObject>())
+            foreach (ValidationIssue issue in Actions(project, obj.Id, "interaction", obj.Interaction))
+                yield return issue;
+    }
+
+    private IEnumerable<ValidationIssue> Actions(Project project, EntityId owner, string where,
+        IReadOnlyList<TriggerAction> actions)
+    {
+        for (int i = 0; i < actions.Count; i++)
+        {
+            TriggerAction action = actions[i];
+            string at = $"{where} action {i}";
+
+            if (!Enum.IsDefined(action.Op))
+            {
+                yield return Error(owner, $"{at} has an unknown op.");
+                continue;
+            }
+
+            switch (action.Op)
+            {
+                case TriggerOp.Dialogue when string.IsNullOrWhiteSpace(action.Text):
+                    yield return Error(owner, $"{at} is dialogue with no text.");
+                    break;
+
+                case TriggerOp.SetFlag or TriggerOp.ClearFlag when string.IsNullOrWhiteSpace(action.Flag):
+                    yield return Error(owner, $"{at} is a flag op with no flag name.");
+                    break;
+
+                case TriggerOp.GiveItem:
+                    if (action.Entity is not { } item || item.Category != EntityCategory.Item)
+                        yield return Error(owner, $"{at} must reference an item entity.");
+                    else if (project.Find<Item>(item) is null)
+                        yield return Error(owner, $"{at} references missing item '{item}'.");
+                    if (action.Value <= 0)
+                        yield return Error(owner, $"{at} must give a positive quantity.");
+                    break;
+
+                case TriggerOp.StartBattle:
+                    if (action.Entity is not { } trainer || trainer.Category != EntityCategory.Trainer)
+                        yield return Error(owner, $"{at} must reference a trainer entity.");
+                    else if (project.Find<Trainer>(trainer) is null)
+                        yield return Error(owner, $"{at} references missing trainer '{trainer}'.");
+                    break;
+            }
+        }
+    }
+
+    private ValidationIssue Error(EntityId owner, string message) =>
+        new(Id, ValidationSeverity.Error, owner, message);
+}
+
 /// <summary>A project must have exactly one player-start entity across all maps.</summary>
 public sealed class PlayerStartRule : IValidationRule
 {

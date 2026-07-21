@@ -39,6 +39,7 @@ public static class Validator
         new AnimationRule(),
         new SpriteUniquenessRule(),
         new MapEntityKeyRule(),
+        new TriggerActionRule(),
         new PlayerStartRule(),
         new WarpLandingRule(),
     ];

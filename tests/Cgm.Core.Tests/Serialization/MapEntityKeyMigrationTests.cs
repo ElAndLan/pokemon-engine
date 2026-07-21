@@ -27,8 +27,15 @@ public sealed class MapEntityKeyMigrationTests
 
     private static string[] Keys(Map map) => map.Entities.Select(e => e.Key).ToArray();
 
+    /// <summary>Keys arrived in v8, so any document at or before v7 must gain them on load. Asserted
+    /// against the migrated result rather than a version literal, so a later bump does not churn.</summary>
     [Fact]
-    public void CurrentSchemaVersionIsEight() => Assert.Equal(8, SchemaVersions.Current);
+    public void PreV8Documents_GainKeysAtTheCurrentVersion()
+    {
+        Map map = Migrate(MapJson(7, """{ "kind": "npc", "pos": { "x": 0, "y": 0 } }"""));
+        Assert.NotEmpty(map.Entities[0].Key);
+        Assert.True(SchemaVersions.Current >= 8);
+    }
 
     [Fact]
     public void V7Entities_ReceiveKindAndIndexKeys()

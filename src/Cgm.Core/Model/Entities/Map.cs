@@ -94,5 +94,8 @@ public sealed record SignEntity : MapEntity
 public sealed record TriggerEntity : MapEntity
 {
     public string? Condition { get; init; }
-    public IReadOnlyList<string> Actions { get; init; } = []; // vocabulary grows Phase 7/16
+
+    /// <summary>Closed vocabulary (DATA_SCHEMA §4.11b). Runtime dispatches on <see cref="TriggerOp"/>
+    /// and never interprets an authored string.</summary>
+    public IReadOnlyList<TriggerAction> Actions { get; init; } = [];
 }
