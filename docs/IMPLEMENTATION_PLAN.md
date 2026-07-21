@@ -3853,9 +3853,38 @@ resumes, contract deltas are reconciled at that boundary before further certific
    Creator, 586 Runtime, 207 Tools), of which 108 are the new presenter suite; both samples still
    boot to smoke success.
 
-   Remaining in 16F: `BattleScene` becoming an `IScene` with the Gen 4 layout from
-   `PHASE_16_DEMO_PLAN` §3.2, the animation queue with its 6-tick minimum beat and Confirm
-   fast-forward, typed target and replacement menus, and battle-to-overworld outcome conservation.
+   Progress (2026-07-21): **16F battle scene and presentation pacing COMPLETE.** `BattleBeatQueue`
+   implements the timing row: every event holds the screen for a six-fixed-tick minimum beat, Confirm
+   completes **only the current beat** so a held button cannot skip events the player has not seen,
+   and holding Confirm consumes four presentation ticks per simulation tick. Pacing is presentation
+   only — a test asserts a fast-forwarded queue shows identical lines in identical order to a slow
+   one, and a scene-level test asserts a battle played fast reaches the same outcome as one played
+   slowly, which is the "event/state/RNG identity at normal/fast speed" requirement.
+
+   `BattleHostScene` is the playable `IScene` with the `PHASE_16_DEMO_PLAN` §3.2 layout: opponent
+   upper-right with its info panel upper-left and no numeric HP, player lower-left with panel and
+   numeric HP lower-right, and a bottom message panel that shows the presenting line or the action
+   menu when idle. HP bars animate a Core-reported value through the 16C `ResourceBar` and colour by
+   remaining fraction; the scene predicts nothing, enumerates legal actions from Core's menu, and
+   consumes events in order through the completed catalogue.
+
+   Presentation gates input: while events present, the action menu neither navigates nor submits, so
+   a player cannot act on a state they have not been shown. A test asserts every presented line is
+   non-blank and free of the `unpresented` marker, tying this scene to the previous slice's
+   completeness guarantee.
+
+   One fixture defect found: `Move.DamageClass` defaults to `Status`, so a test move with Power 40
+   and no explicit class made Core reject the damage record it would have had to write. The fixture
+   was corrected rather than the guard loosened — Core was right to refuse a contradictory move.
+
+   Schema impact: none. Dependency impact: none. RNG impact: none — presentation draws no RNG.
+   Golden impact: none. Verification: build passed with 0 warnings/errors; the full solution passed
+   **2,647/2,647** (1,724 Core, 104 Creator, 612 Runtime, 207 Tools), of which 26 are new; both
+   samples still boot to smoke success.
+
+   Remaining in 16F: wiring `BattleHostScene` into `RuntimeHost` to replace the loop-19 auto-resolve,
+   typed target and replacement menus (the scene currently auto-selects the first healthy reserve),
+   and capture presentation.
    - **Spec lock:** BattleScene state machine, action/typed-target/replacement menus, Core request/
      response boundary, event-to-presentation catalog, animation queue, skip/fast-forward, and outcome
      return. Runtime never predicts damage, legality, target fallback, faint, or status from state.
