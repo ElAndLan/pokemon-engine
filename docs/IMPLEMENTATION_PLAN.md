@@ -3285,6 +3285,38 @@ resumes, contract deltas are reconciled at that boundary before further certific
    `IRenderer` seam and its quad-batch OpenGL implementation (premultiplied alpha, layer+sequence
    ordering, atlas load, source rects, flip, UI/world projections, scissor, tile chunks, 2,048-quad
    start capacity with power-of-two growth, idempotent reverse-order disposal).
+
+   Progress (2026-07-21): **16B submission and batching core COMPLETE; OpenGL backend outstanding.**
+   `QuadBatch` implements the renderer's brain with no GL dependency, so the command-golden and
+   batch-table acceptance rows are provable headless. `Begin` opens a frame with the camera as the
+   world pixel at the virtual viewport top-left and always resets the scissor stack, so an
+   unbalanced push cannot leak between frames. `World` subtracts the camera while `Ui` submits in
+   virtual coordinates, keeping Core positions tile-based. `End` stable-orders by numeric layer then
+   submission sequence — equal layers preserve exact call order and the renderer never guesses Y
+   sorting — then groups quads into draw calls that break on texture, layer, scissor, or capacity,
+   returning per-reason flush counts for the frame diagnostics. Nested `PushScissor` intersects so
+   nesting can only narrow; a disjoint or edge-touching intersection culls submissions outright
+   rather than handing the backend a negative-size rectangle. Capacity starts at 2,048 quads and
+   grows to the smallest sufficient power of two, never shrinking.
+
+   One defect was found and fixed during review rather than shipped: run splitting compared against
+   the `InitialCapacity` constant, so after growth to 4,096 the batch would still have split every
+   2,048 quads while reporting the larger capacity, and growing before grouping would have erased
+   the 2,048 boundary the acceptance row requires. Grouping now runs against the buffer in effect
+   during the frame and growth applies afterwards, covered by a test asserting that a 3,000-quad run
+   splits on the first frame and batches into one call on the next.
+
+   `IRenderer` is deliberately not declared yet. The seam is sanctioned, but an interface with zero
+   implementations is worse than one with a single implementation; it lands with the OpenGL backend
+   that gives it a real body, consuming these draw calls verbatim. Schema impact: none. Dependency
+   impact: none. RNG impact: none. Golden impact: none. Verification: build passed with 0
+   warnings/errors; the full solution passed **2,116/2,116** (1,654 Core, 104 Creator, 151 Runtime,
+   207 Tools), of which 33 are the new `QuadBatchTests`; `--project samples/demo-game --smoke` still
+   exits 0. Remaining in 16B: the `IRenderer` seam and its Silk OpenGL implementation (premultiplied
+   alpha ONE/ONE_MINUS_SRC_ALPHA, nearest-neighbour clamp-to-edge textures, one textured/colour quad
+   shader pair, RGBA atlas upload with source-rectangle validation, idempotent reverse-order
+   disposal, context-loss as exit 6), plus the hidden-window GL smoke screenshot and the
+   100-cycle GL-object leak check.
 3. **16C — UI kit, input, and scene flow (`PLANNED`; prerequisite 16B).**
    - **Spec lock:** scene lifecycle (`Enter`, fixed `Update`, `Render`, `Exit`, `Dispose`), overlay rule,
      transition timeline, focus/navigation, text layout, typewriter skip, and rebinding persistence.
