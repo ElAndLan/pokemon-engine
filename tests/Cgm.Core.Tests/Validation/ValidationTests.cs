@@ -143,6 +143,30 @@ public sealed class ValidationTests
         Assert.NotEmpty(Run(new StartMapExistsRule(), Project()));
     }
 
+    [Theory]
+    [InlineData(0, 0, false)]
+    [InlineData(2, 2, false)]
+    [InlineData(3, 0, true)]
+    [InlineData(0, 3, true)]
+    [InlineData(-1, 0, true)]
+    [InlineData(0, -1, true)]
+    public void StartPositionInBounds_FlagsOnlyPositionsOutsideTheStartMap(int x, int y, bool flagged)
+    {
+        EntityId mapId = EntityId.Parse("map:room");
+        var map = new Map { Id = mapId, Name = "Room", Width = 3, Height = 3 };
+        var settings = new ProjectSettings { Name = "T", StartMap = mapId, StartPos = new GridPos(x, y) };
+        Assert.Equal(flagged, Run(new StartPositionInBoundsRule(), Project(settings, map)).Count > 0);
+    }
+
+    /// <summary>A missing or wrong-kind start map belongs to start-map-exists, not this rule.</summary>
+    [Fact]
+    public void StartPositionInBounds_DefersWhenTheStartMapIsAbsent()
+    {
+        var settings = new ProjectSettings { Name = "T", StartMap = EntityId.Parse("map:gone") };
+        Assert.Empty(Run(new StartPositionInBoundsRule(), Project(settings)));
+        Assert.Empty(Run(new StartPositionInBoundsRule(), Project()));
+    }
+
     [Fact]
     public void StarterParty_FlagsEmptyAndOversized()
     {

@@ -5,7 +5,7 @@
   "engineVersion": "0.1",
   "tileSize": 16,
   "startMap": "map:test_room",
-  "startPos": { "x": 4, "y": 3 },
+  "startPos": { "x": 0, "y": 0 },
   "startFacing": "down",
   "starterParty": [ "species:leafcub" ]
 }

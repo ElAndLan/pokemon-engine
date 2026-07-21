@@ -23,6 +23,25 @@ public sealed class StartMapExistsRule : IValidationRule
     }
 }
 
+/// <summary>The start position must be a tile inside the start map. Without this an authored project
+/// validates clean and only fails at boot, where the player has no way to fix it.</summary>
+public sealed class StartPositionInBoundsRule : IValidationRule
+{
+    public string Id => "start-position-bounds";
+
+    public IEnumerable<ValidationIssue> Check(Project project)
+    {
+        if (project.Settings.StartMap is not { } id || project.Find<Map>(id) is not { } map)
+            yield break; // start-map-exists owns the missing/wrong-kind case.
+
+        GridPos pos = project.Settings.StartPos;
+        if (pos.X < 0 || pos.Y < 0 || pos.X >= map.Width || pos.Y >= map.Height)
+            yield return new ValidationIssue(Id, ValidationSeverity.Error, project.Settings.Id,
+                $"Start position ({pos.X},{pos.Y}) is outside start map '{id}' ({map.Width}x{map.Height}).",
+                "Set startPos to a tile inside the start map.");
+    }
+}
+
 /// <summary>The starter party must have 1–6 members, each an existing species.</summary>
 public sealed class StarterPartyRule : IValidationRule
 {

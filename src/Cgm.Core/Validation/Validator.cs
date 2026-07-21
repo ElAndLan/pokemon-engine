@@ -22,6 +22,7 @@ public static class Validator
     [
         new BrokenReferenceRule(),
         new StartMapExistsRule(),
+        new StartPositionInBoundsRule(),
         new StarterPartyRule(),
         new GrowthRateRule(),
         new SpeciesTypesRule(),

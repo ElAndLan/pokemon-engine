@@ -3180,6 +3180,36 @@ resumes, contract deltas are reconciled at that boundary before further certific
    `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` passed with 0 warnings/errors; the full
    solution passed **2,018/2,018** (1,647 Core, 104 Creator, 60 Runtime, 207 Tools), of which 39 are
    the new `BootArgsTests`. Next: 16A step 2-8 loader with raw/pack `GameDb` parity.
+
+   Progress (2026-07-21): **16A steps 2-7 (categorized boot loader and raw/pack parity) COMPLETE.**
+   `BootLoader.TryLoad` selects exactly one data source, canonicalizes its root, verifies versions
+   and hash, materializes one `GameDb`, and resolves the start state into an owned `RuntimeContent`.
+   Raw mode runs the same Core validator and severity gate as pack compilation; packed mode verifies
+   config schema, pack format, required runtime version, and content hash before deserializing
+   sections. Exported pack paths resolve against the config directory and may not leave the game
+   folder — containment compares with a trailing separator so a prefix sibling (`game` vs `gameEvil`)
+   is correctly outside. Start-state resolution never selects a fallback entity: a missing start map,
+   an absent start map ID, or an out-of-bounds start position each stop the boot with exit 3 and a
+   content-relative identifier. Diagnostics carry no host paths, asserted directly in tests.
+   `Program.cs` now boots `--project` raw folders end to end; both `samples/fixture-min` and
+   `samples/demo-game` reach smoke success, and bad arguments/missing folders return exit 2.
+   Scenes receive no source-mode flag, so they cannot branch on raw versus packed content.
+
+   Two findings recorded rather than patched around. First, `samples/fixture-min` declared start
+   position (4,3) on a 4x3 map — out of bounds on both axes — and Core validated it clean, so the
+   root cause was a missing Core rule rather than bad sample data alone. Added
+   `StartPositionInBoundsRule` (Core, 19 -> 20 rules) so Creator authoring, export, and Runtime all
+   reject it at the correct layer, and corrected the fixture to (0,0); `samples/demo-game` at (1,1)
+   on 3x3 was already valid. Second, `IAssetSource` is deferred: packs carry only `GameDb` and
+   `Exporter` has no asset support, so the pack-side implementation has no bytes to read. Building
+   the seam now would be speculative; it lands with pack asset sections (EXPORT_PIPELINE_SPEC /
+   Phase 18C) or when 16B first needs decoded resources. Schema impact: none. Dependency impact:
+   none. RNG impact: none. Golden impact: none. Validation impact: one new Core error rule; both
+   shipped samples pass. Verification: build passed with 0 warnings/errors; the full solution passed
+   **2,052/2,052** (1,654 Core, 104 Creator, 87 Runtime, 207 Tools), of which 27 are the new
+   `BootLoaderTests` and 7 the new start-position rule cases. Next: 16A showcase-content removal
+   (delete `ExportedGameBoot`'s hardcoded move/trainer/item IDs and fallback party construction,
+   with the content-neutrality scan), then 16B.
 2. **16B — Fixed-step host and renderer (`PLANNED`; prerequisite 16A).**
    - **Spec lock:** exact host loop, `IRenderer` calls, coordinate systems, blend/sort rules, atlas/
      texture lifetime, context-loss refusal, and frame diagnostics.

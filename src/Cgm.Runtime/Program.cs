@@ -9,17 +9,19 @@ internal static class Program
         if (!BootArgs.TryParse(args, out BootArgs boot, out BootDiagnostic? error))
             return Fail(error!);
 
-        // ponytail: 16A step 1 (argument parsing) is complete; steps 2-8 still route through the
-        // showcase boot below. --project raw-folder loading arrives with the loader in this package.
-        if (!boot.Exported)
-            return Fail(new BootDiagnostic(RuntimeExit.Arguments, "arguments",
-                "--project raw-folder loading is not implemented yet."));
+        if (!BootLoader.TryLoad(boot, AppContext.BaseDirectory, out RuntimeContent? content, out error))
+            return Fail(error!);
 
         if (boot.Smoke)
-            return Smoke();
+        {
+            Console.WriteLine($"[runtime] smoke passed: {content!.StartMap.Id}");
+            return (int)RuntimeExit.Success;
+        }
 
-        ExportedGame? game = TryLoadExport();
-        using var host = new RuntimeHost(boot.Debug || game?.Config.Debug == true, game);
+        // ponytail: the window still runs on the showcase host. Replacing it with BootScene over
+        // RuntimeContent is 16B/16C work; 16A's contract is reaching a validated aggregate.
+        ExportedGame? game = boot.Exported ? TryLoadExport() : null;
+        using var host = new RuntimeHost(content!.Config.Debug, game);
         return host.Run();
     }
 
@@ -27,23 +29,6 @@ internal static class Program
     {
         Console.Error.WriteLine(diagnostic.Format());
         return (int)diagnostic.Exit;
-    }
-
-    private static int Smoke()
-    {
-        try
-        {
-            ExportedGameBoot.Smoke(AppContext.BaseDirectory);
-            Console.WriteLine("[runtime] smoke passed");
-            return (int)RuntimeExit.Success;
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
-        {
-            // ponytail: every smoke failure reports 10 because the showcase loader throws untyped
-            // content errors. Splitting content (3) and asset (4) from a true smoke-invariant
-            // failure (10) lands with the categorized loader in 16A steps 2-8.
-            return Fail(new BootDiagnostic(RuntimeExit.SmokeAssertion, "smoke", ex.Message));
-        }
     }
 
     private static ExportedGame? TryLoadExport()
