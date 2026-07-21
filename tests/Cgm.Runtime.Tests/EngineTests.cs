@@ -128,45 +128,6 @@ public sealed class InputStateTests
     }
 }
 
-public sealed class SceneStackTests
-{
-    [Fact]
-    public void PushPopPeek_Order()
-    {
-        var stack = new SceneStack<string>();
-        Assert.Null(stack.Active);
-        Assert.Equal(0, stack.Count);
-
-        stack.Push("overworld");
-        stack.Push("battle");
-        Assert.Equal("battle", stack.Active);
-        Assert.Equal(2, stack.Count);
-
-        Assert.Equal("battle", stack.Pop());
-        Assert.Equal("overworld", stack.Active);
-    }
-
-    [Fact]
-    public void Pop_EmptyReturnsNull()
-    {
-        Assert.Null(new SceneStack<string>().Pop());
-    }
-
-    [Fact]
-    public void Replace_SwapsTop_OrPushesWhenEmpty()
-    {
-        var stack = new SceneStack<string>();
-        stack.Replace("title");        // empty → push
-        Assert.Equal("title", stack.Active);
-        Assert.Equal(1, stack.Count);
-
-        stack.Push("overworld");
-        stack.Replace("menu");         // swaps overworld → menu, base unchanged
-        Assert.Equal("menu", stack.Active);
-        Assert.Equal(2, stack.Count);
-    }
-}
-
 public sealed class BattleSceneTests
 {
     private static readonly EntityId Normal = EntityId.Parse("type:normal");

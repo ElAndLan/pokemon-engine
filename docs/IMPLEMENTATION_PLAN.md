@@ -3360,7 +3360,7 @@ resumes, contract deltas are reconciled at that boundary before further certific
    integer scales and the 100-cycle zero-GL-object-delta leak counter. Both need a live context, so
    they belong in a GPU-enabled harness rather than the headless suite; the lease-level equivalent
    (100 create/dispose cycles leaving no live lease) is covered now.
-3. **16C — UI kit, input, and scene flow (`PLANNED`; prerequisite 16B).**
+3. **16C — UI kit, input, and scene flow (`IN PROGRESS`; prerequisite 16B).**
    - **Spec lock:** scene lifecycle (`Enter`, fixed `Update`, `Render`, `Exit`, `Dispose`), overlay rule,
      transition timeline, focus/navigation, text layout, typewriter skip, and rebinding persistence.
    - Implement Boot → Title → New/Continue → Overworld with push/pop Menu and replacement Battle.
@@ -3372,6 +3372,41 @@ resumes, contract deltas are reconciled at that boundary before further certific
    - **Acceptance:** lifecycle/transition/focus goldens, list/grid disabled/empty/overflow, text wrap
      and typewriter tick tables, resize/rebind/gamepad disconnect, and headless input scripts reaching
      every scene. Exit: title/new/continue/menu flow is reusable and content-driven.
+   Progress (2026-07-21): **16C scene-stack contract COMPLETE; UI kit and input map outstanding.**
+   The placeholder generic `SceneStack<T>` is replaced by a real lifecycle stack. `IScene` declares
+   `Enter`, fixed `Update`, `Render`, `Exit`, `Dispose`, and an overlay flag. `Enter` runs once after
+   a scene becomes stack-owned and before its first update or render; `Exit` runs once on pop,
+   replace, or shutdown, always before `Dispose`, and covering a scene never calls `Exit` because it
+   is still owned and resumes on pop. Only the top scene updates. Render begins at the highest
+   non-overlay scene and walks upward, so an opaque scene hides everything beneath it while stacked
+   overlays all draw.
+
+   Stack mutations requested during a scene update are queued and applied after that tick, so a
+   callback can never re-enter a lifecycle method — a scene that pushes from inside `Update`
+   produces `a:update` then `b:enter`, never an interleaving. Queued mutations apply in request
+   order. Faded transitions run 15 ticks out, perform the switch at full cover, then 15 ticks in;
+   scenes do not update while fading, so transition input is blocked, and the switch plus any
+   loading happen between ticks rather than in `Render`. `Shutdown` retires scenes top-first and
+   disposes never-entered queued scenes without calling `Exit`, since their `Enter` never ran. A
+   throwing `Exit` still disposes its scene rather than leaking it.
+
+   `BootScene` is the first real scene: it borrows the renderer and batch, owns one neutral 2x2
+   placeholder texture, names no content, and is replaced by the Title scene when 16C's UI kit
+   lands. `RuntimeHost` now delegates ticking and rendering to the stack and shuts scenes down
+   before the renderer, because scene leases are borrowed from the renderer that outlives them.
+
+   Three test expectations were wrong and the implementation right: a scene receives its final
+   `Update` before a queued pop or replace applies, which is the specified order. The assertions now
+   document that rather than contradict it. Schema impact: none. Dependency impact: none. RNG
+   impact: none. Golden impact: none. Verification: build passed with 0 warnings/errors; the full
+   solution passed **2,161/2,161** (1,654 Core, 104 Creator, 196 Runtime, 207 Tools), of which 23
+   are the new `SceneStackTests`; both samples boot through the stack into `BootScene` and render
+   through real GL at exit 0.
+
+   Remaining in 16C: the UI primitives (9-slice panel, bitmap text with wrap and alignment,
+   typewriter, cursor, vertical list, grid, prompt/choice, HP bar, fade, message log), the keyboard
+   and gamepad input map with its direction resolver and rebinding rules, the Title and
+   New/Continue scenes, and versioned options persistence separate from saves.
 4. **16D — Asset-backed overworld integration (`PLANNED`; prerequisites 16A-C).**
    - **Spec lock:** OverworldScene state ownership, map/entity instantiation, render layers, interaction
      priority, encounter/trainer trigger order, dialogue commands already represented in Core data,

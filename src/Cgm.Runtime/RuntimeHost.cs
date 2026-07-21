@@ -21,7 +21,7 @@ internal sealed class RuntimeHost : IDisposable
     private GL? _gl;
     private IInputContext? _input;
     private GlRenderer? _renderer;
-    private TextureHandle _smokeTexture;
+    private readonly SceneStack _scenes = new();
 
     private double _logAccumulatorSec;
     private int _failure;
@@ -112,13 +112,8 @@ internal sealed class RuntimeHost : IDisposable
             };
 
         _renderer = new GlRenderer(_gl);
-
-        // A 2x2 opaque RGBA texture proves upload, sampling, and the draw path without any content.
-        _smokeTexture = _renderer.CreateTexture(2, 2,
-        [
-            0x30, 0x40, 0x50, 0xFF, 0x50, 0x40, 0x30, 0xFF,
-            0x50, 0x40, 0x30, 0xFF, 0x30, 0x40, 0x50, 0xFF,
-        ]);
+        _scenes.Push(new BootScene(_renderer, _batch,
+            _content.Config.VirtualWidth, _content.Config.VirtualHeight));
 
         if (_debug)
         {
@@ -148,8 +143,7 @@ internal sealed class RuntimeHost : IDisposable
 
     private void OnRender(double deltaSeconds)
     {
-        // 16B renders one neutral quad through the real batch and renderer. Scene-driven
-        // presentation arrives with 16C's BootScene; nothing here may assume content.
+        // The scene stack owns presentation; the host only frames it.
         _ = deltaSeconds;
         int vw = _content.Config.VirtualWidth;
         int vh = _content.Config.VirtualHeight;
@@ -157,10 +151,7 @@ internal sealed class RuntimeHost : IDisposable
 
         _renderer!.BeginFrame(VirtualResolution.Fit(size.X, size.Y, vw, vh), vw, vh,
             new Rgba(0x18, 0x1C, 0x24, 0xFF));
-        _batch.Begin();
-        _batch.Ui(_smokeTexture, new RectI(0, 0, 2, 2), new RectI(0, 0, vw, vh), layer: 0);
-        var (quads, calls, _) = _batch.End();
-        _renderer.Draw(quads, calls);
+        _scenes.Render();
         _renderer.EndFrame();
 
         if (_smoke)
@@ -168,7 +159,7 @@ internal sealed class RuntimeHost : IDisposable
     }
 
     /// <summary>One simulation tick. 16C's scene stack consumes this; 16A/16B own only the cadence.</summary>
-    private static void Tick(TickInput input) => _ = input;
+    private void Tick(TickInput input) => _scenes.Tick(input);
 
     private IReadOnlyList<GameAction> ReadHeldActions()
     {
@@ -191,7 +182,9 @@ internal sealed class RuntimeHost : IDisposable
     private void OnClosing()
     {
         // GL objects are created and destroyed on the context-owning thread, and the context dies
-        // with the window. Releasing here is the only point where both are still valid.
+        // with the window. Releasing here is the only point where both are still valid. Scenes go
+        // first: their leases are borrowed from the renderer that outlives them.
+        _scenes.Shutdown();
         _renderer?.Dispose();
         if (_debug)
             Console.WriteLine($"[runtime] closing - {_loop.TotalTicks} ticks, {_loop.TotalFrames} frames total");
