@@ -3967,8 +3967,27 @@ resumes, contract deltas are reconciled at that boundary before further certific
    (1,724 Core, 104 Creator, 655 Runtime, 207 Tools), of which 15 are the new wild/trainer suite;
    both samples still boot to smoke success.
 
-   Remaining in 16F: typed target and replacement menus — the scene auto-selects the first healthy
-   reserve rather than offering the choice — and the doubles slot layout.
+   Progress (2026-07-21): **16F replacement menu COMPLETE.** When the player's active creature faints
+   the scene now asks who comes in rather than choosing for them. The prompt appears only once
+   presentation has caught up, so the player sees the faint before answering it and Confirm keeps
+   meaning "skip this beat" until the log is current. It is a forced choice: Cancel does not dismiss
+   it, because a battle with no active creature cannot proceed. With exactly one eligible reserve
+   the scene sends it in rather than making the player confirm a foregone conclusion, and with none
+   it lets Core end the battle. The opponent's replacement stays automatic — the player never sees a
+   menu for the other side, and Core owns that decision.
+
+   **A crash was found by these tests, not by play.** The HP bar drew its fill as a quad whose width
+   came from `FillPixels`, which is zero for a fainted creature — and `QuadBatch` correctly rejects an
+   empty quad. Every faint would have thrown inside the battle screen. An empty bar now draws nothing
+   rather than a zero-width quad. This is the second time the batch's own validation caught a
+   presentation defect that headless logic tests would have missed.
+
+   Verification: build passed with 0 warnings/errors; the full solution passed **2,701/2,701**
+   (1,724 Core, 104 Creator, 666 Runtime, 207 Tools), of which 11 are the new replacement suite;
+   both samples still boot to smoke success.
+
+   Remaining in 16F: typed target menus for doubles and the doubles slot layout. Singles — which is
+   what the demo plan specifies — is complete.
    - **Spec lock:** BattleScene state machine, action/typed-target/replacement menus, Core request/
      response boundary, event-to-presentation catalog, animation queue, skip/fast-forward, and outcome
      return. Runtime never predicts damage, legality, target fallback, faint, or status from state.

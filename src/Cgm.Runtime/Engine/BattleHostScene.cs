@@ -18,6 +18,7 @@ public sealed class BattleHostScene : IScene
     private readonly int _width;
     private readonly int _height;
     private SelectionList _menu;
+    private SelectionList? _replacements;
     private int _presented;
 
     private readonly Func<EntityId, bool>? _spendItem;
@@ -73,6 +74,18 @@ public sealed class BattleHostScene : IScene
         if (Outcome is not null)
             return;
 
+        // A forced replacement cannot be cancelled: the player must send someone in.
+        if (IsChoosingReplacement)
+        {
+            foreach (GameAction direction in (GameAction[])[GameAction.Up, GameAction.Down])
+                if (input.WasPressed(direction))
+                    _replacements!.Move(direction);
+
+            if (input.WasPressed(GameAction.Confirm))
+                ConfirmReplacement();
+            return;
+        }
+
         foreach (GameAction direction in (GameAction[])[GameAction.Up, GameAction.Down])
             if (input.WasPressed(direction))
                 _menu.Move(direction);
@@ -108,7 +121,12 @@ public sealed class BattleHostScene : IScene
 
         var track = new RectI(bounds.X + 6, bounds.Y + 18, bounds.Width - 12, 4);
         _ui.Panel(track, new Rgba(0x40, 0x38, 0x30, 0xFF), layer: 3);
-        _ui.Panel(track with { Width = hp.FillPixels(track.Width) }, HpColour(hp), layer: 4);
+
+        // A fainted creature fills zero pixels; an empty bar draws nothing rather than a zero-width
+        // quad, which the batch rejects outright.
+        int fill = hp.FillPixels(track.Width);
+        if (fill > 0)
+            _ui.Panel(track with { Width = fill }, HpColour(hp), layer: 4);
 
         if (showNumbers)
             _ui.Text($"{hp.Displayed}/{hp.Max}", bounds.X + 6, bounds.Y + 24,
@@ -131,6 +149,21 @@ public sealed class BattleHostScene : IScene
         if (Outcome is not null)
         {
             _ui.Text("BATTLE OVER", box.X + 8, box.Y + 8, ink, layer: 6);
+            return;
+        }
+
+        if (IsChoosingReplacement)
+        {
+            IReadOnlyList<int> options = ReplacementOptions;
+            IReadOnlyList<BattlePartyMember> party = snapshot.PlayerParty;
+            for (int i = 0; i < options.Count && i < 4; i++)
+            {
+                BattlePartyMember member = party[options[i]];
+                int y = box.Y + 6 + i * _ui.Font.LineHeight;
+                _ui.Text($"{member.Name} {member.CurrentHp}/{member.MaxHp}", box.X + 18, y, ink, layer: 6);
+                if (_replacements!.Selected == i)
+                    _ui.Cursor(box.X + 8, y, new Rgba(0xC0, 0x40, 0x30, 0xFF), layer: 6);
+            }
             return;
         }
 
@@ -182,25 +215,81 @@ public sealed class BattleHostScene : IScene
         _menu = BuildMenu(snapshot);
     }
 
+    /// <summary>The eligible reserves for the slot currently awaiting a player choice: party members
+    /// that are neither active nor fainted, in party order.</summary>
+    public IReadOnlyList<int> ReplacementOptions
+    {
+        get
+        {
+            if (AwaitingReplacement is not { } slot || slot.Side != BattleSide.Player)
+                return [];
+            IReadOnlyList<BattlePartyMember> party = _battle.Snapshot().PlayerParty;
+            return [.. Enumerable.Range(0, party.Count)
+                .Where(i => !party[i].IsActive && !party[i].IsFainted)];
+        }
+    }
+
+    /// <summary>The player slot waiting on a replacement choice, or null when none is.</summary>
+    public BattleSlot? AwaitingReplacement { get; private set; }
+
+    /// <summary>True while the player must choose who comes in; the action menu is replaced by the
+    /// reserve list. Never true mid-presentation: the player sees the faint before being asked to
+    /// answer it, and Confirm keeps meaning "skip this beat" until the log has caught up.</summary>
+    public bool IsChoosingReplacement =>
+        AwaitingReplacement is not null && !_beats.IsPresenting && ReplacementOptions.Count > 0;
+
+    /// <summary>Fills every pending slot. The player picks their own replacement; the opponent's is
+    /// chosen automatically, because Core owns that side's decisions and the player never sees a
+    /// menu for it.</summary>
     private void SubmitReplacements()
     {
         BattleSceneSnapshot snapshot = _battle.Snapshot();
         var choices = new List<BattleReplacementSelection>();
+
         foreach (BattleSlot slot in _battle.PendingReplacementSlots)
         {
-            IReadOnlyList<BattlePartyMember> party = slot.Side == BattleSide.Player
-                ? snapshot.PlayerParty
-                : snapshot.EnemyParty;
-            for (int i = 0; i < party.Count; i++)
-                if (!party[i].IsActive && !party[i].IsFainted)
+            if (slot.Side == BattleSide.Player)
+            {
+                // Defer to the player unless there is no choice to make.
+                IReadOnlyList<int> options = Eligible(snapshot.PlayerParty);
+                if (options.Count > 1)
                 {
-                    choices.Add(new BattleReplacementSelection(slot, i));
-                    break;
+                    AwaitingReplacement = slot;
+                    _replacements = new SelectionList(Enumerable.Repeat(true, options.Count));
+                    return;   // nothing is submitted until the player answers
                 }
+                if (options.Count == 1)
+                    choices.Add(new BattleReplacementSelection(slot, options[0]));
+                continue;
+            }
+
+            IReadOnlyList<int> enemy = Eligible(snapshot.EnemyParty);
+            if (enemy.Count > 0)
+                choices.Add(new BattleReplacementSelection(slot, enemy[0]));
         }
+
         if (choices.Count > 0)
             _battle.SubmitReplacements(choices);
     }
+
+    /// <summary>Sends in the reserve the player selected.</summary>
+    private void ConfirmReplacement()
+    {
+        if (AwaitingReplacement is not { } slot || _replacements?.Selected is not { } choice)
+            return;
+
+        IReadOnlyList<int> options = ReplacementOptions;
+        if (choice >= options.Count)
+            return;
+
+        AwaitingReplacement = null;
+        _replacements = null;
+        _battle.SubmitReplacements([new BattleReplacementSelection(slot, options[choice])]);
+        Drain();
+    }
+
+    private static IReadOnlyList<int> Eligible(IReadOnlyList<BattlePartyMember> party) =>
+        [.. Enumerable.Range(0, party.Count).Where(i => !party[i].IsActive && !party[i].IsFainted)];
 
     private static SelectionList BuildMenu(BattleSceneSnapshot snapshot) =>
         new(Enumerable.Repeat(true, Math.Max(1, snapshot.Menu.Count)));
