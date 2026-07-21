@@ -3623,11 +3623,33 @@ resumes, contract deltas are reconciled at that boundary before further certific
    **2,352/2,352** (1,700 Core, 104 Creator, 341 Runtime, 207 Tools), of which 25 are new; both
    samples still boot to smoke success.
 
-   Remaining in 16D: the completed-step trigger order (warp → tile trigger → trainer sight → random
-   encounter, stopping at the first transition), interaction priority and executing the closed
-   `TriggerAction` vocabulary, NPC updates in stable entity-ID order with injected Core RNG,
-   encounter rolls, warp and blackout transitions, and real tile/sprite assets once `IAssetSource`
-   lands.
+   Progress (2026-07-21): **16D step order, interaction priority, and trigger execution COMPLETE.**
+   The completed-step order is a game rule, so it lives in Core as `OverworldStep.Resolve`, not in
+   the scene that presents it: warp → tile trigger → trainer sight → random encounter, stopping at
+   the first transition, returning a typed `StepOutcome`. `OverworldStep.Interact` implements the
+   spec's interaction priority — facing entity → facing trigger → current tile.
+
+   The determinism property is enforced and asserted rather than assumed: **an earlier transition
+   consumes no RNG.** The encounter roll is evaluated last and only when nothing else fired, so a
+   step that warps or is spotted does not advance the encounter stream. Tests count draws to prove
+   it, because a seeded replay would silently diverge the first time a warp preceded grass.
+
+   `OverworldScene` consumes the outcome and splits responsibility: dialogue and flag actions are
+   presentation and save state, so the scene handles them; warp, trainer sight, wild encounter, and
+   the actions needing Core operations (`giveItem`, `heal`, `startBattle`) surface through `Pending`
+   for the host, which owns scene transitions. Executing the closed vocabulary is a plain dispatch on
+   the op with nothing to interpret or repair, because validation already guaranteed each action is
+   complete — the payoff for closing the vocabulary in the previous slice. Dialogue runs through the
+   16C `Typewriter`, owns input while showing, and suspends movement until dismissed.
+
+   Schema impact: none. Dependency impact: none. RNG impact: encounter rolls now draw through the
+   injected `IRng`, and only when no earlier transition fired. Golden impact: none. Verification:
+   build passed with 0 warnings/errors; the full solution passed **2,386/2,386** (1,724 Core, 104
+   Creator, 351 Runtime, 207 Tools), of which 34 are new; both samples still boot to smoke success.
+
+   Remaining in 16D: the host acting on `Pending` (warp execution and map switching, battle entry and
+   return, blackout), NPC updates in stable entity-ID order with injected Core RNG, pickup
+   persistence, and real tile/sprite assets once `IAssetSource` lands.
 5. **16E — Player systems, save, clock, and audio (`PLANNED`; prerequisite 16D).**
    - **Spec lock:** party/bag/storage/shop scene contracts, progression/evolution prompts, save slots,
      game clock/day-night input, audio buses/loop/crossfade, and debug overlay content.

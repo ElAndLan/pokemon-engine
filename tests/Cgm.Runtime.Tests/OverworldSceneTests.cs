@@ -292,4 +292,189 @@ public sealed class OverworldSceneTests : IDisposable
     [Fact]
     public void SceneIsOpaque_SoItHidesAnythingBeneath() =>
         Assert.False(Scene(Map(4, 4), default).IsOverlay);
+
+    // --- Step outcomes and interaction --------------------------------------------
+
+    private OverworldScene SceneWith(Map map, GridPos start, Facing facing = Facing.Down,
+        FlagStore? flags = null)
+    {
+        var scene = new OverworldScene(_ui, map, [], start, facing, Tile, W, H, flags);
+        scene.Enter();
+        return scene;
+    }
+
+    [Fact]
+    public void SteppingOntoAWarp_SurfacesItToTheHost()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities =
+            [
+                new WarpEntity
+                {
+                    Key = "w", Pos = new GridPos(3, 2),
+                    Target = EntityId.Parse("map:other"), TargetPos = new GridPos(1, 1),
+                },
+            ],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3));
+        Walk(scene, GameAction.Up);
+
+        Assert.IsType<StepOutcome.Warp>(scene.Pending);
+        Assert.IsType<StepOutcome.Warp>(scene.TakePending());
+        Assert.Null(scene.Pending);   // taking it clears it
+    }
+
+    /// <summary>A trigger's flag actions run in the scene; nothing is surfaced to the host.</summary>
+    [Fact]
+    public void SteppingOnAFlagTrigger_SetsTheFlagWithoutInterruptingPlay()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities =
+            [
+                new TriggerEntity
+                {
+                    Key = "t", Pos = new GridPos(3, 2),
+                    Actions = [new TriggerAction { Op = TriggerOp.SetFlag, Flag = "seen", Value = 3 }],
+                },
+            ],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3));
+        Walk(scene, GameAction.Up);
+
+        Assert.Equal(3, scene.Flags.GetInt("seen"));
+        Assert.Null(scene.Pending);
+    }
+
+    [Fact]
+    public void ClearFlagTrigger_ResetsTheFlag()
+    {
+        var flags = new FlagStore();
+        flags.SetInt("seen", 5);
+        Map map = Map(8, 8) with
+        {
+            Entities =
+            [
+                new TriggerEntity
+                {
+                    Key = "t", Pos = new GridPos(3, 2),
+                    Actions = [new TriggerAction { Op = TriggerOp.ClearFlag, Flag = "seen" }],
+                },
+            ],
+        };
+        Walk(SceneWith(map, new GridPos(3, 3), flags: flags), GameAction.Up);
+        Assert.Equal(0, flags.GetInt("seen"));
+    }
+
+    /// <summary>giveItem, heal, and startBattle need Core operations, so they reach the host.</summary>
+    [Fact]
+    public void TriggerActionsNeedingCoreOperations_ReachTheHost()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities =
+            [
+                new TriggerEntity
+                {
+                    Key = "t", Pos = new GridPos(3, 2),
+                    Actions = [new TriggerAction { Op = TriggerOp.Heal }],
+                },
+            ],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3));
+        Walk(scene, GameAction.Up);
+        Assert.NotNull(scene.Pending);
+    }
+
+    [Fact]
+    public void ConfirmFacingASign_OpensDialogueAndSuspendsMovement()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities = [new SignEntity { Key = "s", Pos = new GridPos(3, 2), Text = "KEEP OUT" }],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3), Facing.Up);
+
+        scene.Update(Hold(GameAction.Confirm));
+        Assert.True(scene.InDialogue);
+
+        GridPos frozen = scene.PlayerPos;
+        Walk(scene, GameAction.Down);
+        Assert.Equal(frozen, scene.PlayerPos);   // dialogue owns input
+    }
+
+    [Fact]
+    public void ConfirmDismissesDialogueAndMovementResumes()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities = [new SignEntity { Key = "s", Pos = new GridPos(3, 2), Text = "HI" }],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3), Facing.Up);
+
+        scene.Update(Hold(GameAction.Confirm));
+        Assert.True(scene.InDialogue);
+
+        scene.Update(Hold(GameAction.Confirm));   // completes the page
+        scene.Update(Hold(GameAction.Confirm));   // dismisses it
+        Assert.False(scene.InDialogue);
+
+        Walk(scene, GameAction.Down);
+        Assert.Equal(new GridPos(3, 4), scene.PlayerPos);
+    }
+
+    [Fact]
+    public void ConfirmFacingNothing_DoesNotOpenDialogue()
+    {
+        OverworldScene scene = SceneWith(Map(8, 8), new GridPos(3, 3), Facing.Up);
+        scene.Update(Hold(GameAction.Confirm));
+        Assert.False(scene.InDialogue);
+    }
+
+    [Fact]
+    public void ConfirmFacingAnNpcWithDialogue_Speaks()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities = [new NpcEntity { Key = "n", Pos = new GridPos(3, 2), Dialogue = "HELLO" }],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3), Facing.Up);
+        scene.Update(Hold(GameAction.Confirm));
+        Assert.True(scene.InDialogue);
+    }
+
+    /// <summary>An empty dialogue string must not open an empty box.</summary>
+    [Fact]
+    public void EmptySignText_OpensNoDialogue()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities = [new SignEntity { Key = "s", Pos = new GridPos(3, 2), Text = "" }],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3), Facing.Up);
+        scene.Update(Hold(GameAction.Confirm));
+        Assert.False(scene.InDialogue);
+    }
+
+    [Fact]
+    public void DialogueRendersWithoutInvalidQuads()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities = [new SignEntity { Key = "s", Pos = new GridPos(3, 2), Text = "A LONGER LINE OF TEXT" }],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3), Facing.Up);
+        scene.Update(Hold(GameAction.Confirm));
+        for (int i = 0; i < 10; i++)
+            scene.Update(Idle);
+
+        _renderer.BeginFrame(new Viewport(2, 0, 0, W * 2, H * 2), W, H, new Rgba(0, 0, 0, 255));
+        _batch.Begin();
+        scene.Render();
+        var (quads, calls, _) = _batch.End();
+        _renderer.Draw(quads, calls);
+
+        Assert.NotEmpty(_renderer.Drawn);
+    }
 }
