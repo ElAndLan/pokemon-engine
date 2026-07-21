@@ -10,7 +10,9 @@ public sealed record BattleFormChoice(string FormId, int MoveIndex);
 // ponytail: bonuses default to 1.0; per-device bonuses need a schema field on Item, which is a
 // DATA_SCHEMA change rather than something to invent here.
 public sealed record BattleCaptureChoice(EntityId Item, double BallBonus = 1.0, double StatusBonus = 1.0);
-public sealed record BattleMenuItem(string Label, BattleAction Action);
+/// <summary><paramref name="Item"/> is set for actions that spend a carried item, so the caller can
+/// consume it without re-deriving which entry produced the action.</summary>
+public sealed record BattleMenuItem(string Label, BattleAction Action, EntityId? Item = null);
 public sealed record BattlePartyMember(string Name, int CurrentHp, int MaxHp, bool IsActive, bool IsFainted);
 public sealed record BattleSceneSnapshot(
     string PlayerName,
@@ -145,7 +147,7 @@ public sealed class BattleScene
         {
             var action = new ThrowBall(capture.BallBonus, capture.StatusBonus);
             if (_battle.CanSubmitAction(BattleSide.Player, action))
-                items.Add(new BattleMenuItem($"Throw {_nameOf(capture.Item)}", action));
+                items.Add(new BattleMenuItem($"Throw {_nameOf(capture.Item)}", action, capture.Item));
         }
 
         _menu = items;

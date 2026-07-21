@@ -287,13 +287,22 @@ internal sealed class RuntimeHost : IDisposable
         }
 
         BattleController battle = start.Battle!;
+
+        // Capture devices come from the live bag. Core refuses a throw in a trainer battle, so the
+        // same list is safe to offer either way — the menu simply will not include it.
+        IReadOnlyList<BattleCaptureChoice> captures = _session!.CaptureItems()
+            .Select(item => new BattleCaptureChoice(item))
+            .ToList();
+
         var presenter = new BattleScene(battle,
-            b => new UseMove(RandomAi.ChooseMove(b.Active(BattleSide.Enemy), _session!.Rng)));
+            b => new UseMove(RandomAi.ChooseMove(b.Active(BattleSide.Enemy), _session.Rng)),
+            formChoices: null, nameOf: Name, captureChoices: captures);
 
         _battleController = battle;
         _battleWasTrainer = trainer;
         _scenes.Replace(new BattleHostScene(_ui!.Painter, presenter,
-            _content.Config.VirtualWidth, _content.Config.VirtualHeight));
+            _content.Config.VirtualWidth, _content.Config.VirtualHeight,
+            spendItem: item => _session.ConsumeItem(item)));
     }
 
     /// <summary>Returns from a finished battle: apply the result once, award experience on a win, and
@@ -348,6 +357,16 @@ internal sealed class RuntimeHost : IDisposable
     }
 
     private const int SaveEntry = 0;
+
+    /// <summary>Display names come from the database; an unknown ID shows its ID rather than
+    /// inventing a name.</summary>
+    private string Name(EntityId id) => id.Category switch
+    {
+        EntityCategory.Move => _content.Db.Find<Move>(id)?.Name ?? id.ToString(),
+        EntityCategory.Item => _content.Db.Find<Item>(id)?.Name ?? id.ToString(),
+        EntityCategory.Species => _content.Db.Find<Species>(id)?.Name ?? id.ToString(),
+        _ => id.ToString(),
+    };
 
     private void Report(string message)
     {

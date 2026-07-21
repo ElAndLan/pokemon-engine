@@ -3934,9 +3934,41 @@ resumes, contract deltas are reconciled at that boundary before further certific
    passed **2,675/2,675** (1,724 Core, 104 Creator, 640 Runtime, 207 Tools), of which 23 are new;
    both samples still boot to smoke success.
 
+   Progress (2026-07-21): **Wild/trainer distinction audited and covered; thrown devices are now
+   consumed.** Following the `isWild` defect, every `BattleController` construction site was audited:
+   there is exactly one, in `BattleLauncher`, and both entry points now pass the flag explicitly with
+   a comment recording that it is load-bearing rather than cosmetic. Core gates two behaviours on it
+   — capture refusal, and ending a wild battle when the opponent is forced out instead of switching
+   — and both are now covered from the Runtime side.
+
+   `BattleMenuItem` carries an optional item ID, so an action that spends a carried item can be
+   billed without re-deriving which entry produced it. `BattleHostScene` spends **before** submitting:
+   a device the bag cannot pay for is not thrown at all, rather than thrown and then billed, so a
+   single orb cannot be thrown twice. `RuntimeHost` builds capture choices from the live bag and
+   wires the spend to `WorldSession.ConsumeItem`, and now resolves display names from the database
+   instead of showing raw IDs.
+
+   `WildVersusTrainerTests` covers both demo paths on one map: grass on every tile plus a trainer
+   looking down a clear column. It asserts the flag itself in both directions and across five levels,
+   capture offered in a wild battle and never in a trainer battle even while carrying devices, Core
+   refusing a directly submitted throw rather than only hiding the menu entry, device consumption,
+   a cancelled throw when the bag cannot pay, non-item actions spending nothing, grass leading to a
+   capturable wild battle whose catch joins the party, trainer sight leading to a two-member trainer
+   battle that offers no capture and leaves devices untouched, both encounter kinds coexisting on one
+   map, and a trainer win yielding more experience than a wild one.
+
+   **Core gap recorded:** `PHASE_16_DEMO_PLAN` §3.3 item 2 requires that "attempting `Run` … in a
+   trainer battle is refused by Core", but Core has **no flee or Run action at all** — there is no
+   `Run` in the battle action vocabulary. Fleeing is therefore neither possible nor refusable. Adding
+   it is a Core change (a wild-only action plus its escape odds), so it is recorded here for Phase 15
+   resumption rather than approximated in Runtime.
+
+   Verification: build passed with 0 warnings/errors; the full solution passed **2,690/2,690**
+   (1,724 Core, 104 Creator, 655 Runtime, 207 Tools), of which 15 are the new wild/trainer suite;
+   both samples still boot to smoke success.
+
    Remaining in 16F: typed target and replacement menus — the scene auto-selects the first healthy
-   reserve rather than offering the choice — the doubles slot layout, and consuming the thrown device
-   from the bag (Core reports the throw; the bag decrement is not yet wired).
+   reserve rather than offering the choice — and the doubles slot layout.
    - **Spec lock:** BattleScene state machine, action/typed-target/replacement menus, Core request/
      response boundary, event-to-presentation catalog, animation queue, skip/fast-forward, and outcome
      return. Runtime never predicts damage, legality, target fallback, faint, or status from state.

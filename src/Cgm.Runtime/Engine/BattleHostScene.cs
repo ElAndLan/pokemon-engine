@@ -20,12 +20,18 @@ public sealed class BattleHostScene : IScene
     private SelectionList _menu;
     private int _presented;
 
-    public BattleHostScene(UiPainter ui, BattleScene battle, int virtualWidth, int virtualHeight)
+    private readonly Func<EntityId, bool>? _spendItem;
+
+    /// <summary><paramref name="spendItem"/> consumes an item an action requires and returns whether
+    /// the bag could pay. A refused spend cancels the action, so a device cannot be thrown twice.</summary>
+    public BattleHostScene(UiPainter ui, BattleScene battle, int virtualWidth, int virtualHeight,
+        Func<EntityId, bool>? spendItem = null)
     {
         ArgumentNullException.ThrowIfNull(ui);
         ArgumentNullException.ThrowIfNull(battle);
         _ui = ui;
         _battle = battle;
+        _spendItem = spendItem;
         _width = virtualWidth;
         _height = virtualHeight;
 
@@ -149,7 +155,14 @@ public sealed class BattleHostScene : IScene
         if (_menu.Selected is not { } index || index >= snapshot.Menu.Count)
             return;
 
-        _battle.Submit(snapshot.Menu[index].Action);
+        BattleMenuItem chosen = snapshot.Menu[index];
+
+        // Spend before submitting: a device the bag cannot pay for is not thrown at all, rather than
+        // thrown and then billed.
+        if (chosen.Item is { } item && _spendItem is not null && !_spendItem(item))
+            return;
+
+        _battle.Submit(chosen.Action);
         Drain();
     }
 
