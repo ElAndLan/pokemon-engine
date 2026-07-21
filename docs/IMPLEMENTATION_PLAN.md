@@ -3146,7 +3146,7 @@ resumes, contract deltas are reconciled at that boundary before further certific
 
 ### 6.2 Ordered Runtime packages
 
-1. **16A — Content-agnostic host and raw/pack parity (`PLANNED`; prerequisite: Phase 15 pause
+1. **16A — Content-agnostic host and raw/pack parity (`IN PROGRESS`; prerequisite: Phase 15 pause
    baseline recorded per the §6 prerequisite note).**
    - **Spec lock:** complete `ENGINE_RUNTIME_SPEC` boot arguments, error taxonomy, data/asset database,
      ownership/disposal, and startup state machine using the defaults above.
@@ -3159,6 +3159,27 @@ resumes, contract deltas are reconciled at that boundary before further certific
    - **Acceptance:** valid raw/pack database equality; missing/invalid/version/hash/start-map/asset
      cases and exit codes; no official/demo ID scan; disposal on partial failure; exported smoke still
      passes. Exit: host reaches BootScene from either source with no content assumptions.
+
+   Progress (2026-07-21): **16A step 1 (argument contract and error taxonomy) COMPLETE.**
+   `BootArgs.TryParse` implements the `ENGINE_RUNTIME_SPEC` 16A command-line contract as a pure
+   step-1 parse that opens no window and reads no content: mutually exclusive dev (`--project`) and
+   exported (adjacent config) modes, `--debug`/`--smoke`, and the all-or-none `--spawn-*` grammar
+   restricted to `--project` plus `--debug`. Unknown, duplicate, missing-value, and conflicting
+   arguments return exit 2. Relative project roots resolve against the working directory; exported
+   roots are left to the loader, which owns executable-relative resolution. Spawn facing stays null
+   when unspecified so 16D resolves it against the project start facing. `RuntimeExit` fixes the
+   0/2/3/4/5/6/10 table and `BootDiagnostic` formats the single structured stderr line with a stable
+   category and a content-relative identifier only, so host paths cannot leak into release output.
+   The spec-mandated `--config` escape hatch is removed; it had no remaining callers. `Program.cs`
+   routes through the parser and reports categorized exits. Steps 2-8 (canonicalized roots, version
+   and hash verification, `GameDb`/`IAssetSource` construction, start-state resolution, disposal
+   stack) and showcase-content removal from `ExportedGameBoot` remain open in this package. Smoke
+   failures currently all report exit 10; splitting content (3) and asset (4) categories waits on the
+   categorized loader and is marked with a `ponytail:` ceiling comment. Schema impact: none.
+   Dependency impact: none. RNG impact: none. Golden impact: none. Verification:
+   `D:\dotnet\dotnet.exe build CreatureGameMaker.slnx` passed with 0 warnings/errors; the full
+   solution passed **2,018/2,018** (1,647 Core, 104 Creator, 60 Runtime, 207 Tools), of which 39 are
+   the new `BootArgsTests`. Next: 16A step 2-8 loader with raw/pack `GameDb` parity.
 2. **16B — Fixed-step host and renderer (`PLANNED`; prerequisite 16A).**
    - **Spec lock:** exact host loop, `IRenderer` calls, coordinate systems, blend/sort rules, atlas/
      texture lifetime, context-loss refusal, and frame diagnostics.
