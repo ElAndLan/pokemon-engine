@@ -1,3 +1,4 @@
+using Cgm.Core.Battle;
 using Cgm.Core.Model;
 using Cgm.Runtime.Engine;
 using Silk.NET.Input;
@@ -245,12 +246,72 @@ internal sealed class RuntimeHost : IDisposable
                 Report($"Warp '{warp.Entity.Key}' targets missing map '{warp.Entity.Target}'.");
                 break;
 
+            case StepOutcome.WildEncounter wild:
+                Launch(BattleLauncher.Wild(_content.Db, _session, wild.Species, wild.Level, _session.Rng),
+                    trainer: false);
+                break;
+
+            case StepOutcome.TrainerSpotted spotted:
+                Launch(BattleLauncher.Trainer(_content.Db, _session, spotted.Trainer, _session.Rng),
+                    trainer: true);
+                break;
+
             default:
-                // Battles, encounters, and Core-operation actions need session state that 16E owns.
+                // Core-operation trigger actions still need the 16E bag and healing services.
                 Report($"Unhandled overworld outcome: {pending.GetType().Name}.");
                 break;
         }
     }
+
+    /// <summary>Runs a battle to completion and returns its result to the session. Presentation is
+    /// 16F; until then the battle resolves headlessly so the lifecycle is exercised end to end
+    /// rather than stubbed.</summary>
+    // ponytail: auto-resolved until BattleScene becomes an IScene in 16F; entry, return, and
+    // progression are the parts 16D owns and they are real.
+    private void Launch(BattleStart start, bool trainer)
+    {
+        if (!start.Started)
+        {
+            Report($"Battle refused: {start.Refusal}.");
+            return;
+        }
+
+        BattleController battle = start.Battle!;
+        var scene = new BattleScene(battle,
+            b => new UseMove(RandomAi.ChooseMove(b.Active(BattleSide.Enemy), _session!.Rng)));
+
+        for (int guard = 0; guard < 200 && scene.Snapshot().Outcome is null; guard++)
+        {
+            if (scene.PendingReplacementSlots.Count > 0)
+            {
+                scene.SubmitReplacements(Replacements(scene));
+                continue;
+            }
+            if (scene.Menu.Count == 0)
+                break;
+            scene.Submit(scene.Menu[0].Action);
+        }
+
+        BattleLauncher.ApplyResult(_session!, battle);
+        if (scene.Snapshot().Outcome?.Winner == BattleSide.Player)
+            BattleLauncher.AwardExperience(_content.Db, _session!, battle, trainer);
+
+        if (_session!.PartyIsWhitedOut)
+            Report("Party whited out; blackout returns with 16E healing services.");
+    }
+
+    /// <summary>Sends in the first healthy reserve for each slot needing a replacement.</summary>
+    private static IReadOnlyList<BattleReplacementSelection> Replacements(BattleScene scene) =>
+        scene.PendingReplacementSlots.Select(slot =>
+        {
+            BattleSceneSnapshot snapshot = scene.Snapshot();
+            IReadOnlyList<BattlePartyMember> party = slot.Side == BattleSide.Player
+                ? snapshot.PlayerParty
+                : snapshot.EnemyParty;
+            int index = party.Select((member, i) => (member, i))
+                .First(entry => !entry.member.IsActive && !entry.member.IsFainted).i;
+            return new BattleReplacementSelection(slot, index);
+        }).ToList();
 
     /// <summary>The menu is the only place a manual save is offered, per the 16E save policy.</summary>
     private void AdvanceMenu(MenuScene menu)

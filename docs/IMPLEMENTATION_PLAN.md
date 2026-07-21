@@ -3697,8 +3697,39 @@ resumes, contract deltas are reconciled at that boundary before further certific
    warnings/errors; the full solution passed **2,425/2,425** (1,724 Core, 104 Creator, 390 Runtime,
    207 Tools), of which 25 are new; both samples still boot to smoke success.
 
-   Remaining in 16D: battle entry and return through the Core boundary and blackout, both blocked on
-   16E party/session state; and real tile/sprite assets once `IAssetSource` lands.
+   Progress (2026-07-21): **16D battle entry and return COMPLETE.** `BattleLauncher` composes a Core
+   `BattleController` from live session state: a wild battle generates its opponent through
+   `InstanceGen` with the session RNG, and a trainer battle builds the authored party, preferring
+   authored moves over the learnset. Runtime composes participants; every rule inside the battle
+   stays in Core. Refusals are typed — empty party, whited-out party, unknown species, empty opponent
+   party — and a refusal is always a content or state defect rather than something Runtime papers
+   over by inventing a combatant.
+
+   `ApplyResult` writes HP, status, and PP back to the saved party from Core's values. `AwardExperience`
+   uses `ExpCalc.Yield` and `ExpCurve.LevelForExp`, splitting among eligible participants, skipping
+   fainted members per the Core rule, and levelling on the **earner's** growth rate rather than the
+   defeated creature's. `RuntimeHost` launches wild and trainer battles from the matching step
+   outcomes and reports a whiteout, with blackout itself waiting on 16E healing services.
+
+   The battle currently auto-resolves through `BattleScene` with a random-move opponent and carries a
+   `ponytail:` note: interactive presentation is 16F's package, while entry, return, and progression
+   are what 16D owns and those are real. Doing it this way exercises the whole lifecycle end to end
+   rather than stubbing the middle.
+
+   Two process notes. A garbled ternary in `AwardExperience` had three branches returning the same
+   value and was simplified before it shipped. More usefully, **the content-neutrality scan built in
+   16A caught this slice's own code**: a `FirstOrDefault` on the battle menu tripped the
+   fallback-selection rule. The rule is deliberately broad because that is how fallback selection
+   creeps back in, so the code changed to an explicit count check rather than the rule being
+   weakened to permit it.
+
+   Schema impact: none. Dependency impact: none. RNG impact: wild generation and the placeholder
+   opponent AI draw from the session stream. Golden impact: none. Verification: build passed with 0
+   warnings/errors; the full solution passed **2,500/2,500** (1,724 Core, 104 Creator, 465 Runtime,
+   207 Tools), of which 22 are new; both samples still boot to smoke success.
+
+   Remaining in 16D: blackout (16E healing services) and real tile/sprite assets once `IAssetSource`
+   lands.
 5. **16E — Player systems, save, clock, and audio (`IN PROGRESS`; prerequisite 16D).**
 
    Progress (2026-07-21): **16E durable save slot and session persistence COMPLETE.**
