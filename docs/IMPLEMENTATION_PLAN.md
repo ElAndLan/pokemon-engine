@@ -3317,6 +3317,49 @@ resumes, contract deltas are reconciled at that boundary before further certific
    shader pair, RGBA atlas upload with source-rectangle validation, idempotent reverse-order
    disposal, context-loss as exit 6), plus the hidden-window GL smoke screenshot and the
    100-cycle GL-object leak check.
+
+   Progress (2026-07-21): **16B renderer seam and OpenGL backend COMPLETE; 16B closes except the
+   screenshot-hash and GL-leak-counter evidence.** `IRenderer` now exists with two implementations,
+   so the seam is justified rather than speculative: `GlRenderer` over Silk OpenGL 3.3, and a
+   context-free recording renderer in tests. Scenes see no GL, buffer, shader, or texture handle
+   beyond an opaque `TextureHandle` lease. `TextureInfo.Validate` checks RGBA byte length against
+   declared dimensions using widened arithmetic so a 16k-square atlas cannot overflow the check, and
+   `Contains` enforces half-open source-rectangle bounds inside the atlas.
+
+   `GlRenderer` implements the locked defaults exactly: one dynamic quad batch with a static index
+   buffer, one textured-quad shader pair, premultiplied-alpha blending (`ONE`,
+   `ONE_MINUS_SRC_ALPHA`), nearest-neighbour clamp-to-edge textures with no mipmaps, and no
+   rotation, lighting, post-processing, or dynamic atlasing. The vertex shader maps virtual pixels
+   (top-left origin, +Y down) to clip space; source rectangles are authored in integer atlas pixels
+   and normalised at vertex-write time; flips swap UVs rather than geometry. Letterbox bars are
+   painted opaque black outside the scaled viewport before the clear colour fills it. Scissor
+   rectangles convert from top-left virtual space to bottom-left window pixels through the viewport
+   scale and offset. Capacity growth rebuilds the buffers to the next power of two.
+
+   Two defects were caught by running the binary rather than by the suite. First, UVs were written
+   as raw atlas pixels while the sampler expects normalised coordinates, so every sprite would have
+   sampled a single texel. Second, and more instructive: disposal ran from `RuntimeHost.Dispose`
+   after `Run` returned, by which point GLFW had destroyed the context, so `DeleteTexture` threw
+   `NoContext` and the process ended on an unhandled exception despite reporting success. GL objects
+   are now released in `OnClosing`, the only point where the renderer and its context are both
+   alive; the later idempotent `Dispose` is a harmless no-op, which is precisely why the spec
+   requires idempotency. `RuntimeHost` also wraps every window callback, because Silk swallows
+   exceptions thrown inside them — a GL failure previously exited 0 and looked like success, and now
+   reports exit 6.
+
+   `--smoke` now runs the full boot and render path in a hidden window and exits after one frame,
+   giving the acceptance matrix's GL smoke row real coverage on this machine (GL 3.3.0 NVIDIA):
+   both `samples/demo-game` and `samples/fixture-min` upload a neutral 2x2 atlas, draw one batched
+   quad, tear down cleanly, and exit 0. Schema impact: none. Dependency impact: none — all three
+   Silk packages were already referenced in `TECH_STACK.md`. RNG impact: none. Golden impact: none.
+   Verification: build passed with 0 warnings/errors; the full solution passed **2,141/2,141**
+   (1,654 Core, 104 Creator, 176 Runtime, 207 Tools), of which 25 are the new `RendererTests`; the
+   content-neutrality scan still passes over the enlarged Runtime source.
+
+   Remaining in 16B before the package is VERIFIED: the screenshot-hash comparison at multiple
+   integer scales and the 100-cycle zero-GL-object-delta leak counter. Both need a live context, so
+   they belong in a GPU-enabled harness rather than the headless suite; the lease-level equivalent
+   (100 create/dispose cycles leaving no live lease) is covered now.
 3. **16C — UI kit, input, and scene flow (`PLANNED`; prerequisite 16B).**
    - **Spec lock:** scene lifecycle (`Enter`, fixed `Update`, `Render`, `Exit`, `Dispose`), overlay rule,
      transition timeline, focus/navigation, text layout, typewriter skip, and rebinding persistence.

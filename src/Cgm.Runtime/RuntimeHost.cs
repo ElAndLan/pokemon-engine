@@ -12,19 +12,25 @@ internal sealed class RuntimeHost : IDisposable
     private const int DefaultWindowHeight = 640;
 
     private readonly bool _debug;
+    private readonly bool _smoke;
     private readonly RuntimeContent _content;
     private readonly HostLoop _loop = new();
+    private readonly QuadBatch _batch = new();
 
     private IWindow? _window;
     private GL? _gl;
     private IInputContext? _input;
+    private GlRenderer? _renderer;
+    private TextureHandle _smokeTexture;
 
     private double _logAccumulatorSec;
+    private int _failure;
 
-    public RuntimeHost(bool debug, RuntimeContent content)
+    public RuntimeHost(bool debug, RuntimeContent content, bool smoke = false)
     {
         _debug = debug;
         _content = content;
+        _smoke = smoke;
     }
 
     public int Run()
@@ -49,15 +55,48 @@ internal sealed class RuntimeHost : IDisposable
                 ContextFlags.ForwardCompatible,
                 new APIVersion(3, 3)),
             VSync = true,
+            IsVisible = !_smoke,
         };
 
-        _window = Window.Create(options);
-        _window.Load += OnLoad;
-        _window.Update += OnUpdate;
-        _window.Render += OnRender;
-        _window.Closing += OnClosing;
-        _window.Run();
-        return 0;
+        try
+        {
+            _window = Window.Create(options);
+            _window.Load += () => Guarded(OnLoad);
+            _window.Update += delta => Guarded(() => OnUpdate(delta));
+            _window.Render += delta => Guarded(() => OnRender(delta));
+            _window.Closing += OnClosing;
+            _window.Run();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException
+            or DllNotFoundException or EntryPointNotFoundException)
+        {
+            // Context creation, shader compilation, and driver loading all land here. Phase 16 does
+            // not rebuild a lost context: this is a controlled initialization failure.
+            Console.Error.WriteLine(new BootDiagnostic(RuntimeExit.Initialization, "initialization",
+                $"Renderer initialization failed: {ex.Message}").Format());
+            return (int)RuntimeExit.Initialization;
+        }
+        return _failure;
+    }
+
+    /// <summary>Silk swallows exceptions thrown inside window callbacks, so a GL failure would exit
+    /// 0 and look like success. Record the first one, then close instead of rendering garbage.</summary>
+    private void Guarded(Action body)
+    {
+        if (_failure != 0)
+            return;
+        try
+        {
+            body();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException
+            or ObjectDisposedException or DllNotFoundException or EntryPointNotFoundException)
+        {
+            _failure = (int)RuntimeExit.Initialization;
+            Console.Error.WriteLine(new BootDiagnostic(RuntimeExit.Initialization, "initialization",
+                $"Renderer failed during a frame: {ex.Message}").Format());
+            _window?.Close();
+        }
     }
 
     private void OnLoad()
@@ -72,7 +111,14 @@ internal sealed class RuntimeHost : IDisposable
                     _window!.Close();
             };
 
-        _gl.ClearColor(0.09f, 0.11f, 0.14f, 1.0f);
+        _renderer = new GlRenderer(_gl);
+
+        // A 2x2 opaque RGBA texture proves upload, sampling, and the draw path without any content.
+        _smokeTexture = _renderer.CreateTexture(2, 2,
+        [
+            0x30, 0x40, 0x50, 0xFF, 0x50, 0x40, 0x30, 0xFF,
+            0x50, 0x40, 0x30, 0xFF, 0x30, 0x40, 0x50, 0xFF,
+        ]);
 
         if (_debug)
         {
@@ -102,10 +148,23 @@ internal sealed class RuntimeHost : IDisposable
 
     private void OnRender(double deltaSeconds)
     {
-        // 16A reaches a validated aggregate and clears the screen. Real presentation is 16B's
-        // renderer and 16C's BootScene; nothing here may assume content.
+        // 16B renders one neutral quad through the real batch and renderer. Scene-driven
+        // presentation arrives with 16C's BootScene; nothing here may assume content.
         _ = deltaSeconds;
-        _gl!.Clear(ClearBufferMask.ColorBufferBit);
+        int vw = _content.Config.VirtualWidth;
+        int vh = _content.Config.VirtualHeight;
+        Vector2D<int> size = _window!.FramebufferSize;
+
+        _renderer!.BeginFrame(VirtualResolution.Fit(size.X, size.Y, vw, vh), vw, vh,
+            new Rgba(0x18, 0x1C, 0x24, 0xFF));
+        _batch.Begin();
+        _batch.Ui(_smokeTexture, new RectI(0, 0, 2, 2), new RectI(0, 0, vw, vh), layer: 0);
+        var (quads, calls, _) = _batch.End();
+        _renderer.Draw(quads, calls);
+        _renderer.EndFrame();
+
+        if (_smoke)
+            _window.Close();
     }
 
     /// <summary>One simulation tick. 16C's scene stack consumes this; 16A/16B own only the cadence.</summary>
@@ -131,12 +190,18 @@ internal sealed class RuntimeHost : IDisposable
 
     private void OnClosing()
     {
+        // GL objects are created and destroyed on the context-owning thread, and the context dies
+        // with the window. Releasing here is the only point where both are still valid.
+        _renderer?.Dispose();
         if (_debug)
             Console.WriteLine($"[runtime] closing - {_loop.TotalTicks} ticks, {_loop.TotalFrames} frames total");
     }
 
     public void Dispose()
     {
+        // The renderer is already gone: GL objects must be released in OnClosing while the context
+        // is still current. Disposal is idempotent, so this second call is a harmless no-op.
+        _renderer?.Dispose();
         _input?.Dispose();
         _gl?.Dispose();
         _window?.Dispose();

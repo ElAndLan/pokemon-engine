@@ -13,13 +13,11 @@ internal static class Program
             return (int)error.Exit;
         }
 
-        if (boot.Smoke)
-        {
-            Console.WriteLine($"[runtime] smoke passed: {content!.StartMap.Id}");
-            return (int)RuntimeExit.Success;
-        }
-
-        using var host = new RuntimeHost(content!.Config.Debug, content);
-        return host.Run();
+        // Smoke runs the same boot and render path in a hidden window, then exits after one frame.
+        using var host = new RuntimeHost(content!.Config.Debug, content, boot.Smoke);
+        int exit = host.Run();
+        if (boot.Smoke && exit == (int)RuntimeExit.Success)
+            Console.WriteLine($"[runtime] smoke passed: {content.StartMap.Id}");
+        return exit;
     }
 }
