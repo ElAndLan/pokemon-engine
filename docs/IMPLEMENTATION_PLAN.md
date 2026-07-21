@@ -3407,6 +3407,40 @@ resumes, contract deltas are reconciled at that boundary before further certific
    typewriter, cursor, vertical list, grid, prompt/choice, HP bar, fade, message log), the keyboard
    and gamepad input map with its direction resolver and rebinding rules, the Title and
    New/Continue scenes, and versioned options persistence separate from saves.
+
+   Progress (2026-07-21): **16C UI kit layout primitives COMPLETE; drawing primitives, input map,
+   and options persistence outstanding.** `BitmapFont` measures in virtual pixels and never consults
+   the framebuffer, so layout is identical at every integer scale. Advance excludes the trailing
+   gap, so a single glyph measures its width rather than a full advance. `Wrap` treats newline as an
+   explicit break, preserves blank lines as deliberate spacing, prefers the last whitespace, and
+   hard-breaks a token wider than the line instead of overflowing; unsupported characters resolve to
+   the font's replacement glyph. The font is fixed-width, which the whole Phase 16 kit needs and no
+   spec line contradicts; per-glyph widths are marked as the upgrade path rather than built.
+
+   `Typewriter` reveals on fixed ticks at one glyph per two by default, so a replayed input script
+   reveals identically at any frame rate. Line breaks are structure and consume no beat. `Confirm`
+   completes the current page and only then advances it, and it is edge-driven: ticking while a
+   button is held can never skip a page, which is the "held Confirm does not repeatedly dismiss"
+   rule expressed in the API rather than trusted to callers.
+
+   `SelectionList` covers both the vertical list and the grid through a column count. Disabled
+   entries stay in the control and are skipped during navigation; wrapping happens only when the
+   control opts in; horizontal movement stays on its row; an empty or fully disabled control exposes
+   no selection and accepts Cancel. Removing the selected entry moves to the nearest remaining
+   enabled entry, preferring the next then the previous, and removing an earlier entry shifts the
+   selection index so focus stays on the same item. `ResourceBar` clamps presentation to 0..max,
+   treats a zero maximum as empty without dividing, animates only its displayed value toward the
+   target without overshooting, and never touches the underlying resource; any nonzero remainder
+   keeps at least one pixel lit so a nearly-dead bar never reads as empty.
+
+   Two defects were caught by the new tests. Navigation derived "is this horizontal" from the step
+   value, so in a one-column list `Down` (+1) was misclassified as horizontal and blocked by the
+   row guard — every vertical move in a plain menu would have failed. The direction now decides.
+   `VisibleLines` also returned one empty line before anything was revealed; it now returns no lines,
+   distinguishing "no text yet" from "an empty line". Schema impact: none. Dependency impact: none.
+   RNG impact: none. Golden impact: none. Verification: build passed with 0 warnings/errors; the
+   full solution passed **2,215/2,215** (1,654 Core, 104 Creator, 250 Runtime, 207 Tools), of which
+   54 are the new UI kit tests; the demo sample still boots and renders at exit 0.
 4. **16D — Asset-backed overworld integration (`PLANNED`; prerequisites 16A-C).**
    - **Spec lock:** OverworldScene state ownership, map/entity instantiation, render layers, interaction
      priority, encounter/trainer trigger order, dialogue commands already represented in Core data,
