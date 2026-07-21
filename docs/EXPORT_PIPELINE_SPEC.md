@@ -56,9 +56,13 @@ missing/invalid (Addendum §6). Shape (`RuntimeConfig`, serialized via `CgmJson`
 `{ schemaVersion, gameName, windowTitle, virtualWidth, virtualHeight, saveDirName, packPath, debug }`.
 
 - `gameName` defaults to the project name; `windowTitle` defaults to `gameName`.
-- `virtualWidth/Height` default to **240×160** (the integer-scaled internal resolution; 4× fills the
-  960×640 window). <!-- ponytail: constant until the editor exposes a resolution setting; then it
-  becomes a ProjectSettings field feeding this. -->
+- `virtualWidth/Height` default to **256×192** (the integer-scaled internal resolution; 4× fills a
+  1024×768 window). Amended 2026-07-21 for Gen 4 DS-era single-screen alignment (user directive;
+  `IMPLEMENTATION_PLAN` §6.1, `ENGINE_RUNTIME_SPEC` 16B); was 240×160. Existing exported configs
+  serialize both values explicitly, so the change affects only newly written configs and callers
+  that omit the fields — no migration is required and `schemaVersion` is unchanged.
+  <!-- ponytail: constant until the editor exposes a resolution setting; then it becomes a
+  ProjectSettings field feeding this. -->
 - `saveDirName` = the game name reduced to a filesystem-safe folder name (`%APPDATA%/<saveDirName>`);
   falls back to `Game` if nothing safe remains.
 - `packPath` = the pack filename beside the exe (`game.cgmpack`). `debug` = the export flavor flag.

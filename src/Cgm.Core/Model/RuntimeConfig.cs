@@ -9,8 +9,9 @@ public sealed record RuntimeConfig
     public int SchemaVersion { get; init; } = SchemaVersions.Current;
     public string GameName { get; init; } = "";
     public string WindowTitle { get; init; } = "";
-    public int VirtualWidth { get; init; } = 240;
-    public int VirtualHeight { get; init; } = 160;
+    // Gen 4 DS-era single-screen alignment (EXPORT_PIPELINE_SPEC; amended 2026-07-21, was 240x160).
+    public int VirtualWidth { get; init; } = 256;
+    public int VirtualHeight { get; init; } = 192;
     public string SaveDirName { get; init; } = "";
     public string PackPath { get; init; } = "game.cgmpack";
     public bool Debug { get; init; }

@@ -3241,7 +3241,7 @@ resumes, contract deltas are reconciled at that boundary before further certific
    16A remaining: `IAssetSource` only, deferred with cause (packs carry no assets; see the previous
    entry). Next package: **16B fixed-step host and renderer**, whose spec lock also carries the
    mandated 240x160 -> 256x192 `VirtualResolution` default change and its test updates.
-2. **16B — Fixed-step host and renderer (`PLANNED`; prerequisite 16A).**
+2. **16B — Fixed-step host and renderer (`IN PROGRESS`; prerequisite 16A).**
    - **Spec lock:** exact host loop, `IRenderer` calls, coordinate systems, blend/sort rules, atlas/
      texture lifetime, context-loss refusal, and frame diagnostics.
    - Feed real elapsed time only into `FixedStepClock`; poll input once per outer frame, expose pressed
@@ -3256,6 +3256,35 @@ resumes, contract deltas are reconciled at that boundary before further certific
      null-renderer command golden; atlas/source/flip/layer batch tests; hidden GL smoke screenshot of
      neutral fixture; zero GL object leak across 100 load/unload cycles. Exit: animated fixture map
      renders correctly at integer scale while headless sim replay remains byte-identical.
+   Progress (2026-07-21): **16B host-loop contract and virtual-resolution default COMPLETE; renderer
+   outstanding.** `HostLoop` implements the outer-frame order: poll once, feed elapsed milliseconds
+   to `FixedStepClock`, run zero through five fixed ticks, and expose the interpolation alpha for one
+   render. It is platform-free — it takes elapsed milliseconds and held actions, so the whole frame
+   order is unit-testable without a window and the simulation never reads wall time. `TickInput`
+   delivers held state from the latest poll plus press/release edges to the **first due tick only**,
+   so an edge observed on a zero-tick frame stays buffered and is never delivered twice; later ticks
+   in the same frame see held state without a repeated press. A press and release inside one
+   zero-tick gap both survive to the next tick, so a tap between renders is not lost. Backlog beyond
+   the five-tick cap is dropped rather than replayed and is counted in `DroppedTicks` for
+   diagnostics. `ResetAfterStall` clears accumulated time after minimize/restore, debugger pause,
+   device reset, or resize while preserving pending input edges, because those presses were real.
+   `RuntimeHost` now drives one `HostLoop` and its own tick/frame counters are gone.
+
+   The Gen 4 alignment change landed with its documentation in the same change, as the package
+   requires: `RuntimeConfig` virtual resolution defaults are 240x160 -> **256x192**, recorded in
+   `EXPORT_PIPELINE_SPEC` with the reason and the no-migration rationale (existing exported configs
+   serialize both values explicitly, so only newly written configs and field-omitting callers change;
+   `schemaVersion` is unchanged). `ExporterTests.GeneratedConfig_DefaultsFromProject` and the
+   `VirtualResolution` suite were updated to the real default, and the viewport suite gained the
+   spec's odd-remainder rule (the extra pixel goes right/bottom) and non-positive rejection cases.
+
+   Schema impact: none (default value only, documented). Dependency impact: none. RNG impact: none.
+   Golden impact: none. Verification: build passed with 0 warnings/errors; the full solution passed
+   **2,083/2,083** (1,654 Core, 104 Creator, 118 Runtime, 207 Tools), of which 23 are the new
+   `HostLoopTests`; `--project samples/demo-game --smoke` still exits 0. Remaining in 16B: the
+   `IRenderer` seam and its quad-batch OpenGL implementation (premultiplied alpha, layer+sequence
+   ordering, atlas load, source rects, flip, UI/world projections, scissor, tile chunks, 2,048-quad
+   start capacity with power-of-two growth, idempotent reverse-order disposal).
 3. **16C — UI kit, input, and scene flow (`PLANNED`; prerequisite 16B).**
    - **Spec lock:** scene lifecycle (`Enter`, fixed `Update`, `Render`, `Exit`, `Dispose`), overlay rule,
      transition timeline, focus/navigation, text layout, typewriter skip, and rebinding persistence.

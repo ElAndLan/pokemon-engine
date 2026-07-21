@@ -1,4 +1,3 @@
-using Cgm.Core.Timing;
 using Cgm.Runtime.Engine;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -14,15 +13,12 @@ internal sealed class RuntimeHost : IDisposable
 
     private readonly bool _debug;
     private readonly RuntimeContent _content;
-    private readonly FixedStepClock _clock = new();
-    private readonly InputState _inputState = new();
+    private readonly HostLoop _loop = new();
 
     private IWindow? _window;
     private GL? _gl;
     private IInputContext? _input;
 
-    private long _totalTicks;
-    private long _totalFrames;
     private double _logAccumulatorSec;
 
     public RuntimeHost(bool debug, RuntimeContent content)
@@ -88,9 +84,8 @@ internal sealed class RuntimeHost : IDisposable
 
     private void OnUpdate(double deltaSeconds)
     {
-        int ticks = _clock.Advance(deltaSeconds * 1000.0);
-        _totalTicks += ticks;
-        _inputState.Update(ReadHeldActions());
+        // One outer frame: poll once, run 0-5 ticks with edges delivered to the first due tick.
+        _loop.Frame(deltaSeconds * 1000.0, ReadHeldActions(), Tick);
 
         if (!_debug)
             return;
@@ -99,7 +94,8 @@ internal sealed class RuntimeHost : IDisposable
         if (_logAccumulatorSec >= 1.0)
         {
             Console.WriteLine(
-                $"[runtime] ticks={_totalTicks} frames={_totalFrames} alpha={_clock.InterpolationAlpha:F2}");
+                $"[runtime] ticks={_loop.TotalTicks} frames={_loop.TotalFrames} "
+                + $"alpha={_loop.InterpolationAlpha:F2} dropped={_loop.DroppedTicks}");
             _logAccumulatorSec = 0.0;
         }
     }
@@ -110,8 +106,10 @@ internal sealed class RuntimeHost : IDisposable
         // renderer and 16C's BootScene; nothing here may assume content.
         _ = deltaSeconds;
         _gl!.Clear(ClearBufferMask.ColorBufferBit);
-        _totalFrames++;
     }
+
+    /// <summary>One simulation tick. 16C's scene stack consumes this; 16A/16B own only the cadence.</summary>
+    private static void Tick(TickInput input) => _ = input;
 
     private IReadOnlyList<GameAction> ReadHeldActions()
     {
@@ -134,7 +132,7 @@ internal sealed class RuntimeHost : IDisposable
     private void OnClosing()
     {
         if (_debug)
-            Console.WriteLine($"[runtime] closing - {_totalTicks} ticks, {_totalFrames} frames total");
+            Console.WriteLine($"[runtime] closing - {_loop.TotalTicks} ticks, {_loop.TotalFrames} frames total");
     }
 
     public void Dispose()

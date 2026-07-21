@@ -52,8 +52,9 @@ public sealed class ExporterTests : IDisposable
         Assert.Equal(project.Settings.Name, config.GameName);
         Assert.Equal(project.Settings.Name, config.WindowTitle); // defaults to game name
         Assert.Equal("game.cgmpack", config.PackPath);
-        Assert.Equal(240, config.VirtualWidth);
-        Assert.Equal(160, config.VirtualHeight);
+        // Gen 4 DS-era single-screen alignment (EXPORT_PIPELINE_SPEC; amended 2026-07-21, was 240x160).
+        Assert.Equal(256, config.VirtualWidth);
+        Assert.Equal(192, config.VirtualHeight);
         Assert.False(config.Debug);
     }
 

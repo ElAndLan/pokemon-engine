@@ -7,39 +7,58 @@ namespace Cgm.Runtime.Tests;
 
 public sealed class VirtualResolutionTests
 {
+    // The shipped default is 256x192 (Gen 4 DS-era single screen); 4x fills a 1024x768 client.
+    private const int W = 256;
+    private const int H = 192;
+
     [Fact]
     public void Fit_IntegerScalesAndCenters()
     {
-        // 960×640 window, 240×160 virtual → scale 4, fills exactly (no letterbox).
-        Viewport v = VirtualResolution.Fit(960, 640, 240, 160);
+        Viewport v = VirtualResolution.Fit(W * 4, H * 4, W, H);
         Assert.Equal(4, v.Scale);
         Assert.Equal(0, v.OffsetX);
         Assert.Equal(0, v.OffsetY);
-        Assert.Equal(960, v.Width);
+        Assert.Equal(W * 4, v.Width);
+        Assert.Equal(H * 4, v.Height);
     }
 
     [Fact]
     public void Fit_LetterboxesWhenAspectDiffers()
     {
-        // 1000×640 window, 240×160 virtual → limiting axis is height (640/160=4), width has slack.
-        Viewport v = VirtualResolution.Fit(1000, 640, 240, 160);
+        // Height is the limiting axis at 4x; the extra width becomes symmetric letterbox.
+        Viewport v = VirtualResolution.Fit(W * 4 + 40, H * 4, W, H);
         Assert.Equal(4, v.Scale);
-        Assert.Equal((1000 - 960) / 2, v.OffsetX); // horizontal letterbox
+        Assert.Equal(20, v.OffsetX);
         Assert.Equal(0, v.OffsetY);
+    }
+
+    /// <summary>An odd remainder puts the extra pixel on the right/bottom (spec 16B viewport rule).</summary>
+    [Fact]
+    public void Fit_OddRemainder_LeavesTheExtraPixelOnTheRight()
+    {
+        const int windowW = W * 2 + 5;
+        Viewport v = VirtualResolution.Fit(windowW, H * 2, W, H);
+        int rightMargin = windowW - v.OffsetX - v.Width;
+
+        Assert.Equal(2, v.Scale);
+        Assert.Equal(2, v.OffsetX);
+        Assert.Equal(3, rightMargin);
+        Assert.True(rightMargin > v.OffsetX, "The odd pixel belongs on the right.");
     }
 
     [Fact]
     public void Fit_WindowSmallerThanVirtual_ClampsScaleToOne()
     {
-        Viewport v = VirtualResolution.Fit(100, 100, 240, 160);
+        Viewport v = VirtualResolution.Fit(100, 100, W, H);
         Assert.Equal(1, v.Scale);
     }
 
-    [Fact]
-    public void Fit_RejectsNonPositiveVirtual()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(() => VirtualResolution.Fit(960, 640, 0, 160));
-    }
+    [Theory]
+    [InlineData(0, H)]
+    [InlineData(W, 0)]
+    [InlineData(-1, H)]
+    public void Fit_RejectsNonPositiveVirtual(int virtualW, int virtualH) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => VirtualResolution.Fit(960, 640, virtualW, virtualH));
 }
 
 public sealed class CameraTests
