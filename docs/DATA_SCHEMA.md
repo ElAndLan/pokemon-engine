@@ -248,8 +248,39 @@ category.
    happiness, heldItem?: id, nickname?, otName, ball?: id }`.
 Volatile battle state (stat stages, confusion, flinch) is NOT saved — it lives only in BattleState.
 
+## 5a. Runtime options (`options.json` beside the executable) — Runtime-local, NOT save data
+
+Player input and volume preferences. Deliberately separate from saves and from project data: it is
+per-installation, survives deleting a save, and **never bumps `schemaVersion`**. Versioned on its own
+with `optionsVersion` (current: **1**, added 2026-07-21 for ENGINE_RUNTIME_SPEC 16C).
+
+`{ optionsVersion: 1, keyboardBindings: {action: string[]}, gamepadBindings: {action: string[]},
+   musicVolume: 0-100, sfxVolume: 0-100 }`
+
+- Action keys are exact `GameAction` names: `Up`, `Down`, `Left`, `Right`, `Confirm`, `Cancel`,
+  `Menu`, `Run`, `DebugToggle`. Input values are stable platform-adapter names (`Enter`, `ShiftLeft`,
+  `FaceSouth`, `LeftStickUp`), never numeric device codes, so a profile survives driver reordering.
+- Bindings are per device and ordered; the first entry is the one a rebinding UI displays.
+- **Degradation is total, never partial.** Missing actions keep their defaults. Unknown action names
+  and empty input lists are ignored with one warning. A duplicate binding, an `optionsVersion` newer
+  than the runtime supports, unreadable JSON, or an empty document falls back to **all** defaults
+  rather than guessing which half of an ambiguous file was intended. An older `optionsVersion` loads
+  on a best-effort basis with a warning, missing fields taking defaults.
+- Volumes clamp to 0–100 on load and on save.
+- Bad options never prevent boot: `Confirm` and `Cancel` always retain at least one default input,
+  so a player cannot bind themselves out of the menu that would repair the file.
+
+Migration: no migrator runs for this file. A future `optionsVersion` 2 must keep version 1 readable
+or accept the documented fallback-to-defaults path.
+
+> Overlap note (2026-07-21): Core's `GameOptions` (§Save data, per save directory) also carries
+> volume fields. The two are not yet reconciled — `GameOptions` is per-save player preference under
+> Core, while this file is Runtime-local installation configuration. If both ship, the authority for
+> audio volume must be stated explicitly before 16E wires the audio buses.
+
 ## 6. Versioning & migration
 - `schemaVersion` (project data) and `saveFormatVersion` (saves) version independently.
+- `optionsVersion` (Runtime options, §5a) versions independently of both and has no migrator.
 - A shape change: bump the version, add `Migrator` step `v(n)→v(n+1)`, commit an old-shape
   fixture under `tests/fixtures/`, never delete a field (deprecate). Old saves/exports keep loading.
 - v1→v2: no-op data migration. New Phase 15 fields default to empty/null and old v1 files load as

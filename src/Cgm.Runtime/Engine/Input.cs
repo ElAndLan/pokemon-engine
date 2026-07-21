@@ -1,7 +1,7 @@
 namespace Cgm.Runtime.Engine;
 
 /// <summary>The mapped game actions (ENGINE_RUNTIME_SPEC input map).</summary>
-public enum GameAction { Up, Down, Left, Right, Confirm, Cancel, Menu, Run }
+public enum GameAction { Up, Down, Left, Right, Confirm, Cancel, Menu, Run, DebugToggle }
 
 /// <summary>
 /// Edge-detected input: given the set of actions currently held each frame, reports IsDown,

@@ -3441,6 +3441,43 @@ resumes, contract deltas are reconciled at that boundary before further certific
    RNG impact: none. Golden impact: none. Verification: build passed with 0 warnings/errors; the
    full solution passed **2,215/2,215** (1,654 Core, 104 Creator, 250 Runtime, 207 Tools), of which
    54 are the new UI kit tests; the demo sample still boots and renders at exit 0.
+
+   Progress (2026-07-21): **16C input map, direction resolver, and options persistence COMPLETE.**
+   `GameAction` gains `DebugToggle`. `InputBindings` carries per-device profiles with the specified
+   keyboard defaults (arrows/WASD, Enter/Z, Escape/X, C, ShiftLeft, F3) and first-gamepad defaults
+   (D-pad plus left stick, south/east/west faces, Start, Back) with the 0.5 stick deadzone recorded.
+   Inputs are stable platform-adapter names, never numeric device codes, so a saved profile survives
+   driver reordering. `TryRebind` is immutable — it returns a new profile — and rejects a duplicate
+   unless an explicit swap is requested, refuses to leave any action unbound, and refuses to strip
+   `Confirm` or `Cancel` of every default, so a player cannot bind themselves out of the menu that
+   would repair the binding.
+
+   `InputMerger` merges held actions across devices by action, so either device can drive anything
+   and the same action held on both counts once. `Direction` resolves a single facing: opposite
+   directions on one axis cancel (across devices too), a cancelled axis leaves the other active,
+   perpendicular directions resolve to the most recently pressed, and a same-poll tie breaks
+   ordinally Up, Down, Left, Right so replay never depends on set iteration order. Re-pressing a
+   direction refreshes its recency. `Disconnect` releases one device's held actions while retaining
+   its binding profile for reconnection.
+
+   `RuntimeOptionsFileStore` persists `options.json` beside the executable at `optionsVersion: 1`.
+   Degradation is total rather than partial: missing actions keep defaults, unknown actions and empty
+   lists are ignored with one warning, and a duplicate binding, a newer `optionsVersion`, unreadable
+   JSON, or an empty document falls back to all defaults instead of guessing which half of an
+   ambiguous file was meant. An older version loads best-effort with a warning. Volumes clamp on both
+   load and save. A test asserts every failure mode still yields usable `Confirm`/`Cancel` bindings,
+   because bad options must never prevent boot.
+
+   Per the 16C spec requirement, the serialized contract landed in `DATA_SCHEMA.md` §5a in this same
+   change, before persistence code shipped; project `schemaVersion` is unchanged and no migrator runs
+   for this file. That section also records an **unreconciled overlap**: Core's `GameOptions` carries
+   per-save volume fields while this file carries installation-level volumes. Both currently exist;
+   the authority for audio volume must be decided explicitly before 16E wires the audio buses, and is
+   flagged rather than silently resolved here. Schema impact: Runtime-local `optionsVersion` 1 added
+   and documented; project schema untouched. Dependency impact: none. RNG impact: none. Golden
+   impact: none. Verification: build passed with 0 warnings/errors; the full solution passed
+   **2,258/2,258** (1,654 Core, 104 Creator, 293 Runtime, 207 Tools), of which 43 are the new input
+   and options tests; the demo sample still boots and renders at exit 0.
 4. **16D — Asset-backed overworld integration (`PLANNED`; prerequisites 16A-C).**
    - **Spec lock:** OverworldScene state ownership, map/entity instantiation, render layers, interaction
      priority, encounter/trainer trigger order, dialogue commands already represented in Core data,
