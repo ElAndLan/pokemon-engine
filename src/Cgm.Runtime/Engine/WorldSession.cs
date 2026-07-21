@@ -80,6 +80,33 @@ public sealed class WorldSession
     /// <summary>True when every party member has fainted, which is the blackout condition.</summary>
     public bool PartyIsWhitedOut => Party.Count > 0 && Party.All(member => member.CurHp <= 0);
 
+    /// <summary>Where a blackout returns to. Null until a center is visited, in which case Core falls
+    /// back to the project start.</summary>
+    public RespawnPoint? Respawn { get; private set; }
+
+    /// <summary>Full-heals the party through Core's rule: full HP, full PP, cleared status.</summary>
+    public void Heal()
+    {
+        IReadOnlyList<CreatureInstance> healed = Recovery.HealParty(Party, _db);
+        Party.Clear();
+        Party.AddRange(healed);
+    }
+
+    /// <summary>Visits a healing service: heal, and set this location as the respawn checkpoint.</summary>
+    public void VisitCenter(EntityId map, GridPos pos)
+    {
+        Heal();
+        Respawn = new RespawnPoint(map, pos);
+    }
+
+    /// <summary>Blacks out through Core's rule — return to the checkpoint (or the project start when
+    /// none was set) and full-heal — and re-enters the resulting map.
+    ///
+    /// The 16D spec also calls for a Core-calculated money deduction. Core has no such rule today, so
+    /// none is applied: inventing a penalty formula in Runtime would be a rule living outside Core.
+    /// Recorded as a Core gap in IMPLEMENTATION_PLAN rather than worked around here.</summary>
+    public OverworldScene? Blackout() => Restore(Recovery.Blackout(ToSave(""), _db));
+
     public FlagStore Flags { get; }
 
     /// <summary>The active party, at most <see cref="PartyStorage.MaxParty"/>. Mutated only through
@@ -145,6 +172,7 @@ public sealed class WorldSession
         Flags = Flags.Snapshot(),
         Party = Party.ToList(),
         Boxes = Boxes.Select(box => (IReadOnlyList<CreatureInstance>)box.ToList()).ToList(),
+        Respawn = Respawn,
     };
 
     /// <summary>Restores session state from a save and returns the scene for its map, or null when
@@ -156,6 +184,7 @@ public sealed class WorldSession
             return null;
 
         Flags.Load(save.Flags);
+        Respawn = save.Respawn;
 
         // Replace rather than merge: a released creature must not reappear from the old session.
         Party.Clear();

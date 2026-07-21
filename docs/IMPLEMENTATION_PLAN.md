@@ -3728,8 +3728,30 @@ resumes, contract deltas are reconciled at that boundary before further certific
    warnings/errors; the full solution passed **2,500/2,500** (1,724 Core, 104 Creator, 465 Runtime,
    207 Tools), of which 22 are new; both samples still boot to smoke success.
 
-   Remaining in 16D: blackout (16E healing services) and real tile/sprite assets once `IAssetSource`
-   lands.
+   Progress (2026-07-21): **16D blackout and 16E healing services COMPLETE. 16D now has only its
+   asset dependency left.** `WorldSession.Heal`, `VisitCenter`, and `Blackout` route entirely through
+   Core's `Recovery`: full HP, full PP, cleared status; a visited centre becomes the respawn
+   checkpoint; blackout returns to that checkpoint — or the project start when none was set — and
+   full-heals. The checkpoint persists through the save, so it survives a reload. `RuntimeHost`
+   treats a `heal` trigger action as a healing service and replaces the scene on blackout, since the
+   checkpoint may be on another map.
+
+   **Core gap recorded rather than worked around.** ENGINE_RUNTIME_SPEC 16D specifies that blackout
+   "deducts Core-calculated money", but Core has no money-penalty rule: `Recovery.Blackout` restores
+   the party and moves the player, and nothing computes a payout. No penalty is applied. Inventing a
+   formula in Runtime would put a game rule outside Core, which is the project's named defect, and
+   the plan's own instruction is that a missing Core rule is a Phase 15 regression fixed in Core
+   before Runtime consumes it. **Open item for Phase 15 resumption: add the blackout money-penalty
+   rule to Core, then have `WorldSession.Blackout` consume it.** Until then blackout is free, and
+   that is deliberate and visible rather than silently approximated.
+
+   Schema impact: none — `SaveFile.Respawn` already existed and is now populated. Dependency impact:
+   none. RNG impact: none. Golden impact: none. Verification: build passed with 0 warnings/errors;
+   the full solution passed **2,513/2,513** (1,724 Core, 104 Creator, 478 Runtime, 207 Tools), of
+   which 13 are new; both samples still boot to smoke success.
+
+   Remaining in 16D: real tile/sprite assets once `IAssetSource` lands — the package's only
+   outstanding dependency.
 5. **16E — Player systems, save, clock, and audio (`IN PROGRESS`; prerequisite 16D).**
 
    Progress (2026-07-21): **16E durable save slot and session persistence COMPLETE.**

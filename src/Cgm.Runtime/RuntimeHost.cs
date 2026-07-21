@@ -256,8 +256,15 @@ internal sealed class RuntimeHost : IDisposable
                     trainer: true);
                 break;
 
+            // A heal trigger is a healing service: it restores the party and becomes the checkpoint
+            // a later blackout returns to.
+            case StepOutcome.Trigger { Entity.Actions: { } actions }
+                when actions.Any(a => a.Op == TriggerOp.Heal):
+                _session.VisitCenter(_session.CurrentMap, _session.Position);
+                break;
+
             default:
-                // Core-operation trigger actions still need the 16E bag and healing services.
+                // giveItem still needs the 16E bag.
                 Report($"Unhandled overworld outcome: {pending.GetType().Name}.");
                 break;
         }
@@ -296,8 +303,10 @@ internal sealed class RuntimeHost : IDisposable
         if (scene.Snapshot().Outcome?.Winner == BattleSide.Player)
             BattleLauncher.AwardExperience(_content.Db, _session!, battle, trainer);
 
-        if (_session!.PartyIsWhitedOut)
-            Report("Party whited out; blackout returns with 16E healing services.");
+        // Blackout is Core's rule: return to the checkpoint and full-heal. The scene changes because
+        // the checkpoint may be on another map.
+        if (_session!.PartyIsWhitedOut && _session.Blackout() is { } recovered)
+            _scenes.Replace(recovered);
     }
 
     /// <summary>Sends in the first healthy reserve for each slot needing a replacement.</summary>
