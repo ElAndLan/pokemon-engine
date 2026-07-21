@@ -3647,8 +3647,29 @@ resumes, contract deltas are reconciled at that boundary before further certific
    build passed with 0 warnings/errors; the full solution passed **2,386/2,386** (1,724 Core, 104
    Creator, 351 Runtime, 207 Tools), of which 34 are new; both samples still boot to smoke success.
 
-   Remaining in 16D: the host acting on `Pending` (warp execution and map switching, battle entry and
-   return, blackout), NPC updates in stable entity-ID order with injected Core RNG, pickup
+   Progress (2026-07-21): **16D warp execution and map switching COMPLETE.** `WorldSession` owns the
+   play session's world state across map changes — flags, the world RNG stream, and the live player
+   position — and builds each `OverworldScene` from the database. Scenes borrow that state, so
+   walking through a warp preserves flags and continues **one** RNG stream rather than reseeding per
+   map. The last point is asserted exactly rather than loosely: the session's draws must match an
+   uninterrupted reference stream, because a reseed on every map change would silently diverge a
+   seeded replay. Its state shape deliberately mirrors the save's map/pos/facing/flags/rngStates
+   fields, so 16E's move into the Core save is a relocation rather than a redesign.
+
+   `RuntimeHost.Advance` acts on what the overworld surfaced: the scene decides nothing about scene
+   flow and the host owns every transition. Following a warp replaces the scene with the target map's
+   at its landing tile, preserving facing. A warp to a missing map is a **defect, not bad content** —
+   validation already rejects it — so the host reports it in debug and keeps playing rather than
+   substituting a destination. Outcomes needing session state 16E owns (battles, encounters,
+   `giveItem`/`heal`) are reported as unhandled rather than silently dropped.
+
+   Schema impact: none. Dependency impact: none. RNG impact: one world stream now spans map changes.
+   Golden impact: none. Verification: build passed with 0 warnings/errors; the full solution passed
+   **2,400/2,400** (1,724 Core, 104 Creator, 365 Runtime, 207 Tools), of which 14 are new; both
+   samples still boot to smoke success.
+
+   Remaining in 16D: battle entry and return through the Core boundary (blocked on 16E party/session
+   state), blackout, NPC updates in stable entity-ID order with injected Core RNG, pickup
    persistence, and real tile/sprite assets once `IAssetSource` lands.
 5. **16E — Player systems, save, clock, and audio (`PLANNED`; prerequisite 16D).**
    - **Spec lock:** party/bag/storage/shop scene contracts, progression/evolution prompts, save slots,

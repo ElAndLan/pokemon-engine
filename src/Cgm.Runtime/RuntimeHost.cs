@@ -24,6 +24,7 @@ internal sealed class RuntimeHost : IDisposable
     private GlRenderer? _renderer;
     private readonly SceneStack _scenes = new();
     private UiResources? _ui;
+    private WorldSession? _session;
 
     private double _logAccumulatorSec;
     private int _failure;
@@ -115,6 +116,8 @@ internal sealed class RuntimeHost : IDisposable
 
         _renderer = new GlRenderer(_gl);
         _ui = new UiResources(_renderer, _batch);
+        _session = new WorldSession(_content.Db, _ui.Painter, _content.Db.Settings.TileSize,
+            _content.Config.VirtualWidth, _content.Config.VirtualHeight);
         _scenes.Push(new TitleScene(_ui.Painter, _content.Config.VirtualWidth, _content.Config.VirtualHeight,
             _content.Config.GameName, continueAvailable: false));
 
@@ -171,24 +174,54 @@ internal sealed class RuntimeHost : IDisposable
     private void Tick(TickInput input)
     {
         _scenes.Tick(input);
+        if (_scenes.IsTransitioning)
+            return;
 
         // The title reports intent; the host owns the transition, so Title never needs to know what
         // Overworld is. New Game and Continue both enter the start map until 16E adds save loading.
-        if (_scenes.Active is TitleScene { Choice: not TitleChoice.None } && !_scenes.IsTransitioning)
-            _scenes.Replace(NewOverworld());
+        if (_scenes.Active is TitleScene { Choice: not TitleChoice.None })
+        {
+            ProjectSettings settings = _content.Db.Settings;
+            if (_session!.Enter(_content.StartMap.Id, settings.StartPos, settings.StartFacing) is { } start)
+                _scenes.Replace(start);
+            return;
+        }
+
+        if (_scenes.Active is OverworldScene overworld)
+            Advance(overworld);
     }
 
-    private OverworldScene NewOverworld()
+    /// <summary>Acts on what the overworld surfaced. The scene decides nothing about scene flow;
+    /// the host owns every transition.</summary>
+    private void Advance(OverworldScene overworld)
     {
-        ProjectSettings settings = _content.Db.Settings;
-        IReadOnlyList<Tileset> tilesets = _content.StartMap.Tilesets
-            .Select(_content.Db.Find<Tileset>)
-            .OfType<Tileset>()
-            .ToList();
+        _session!.Track(overworld);
+        if (overworld.TakePending() is not { } pending)
+            return;
 
-        return new OverworldScene(_ui!.Painter, _content.StartMap, tilesets, settings.StartPos,
-            settings.StartFacing, settings.TileSize,
-            _content.Config.VirtualWidth, _content.Config.VirtualHeight);
+        switch (pending)
+        {
+            case StepOutcome.Warp warp when _session.Follow(warp.Entity) is { } next:
+                _scenes.Replace(next);
+                break;
+
+            case StepOutcome.Warp warp:
+                // Validation rejects a warp to a missing map, so this is a defect, not bad content:
+                // report it and keep playing rather than substituting a destination.
+                Report($"Warp '{warp.Entity.Key}' targets missing map '{warp.Entity.Target}'.");
+                break;
+
+            default:
+                // Battles, encounters, and Core-operation actions need session state that 16E owns.
+                Report($"Unhandled overworld outcome: {pending.GetType().Name}.");
+                break;
+        }
+    }
+
+    private void Report(string message)
+    {
+        if (_debug)
+            Console.Error.WriteLine($"[runtime] {message}");
     }
 
     private IReadOnlyList<GameAction> ReadHeldActions()
