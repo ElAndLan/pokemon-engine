@@ -19,9 +19,10 @@ public sealed class WorldSession
     private readonly int _height;
     private readonly IReadOnlyDictionary<EntityId, Trainer> _trainers;
     private readonly IReadOnlyDictionary<EntityId, EncounterTable> _tables;
+    private readonly SpriteAtlas? _sprites;
 
     public WorldSession(GameDb db, UiPainter ui, int tileSize, int virtualWidth, int virtualHeight,
-        IRng? rng = null, FlagStore? flags = null)
+        IRng? rng = null, FlagStore? flags = null, SpriteAtlas? sprites = null)
     {
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(ui);
@@ -30,6 +31,7 @@ public sealed class WorldSession
 
         _db = db;
         _ui = ui;
+        _sprites = sprites;
         _tileSize = tileSize;
         _width = virtualWidth;
         _height = virtualHeight;
@@ -182,7 +184,7 @@ public sealed class WorldSession
             .ToList();
 
         return new OverworldScene(_ui, map, tilesets, position, facing, _tileSize, _width, _height,
-            Flags, Rng, _trainers, _tables);
+            Flags, Rng, _trainers, _tables, _sprites);
     }
 
     /// <summary>Follows a warp to its target map and landing tile, preserving facing.</summary>

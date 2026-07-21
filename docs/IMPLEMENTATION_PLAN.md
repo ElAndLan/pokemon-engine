@@ -4106,12 +4106,38 @@ resumes, contract deltas are reconciled at that boundary before further certific
    `TECH_STACK` still scopes StbImageSharp to Creator; extending it to Runtime belongs with the
    code that decodes, not ahead of it.
 
-   Remaining 16H blockers, in order: (1) **engine** — PNG decode → premultiplied RGBA →
-   texture cache, and `OverworldScene` drawing tiles through `SpriteResolver` instead of flat
-   colour; (2) **content** — creature sprites and a player walk sheet do not exist
+   Remaining 16H blockers, in order: (1) **content** — creature sprites and a player walk sheet
+   do not exist
    (`PHASE_16_DEMO_PLAN` §5 R1 flags the sprite generation method as designed but never validated
    against a real generator; the fall_village tilesets in `docs/art/generated/` are further along);
-   (3) **decision D1** — final species selection and display names, which is the user's call.
+   (2) **decision D1** — final species selection and display names, which is the user's call.
+
+   Progress (2026-07-21): **16H-2 texture loading and tile rendering COMPLETE.** The engine blocker
+   above is closed; 16H is now waiting only on content and D1. Delivered: `PngImage` (StbImageSharp
+   adapter, the only place in Runtime that knows an image format) decoding to **premultiplied** RGBA
+   to match the renderer's ONE/ONE_MINUS_SRC_ALPHA blend — straight alpha would fringe every sprite
+   edge; `SpriteAtlas` owning GPU residency only, with geometry still coming from Core's
+   `SpriteResolver`; `TilePalette` in **Core**, giving collision derivation and rendering one shared
+   global tile index so the tile a player walks through is provably the tile drawn (`MapCollision`
+   refactored onto it); `UiPainter.Sprite`; and `OverworldScene` drawing ground/decoBelow under the
+   player and decoAbove over it.
+
+   Two design points worth recording. **Absent art degrades, never fails**: a missing asset, an
+   undecodable one, an unsafe path, or a tile with no sprite each fall back to the existing
+   collision colour per cell, so an unarted map stays playable and legible. A failed load is cached
+   as absent rather than retried every frame. **Preloading is a budget requirement, not a
+   convenience**: `PreloadAll` runs before the metrics baseline because a lazy first-use decode puts
+   a PNG decode and a texture upload inside whichever frame first drew the sprite — exactly the
+   stall 16G forbids. The lazy version was caught by running the binary, which reported
+   `textures=0`, not by a test.
+
+   `TECH_STACK` updated: StbImageSharp extended from Creator to Runtime. Not a new package — the
+   same approved pure decoder gains a second consumer, because Core must not decode images
+   (DATA_SCHEMA §4.6) and the BCL has no PNG decoder.
+
+   Hardware evidence (both modes, GL 3.3 NVIDIA): raw project and exported `.cgmpack` each report
+   `sheets=1 textures=1 failed=[]`, so the asset survives export and decodes from the pack in a
+   standalone exe. Tests: 2,893 passing (47 new).
    Autotiling stays deferred per `MASTER_PLAN` §112/§213; it is an authoring convenience and does
    not affect rendered output, since maps store explicit tile indices either way.
 

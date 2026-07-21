@@ -26,6 +26,7 @@ internal sealed class RuntimeHost : IDisposable
     private GlRenderer? _renderer;
     private readonly SceneStack _scenes = new();
     private UiResources? _ui;
+    private SpriteAtlas? _sprites;
     private WorldSession? _session;
     private SaveRepository? _saves;
 
@@ -123,8 +124,10 @@ internal sealed class RuntimeHost : IDisposable
 
         _renderer = new GlRenderer(_gl);
         _ui = new UiResources(_renderer, _batch);
+        _sprites = new SpriteAtlas(_renderer, _content.Assets, _content.Db.All<SpriteSheet>());
+        _sprites.PreloadAll();   // before the metrics baseline: decoding is load time, not frame time
         _session = new WorldSession(_content.Db, _ui.Painter, _content.Db.Settings.TileSize,
-            _content.Config.VirtualWidth, _content.Config.VirtualHeight);
+            _content.Config.VirtualWidth, _content.Config.VirtualHeight, sprites: _sprites);
         _saves = new SaveRepository(System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             RuntimeConfig.SafeSaveDir(_content.Config.GameName)));
@@ -140,6 +143,10 @@ internal sealed class RuntimeHost : IDisposable
             Console.WriteLine($"[runtime] loaded - GL {_gl.GetStringS(StringName.Version)}");
             Console.WriteLine(
                 $"[runtime] game='{_content.Config.GameName}' entities={_content.Db.Entities.Count} start={_content.StartMap.Id}");
+            // Named explicitly: a demo rendering flat colour because its art never loaded looks like
+            // a rendering bug, and this line is the difference between the two.
+            Console.WriteLine($"[runtime] sheets={_content.Db.All<SpriteSheet>().Count()} "
+                + $"textures={_sprites.LoadedTextures} failed=[{string.Join(", ", _sprites.FailedAssets)}]");
         }
     }
 
@@ -407,6 +414,7 @@ internal sealed class RuntimeHost : IDisposable
         // with the window. Releasing here is the only point where both are still valid. Scenes go
         // first: their leases are borrowed from the renderer that outlives them.
         _scenes.Shutdown();
+        _sprites?.Dispose();     // sheet textures, borrowed by scenes the same way
         _ui?.Dispose();          // scenes borrow the atlas, so it goes after them
         _renderer?.Dispose();
         if (_debug)

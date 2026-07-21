@@ -12,10 +12,10 @@ public static class MapCollision
     {
         int n = map.Width * map.Height;
         var result = new CollisionValue[n];
-        List<Tile> flat = tilesets.SelectMany(t => t.Tiles).ToList(); // global tile index
+        var palette = new TilePalette(tilesets);   // the shared global tile index
 
         for (int cell = 0; cell < n; cell++)
-            result[cell] = CellCollision(map, flat, cell, n);
+            result[cell] = CellCollision(map, palette, cell, n);
 
         foreach (CollisionOverride o in map.CollisionOverrides)
             if (o.Index >= 0 && o.Index < n)
@@ -24,14 +24,13 @@ public static class MapCollision
         return result;
     }
 
-    private static CollisionValue CellCollision(Map map, List<Tile> flat, int cell, int n)
+    private static CollisionValue CellCollision(Map map, TilePalette palette, int cell, int n)
     {
         CollisionValue? ledge = null;
         foreach (int index in TilesAt(map, cell, n))
         {
-            if (index < 0 || index >= flat.Count)
+            if (palette.At(index) is not { } tile)
                 continue;
-            Tile tile = flat[index];
             if (tile.Solid || tile.Water) // water blocks until surf (Phase 16)
                 return CollisionValue.Solid;
             if (tile.Ledge != LedgeDir.None)

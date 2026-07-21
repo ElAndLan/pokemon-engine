@@ -18,6 +18,8 @@ public sealed class OverworldScene : IScene
     private readonly IReadOnlyDictionary<EntityId, Trainer> _trainers;
     private readonly IReadOnlyDictionary<EntityId, EncounterTable> _tables;
     private readonly List<NpcActor> _npcs;
+    private readonly TilePalette _palette;
+    private readonly SpriteAtlas? _sprites;
     private readonly int _tileSize;
     private readonly int _width;
     private readonly int _height;
@@ -27,7 +29,8 @@ public sealed class OverworldScene : IScene
         Facing facing, int tileSize, int virtualWidth, int virtualHeight,
         FlagStore? flags = null, IRng? rng = null,
         IReadOnlyDictionary<EntityId, Trainer>? trainers = null,
-        IReadOnlyDictionary<EntityId, EncounterTable>? tables = null)
+        IReadOnlyDictionary<EntityId, EncounterTable>? tables = null,
+        SpriteAtlas? sprites = null)
     {
         ArgumentNullException.ThrowIfNull(ui);
         ArgumentNullException.ThrowIfNull(map);
@@ -44,6 +47,9 @@ public sealed class OverworldScene : IScene
         _tileSize = tileSize;
         _width = virtualWidth;
         _height = virtualHeight;
+        _sprites = sprites;
+        // The same flattening MapCollision uses, so the tile a player walks through is the tile drawn.
+        _palette = new TilePalette(tilesets);
         _collision = MapCollision.Derive(map, tilesets);
         _mover = new GridMover(start, facing, (from, dir) =>
             MovementRules.Resolve(from, dir, _collision, map.Width, map.Height, Occupied()));
@@ -273,9 +279,6 @@ public sealed class OverworldScene : IScene
 
     private void DrawTiles()
     {
-        // ponytail: collision-derived flat colours until IAssetSource can supply a tileset atlas.
-        // The chunk walk and camera maths are the same either way, so swapping in real tiles is a
-        // texture change, not a rewrite.
         int firstX = Math.Max(0, Camera.X / _tileSize);
         int firstY = Math.Max(0, Camera.Y / _tileSize);
         int lastX = Math.Min(_map.Width - 1, (Camera.X + _width) / _tileSize);
@@ -283,7 +286,40 @@ public sealed class OverworldScene : IScene
 
         for (int y = firstY; y <= lastY; y++)
             for (int x = firstX; x <= lastX; x++)
-                _ui.Panel(TileRect(x, y), Colour(_collision[y * _map.Width + x]));
+                DrawCell(x, y);
+    }
+
+    /// <summary>Draws one cell's three layers. Ground and decoBelow sit under the player (layer 0),
+    /// decoAbove over it (layer 2) so tree canopies and roof edges occlude correctly. A cell with no
+    /// drawable sprite falls back to its collision colour, which keeps an unarted map playable and
+    /// legible instead of blank.</summary>
+    private void DrawCell(int x, int y)
+    {
+        int cell = y * _map.Width + x;
+        RectI dest = TileRect(x, y);
+
+        bool drewUnder = DrawTile(_map.Layers.Ground, cell, dest, 0);
+        drewUnder |= DrawTile(_map.Layers.DecoBelow, cell, dest, 0);
+        if (!drewUnder)
+            _ui.Panel(dest, Colour(_collision[cell]));
+
+        DrawTile(_map.Layers.DecoAbove, cell, dest, 2);
+    }
+
+    /// <summary>Draws one layer's tile at a cell, reporting whether anything was actually drawn. An
+    /// empty cell (-1), an unknown index, a tile with no sprite, and a sprite whose sheet failed to
+    /// load are all "nothing drawn" — none of them should fail the frame.</summary>
+    private bool DrawTile(IReadOnlyList<int> indices, int cell, RectI dest, int layer)
+    {
+        if (_sprites is null || cell >= indices.Count)
+            return false;
+        if (_palette.At(indices[cell]) is not { Sprite: { } sprite })
+            return false;
+        if (!_sprites.TryGet(sprite, out TextureHandle texture, out RectI source))
+            return false;
+
+        _ui.Sprite(texture, source, dest, layer);
+        return true;
     }
 
     private void DrawPlayer()

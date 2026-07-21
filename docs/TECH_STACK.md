@@ -30,7 +30,7 @@ The primary C: drive is critically low on space, and the .NET MSI installer hard
 | Avalonia.Desktop | 12.0.5 | Creator | Desktop app host | UI toolkit, no game concepts | WPF |
 | Avalonia.Themes.Fluent | 12.0.5 | Creator | Default UI theme | Theme assets only | Custom styles |
 | CommunityToolkit.Mvvm | 8.4.2 | Creator | MVVM source generators | UI helper, not a game framework | Hand-rolled ObservableObject/RelayCommand |
-| StbImageSharp | 2.30.15 | Creator | PNG decode for import/slicing | Pure decoder | SixLabors.ImageSharp |
+| StbImageSharp | 2.30.15 | Creator, Runtime | PNG decode for import/slicing (Creator) and texture upload (Runtime) | Pure decoder | SixLabors.ImageSharp |
 | Silk.NET.Windowing | 2.23.0 | Runtime | Window + GL context callbacks | Thin bindings, zero game functionality | GLFW.NET |
 | Silk.NET.Input | 2.23.0 | Runtime | Keyboard/gamepad input | Raw input bindings | SDL input via Silk.NET.SDL |
 | Silk.NET.OpenGL | 2.23.0 | Runtime | Raw GL 3.3 API | We write the renderer | Silk.NET.Direct3D11 behind IRenderer |
@@ -81,4 +81,7 @@ ADR-004.
   ZstdSharp, and Verify.Xunit to planned/not-referenced because they are not currently in
   project files.
 - 2026-07-11: User approved Silk.NET.OpenAL 2.23.0 for the Phase 16E Runtime audio backend.
+- 2026-07-21: StbImageSharp extended from Creator to Runtime for Phase 16H texture loading.
+  Not a new package — the same approved pure decoder gains a second consumer. Runtime needs it
+  because Core must not decode images (DATA_SCHEMA §4.6) and no BCL PNG decoder exists.
   Approval does not authorize adding the reference or audio code before Phase 16E.

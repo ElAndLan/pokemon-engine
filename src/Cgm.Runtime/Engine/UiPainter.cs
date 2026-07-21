@@ -136,6 +136,14 @@ public sealed class UiPainter(QuadBatch batch, TextureHandle atlas, BitmapFont f
 
     public void Fill(RectI bounds, Rgba colour, int layer = 0) => Panel(bounds, colour, layer);
 
+    /// <summary>Draws a sprite from its own sheet texture, at an already-camera-relative rectangle
+    /// like every other primitive here. This breaks single-atlas batching while a different texture
+    /// is bound, so callers should group by sheet — the tile pass does, since a map's tiles usually
+    /// share one image.</summary>
+    public void Sprite(TextureHandle texture, RectI source, RectI dest, int layer = 0,
+        Flip flip = Flip.None) =>
+        batch.Ui(texture, source, dest, layer, flip);
+
     /// <summary>Draws one line at a virtual-pixel origin. Unsupported characters draw the font's
     /// replacement glyph rather than a gap, so a missing glyph is visible instead of silent.</summary>
     public void Text(string text, int x, int y, Rgba colour, int layer = 1)
