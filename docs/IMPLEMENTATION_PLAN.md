@@ -3730,9 +3730,33 @@ resumes, contract deltas are reconciled at that boundary before further certific
    **2,452/2,452** (1,724 Core, 104 Creator, 417 Runtime, 207 Tools), of which 27 are new; both
    samples still boot to smoke success.
 
-   Remaining in 16E: party/bag/storage and shop scenes, progression and evolution prompts, the game
-   clock and day-night input, audio buses with the approved OpenAL reference, and the debug overlay.
-   Party state is what still blocks 16D battle entry and blackout.
+   Progress (2026-07-21): **16E party state COMPLETE; 16D battle entry is unblocked.**
+   `WorldSession` now owns the party and PC boxes, mutated only through Core operations — no scene
+   performs list arithmetic on them. `InitialiseNewGame` builds the starting party from
+   `ProjectSettings.StarterParty` through `InstanceGen.Create` with the session RNG, so New Game is
+   reproducible under a fixed seed; levels and moves come from the species learnset and PP from the
+   move definition, with nothing invented locally. A starter species missing from the database is
+   **skipped rather than substituted** — validation rejects that content, and quietly handing the
+   player a different creature would hide the defect.
+
+   Captures and gifts route through `PartyStorage.Deposit`: party first, then the first box with
+   room, null when everything is full. Boxes are sized from project settings. `PartyIsWhitedOut`
+   expresses the blackout condition, and deliberately reads false for an empty party — that is a New
+   Game that has not started, not a defeat.
+
+   Party and boxes persist through the save. Restore **replaces** them rather than appending, or a
+   released creature would return from the previous session, and it defends against hand-edited
+   saves: an oversized party is clamped to six and extra boxes beyond the project configuration are
+   ignored rather than throwing. The Continue fallback now also initialises a party, since starting
+   fresh without one would leave the player with nothing.
+
+   Schema impact: none. Dependency impact: none. RNG impact: starter generation draws from the
+   session stream at New Game. Golden impact: none. Verification: build passed with 0
+   warnings/errors; the full solution passed **2,478/2,478** (1,724 Core, 104 Creator, 443 Runtime,
+   207 Tools), of which 26 are new; both samples still boot to smoke success.
+
+   Remaining in 16E: bag/shop and party scenes, progression and evolution prompts, the game clock and
+   day-night input, audio buses with the approved OpenAL reference, and the debug overlay.
    - **Spec lock:** party/bag/storage/shop scene contracts, progression/evolution prompts, save slots,
      game clock/day-night input, audio buses/loop/crossfade, and debug overlay content.
    - Implement one manual save slot plus `.bak`; New Game initializes project start state, Continue

@@ -1,3 +1,4 @@
+using Cgm.Core.Battle;
 using Cgm.Core.Model;
 
 namespace Cgm.Runtime.Engine;
@@ -6,8 +7,9 @@ namespace Cgm.Runtime.Engine;
 /// where the player currently is. Scenes borrow it, so walking through a warp preserves flags and
 /// keeps one deterministic RNG stream rather than reseeding per map.
 ///
-/// State lives here only until 16E moves it into the Core save; the shape deliberately mirrors the
-/// save's map/pos/facing/flags/rngStates fields so that move is a relocation, not a redesign.</summary>
+/// It also owns the party and PC boxes, mutated only through Core operations so no scene performs
+/// list arithmetic on them. State projects into the Core <see cref="SaveFile"/> through
+/// <see cref="ToSave"/> and returns through <see cref="Restore"/>.</summary>
 public sealed class WorldSession
 {
     private readonly GameDb _db;
@@ -35,9 +37,57 @@ public sealed class WorldSession
         _tables = db.All<EncounterTable>().ToDictionary(t => t.Id);
         Rng = rng ?? new Rng(1);
         Flags = flags ?? new FlagStore();
+        for (int i = 0; i < db.Settings.Boxes.Count; i++)
+            Boxes.Add([]);
     }
 
+    private int BoxCapacity => _db.Settings.Boxes.Capacity;
+
+    /// <summary>Builds the starting party from the project's starter list. Each member is generated
+    /// through Core with the session RNG, so New Game is reproducible under a fixed seed. Level and
+    /// moves come from the species learnset; nothing is invented here.</summary>
+    public void InitialiseNewGame(int starterLevel = 5)
+    {
+        Party.Clear();
+        foreach (List<CreatureInstance> box in Boxes)
+            box.Clear();
+
+        foreach (EntityId speciesId in _db.Settings.StarterParty.Take(PartyStorage.MaxParty))
+        {
+            if (_db.Find<Species>(speciesId) is not { } species)
+                continue;   // validation rejects this; skip rather than invent a substitute
+
+            IReadOnlyList<MoveSlot> moves = species.Learnset
+                .Where(entry => entry.Level <= starterLevel)
+                .OrderBy(entry => entry.Level)
+                .TakeLast(4)
+                .Select(entry => new MoveSlot(entry.Move, _db.Find<Move>(entry.Move)?.Pp ?? 1))
+                .ToList();
+
+            Party.Add(InstanceGen.Create(speciesId, species.BaseStats, species.GrowthRate,
+                starterLevel, moves, Rng, species.Abilities));
+        }
+    }
+
+    /// <summary>Routes a caught or gifted creature through Core: party first, then the first box
+    /// with room. Null means everything is full.</summary>
+    public DepositResult? Deposit(CreatureInstance creature)
+    {
+        ArgumentNullException.ThrowIfNull(creature);
+        return PartyStorage.Deposit(creature, Party, Boxes, BoxCapacity);
+    }
+
+    /// <summary>True when every party member has fainted, which is the blackout condition.</summary>
+    public bool PartyIsWhitedOut => Party.Count > 0 && Party.All(member => member.CurHp <= 0);
+
     public FlagStore Flags { get; }
+
+    /// <summary>The active party, at most <see cref="PartyStorage.MaxParty"/>. Mutated only through
+    /// Core operations, never by list arithmetic in a scene.</summary>
+    public List<CreatureInstance> Party { get; } = [];
+
+    /// <summary>PC boxes, sized by project settings. Overflow from a full party lands here.</summary>
+    public List<List<CreatureInstance>> Boxes { get; } = [];
 
     /// <summary>One world RNG stream for the whole session, so encounters replay identically.</summary>
     public IRng Rng { get; }
@@ -93,6 +143,8 @@ public sealed class WorldSession
         Pos = Position,
         Facing = Facing,
         Flags = Flags.Snapshot(),
+        Party = Party.ToList(),
+        Boxes = Boxes.Select(box => (IReadOnlyList<CreatureInstance>)box.ToList()).ToList(),
     };
 
     /// <summary>Restores session state from a save and returns the scene for its map, or null when
@@ -104,6 +156,16 @@ public sealed class WorldSession
             return null;
 
         Flags.Load(save.Flags);
+
+        // Replace rather than merge: a released creature must not reappear from the old session.
+        Party.Clear();
+        Party.AddRange(save.Party.Take(PartyStorage.MaxParty));
+
+        foreach (List<CreatureInstance> box in Boxes)
+            box.Clear();
+        for (int i = 0; i < save.Boxes.Count && i < Boxes.Count; i++)
+            Boxes[i].AddRange(save.Boxes[i]);
+
         return Enter(map, save.Pos, save.Facing);
     }
 }

@@ -202,14 +202,19 @@ internal sealed class RuntimeHost : IDisposable
     {
         ProjectSettings settings = _content.Db.Settings;
         if (choice != TitleChoice.Continue)
-            return _session!.Enter(_content.StartMap.Id, settings.StartPos, settings.StartFacing);
+        {
+            _session!.InitialiseNewGame();
+            return _session.Enter(_content.StartMap.Id, settings.StartPos, settings.StartFacing);
+        }
 
         SaveLoadResult result = _saves!.Load(_content.ContentHash);
         if (result is { Succeeded: true, Save: { } save } && _session!.Restore(save) is { } restored)
             return restored;
 
+        // Falling back to a fresh start needs a fresh party too, or the player would begin with none.
         Report($"Continue failed ({result.Status}): {result.Message}");
-        return _session!.Enter(_content.StartMap.Id, settings.StartPos, settings.StartFacing);
+        _session!.InitialiseNewGame();
+        return _session.Enter(_content.StartMap.Id, settings.StartPos, settings.StartFacing);
     }
 
     /// <summary>Acts on what the overworld surfaced. The scene decides nothing about scene flow;
