@@ -22,6 +22,7 @@ internal sealed class RuntimeHost : IDisposable
     private IInputContext? _input;
     private GlRenderer? _renderer;
     private readonly SceneStack _scenes = new();
+    private UiResources? _ui;
 
     private double _logAccumulatorSec;
     private int _failure;
@@ -112,8 +113,9 @@ internal sealed class RuntimeHost : IDisposable
             };
 
         _renderer = new GlRenderer(_gl);
-        _scenes.Push(new BootScene(_renderer, _batch,
-            _content.Config.VirtualWidth, _content.Config.VirtualHeight));
+        _ui = new UiResources(_renderer, _batch);
+        _scenes.Push(new TitleScene(_ui.Painter, _content.Config.VirtualWidth, _content.Config.VirtualHeight,
+            _content.Config.GameName, continueAvailable: false));
 
         if (_debug)
         {
@@ -151,7 +153,13 @@ internal sealed class RuntimeHost : IDisposable
 
         _renderer!.BeginFrame(VirtualResolution.Fit(size.X, size.Y, vw, vh), vw, vh,
             new Rgba(0x18, 0x1C, 0x24, 0xFF));
+
+        // The host owns the batch across the whole stack, so overlapping scenes share draw calls.
+        _batch.Begin();
         _scenes.Render();
+        _ui?.Painter.Fade(vw, vh, _scenes.FadeAlpha);
+        var (quads, calls, _) = _batch.End();
+        _renderer.Draw(quads, calls);
         _renderer.EndFrame();
 
         if (_smoke)
@@ -185,6 +193,7 @@ internal sealed class RuntimeHost : IDisposable
         // with the window. Releasing here is the only point where both are still valid. Scenes go
         // first: their leases are borrowed from the renderer that outlives them.
         _scenes.Shutdown();
+        _ui?.Dispose();          // scenes borrow the atlas, so it goes after them
         _renderer?.Dispose();
         if (_debug)
             Console.WriteLine($"[runtime] closing - {_loop.TotalTicks} ticks, {_loop.TotalFrames} frames total");

@@ -3478,6 +3478,44 @@ resumes, contract deltas are reconciled at that boundary before further certific
    impact: none. Verification: build passed with 0 warnings/errors; the full solution passed
    **2,258/2,258** (1,654 Core, 104 Creator, 293 Runtime, 207 Tools), of which 43 are the new input
    and options tests; the demo sample still boots and renders at exit 0.
+
+   Progress (2026-07-21): **16C Title/Menu scenes and reachability COMPLETE; 16C closes except the
+   Overworld half of the flow, which 16D owns.** `FontAtlas` builds the built-in 5x7 glyph atlas
+   procedurally as premultiplied RGBA, restoring the glyph table that the 16A showcase purge deleted.
+   It ships no asset and names no content, so bitmap text works before `IAssetSource` exists; an
+   authored font later replaces it by supplying the same atlas shape. Cell 0 is a solid pixel, so
+   panels, bars, cursors, and fades share the text atlas and a whole screen batches into one draw
+   call unless a scissor or layer breaks it. `UiPainter` exposes panel, text, text block, cursor, and
+   fade over one `QuadBatch`; the 9-slice frame is a solid fill with a `ponytail:` note, because the
+   border asset does not exist yet and the call site will not change when it does.
+
+   `TitleScene` implements the locked Boot → Title → New/Continue entry: New Game and Continue, with
+   Continue visible but unselectable when no save exists rather than hidden. It reports a typed
+   `TitleChoice` instead of performing the transition, so Title never needs to know what Overworld
+   is — the host owns the switch, and 16D can attach Overworld without touching this scene. Labels
+   are supplied by the caller, so the scene names no content and display text stays data.
+   `MenuScene` is an overlay push: the scene beneath keeps rendering, navigation wraps because this
+   control opts in, disabled entries stay visible and are skipped, and Cancel closes it and returns
+   focus to whatever opened it. Both scenes act only on press edges, so a held button cannot
+   re-trigger. `UiResources` owns the shared atlas and is disposed after scenes, because scenes
+   borrow it.
+
+   `RuntimeHost` now boots into `TitleScene` and owns the batch across the whole stack so overlapping
+   scenes share draw calls, painting the transition fade above everything. The reachability row is
+   evidenced headless: scripts drive Title selection, New/Continue, no-save refusal, Menu push with
+   both scenes rendering, navigation, wrapping, disabled skipping, Cancel returning focus, and a
+   full Title → Menu → back → Continue script, each frame rendering through the real batch and a
+   recording renderer so a scene drawing an invalid quad fails the test. The recording renderer moved
+   out of `RendererTests` into a shared helper rather than being duplicated.
+
+   Schema impact: none. Dependency impact: none. RNG impact: none. Golden impact: none. Verification:
+   build passed with 0 warnings/errors; the full solution passed **2,281/2,281** (1,654 Core, 104
+   Creator, 316 Runtime, 207 Tools), of which 23 are the new scene-flow and atlas tests; both samples
+   boot into the title screen and render through real GL at exit 0.
+
+   Remaining in 16C before the package is VERIFIED: Overworld reachability (blocked on 16D by
+   design — no fake Overworld was built to satisfy a checklist), the authored 9-slice frame, and
+   wiring `RuntimeOptions` into the host so rebinding reaches live input.
 4. **16D — Asset-backed overworld integration (`PLANNED`; prerequisites 16A-C).**
    - **Spec lock:** OverworldScene state ownership, map/entity instantiation, render layers, interaction
      priority, encounter/trainer trigger order, dialogue commands already represented in Core data,
