@@ -305,7 +305,12 @@ internal sealed class RuntimeHost : IDisposable
 
         _battleController = null;
         BattleLauncher.ApplyResult(_session!, battle);
-        if (outcome?.Winner == BattleSide.Player)
+
+        // A capture ends the battle without a defeat, so it awards no experience — Core reports the
+        // capture and the creature joins the party, or a box when the party is full.
+        if (battle.Captured)
+            BattleLauncher.DepositCaptured(_content.Db, _session!, battle, Report);
+        else if (outcome?.Winner == BattleSide.Player)
             BattleLauncher.AwardExperience(_content.Db, _session!, battle, _battleWasTrainer);
 
         // Blackout is Core's rule: return to the checkpoint and full-heal. Otherwise resume where

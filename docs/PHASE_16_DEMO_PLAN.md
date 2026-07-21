@@ -32,7 +32,7 @@ replace, reorder, or relax any 16A–16G package, acceptance list, or budget. On
 - **IP rule.** No official creature names, sprites, cries, music, or maps anywhere, including
   this demo. "Gen 3/4 battle layout" is a **design-time layout reference only** — the same
   standing as `docs/pokeapi-results`. The demo's capture item is an original item in the
-  `item:` category (working ID `item:capture-orb`; display name is data). The word "Pokemon"
+  `item:` category (working ID `item:capture_orb`; display name is data). The word "Pokemon"
   never appears in content, code, or assets.
 
 ## 2. What the existing Phase 16 already delivers
@@ -83,7 +83,7 @@ migration note **before** content is written.
   rate, and one evolution by level within the demo line.
 - **Moves: none authored.** The demo consumes existing certified moves exclusively. If a
   desired demo moment needs an uncertified move, the demo moment changes, not the corpus.
-- **Items:** `item:capture-orb` (capture device, uses Core capture formula), one healing
+- **Items:** `item:capture_orb` (capture device, uses Core capture formula), one healing
   item. Shop/bag breadth beyond what 16E already requires is excluded.
 - **Map:** one outdoor fixture map (project tile grid 32×32) containing: walkable routes, at
   least one tall-grass encounter region with an encounter table (2+ species, level ranges),
@@ -120,10 +120,10 @@ Locked as the concrete instantiation of 16F's layout rules at 256×192 virtual r
    flag rules say otherwise.
 2. **Battle:** Wild and trainer battles present per §3.2. Move selection lists only
    Core-legal actions; using moves produces damage/status/faint exclusively via consumed
-   events; attempting `Run` and `item:capture-orb` in a trainer battle is refused by Core
+   events; attempting `Run` and `item:capture_orb` in a trainer battle is refused by Core
    and presented as such (capture/trainer restriction test from 16F reused interactively).
 3. **Progression and capture:** Winning grants EXP per Core progression (visible EXP bar
-   motion, level-up prompt when Core says so). In a wild battle, throwing `item:capture-orb`
+   motion, level-up prompt when Core says so). In a wild battle, throwing `item:capture_orb`
    yields Core-resolved shake events with genuine break-out probability through injected RNG
    — demonstrably variable across seeds, byte-identical under a fixed seed. A successful
    capture adds the creature to party (or Core storage on overflow) and survives

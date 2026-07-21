@@ -4,6 +4,12 @@ using Cgm.Core.Model;
 namespace Cgm.Runtime.Engine;
 
 public sealed record BattleFormChoice(string FormId, int MoveIndex);
+
+/// <summary>A capture device the player can throw. Bonuses are inputs to Core's capture maths, which
+/// owns every probability.</summary>
+// ponytail: bonuses default to 1.0; per-device bonuses need a schema field on Item, which is a
+// DATA_SCHEMA change rather than something to invent here.
+public sealed record BattleCaptureChoice(EntityId Item, double BallBonus = 1.0, double StatusBonus = 1.0);
 public sealed record BattleMenuItem(string Label, BattleAction Action);
 public sealed record BattlePartyMember(string Name, int CurrentHp, int MaxHp, bool IsActive, bool IsFainted);
 public sealed record BattleSceneSnapshot(
@@ -25,6 +31,7 @@ public sealed class BattleScene
     private readonly BattleController _battle;
     private readonly Func<BattleController, BattleAction, BattleAction> _enemyAction;
     private readonly IReadOnlyList<BattleFormChoice> _formChoices;
+    private readonly IReadOnlyList<BattleCaptureChoice> _captureChoices;
     private readonly Func<EntityId, string> _nameOf;
     private readonly List<string> _presented = [];
     private readonly List<BattleEvent> _events = [];
@@ -32,15 +39,18 @@ public sealed class BattleScene
     private int _selected;
 
     public BattleScene(BattleController battle, Func<BattleController, BattleAction> enemyAction,
-        IReadOnlyList<BattleFormChoice>? formChoices = null, Func<EntityId, string>? nameOf = null)
-        : this(battle, (b, _) => enemyAction(b), formChoices, nameOf) { }
+        IReadOnlyList<BattleFormChoice>? formChoices = null, Func<EntityId, string>? nameOf = null,
+        IReadOnlyList<BattleCaptureChoice>? captureChoices = null)
+        : this(battle, (b, _) => enemyAction(b), formChoices, nameOf, captureChoices) { }
 
     public BattleScene(BattleController battle, Func<BattleController, BattleAction, BattleAction> enemyAction,
-        IReadOnlyList<BattleFormChoice>? formChoices = null, Func<EntityId, string>? nameOf = null)
+        IReadOnlyList<BattleFormChoice>? formChoices = null, Func<EntityId, string>? nameOf = null,
+        IReadOnlyList<BattleCaptureChoice>? captureChoices = null)
     {
         _battle = battle;
         _enemyAction = enemyAction;
         _formChoices = formChoices ?? [];
+        _captureChoices = captureChoices ?? [];
         _nameOf = nameOf ?? (id => id.ToString());
         RefreshMenu();
     }
@@ -127,6 +137,15 @@ public sealed class BattleScene
                 BattleCreature c = party[i];
                 items.Add(new BattleMenuItem($"Switch: {_nameOf(c.Species)} {c.CurrentHp}/{c.MaxHp}", action));
             }
+        }
+
+        // Capture is offered only when the player carries a device and Core allows it — Core refuses
+        // a throw in a trainer battle, so no check for that is needed or wanted here.
+        foreach (BattleCaptureChoice capture in _captureChoices)
+        {
+            var action = new ThrowBall(capture.BallBonus, capture.StatusBonus);
+            if (_battle.CanSubmitAction(BattleSide.Player, action))
+                items.Add(new BattleMenuItem($"Throw {_nameOf(capture.Item)}", action));
         }
 
         _menu = items;

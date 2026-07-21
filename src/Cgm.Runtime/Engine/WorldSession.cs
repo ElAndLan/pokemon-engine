@@ -116,6 +116,46 @@ public sealed class WorldSession
     /// <summary>PC boxes, sized by project settings. Overflow from a full party lands here.</summary>
     public List<List<CreatureInstance>> Boxes { get; } = [];
 
+    /// <summary>Carried items and their counts. Grouped into authored pockets for display only;
+    /// what an item *does* stays in its definition and in Core.</summary>
+    public Dictionary<EntityId, int> Bag { get; } = [];
+
+    /// <summary>Adds items, merging with any already carried.</summary>
+    public void AddItem(EntityId item, int count = 1)
+    {
+        if (count <= 0)
+            throw new ArgumentOutOfRangeException(nameof(count), count, "Item count must be positive.");
+        Bag[item] = Bag.GetValueOrDefault(item) + count;
+    }
+
+    /// <summary>Consumes items, returning false when there are not enough. The bag never goes
+    /// negative, so a failed consume leaves the count untouched.</summary>
+    public bool ConsumeItem(EntityId item, int count = 1)
+    {
+        if (count <= 0)
+            throw new ArgumentOutOfRangeException(nameof(count), count, "Item count must be positive.");
+        if (Bag.GetValueOrDefault(item) < count)
+            return false;
+
+        int remaining = Bag[item] - count;
+        if (remaining == 0)
+            Bag.Remove(item);
+        else
+            Bag[item] = remaining;
+        return true;
+    }
+
+    public int ItemCount(EntityId item) => Bag.GetValueOrDefault(item);
+
+    /// <summary>Carried capture devices, identified by their authored pocket. Pocket membership is
+    /// display grouping the project already defines; the capture maths stays in Core.</summary>
+    public IReadOnlyList<EntityId> CaptureItems(string pocket = "balls") =>
+        Bag.Keys
+            .Where(id => _db.Find<Item>(id) is { } item
+                && string.Equals(item.Pocket, pocket, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(id => id.ToString(), StringComparer.Ordinal)
+            .ToList();
+
     /// <summary>One world RNG stream for the whole session, so encounters replay identically.</summary>
     public IRng Rng { get; }
 
@@ -173,7 +213,23 @@ public sealed class WorldSession
         Party = Party.ToList(),
         Boxes = Boxes.Select(box => (IReadOnlyList<CreatureInstance>)box.ToList()).ToList(),
         Respawn = Respawn,
+        Bag = BagByPocket(),
     };
+
+    /// <summary>The save groups the bag by pocket (DATA_SCHEMA §5). An item whose definition is
+    /// missing falls into the default pocket rather than being dropped from the save.</summary>
+    private Dictionary<string, IReadOnlyList<BagEntry>> BagByPocket()
+    {
+        var pockets = new Dictionary<string, List<BagEntry>>(StringComparer.Ordinal);
+        foreach ((EntityId id, int count) in Bag.OrderBy(pair => pair.Key.ToString(), StringComparer.Ordinal))
+        {
+            string pocket = _db.Find<Item>(id)?.Pocket ?? "items";
+            if (!pockets.TryGetValue(pocket, out List<BagEntry>? entries))
+                pockets[pocket] = entries = [];
+            entries.Add(new BagEntry(id, count));
+        }
+        return pockets.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<BagEntry>)pair.Value);
+    }
 
     /// <summary>Restores session state from a save and returns the scene for its map, or null when
     /// the saved map no longer exists in this content.</summary>
@@ -194,6 +250,13 @@ public sealed class WorldSession
             box.Clear();
         for (int i = 0; i < save.Boxes.Count && i < Boxes.Count; i++)
             Boxes[i].AddRange(save.Boxes[i]);
+
+        // Pockets are display grouping, so the bag flattens back to counts. A duplicate entry across
+        // pockets sums rather than overwriting, which a hand-edited save could otherwise lose.
+        Bag.Clear();
+        foreach (BagEntry entry in save.Bag.Values.SelectMany(entries => entries))
+            if (entry.Count > 0)
+                Bag[entry.Item] = Bag.GetValueOrDefault(entry.Item) + entry.Count;
 
         return Enter(map, save.Pos, save.Facing);
     }

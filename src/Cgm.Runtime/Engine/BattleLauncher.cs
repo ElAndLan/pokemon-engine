@@ -33,7 +33,7 @@ public static class BattleLauncher
         CreatureInstance wild = InstanceGen.Create(speciesId, species.BaseStats, species.GrowthRate,
             level, moves, rng, species.Abilities);
 
-        return Build(db, session, [wild], rng);
+        return Build(db, session, [wild], rng, isWild: true);
     }
 
     /// <summary>Starts a trainer battle against the trainer's authored party.</summary>
@@ -63,7 +63,7 @@ public static class BattleLauncher
                 member.Level, moves, rng, species.Abilities) with { HeldItem = member.HeldItem });
         }
 
-        return Build(db, session, opponents, rng);
+        return Build(db, session, opponents, rng, isWild: false);
     }
 
     /// <summary>Writes a finished battle back to the session: current HP, status, and PP for every
@@ -119,11 +119,50 @@ public static class BattleLauncher
         }
     }
 
+    /// <summary>Routes a captured creature into the party, or a box when the party is full, through
+    /// Core's storage rule. Its battle-current HP and status carry over, so a creature caught at low
+    /// health arrives at low health.</summary>
+    public static DepositResult? DepositCaptured(GameDb db, WorldSession session,
+        BattleController battle, Action<string>? report = null)
+    {
+        ArgumentNullException.ThrowIfNull(db);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(battle);
+
+        IReadOnlyList<BattleCreature> wild = battle.Party(BattleSide.Enemy);
+        if (wild.Count == 0)
+            return null;
+
+        BattleCreature caught = wild[0];
+        if (db.Find<Species>(caught.Species) is not { } species)
+        {
+            report?.Invoke($"Captured unknown species '{caught.Species}'.");
+            return null;
+        }
+
+        var instance = new CreatureInstance
+        {
+            Species = caught.Species,
+            Level = caught.Level,
+            Exp = ExpCurve.TotalExp(species.GrowthRate, caught.Level),
+            CurHp = caught.CurrentHp,
+            Status = caught.Status,
+            Moves = caught.Moves.Select(move => new MoveSlot(move.Move, move.Pp)).ToList(),
+        };
+
+        DepositResult? result = session.Deposit(instance);
+        if (result is null)
+            report?.Invoke("Party and storage are full; the capture could not be stored.");
+        return result;
+    }
+
     private static string MemberGrowth(GameDb db, CreatureInstance member) =>
         db.Find<Species>(member.Species)?.GrowthRate ?? "medium-fast";
 
+    /// <summary><paramref name="isWild"/> is not cosmetic: Core refuses capture and applies wild-only
+    /// rules from it, so a wild battle built without it silently behaves as a trainer battle.</summary>
     private static BattleStart Build(GameDb db, WorldSession session,
-        IReadOnlyList<CreatureInstance> opponents, IRng rng)
+        IReadOnlyList<CreatureInstance> opponents, IRng rng, bool isWild)
     {
         IReadOnlyList<BattleCreature> players = session.Party
             .Select(member => BattleCreature.FromInstance(member, db))
@@ -134,6 +173,7 @@ public static class BattleLauncher
 
         var chart = new TypeChart(db.All<TypeDef>());
         var battle = new BattleController(players, enemies, chart, rng,
+            isWild: isWild,
             itemData: db.All<Item>(),
             moveData: db.All<Move>().Select(MoveCompiler.ToBattleMove),
             abilityData: db.All<Ability>());

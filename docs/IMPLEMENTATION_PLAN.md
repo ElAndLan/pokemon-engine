@@ -3903,8 +3903,40 @@ resumes, contract deltas are reconciled at that boundary before further certific
    **2,652/2,652** (1,724 Core, 104 Creator, 617 Runtime, 207 Tools), of which 5 are the new
    lifecycle suite; both samples still boot to smoke success.
 
+   Progress (2026-07-21): **Capture COMPLETE; every `PHASE_16_DEMO_PLAN` §3.3 requirement now has an
+   implementation.** `WorldSession` gained a bag with add/consume/count that never goes negative and
+   persists through the save grouped by authored pocket, flattening back on restore and summing
+   duplicate entries a hand-edited save might contain. Capture devices are identified by their
+   authored `balls` pocket rather than a hardcoded ID, so the demo's orb is ordinary content.
+
+   `BattleScene` offers a throw only when the player carries a device **and Core allows it** — Core's
+   `case ThrowBall when !IsWild` refuses capture in a trainer battle, so no Runtime-side check for
+   that exists or is wanted. `BattleLauncher.DepositCaptured` routes the caught creature through
+   `PartyStorage`: party first, then a box, carrying its battle-current HP and status so a creature
+   caught at low health arrives at low health, and reporting rather than silently losing it when
+   everything is full. A capture awards no experience, since nothing was defeated.
+
+   **Two defects found, both pre-existing.** First, `BattleLauncher` never passed `isWild` to
+   `BattleController`, so *every* battle built since the loop-19 battle-entry slice was a trainer
+   battle. Nothing caught it because nothing had yet exercised a wild-only rule; capture was the
+   first, and it failed with "Cannot capture in a trainer battle". Wild-only Core behaviour beyond
+   capture was silently wrong for five slices. Second, `PHASE_16_DEMO_PLAN` specified the capture
+   item as `item:capture-orb` in four places, but `EntityId` slugs permit only `a-z`, `0-9`, and `_`
+   — that ID **cannot exist**. The plan is corrected to `item:capture_orb`.
+
+   The §3.4 break-out evidence is in place: across 1,000 seeded attempts at catch rate 45 both
+   outcomes occur, a weakened target is measurably easier to catch than a healthy one, and the same
+   seed reproduces the same result. That is the "demonstrably variable across seeds, byte-identical
+   under a fixed seed" requirement.
+
+   Schema impact: none. Dependency impact: none. RNG impact: capture draws from the battle stream via
+   Core. Golden impact: none. Verification: build passed with 0 warnings/errors; the full solution
+   passed **2,675/2,675** (1,724 Core, 104 Creator, 640 Runtime, 207 Tools), of which 23 are new;
+   both samples still boot to smoke success.
+
    Remaining in 16F: typed target and replacement menus — the scene auto-selects the first healthy
-   reserve rather than offering the choice — plus capture presentation and the doubles slot layout.
+   reserve rather than offering the choice — the doubles slot layout, and consuming the thrown device
+   from the bag (Core reports the throw; the bag decrement is not yet wired).
    - **Spec lock:** BattleScene state machine, action/typed-target/replacement menus, Core request/
      response boundary, event-to-presentation catalog, animation queue, skip/fast-forward, and outcome
      return. Runtime never predicts damage, legality, target fallback, faint, or status from state.
