@@ -25,6 +25,7 @@ internal sealed class RuntimeHost : IDisposable
     private readonly SceneStack _scenes = new();
     private UiResources? _ui;
     private WorldSession? _session;
+    private SaveRepository? _saves;
 
     private double _logAccumulatorSec;
     private int _failure;
@@ -118,8 +119,11 @@ internal sealed class RuntimeHost : IDisposable
         _ui = new UiResources(_renderer, _batch);
         _session = new WorldSession(_content.Db, _ui.Painter, _content.Db.Settings.TileSize,
             _content.Config.VirtualWidth, _content.Config.VirtualHeight);
+        _saves = new SaveRepository(System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            RuntimeConfig.SafeSaveDir(_content.Config.GameName)));
         _scenes.Push(new TitleScene(_ui.Painter, _content.Config.VirtualWidth, _content.Config.VirtualHeight,
-            _content.Config.GameName, continueAvailable: false));
+            _content.Config.GameName, continueAvailable: _saves.Exists));
 
         if (_debug)
         {
@@ -179,16 +183,33 @@ internal sealed class RuntimeHost : IDisposable
 
         // The title reports intent; the host owns the transition, so Title never needs to know what
         // Overworld is. New Game and Continue both enter the start map until 16E adds save loading.
-        if (_scenes.Active is TitleScene { Choice: not TitleChoice.None })
+        if (_scenes.Active is TitleScene { Choice: not TitleChoice.None } title)
         {
-            ProjectSettings settings = _content.Db.Settings;
-            if (_session!.Enter(_content.StartMap.Id, settings.StartPos, settings.StartFacing) is { } start)
+            if (Begin(title.Choice) is { } start)
                 _scenes.Replace(start);
             return;
         }
 
         if (_scenes.Active is OverworldScene overworld)
             Advance(overworld);
+        else if (_scenes.Active is MenuScene menu)
+            AdvanceMenu(menu);
+    }
+
+    /// <summary>New Game starts from the project's start state; Continue restores the save, falling
+    /// back to a fresh start when the save cannot be used so the player is never stuck at the title.</summary>
+    private OverworldScene? Begin(TitleChoice choice)
+    {
+        ProjectSettings settings = _content.Db.Settings;
+        if (choice != TitleChoice.Continue)
+            return _session!.Enter(_content.StartMap.Id, settings.StartPos, settings.StartFacing);
+
+        SaveLoadResult result = _saves!.Load(_content.ContentHash);
+        if (result is { Succeeded: true, Save: { } save } && _session!.Restore(save) is { } restored)
+            return restored;
+
+        Report($"Continue failed ({result.Status}): {result.Message}");
+        return _session!.Enter(_content.StartMap.Id, settings.StartPos, settings.StartFacing);
     }
 
     /// <summary>Acts on what the overworld surfaced. The scene decides nothing about scene flow;
@@ -196,6 +217,14 @@ internal sealed class RuntimeHost : IDisposable
     private void Advance(OverworldScene overworld)
     {
         _session!.Track(overworld);
+
+        if (overworld.TakeMenuRequest())
+        {
+            _scenes.Push(new MenuScene(_ui!.Painter, _content.Config.VirtualWidth,
+                _content.Config.VirtualHeight, ["SAVE"]));
+            return;
+        }
+
         if (overworld.TakePending() is not { } pending)
             return;
 
@@ -217,6 +246,32 @@ internal sealed class RuntimeHost : IDisposable
                 break;
         }
     }
+
+    /// <summary>The menu is the only place a manual save is offered, per the 16E save policy.</summary>
+    private void AdvanceMenu(MenuScene menu)
+    {
+        if (menu.Closed)
+        {
+            _scenes.Pop();
+            return;
+        }
+
+        if (menu.Chosen is not { } chosen || chosen != SaveEntry)
+            return;
+
+        try
+        {
+            _saves!.Write(_session!.ToSave(_content.ContentHash));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Save failure is exit code 5, but losing a frame is better than losing the session:
+            // report and keep playing so the player can retry.
+            Report($"Save failed: {ex.Message}");
+        }
+    }
+
+    private const int SaveEntry = 0;
 
     private void Report(string message)
     {

@@ -80,6 +80,16 @@ public sealed class OverworldScene : IScene
     /// <summary>True while a dialogue page is showing; movement is suspended.</summary>
     public bool InDialogue => _dialogue is { Finished: false };
 
+    /// <summary>Set when the player pressed Menu; the host pushes the overlay and clears it.</summary>
+    public bool MenuRequested { get; private set; }
+
+    public bool TakeMenuRequest()
+    {
+        bool requested = MenuRequested;
+        MenuRequested = false;
+        return requested;
+    }
+
     /// <summary>Save flags this scene reads and writes; owned by the session, borrowed here.</summary>
     public FlagStore Flags => _flags;
 
@@ -118,6 +128,13 @@ public sealed class OverworldScene : IScene
         // NPCs tick after the player, in ordinal key order, sharing the session RNG stream.
         foreach (NpcActor npc in _npcs)
             npc.Tick(_rng);
+
+        // The menu is an overlay the host pushes; the scene only reports the request.
+        if (input.WasPressed(GameAction.Menu))
+        {
+            MenuRequested = true;
+            return;
+        }
 
         if (_mover.Position != before)
             Apply(OverworldStep.Resolve(_mover.Position, _map, _collision, _flags,

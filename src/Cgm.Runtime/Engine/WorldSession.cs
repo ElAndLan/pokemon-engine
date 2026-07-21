@@ -83,4 +83,27 @@ public sealed class WorldSession
         Position = scene.PlayerPos;
         Facing = scene.PlayerFacing;
     }
+
+    /// <summary>Projects the live session into a save record. Only session-owned state is written
+    /// here; party, bag, and money join it as 16E adds them.</summary>
+    public SaveFile ToSave(string contentHash) => new()
+    {
+        GameContentHash = contentHash ?? "",
+        Map = CurrentMap,
+        Pos = Position,
+        Facing = Facing,
+        Flags = Flags.Snapshot(),
+    };
+
+    /// <summary>Restores session state from a save and returns the scene for its map, or null when
+    /// the saved map no longer exists in this content.</summary>
+    public OverworldScene? Restore(SaveFile save)
+    {
+        ArgumentNullException.ThrowIfNull(save);
+        if (save.Map is not { } map)
+            return null;
+
+        Flags.Load(save.Flags);
+        return Enter(map, save.Pos, save.Facing);
+    }
 }

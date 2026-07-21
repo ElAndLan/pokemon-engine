@@ -3699,7 +3699,40 @@ resumes, contract deltas are reconciled at that boundary before further certific
 
    Remaining in 16D: battle entry and return through the Core boundary and blackout, both blocked on
    16E party/session state; and real tile/sprite assets once `IAssetSource` lands.
-5. **16E — Player systems, save, clock, and audio (`PLANNED`; prerequisite 16D).**
+5. **16E — Player systems, save, clock, and audio (`IN PROGRESS`; prerequisite 16D).**
+
+   Progress (2026-07-21): **16E durable save slot and session persistence COMPLETE.**
+   `SaveRepository` implements the locked write policy: temp file → flush to disk → `File.Replace`
+   retaining the previous file as `.bak`. The flush matters — a crash mid-write leaves the previous
+   save intact rather than a truncated one, which is the whole point of the sequence.
+
+   Load tries the primary only. A corrupt primary with a backup returns `CorruptWithBackup` and
+   loads **nothing**, because silently rolling a player back to an older save is worse than telling
+   them; the backup loads only when explicitly asked for. A newer `saveFormatVersion` is refused
+   rather than guessed, a save written against different content is flagged but still returned so
+   the host can decide, and an empty hash on either side skips the content check so raw project mode
+   is not blocked.
+
+   `WorldSession.ToSave`/`Restore` bridge live session state and the Core `SaveFile` — the
+   relocation the session was shaped for two slices ago, which cost one method each rather than a
+   redesign. Restore **replaces** flags rather than merging them, or a deleted flag would resurrect
+   from the previous session. `RuntimeContent` now carries the pack's content hash so a save can be
+   checked against the content it was written for.
+
+   The host wires the loop end to end: Continue is offered only when a save exists, Continue restores
+   it and falls back to a fresh start when the save cannot be used so the player is never stranded at
+   the title, Menu opens as an overlay from the overworld, and SAVE writes the slot. A failed write
+   is reported and play continues rather than taking the session down with it.
+
+   Schema impact: none — `SaveFile` already carried the DATA_SCHEMA §5 shape. Dependency impact:
+   none. RNG impact: none yet; `rngStates` persistence lands with the clock and battle work.
+   Golden impact: none. Verification: build passed with 0 warnings/errors; the full solution passed
+   **2,452/2,452** (1,724 Core, 104 Creator, 417 Runtime, 207 Tools), of which 27 are new; both
+   samples still boot to smoke success.
+
+   Remaining in 16E: party/bag/storage and shop scenes, progression and evolution prompts, the game
+   clock and day-night input, audio buses with the approved OpenAL reference, and the debug overlay.
+   Party state is what still blocks 16D battle entry and blackout.
    - **Spec lock:** party/bag/storage/shop scene contracts, progression/evolution prompts, save slots,
      game clock/day-night input, audio buses/loop/crossfade, and debug overlay content.
    - Implement one manual save slot plus `.bak`; New Game initializes project start state, Continue

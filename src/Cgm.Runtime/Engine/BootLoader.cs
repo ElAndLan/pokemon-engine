@@ -5,8 +5,11 @@ using Cgm.Core.Validation;
 namespace Cgm.Runtime.Engine;
 
 /// <summary>The owned aggregate handed to scene construction (ENGINE_RUNTIME_SPEC 16A step 8).
-/// Scenes receive no source-mode flag and cannot branch on raw versus packed content.</summary>
-public sealed record RuntimeContent(GameDb Db, Map StartMap, RuntimeConfig Config);
+/// Scenes receive no source-mode flag and cannot branch on raw versus packed content.
+/// <paramref name="ContentHash"/> identifies the content a save was written against: packs carry one
+/// in their manifest, raw project mode has none, and an empty hash skips the save's content check
+/// rather than blocking development.</summary>
+public sealed record RuntimeContent(GameDb Db, Map StartMap, RuntimeConfig Config, string ContentHash = "");
 
 /// <summary>Steps 2-7 of the 16A startup state machine: select one data source, canonicalize its
 /// root, verify versions and hash, materialize one <see cref="GameDb"/>, and resolve the start
@@ -63,7 +66,7 @@ public static class BootLoader
             SaveDirName = RuntimeConfig.SafeSaveDir(project.Settings.Name),
             Debug = debug,
         };
-        return TryComplete(GameDb.FromProject(project), config, out content, out error);
+        return TryComplete(GameDb.FromProject(project), config, "", out content, out error);
     }
 
     private static bool TryLoadExported(string exeDir, bool debug, out RuntimeContent? content,
@@ -105,11 +108,13 @@ public static class BootLoader
         GameDb db;
         using (FileStream body = File.OpenRead(packPath))
             db = CgmPack.Read(body);
-        return TryComplete(db, config with { Debug = config.Debug || debug }, out content, out error);
+        return TryComplete(db, config with { Debug = config.Debug || debug }, manifest.ContentHash,
+            out content, out error);
     }
 
     /// <summary>Step 7: resolve and validate the start state. Never chooses a fallback entity.</summary>
-    private static bool TryComplete(GameDb db, RuntimeConfig config, out RuntimeContent? content,
+    private static bool TryComplete(GameDb db, RuntimeConfig config, string contentHash,
+        out RuntimeContent? content,
         out BootDiagnostic? error)
     {
         content = null;
@@ -125,7 +130,7 @@ public static class BootLoader
                 $"Start position ({start.X},{start.Y}) is outside the {startMap.Width}x{startMap.Height} start map.",
                 startMapId.ToString());
 
-        content = new RuntimeContent(db, startMap, config);
+        content = new RuntimeContent(db, startMap, config, contentHash);
         error = null;
         return true;
     }
