@@ -4029,12 +4029,40 @@ resumes, contract deltas are reconciled at that boundary before further certific
    (1,724 Core, 104 Creator, 681 Runtime, 207 Tools), of which 15 are the new verification suite;
    both samples still boot to smoke success.
 
-   Remaining in 16G: the performance and resource budgets (p95 update/render over 10,000 frames,
-   steady-state allocation, startup time, 100-cycle resource growth), which need instrumentation and
-   a documented reference machine; the multi-scale screenshot hashes and GL-object leak counters
-   inherited from 16B, which need a live context; and the keyboard-plus-gamepad smoke, which needs a
-   device. These are measurement gaps rather than behaviour gaps — the fixture loop itself now
-   replays deterministically and identically from both data sources.
+   Progress (2026-07-21): **16G budget instrumentation and resource-growth evidence COMPLETE.**
+   `FrameMetrics` records per-frame update and render durations and managed allocation, and
+   `DurationStats` reports min/median/p95/max by nearest rank — no interpolation, so the same samples
+   give the same answer on every machine. Measurement wraps calls the host already makes and reads a
+   counter the runtime already maintains, so enabling it cannot change what is simulated. The
+   allocation baseline is taken after loading, so content and GL setup do not count against the
+   steady-state per-frame budget. `RuntimeHost` prints the report on close in debug.
+
+   What is asserted versus reported is deliberate. Percentile maths, lease counts, and managed-memory
+   growth are deterministic and asserted. **Wall-clock durations are not asserted**: a millisecond
+   threshold in this suite would be a flake on a loaded machine, not a gate. They are reported for
+   the phase-gate record instead.
+
+   Resource-growth rows are evidenced: a hundred scene enter/render/shutdown cycles leave the
+   renderer holding exactly the atlas it started with, a hundred `UiResources` cycles release theirs,
+   identical repeated cycles do not grow managed memory monotonically after collection, and the quad
+   batch's capacity stabilises rather than climbing. Guard tests keep the allocation counter honest:
+   a frame that allocates must show it, and the instrumentation itself must stay under the 1 KB
+   budget it measures.
+
+   **A real limitation, recorded rather than papered over.** `--smoke` closes after one frame, so the
+   figures it prints are first-frame costs including JIT and shader compilation, not steady state —
+   a live reading was `update p50 7.762 ms, render p50 20.471 ms, alloc 17,744 B` for that single
+   frame. The budgets are specified over 10,000 frames, which needs a sustained run. No CLI flag was
+   added for one, because 16A's argument contract is closed; sustained measurement therefore comes
+   from an interactive session, and the numbers above must not be read as budget evidence.
+
+   Verification: build passed with 0 warnings/errors; the full solution passed **2,735/2,735**
+   (1,724 Core, 104 Creator, 700 Runtime, 207 Tools), of which 19 are new.
+
+   Remaining in 16G, all requiring hardware or a human rather than more code: sustained 10,000-frame
+   p95 figures on the documented reference machine, startup-time measurement, the multi-scale
+   screenshot hashes and GL-object leak counters inherited from 16B, and the keyboard-plus-gamepad
+   smoke. These should be recorded as manual gate evidence; the automated half of 16G is done.
    - Build a neutral original fixture script covering new game, movement, dialogue, encounter,
      capture, party/storage, item/shop, save/reload, trainer, evolution, blackout, and doubles debug.
      Run identical scripted inputs in raw and packed modes and compare Core state, save bytes excluding

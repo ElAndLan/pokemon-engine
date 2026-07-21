@@ -18,6 +18,7 @@ internal sealed class RuntimeHost : IDisposable
     private readonly RuntimeContent _content;
     private readonly HostLoop _loop = new();
     private readonly QuadBatch _batch = new();
+    private readonly FrameMetrics _metrics = new();
 
     private IWindow? _window;
     private GL? _gl;
@@ -130,6 +131,10 @@ internal sealed class RuntimeHost : IDisposable
         _scenes.Push(new TitleScene(_ui.Painter, _content.Config.VirtualWidth, _content.Config.VirtualHeight,
             _content.Config.GameName, continueAvailable: _saves.Exists));
 
+        // Baseline after loading, so content and GL setup do not count against the steady-state
+        // per-frame allocation budget.
+        _metrics.Begin();
+
         if (_debug)
         {
             Console.WriteLine($"[runtime] loaded - GL {_gl.GetStringS(StringName.Version)}");
@@ -141,7 +146,8 @@ internal sealed class RuntimeHost : IDisposable
     private void OnUpdate(double deltaSeconds)
     {
         // One outer frame: poll once, run 0-5 ticks with edges delivered to the first due tick.
-        _loop.Frame(deltaSeconds * 1000.0, ReadHeldActions(), Tick);
+        // Timing wraps the call the host already makes; it never changes what runs.
+        _metrics.Update(() => _loop.Frame(deltaSeconds * 1000.0, ReadHeldActions(), Tick));
 
         if (!_debug)
             return;
@@ -164,16 +170,19 @@ internal sealed class RuntimeHost : IDisposable
         int vh = _content.Config.VirtualHeight;
         Vector2D<int> size = _window!.FramebufferSize;
 
-        _renderer!.BeginFrame(VirtualResolution.Fit(size.X, size.Y, vw, vh), vw, vh,
-            new Rgba(0x18, 0x1C, 0x24, 0xFF));
+        _metrics.Render(() =>
+        {
+            _renderer!.BeginFrame(VirtualResolution.Fit(size.X, size.Y, vw, vh), vw, vh,
+                new Rgba(0x18, 0x1C, 0x24, 0xFF));
 
-        // The host owns the batch across the whole stack, so overlapping scenes share draw calls.
-        _batch.Begin();
-        _scenes.Render();
-        _ui?.Painter.Fade(vw, vh, _scenes.FadeAlpha);
-        var (quads, calls, _) = _batch.End();
-        _renderer.Draw(quads, calls);
-        _renderer.EndFrame();
+            // The host owns the batch across the whole stack, so overlapping scenes share draw calls.
+            _batch.Begin();
+            _scenes.Render();
+            _ui?.Painter.Fade(vw, vh, _scenes.FadeAlpha);
+            var (quads, calls, _) = _batch.End();
+            _renderer.Draw(quads, calls);
+            _renderer.EndFrame();
+        });
 
         if (_smoke)
             _window.Close();
@@ -401,7 +410,10 @@ internal sealed class RuntimeHost : IDisposable
         _ui?.Dispose();          // scenes borrow the atlas, so it goes after them
         _renderer?.Dispose();
         if (_debug)
+        {
             Console.WriteLine($"[runtime] closing - {_loop.TotalTicks} ticks, {_loop.TotalFrames} frames total");
+            Console.WriteLine($"[runtime] budget: {_metrics.End().Format()}");
+        }
     }
 
     public void Dispose()
