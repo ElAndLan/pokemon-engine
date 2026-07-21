@@ -17,6 +17,7 @@ public sealed class OverworldScene : IScene
     private readonly IRng _rng;
     private readonly IReadOnlyDictionary<EntityId, Trainer> _trainers;
     private readonly IReadOnlyDictionary<EntityId, EncounterTable> _tables;
+    private readonly List<NpcActor> _npcs;
     private readonly int _tileSize;
     private readonly int _width;
     private readonly int _height;
@@ -44,10 +45,17 @@ public sealed class OverworldScene : IScene
         _width = virtualWidth;
         _height = virtualHeight;
         _collision = MapCollision.Derive(map, tilesets);
-        // NPCs block movement. They are static until the 16D NPC tick lands, so this is recomputed
-        // per resolve rather than cached — correctness first, and the set is map-sized at worst.
         _mover = new GridMover(start, facing, (from, dir) =>
             MovementRules.Resolve(from, dir, _collision, map.Width, map.Height, Occupied()));
+
+        // Ordinal key order, not authored list order: NPCs must tick in the same sequence on every
+        // run and after any map-file reordering, or a seeded replay diverges. This is what the
+        // schema v8 stable keys are for.
+        _npcs = map.Entities.OfType<NpcEntity>()
+            .OrderBy(npc => npc.Key, StringComparer.Ordinal)
+            .Select(npc => new NpcActor(npc, (from, dir) =>
+                MovementRules.Resolve(from, dir, _collision, map.Width, map.Height, OccupiedExcept(npc))))
+            .ToList();
     }
 
     public bool IsOverlay => false;
@@ -74,6 +82,9 @@ public sealed class OverworldScene : IScene
 
     /// <summary>Save flags this scene reads and writes; owned by the session, borrowed here.</summary>
     public FlagStore Flags => _flags;
+
+    /// <summary>Live NPC actors in the ordinal key order they tick in.</summary>
+    public IReadOnlyList<NpcActor> Npcs => _npcs;
 
     public StepOutcome? TakePending()
     {
@@ -103,6 +114,10 @@ public sealed class OverworldScene : IScene
         GridPos before = _mover.Position;
         _mover.Tick(Direction(_merger.Direction()));
         UpdateCamera();
+
+        // NPCs tick after the player, in ordinal key order, sharing the session RNG stream.
+        foreach (NpcActor npc in _npcs)
+            npc.Tick(_rng);
 
         if (_mover.Position != before)
             Apply(OverworldStep.Resolve(_mover.Position, _map, _collision, _flags,
@@ -135,6 +150,11 @@ public sealed class OverworldScene : IScene
 
             case StepOutcome.Interact { Entity: NpcEntity { Dialogue: { } text } }:
                 Say(text);
+                return;
+
+            // An already-collected pickup is inert: its flag is the record of collection, so it
+            // cannot be taken twice even though the entity is still authored on the map.
+            case StepOutcome.Interact { Entity: PickupEntity pickup } when Collected(pickup):
                 return;
 
             default:
@@ -172,6 +192,14 @@ public sealed class OverworldScene : IScene
         }
     }
 
+    /// <summary>A pickup's flag is the record that it was taken; an empty flag means it is repeatable
+    /// by authoring choice.</summary>
+    public bool Collected(PickupEntity pickup)
+    {
+        ArgumentNullException.ThrowIfNull(pickup);
+        return !string.IsNullOrWhiteSpace(pickup.Flag) && _flags.GetBool(pickup.Flag);
+    }
+
     private void Say(string text)
     {
         if (string.IsNullOrEmpty(text))
@@ -183,9 +211,34 @@ public sealed class OverworldScene : IScene
     {
         _ui.Panel(new RectI(0, 0, _width, _height), new Rgba(0x0A, 0x0C, 0x10, 0xFF));
         DrawTiles();
+        DrawEntities();
         DrawPlayer();
         DrawDialogue();
     }
+
+    private void DrawEntities()
+    {
+        foreach (PickupEntity pickup in _map.Entities.OfType<PickupEntity>())
+            if (!Collected(pickup))   // a taken pickup leaves nothing to draw
+                _ui.Panel(Inset(TileRect(pickup.Pos.X, pickup.Pos.Y), 5),
+                    new Rgba(0xE0, 0xD0, 0x60, 0xFF), layer: 1);
+
+        foreach (SignEntity sign in _map.Entities.OfType<SignEntity>())
+            _ui.Panel(Inset(TileRect(sign.Pos.X, sign.Pos.Y), 4),
+                new Rgba(0x90, 0x70, 0x40, 0xFF), layer: 1);
+
+        foreach (NpcActor npc in _npcs)
+        {
+            (int dx, int dy) = npc.State == MoverState.Moving ? Offset(npc.Facing) : (0, 0);
+            int progress = (int)(npc.Progress * _tileSize);
+            RectI tile = Inset(TileRect(npc.Position.X, npc.Position.Y), 2);
+            _ui.Panel(tile with { X = tile.X + dx * progress, Y = tile.Y + dy * progress },
+                new Rgba(0x70, 0xA0, 0xE0, 0xFF), layer: 1);
+        }
+    }
+
+    private static RectI Inset(RectI rect, int by) =>
+        new(rect.X + by, rect.Y + by, rect.Width - by * 2, rect.Height - by * 2);
 
     private void DrawDialogue()
     {
@@ -229,9 +282,20 @@ public sealed class OverworldScene : IScene
     private RectI TileRect(int x, int y) =>
         new(x * _tileSize - Camera.X, y * _tileSize - Camera.Y, _tileSize, _tileSize);
 
-    /// <summary>NPCs occupy their tile, so Core treats them as blocking.</summary>
-    private IReadOnlySet<GridPos> Occupied() =>
-        _map.Entities.OfType<NpcEntity>().Select(npc => npc.Pos).ToHashSet();
+    /// <summary>NPCs occupy their live tile, so Core treats them as blocking. Positions come from
+    /// the actors, not the authored entities, so a moving NPC blocks where it actually is.</summary>
+    private IReadOnlySet<GridPos> Occupied() => _npcs.Select(npc => npc.Position).ToHashSet();
+
+    /// <summary>Occupancy from one NPC's point of view: it does not block itself, but the player and
+    /// every other NPC do.</summary>
+    private IReadOnlySet<GridPos> OccupiedExcept(NpcEntity self)
+    {
+        var cells = _npcs.Where(actor => actor.Entity != self)
+            .Select(actor => actor.Position)
+            .ToHashSet();
+        cells.Add(_mover.Position);
+        return cells;
+    }
 
     private void UpdateCamera() => Camera = Engine.Camera.Clamp(
         _mover.Position.X * _tileSize + _tileSize / 2,

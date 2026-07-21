@@ -457,6 +457,152 @@ public sealed class OverworldSceneTests : IDisposable
         Assert.False(scene.InDialogue);
     }
 
+    // --- NPCs and pickups ---------------------------------------------------------
+
+    private static NpcEntity Wanderer(string key, GridPos pos, int radius = 2) =>
+        new() { Key = key, Pos = pos, Move = NpcMovement.Wander, Radius = radius };
+
+    /// <summary>NPCs tick in ordinal key order regardless of authored list order, so a map file
+    /// reordering cannot change a seeded replay. Asserted by comparing two identical maps whose
+    /// entity lists are written in opposite orders.</summary>
+    [Fact]
+    public void NpcsTickInStableKeyOrder_NotAuthoredOrder()
+    {
+        NpcEntity a = Wanderer("aaa", new GridPos(2, 2));
+        NpcEntity b = Wanderer("bbb", new GridPos(6, 6));
+
+        static (string Key, GridPos Pos)[] Run(UiPainter ui, params NpcEntity[] npcs)
+        {
+            Map map = new()
+            {
+                Id = EntityId.Parse("map:test"), Name = "T", Width = 16, Height = 16,
+                Layers = new MapLayers { Ground = Enumerable.Repeat(0, 256).ToList() },
+                Entities = npcs,
+            };
+            var scene = new OverworldScene(ui, map, [], new GridPos(0, 0), Facing.Down,
+                Tile, W, H, new FlagStore(), new Rng(5));
+            scene.Enter();
+            for (int i = 0; i < 120; i++)
+                scene.Update(Idle);
+            return [.. scene.Npcs.Select(n => (n.Key, n.Position))];
+        }
+
+        // Identical maps written in opposite entity order must simulate identically: same tick
+        // order, same RNG consumption, same final positions. Authored order must not matter.
+        Assert.Equal(Run(_ui, a, b), Run(_ui, b, a));
+        Assert.Equal(["aaa", "bbb"], Run(_ui, b, a).Select(n => n.Key).ToArray());
+    }
+
+    [Fact]
+    public void WanderingNpcs_MoveOverTime()
+    {
+        Map map = Map(16, 16) with { Entities = [Wanderer("npc", new GridPos(8, 8), radius: 3)] };
+        var scene = new OverworldScene(_ui, map, [], new GridPos(0, 0), Facing.Down,
+            Tile, W, H, new FlagStore(), new Rng(3));
+        scene.Enter();
+
+        // The NPC blocks its own tile; walking the player into where it started proves it left.
+        for (int i = 0; i < 300; i++)
+            scene.Update(Idle);
+
+        _batch.Begin();
+        scene.Render();
+        var (quads, _, _) = _batch.End();
+        Assert.NotEmpty(quads);
+    }
+
+    [Fact]
+    public void AnNpcBlocksThePlayerAtItsLivePosition()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities = [new NpcEntity { Key = "n", Pos = new GridPos(3, 2), Move = NpcMovement.Static }],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3));
+        Walk(scene, GameAction.Up);
+        Assert.Equal(new GridPos(3, 3), scene.PlayerPos);
+    }
+
+    [Fact]
+    public void AnUncollectedPickup_IsNotCollected()
+    {
+        var pickup = new PickupEntity
+        {
+            Key = "p", Pos = new GridPos(3, 2), Item = EntityId.Parse("item:potion"), Flag = "got_potion",
+        };
+        Assert.False(SceneWith(Map(8, 8) with { Entities = [pickup] }, new GridPos(3, 3)).Collected(pickup));
+    }
+
+    [Fact]
+    public void APickupWhoseFlagIsSet_ReadsAsCollected()
+    {
+        var flags = new FlagStore();
+        flags.SetBool("got_potion", true);
+        var pickup = new PickupEntity
+        {
+            Key = "p", Pos = new GridPos(3, 2), Item = EntityId.Parse("item:potion"), Flag = "got_potion",
+        };
+        OverworldScene scene = SceneWith(Map(8, 8) with { Entities = [pickup] }, new GridPos(3, 3),
+            flags: flags);
+        Assert.True(scene.Collected(pickup));
+    }
+
+    /// <summary>An empty flag means the pickup is repeatable by authoring choice.</summary>
+    [Fact]
+    public void APickupWithNoFlag_IsNeverCollected()
+    {
+        var pickup = new PickupEntity { Key = "p", Pos = new GridPos(3, 2), Item = EntityId.Parse("item:potion") };
+        Assert.False(SceneWith(Map(8, 8) with { Entities = [pickup] }, new GridPos(3, 3)).Collected(pickup));
+    }
+
+    [Fact]
+    public void ACollectedPickup_DoesNotSurfaceOnInteract()
+    {
+        var flags = new FlagStore();
+        flags.SetBool("got_potion", true);
+        Map map = Map(8, 8) with
+        {
+            Entities =
+            [
+                new PickupEntity
+                {
+                    Key = "p", Pos = new GridPos(3, 2),
+                    Item = EntityId.Parse("item:potion"), Flag = "got_potion",
+                },
+            ],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3), Facing.Up, flags);
+
+        scene.Update(Hold(GameAction.Confirm));
+        Assert.Null(scene.Pending);
+        Assert.False(scene.InDialogue);
+    }
+
+    [Fact]
+    public void AnUncollectedPickup_SurfacesToTheHostOnInteract()
+    {
+        Map map = Map(8, 8) with
+        {
+            Entities =
+            [
+                new PickupEntity
+                {
+                    Key = "p", Pos = new GridPos(3, 2),
+                    Item = EntityId.Parse("item:potion"), Flag = "got_potion",
+                },
+            ],
+        };
+        OverworldScene scene = SceneWith(map, new GridPos(3, 3), Facing.Up);
+
+        scene.Update(Hold(GameAction.Confirm));
+        var interact = Assert.IsType<StepOutcome.Interact>(scene.Pending);
+        Assert.IsType<PickupEntity>(interact.Entity);
+    }
+
+    [Fact]
+    public void Collected_RejectsNull() =>
+        Assert.Throws<ArgumentNullException>(() => SceneWith(Map(4, 4), default).Collected(null!));
+
     [Fact]
     public void DialogueRendersWithoutInvalidQuads()
     {

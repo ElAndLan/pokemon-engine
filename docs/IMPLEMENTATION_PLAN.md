@@ -3668,9 +3668,37 @@ resumes, contract deltas are reconciled at that boundary before further certific
    **2,400/2,400** (1,724 Core, 104 Creator, 365 Runtime, 207 Tools), of which 14 are new; both
    samples still boot to smoke success.
 
-   Remaining in 16D: battle entry and return through the Core boundary (blocked on 16E party/session
-   state), blackout, NPC updates in stable entity-ID order with injected Core RNG, pickup
-   persistence, and real tile/sprite assets once `IAssetSource` lands.
+   Progress (2026-07-21): **16D NPC updates and pickup persistence COMPLETE.** `NpcActor` drives one
+   NPC through a Core `GridMover`; every step decision comes from Core (`NpcWander` for wandering,
+   the authored path for patrolling) and static NPCs never move. Actors tick **in ordinal key order,
+   not authored list order** — the payoff for the schema v8 stable keys — so reordering entities in a
+   map file cannot change a seeded replay. That is asserted by simulating two identical maps whose
+   entity lists are written in opposite order and comparing final positions, not by inspecting the
+   sort call.
+
+   RNG discipline is measured rather than inferred, using a draw-counting `IRng`: static and
+   patrolling NPCs consume **zero** randomness, and a wandering NPC decides once per step rather than
+   once per tick, so draw counts track steps taken instead of frame rate. Either mistake would shift
+   every other consumer of the shared session stream, wild encounters included.
+
+   Occupancy is computed from live actor positions rather than authored entity positions, so a moving
+   NPC blocks where it actually is; each NPC sees the player and every *other* NPC as blocking but
+   not itself. Pickups honour their flag: a collected pickup is inert on interact and is not drawn,
+   while an empty flag means the pickup is repeatable by authoring choice. The item grant itself
+   surfaces to the host, and the flag is deliberately **not** set here — collection is not complete
+   until Core actually gives the item, and setting it early would lose the item on a failed grant.
+
+   Two tests were rewritten after they proved vacuous: a "consumes no randomness" test that never
+   counted draws, and a stable-order test that compared array lengths (trivially equal) instead of
+   simulated positions. `OverworldScene.Npcs` was added so the second could assert what it claimed.
+
+   Schema impact: none. Dependency impact: none. RNG impact: NPC wander draws from the shared session
+   stream, once per decision. Golden impact: none. Verification: build passed with 0
+   warnings/errors; the full solution passed **2,425/2,425** (1,724 Core, 104 Creator, 390 Runtime,
+   207 Tools), of which 25 are new; both samples still boot to smoke success.
+
+   Remaining in 16D: battle entry and return through the Core boundary and blackout, both blocked on
+   16E party/session state; and real tile/sprite assets once `IAssetSource` lands.
 5. **16E — Player systems, save, clock, and audio (`PLANNED`; prerequisite 16D).**
    - **Spec lock:** party/bag/storage/shop scene contracts, progression/evolution prompts, save slots,
      game clock/day-night input, audio buses/loop/crossfade, and debug overlay content.
