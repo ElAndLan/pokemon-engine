@@ -3882,9 +3882,29 @@ resumes, contract deltas are reconciled at that boundary before further certific
    **2,647/2,647** (1,724 Core, 104 Creator, 612 Runtime, 207 Tools), of which 26 are new; both
    samples still boot to smoke success.
 
-   Remaining in 16F: wiring `BattleHostScene` into `RuntimeHost` to replace the loop-19 auto-resolve,
-   typed target and replacement menus (the scene currently auto-selects the first healthy reserve),
-   and capture presentation.
+   Progress (2026-07-21): **16F battle scene wired into the host; the demo lifecycle is playable end
+   to end.** `RuntimeHost` now pushes `BattleHostScene` on a wild encounter or trainer sighting
+   instead of auto-resolving. The battle owns the screen until Core declares an outcome *and* its
+   events finish presenting; the host then applies the result once, awards experience on a win,
+   blacks out to the checkpoint when the party is down, and otherwise resumes the overworld where
+   the encounter began. The loop-19 auto-resolve and its `ponytail:` note are gone, as is the
+   replacement helper the scene made redundant.
+
+   `DemoLifecycleTests` drives `PHASE_16_DEMO_PLAN` §3.3 headlessly through the real scene stack,
+   batch, and renderer — the same sequence the host performs. It asserts that walking in grass
+   produces an encounter, that the battle plays to an outcome with a non-empty log, that a win awards
+   experience, that battle damage carries back into the overworld session, that a whited-out party
+   blacks out to its checkpoint rather than resuming where it fell, and that the battle scene renders
+   valid quads. Every frame goes through the recording renderer, so a scene submitting a bad quad
+   fails the lifecycle test rather than the demo.
+
+   Schema impact: none. Dependency impact: none. RNG impact: none beyond the existing session stream.
+   Golden impact: none. Verification: build passed with 0 warnings/errors; the full solution passed
+   **2,652/2,652** (1,724 Core, 104 Creator, 617 Runtime, 207 Tools), of which 5 are the new
+   lifecycle suite; both samples still boot to smoke success.
+
+   Remaining in 16F: typed target and replacement menus — the scene auto-selects the first healthy
+   reserve rather than offering the choice — plus capture presentation and the doubles slot layout.
    - **Spec lock:** BattleScene state machine, action/typed-target/replacement menus, Core request/
      response boundary, event-to-presentation catalog, animation queue, skip/fast-forward, and outcome
      return. Runtime never predicts damage, legality, target fallback, faint, or status from state.

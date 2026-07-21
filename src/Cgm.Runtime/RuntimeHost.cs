@@ -31,6 +31,10 @@ internal sealed class RuntimeHost : IDisposable
     private double _logAccumulatorSec;
     private int _failure;
 
+    /// <summary>The battle in progress, held so its result can be applied once it finishes.</summary>
+    private BattleController? _battleController;
+    private bool _battleWasTrainer;
+
     public RuntimeHost(bool debug, RuntimeContent content, bool smoke = false)
     {
         _debug = debug;
@@ -195,6 +199,8 @@ internal sealed class RuntimeHost : IDisposable
             Advance(overworld);
         else if (_scenes.Active is MenuScene menu)
             AdvanceMenu(menu);
+        else if (_scenes.Active is BattleHostScene { Finished: true } battle)
+            FinishBattle(battle);
     }
 
     /// <summary>New Game starts from the project's start state; Continue restores the save, falling
@@ -270,11 +276,8 @@ internal sealed class RuntimeHost : IDisposable
         }
     }
 
-    /// <summary>Runs a battle to completion and returns its result to the session. Presentation is
-    /// 16F; until then the battle resolves headlessly so the lifecycle is exercised end to end
-    /// rather than stubbed.</summary>
-    // ponytail: auto-resolved until BattleScene becomes an IScene in 16F; entry, return, and
-    // progression are the parts 16D owns and they are real.
+    /// <summary>Pushes the playable battle scene. The battle owns the screen until Core declares an
+    /// outcome and its events finish presenting; the host then returns control to the overworld.</summary>
     private void Launch(BattleStart start, bool trainer)
     {
         if (!start.Started)
@@ -284,43 +287,36 @@ internal sealed class RuntimeHost : IDisposable
         }
 
         BattleController battle = start.Battle!;
-        var scene = new BattleScene(battle,
+        var presenter = new BattleScene(battle,
             b => new UseMove(RandomAi.ChooseMove(b.Active(BattleSide.Enemy), _session!.Rng)));
 
-        for (int guard = 0; guard < 200 && scene.Snapshot().Outcome is null; guard++)
-        {
-            if (scene.PendingReplacementSlots.Count > 0)
-            {
-                scene.SubmitReplacements(Replacements(scene));
-                continue;
-            }
-            if (scene.Menu.Count == 0)
-                break;
-            scene.Submit(scene.Menu[0].Action);
-        }
-
-        BattleLauncher.ApplyResult(_session!, battle);
-        if (scene.Snapshot().Outcome?.Winner == BattleSide.Player)
-            BattleLauncher.AwardExperience(_content.Db, _session!, battle, trainer);
-
-        // Blackout is Core's rule: return to the checkpoint and full-heal. The scene changes because
-        // the checkpoint may be on another map.
-        if (_session!.PartyIsWhitedOut && _session.Blackout() is { } recovered)
-            _scenes.Replace(recovered);
+        _battleController = battle;
+        _battleWasTrainer = trainer;
+        _scenes.Replace(new BattleHostScene(_ui!.Painter, presenter,
+            _content.Config.VirtualWidth, _content.Config.VirtualHeight));
     }
 
-    /// <summary>Sends in the first healthy reserve for each slot needing a replacement.</summary>
-    private static IReadOnlyList<BattleReplacementSelection> Replacements(BattleScene scene) =>
-        scene.PendingReplacementSlots.Select(slot =>
-        {
-            BattleSceneSnapshot snapshot = scene.Snapshot();
-            IReadOnlyList<BattlePartyMember> party = slot.Side == BattleSide.Player
-                ? snapshot.PlayerParty
-                : snapshot.EnemyParty;
-            int index = party.Select((member, i) => (member, i))
-                .First(entry => !entry.member.IsActive && !entry.member.IsFainted).i;
-            return new BattleReplacementSelection(slot, index);
-        }).ToList();
+    /// <summary>Returns from a finished battle: apply the result once, award experience on a win, and
+    /// black out if the party is down. Core owns every value; this only sequences the return.</summary>
+    private void FinishBattle(BattleHostScene scene)
+    {
+        BattleController battle = _battleController!;
+        BattleOutcome? outcome = scene.Outcome;
+
+        _battleController = null;
+        BattleLauncher.ApplyResult(_session!, battle);
+        if (outcome?.Winner == BattleSide.Player)
+            BattleLauncher.AwardExperience(_content.Db, _session!, battle, _battleWasTrainer);
+
+        // Blackout is Core's rule: return to the checkpoint and full-heal. Otherwise resume where
+        // the encounter started.
+        OverworldScene? next = _session!.PartyIsWhitedOut
+            ? _session.Blackout()
+            : _session.Enter(_session.CurrentMap, _session.Position, _session.Facing);
+
+        if (next is not null)
+            _scenes.Replace(next);
+    }
 
     /// <summary>The menu is the only place a manual save is offered, per the 16E save policy.</summary>
     private void AdvanceMenu(MenuScene menu)
