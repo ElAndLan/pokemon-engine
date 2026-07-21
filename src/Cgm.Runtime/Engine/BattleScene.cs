@@ -154,28 +154,3 @@ public sealed class BattleScene
 
     private static string Display(string id) => id.Replace('_', ' ');
 }
-
-public static class BattleEventPresenter
-{
-    public static string Line(BattleEvent e) => Line(e, id => id.ToString());
-
-    public static string Line(BattleEvent e, Func<EntityId, string> nameOf) => e switch
-    {
-        FormChanged form => form.FormId is null
-            ? $"{form.Side} reverted form"
-            : $"{form.Side} changed form to {form.FormId}",
-        MoveUsed move => $"{move.Side} used {nameOf(move.Move)}",
-        DamageDealt damage => $"{damage.Target} took {damage.Amount} damage",
-        Fainted fainted => $"{fainted.Side} fainted",
-        SwitchedIn switched => $"{switched.Side} switched in",
-        WeatherChanged weather => $"Weather changed to {weather.Weather}",
-        WeatherEnded => "Weather ended",
-        HeldItemConsumed held => $"{held.Side} held item fired: {held.Op}",
-        BattleItemUsed item => $"{item.Side} used {nameOf(item.Item)}",
-        Protected protectedEvent => $"{protectedEvent.Side} protected itself",
-        Healed healed => $"{healed.Side} healed {healed.Amount}",
-        StatusApplied status => $"{status.Side} became {status.Status}",
-        BattleEnded ended => $"{ended.Winner} won",
-        _ => e.ToString() ?? e.GetType().Name,
-    };
-}

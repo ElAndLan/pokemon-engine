@@ -3826,7 +3826,36 @@ resumes, contract deltas are reconciled at that boundary before further certific
      published `win-x64` output contains and loads the package-provided native OpenAL implementation
      on a machine without system OpenAL, with its license/notice recorded; debug release exclusion.
      Exit: player systems survive save/relaunch identically.
-6. **16F — Event-driven battle presentation (`PLANNED`; prerequisites 16C/E and Phase 15 contract).**
+6. **16F — Event-driven battle presentation (`IN PROGRESS`; prerequisites 16C/E and Phase 15 contract).**
+
+   Progress (2026-07-21): **16F event-catalog completeness COMPLETE.** The spec requires that an
+   unknown event "shows a debug error and fails tests rather than disappearing"; the previous
+   presenter covered 13 event types and silently `ToString()`d everything else, which is precisely
+   the disappearance the rule forbids. `BattleEventPresenter` now returns null for an uncovered
+   event, renders a visible `[unpresented event: X]` marker in play, and covers **all 104** event
+   types Core can emit.
+
+   The completeness test discovers event types by reflection over the Core assembly and instantiates
+   each with neutral arguments, so adding an event in Core automatically enters this suite and fails
+   until it is presented — no per-event fixture and no manual list to fall out of date. That test
+   immediately proved its worth: a hand-written `grep` found 71 events, and reflection found **104**.
+   The 33 it missed were the Phase 15 mechanics events (condition lifecycle, overlay mutation,
+   hazards, delayed actions, turn-order intents), which are exactly the ones a manual catalogue
+   would keep missing. A guard test asserts the discovery itself finds the full surface, so the
+   theory cannot pass vacuously on an empty data set.
+
+   Presentation text is deliberately placeholder quality and typed against event types rather than
+   their fields, which keeps the catalogue complete without asserting field shapes this slice has not
+   verified. Final wording is content work, not engine work.
+
+   Schema impact: none. Dependency impact: none. RNG impact: none. Golden impact: none. Verification:
+   build passed with 0 warnings/errors; the full solution passed **2,621/2,621** (1,724 Core, 104
+   Creator, 586 Runtime, 207 Tools), of which 108 are the new presenter suite; both samples still
+   boot to smoke success.
+
+   Remaining in 16F: `BattleScene` becoming an `IScene` with the Gen 4 layout from
+   `PHASE_16_DEMO_PLAN` §3.2, the animation queue with its 6-tick minimum beat and Confirm
+   fast-forward, typed target and replacement menus, and battle-to-overworld outcome conservation.
    - **Spec lock:** BattleScene state machine, action/typed-target/replacement menus, Core request/
      response boundary, event-to-presentation catalog, animation queue, skip/fast-forward, and outcome
      return. Runtime never predicts damage, legality, target fallback, faint, or status from state.
