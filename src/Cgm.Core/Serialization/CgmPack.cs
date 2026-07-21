@@ -24,6 +24,13 @@ public sealed record PackOptions(
     string RequiredRuntimeVersion = "1.0.0",
     DateTime? BuildTimestampUtc = null);
 
+/// <summary>Everything a pack carries: the rules database and the asset bytes it references,
+/// keyed by the project-relative path the owning <see cref="SpriteSheet.Asset"/> names.</summary>
+public sealed record PackContent(GameDb Db, IReadOnlyDictionary<string, byte[]> Assets)
+{
+    public static PackContent Empty(GameDb db) => new(db, new Dictionary<string, byte[]>());
+}
+
 /// <summary>
 /// Reads and writes the <c>.cgmpack</c> container (EXPORT_PIPELINE_SPEC). The pack is just a
 /// compressed, hash-verified carrier for a <see cref="GameDb"/>; <see cref="Read"/> reconstructs
@@ -31,18 +38,47 @@ public sealed record PackOptions(
 /// </summary>
 public static class CgmPack
 {
-    public const int FormatVersion = 1;
+    public const int FormatVersion = 2;
+
+    /// <summary>Format 1 packs carry only a data section. They still read, so a pack built before
+    /// assets existed does not become unreadable.</summary>
+    public const int MinReadableFormatVersion = 1;
+
+    /// <summary>Section-type prefix for an embedded asset; the remainder is its project-relative
+    /// path with forward slashes.</summary>
+    public const string AssetPrefix = "asset:";
+
     private static readonly byte[] Magic = "CGMP"u8.ToArray();
 
     private sealed record PackData(string Settings, IReadOnlyList<PackEntity> Entities);
     private sealed record PackEntity(string Category, string Json);
 
-    public static void Write(GameDb db, Stream output, PackOptions? options = null)
+    public static void Write(GameDb db, Stream output, PackOptions? options = null,
+        IReadOnlyDictionary<string, byte[]>? assets = null)
     {
         options ??= new PackOptions();
         byte[] payload = BuildDataPayload(db);
-        string hash = Hash(payload);
-        byte[] blob = Deflate(payload);
+        byte[] dataBlob = Deflate(payload);
+
+        // Two streams: the blob is what gets stored, `hashed` is the decoded concatenation in
+        // section-index order — exactly what Read rebuilds and checks against ContentHash.
+        var sections = new List<PackSection> { new("data", 0, dataBlob.Length, "deflate") };
+        using var blob = new MemoryStream();
+        using var hashed = new MemoryStream();
+        blob.Write(dataBlob);
+        hashed.Write(payload);
+
+        // PNGs are already deflate-compressed internally; storing them avoids a second pass that
+        // costs time and saves nothing. Ordered so the same inputs always produce the same bytes.
+        foreach ((string path, byte[] bytes) in NormalizeAssets(assets))
+        {
+            sections.Add(new PackSection(AssetPrefix + path, (int)blob.Length, bytes.Length, "stored"));
+            blob.Write(bytes);
+            hashed.Write(bytes);
+        }
+
+        string hash = Hash(hashed.ToArray());
+        byte[] blobBytes = blob.ToArray();
 
         var manifest = new PackManifest(
             FormatVersion,
@@ -50,7 +86,7 @@ public static class CgmPack
             options.GameName,
             (options.BuildTimestampUtc ?? DateTime.UtcNow).ToString("o"),
             hash,
-            [new PackSection("data", 0, blob.Length, "deflate")]);
+            sections);
         byte[] manifestBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(manifest, CgmJson.Options));
 
         using var w = new BinaryWriter(output, Encoding.UTF8, leaveOpen: true);
@@ -58,18 +94,41 @@ public static class CgmPack
         w.Write(FormatVersion);
         w.Write(manifestBytes.Length);
         w.Write(manifestBytes);
-        w.Write(blob);
+        w.Write(blobBytes);
+    }
+
+    /// <summary>Canonicalizes asset keys to forward slashes and orders them, so the same project
+    /// exports byte-identical packs regardless of dictionary iteration order or host separators.</summary>
+    private static IEnumerable<KeyValuePair<string, byte[]>> NormalizeAssets(
+        IReadOnlyDictionary<string, byte[]>? assets)
+    {
+        if (assets is null)
+            yield break;
+
+        var seen = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+        foreach ((string path, byte[] bytes) in assets)
+        {
+            string key = AssetPath.Normalize(path);
+            if (key.Length == 0)
+                throw new ArgumentException("An asset was supplied with an empty path.", nameof(assets));
+            if (!seen.TryAdd(key, bytes))
+                throw new ArgumentException($"Asset path '{key}' was supplied twice.", nameof(assets));
+        }
+
+        foreach (string key in seen.Keys.Order(StringComparer.Ordinal))
+            yield return new KeyValuePair<string, byte[]>(key, seen[key]);
     }
 
     /// <summary>Reads just the manifest (for the runtime's version gate) without decoding content.</summary>
     public static PackManifest ReadManifest(Stream input) => ReadHeader(input).Manifest;
 
-    public static GameDb Read(Stream input)
+    public static PackContent Read(Stream input)
     {
         (PackManifest manifest, byte[] blobRegion) = ReadHeader(input);
 
-        // Decompress every section, in index order, into one payload — the hash covers exactly this.
+        // Decode every section, in index order, into one payload — the hash covers exactly this.
         byte[]? dataPayload = null;
+        var assets = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         using var all = new MemoryStream();
         foreach (PackSection s in manifest.Sections)
         {
@@ -79,11 +138,23 @@ public static class CgmPack
             byte[] raw = s.Codec switch
             {
                 "deflate" => Inflate(blobRegion, s.Offset, s.Length),
+                "stored" => blobRegion.AsSpan(s.Offset, s.Length).ToArray(),
                 _ => throw new InvalidDataException($"Unknown section codec '{s.Codec}'."),
             };
             all.Write(raw);
+
             if (s.Type == "data")
                 dataPayload = raw;
+            else if (s.Type.StartsWith(AssetPrefix, StringComparison.Ordinal))
+            {
+                // A pack is untrusted input: re-canonicalize rather than trusting the stored key,
+                // or a crafted pack could write outside a cache directory on extraction.
+                string path = AssetPath.Normalize(s.Type[AssetPrefix.Length..]);
+                if (path.Length == 0)
+                    throw new InvalidDataException($"Pack asset section '{s.Type}' has an unsafe path.");
+                if (!assets.TryAdd(path, raw))
+                    throw new InvalidDataException($"Pack contains asset '{path}' twice.");
+            }
         }
 
         if (Hash(all.ToArray()) != manifest.ContentHash)
@@ -91,7 +162,7 @@ public static class CgmPack
         if (dataPayload is null)
             throw new InvalidDataException("Pack has no 'data' section.");
 
-        return DecodeData(dataPayload);
+        return new PackContent(DecodeData(dataPayload), assets);
     }
 
     private static (PackManifest Manifest, byte[] BlobRegion) ReadHeader(Stream input)
@@ -103,8 +174,9 @@ public static class CgmPack
             throw new InvalidDataException("Not a .cgmpack file (bad magic).");
 
         int version = r.ReadInt32();
-        if (version != FormatVersion)
-            throw new InvalidDataException($"Unsupported pack format version {version}; this loader reads {FormatVersion}.");
+        if (version is < MinReadableFormatVersion or > FormatVersion)
+            throw new InvalidDataException(
+                $"Unsupported pack format version {version}; this loader reads {MinReadableFormatVersion}-{FormatVersion}.");
 
         int manifestLen = r.ReadInt32();
         if (manifestLen < 0)

@@ -83,6 +83,34 @@ the old pack/config-only path.
 hash, loads the start map, initializes the showcase battle path, submits one legal showcase action,
 and exits `0`. Load/smoke failures exit nonzero with a console error.
 
+## Pack asset sections (pack format v2)
+
+Amended 2026-07-21 (user directive; `ENGINE_RUNTIME_SPEC` 16H prerequisite). Asset embedding was
+listed below as Phase 18 work; it moved forward because the runtime cannot render authored art
+without it, and a demo judged on flat colour proves nothing. The Phase 18 rows that remain are CI
+templates, transactional export/rollback, icon handling, and distribution.
+
+- **Container**: unchanged. The pack is still `magic | formatVersion | manifestLen | manifest | blob`,
+  and the manifest still indexes sections by `{type, offset, length, codec}`. Assets are additional
+  sections; nothing about the data section changed.
+- **Section type**: `asset:<path>`, where `<path>` is the canonical project-relative path from
+  `AssetPath.Normalize` (forward slashes, no `..`, not rooted). The reader re-canonicalizes rather
+  than trusting the stored name — a pack is untrusted input.
+- **Codec**: `stored`. PNGs are already deflate-compressed internally, so a second pass costs time
+  and saves essentially nothing.
+- **Content hash**: covers the decoded concatenation of every section in index order, so asset bytes
+  are integrity-checked exactly like rules data. A tampered image fails the same gate.
+- **Determinism**: assets are written in ordinal path order, so the same project exports
+  byte-identical packs regardless of dictionary iteration order or host path separators.
+- **Format version**: `2`. Readers accept `1`–`2`; a v1 pack simply carries no asset sections and
+  still loads.
+- **Export gate**: `Exporter` reads every asset its sheets reference from the project folder. A
+  missing file, an unsafe path, or a `contentHash` that no longer matches **aborts the export** —
+  shipping a game whose art silently differs from what was authored is worse than not shipping.
+- **Runtime**: `IAssetSource` has exactly two implementations — `FolderAssetSource` (raw project
+  mode) and `PackAssetSource` (exported mode). Scenes receive one via `RuntimeContent.Assets` and
+  cannot tell which; this is the ADR-006 parity guarantee extended to art.
+
 ## Phase 18/19 specification completion contract
 
 `IMPLEMENTATION_PLAN.md` v4 §§8-9 authorize production asset sections, CI templates, transactional

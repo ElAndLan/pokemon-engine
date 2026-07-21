@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Cgm.Core.Model;
 using Cgm.Core.Validation;
 
@@ -41,10 +42,13 @@ public static class Exporter
             ? null
             : CopyTemplate(options.TemplateFolder, outFolder, gameName);
 
+        IReadOnlyDictionary<string, byte[]> assets = CollectAssets(project);
+
         string packPath = Path.Combine(outFolder, PackFileName);
         using (FileStream fs = File.Create(packPath))
             CgmPack.Write(GameDb.FromProject(project), fs,
-                new PackOptions(gameName, options.RequiredRuntimeVersion, options.BuildTimestampUtc));
+                new PackOptions(gameName, options.RequiredRuntimeVersion, options.BuildTimestampUtc),
+                assets);
 
         var config = new RuntimeConfig
         {
@@ -58,6 +62,41 @@ public static class Exporter
         File.WriteAllText(configPath, CgmJson.Serialize(config));
 
         return new ExportResult(report, packPath, configPath, exePath);
+    }
+
+    /// <summary>Reads every asset a sheet references, from the project folder, for embedding in the
+    /// pack (EXPORT_PIPELINE_SPEC asset sections). A missing file or a mismatched
+    /// <see cref="SpriteSheet.ContentHash"/> aborts the export: shipping a game whose art silently
+    /// differs from what was authored is worse than not shipping it.</summary>
+    private static IReadOnlyDictionary<string, byte[]> CollectAssets(Project project)
+    {
+        var assets = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+        foreach (SpriteSheet sheet in project.All<SpriteSheet>())
+        {
+            string path = AssetPath.Normalize(sheet.Asset);
+            if (path.Length == 0)
+                throw new InvalidOperationException(
+                    $"Sheet '{sheet.Id}' has an empty or unsafe asset path '{sheet.Asset}'.");
+            if (assets.ContainsKey(path))
+                continue;   // two sheets may legitimately slice the same image
+
+            string full = AssetPath.Resolve(project.Root, path)
+                ?? throw new InvalidOperationException(
+                    $"Sheet '{sheet.Id}' references asset '{path}', but the project has no folder to read it from.");
+            if (!File.Exists(full))
+                throw new FileNotFoundException($"Sheet '{sheet.Id}' references missing asset '{path}'.", full);
+
+            byte[] bytes = File.ReadAllBytes(full);
+            string actual = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            if (!string.IsNullOrEmpty(sheet.ContentHash)
+                && !string.Equals(sheet.ContentHash, actual, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Asset '{path}' has changed since '{sheet.Id}' was authored "
+                    + $"(expected {sheet.ContentHash}, found {actual}). Re-import the sheet.");
+
+            assets[path] = bytes;
+        }
+        return assets;
     }
 
     private static string CopyTemplate(string templateFolder, string outFolder, string gameName)

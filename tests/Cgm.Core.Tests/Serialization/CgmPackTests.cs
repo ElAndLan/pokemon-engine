@@ -14,7 +14,7 @@ public sealed class CgmPackTests
         return ms.ToArray();
     }
 
-    private static GameDb Unpack(byte[] bytes) => CgmPack.Read(new MemoryStream(bytes));
+    private static GameDb Unpack(byte[] bytes) => CgmPack.Read(new MemoryStream(bytes)).Db;
 
     /// <summary>Canonical serialization used to compare two GameDbs by value.</summary>
     private static string Canonical(GameDb db)

@@ -21,7 +21,10 @@ public static class Migrator
     public const int CurrentVersion = SchemaVersions.Current;
 
     private static readonly IReadOnlyList<IJsonMigration> Registered =
-        [new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6(), new V6ToV7(), new V7ToV8(), new V8ToV9()];
+    [
+        new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6(), new V6ToV7(),
+        new V7ToV8(), new V8ToV9(), new V9ToV10(),
+    ];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
 
@@ -123,6 +126,16 @@ public static class Migrator
         private static string? Existing(JsonObject entity) =>
             entity["key"] is JsonValue value && value.TryGetValue(out string? key)
                 && !string.IsNullOrWhiteSpace(key) ? key : null;
+    }
+
+    /// <summary>Sheets record their source image size (DATA_SCHEMA §4.6). The size cannot be derived
+    /// from the document, and Core must not decode PNGs to find it, so this leaves <c>imageW/imageH</c>
+    /// at zero and lets <c>sheet-slice</c> validation report the sheet as needing re-import. Inventing
+    /// a size here would produce cells that slice the wrong pixels and pass validation.</summary>
+    private sealed class V9ToV10 : IJsonMigration
+    {
+        public int FromVersion => 9;
+        public void Apply(JsonObject json) { }
     }
 
     /// <summary>Closes the world-interaction vocabulary (DATA_SCHEMA §4.11b). Pre-v9 trigger actions

@@ -4087,6 +4087,34 @@ resumes, contract deltas are reconciled at that boundary before further certific
      raw/pack parity; zero-IP scan; no demo content ID in Runtime code; 16G budgets hold.
      Exit: a person with no repo knowledge plays the full lifecycle against the demo pack.
 
+   Progress (2026-07-21): **16H-1 asset transport and sheet slicing COMPLETE.** User directive
+   chose pack-embedded assets over loose files, on the grounds that `.cgmpack` is what a real
+   export and later phases require. Asset embedding was Phase 18 work in `EXPORT_PIPELINE_SPEC`;
+   it moved forward because the runtime cannot render authored art without it. Delivered:
+   `AssetPath` (one canonicalization/containment rule for every consumer — pack writer, exporter,
+   validator, runtime loader); `SpriteResolver` in **Core**, since cell geometry defines what a
+   sprite *is* and the renderer must not recompute it; `sheet.imageW/imageH` (**schema v10**, no-op
+   migration — a migrated sheet keeps `0` and is reported as needing re-import rather than being
+   given an invented size); `SheetSliceRule`; **pack format v2** asset sections (`stored` codec,
+   covered by the content hash, ordinal-ordered for byte-identical exports, v1 still readable);
+   `Exporter` asset embedding with missing-file/unsafe-path/changed-hash as hard aborts; and
+   `IAssetSource` with `FolderAssetSource` + `PackAssetSource` reached through `RuntimeContent`.
+   Tests: 2,846 passing (111 new). Raw/pack parity is asserted end to end through the real boot
+   path, including that neither mode can read outside its content.
+
+   Deliberately **not** done here: no PNG decode and no texture upload, so nothing renders yet.
+   `TECH_STACK` still scopes StbImageSharp to Creator; extending it to Runtime belongs with the
+   code that decodes, not ahead of it.
+
+   Remaining 16H blockers, in order: (1) **engine** — PNG decode → premultiplied RGBA →
+   texture cache, and `OverworldScene` drawing tiles through `SpriteResolver` instead of flat
+   colour; (2) **content** — creature sprites and a player walk sheet do not exist
+   (`PHASE_16_DEMO_PLAN` §5 R1 flags the sprite generation method as designed but never validated
+   against a real generator; the fall_village tilesets in `docs/art/generated/` are further along);
+   (3) **decision D1** — final species selection and display names, which is the user's call.
+   Autotiling stays deferred per `MASTER_PLAN` §112/§213; it is an authoring convenience and does
+   not affect rendered output, since maps store explicit tile indices either way.
+
 Phase 16 excludes Creator workflows, export-template production, original demo breadth beyond the
 fixed 16H fixture inventory, Core rule changes, scripting, localization, networking, installer, and
 additional renderer backends. A missing Core rule is recorded as a Phase 15 regression and fixed

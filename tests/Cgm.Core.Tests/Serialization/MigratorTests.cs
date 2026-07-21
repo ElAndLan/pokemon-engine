@@ -6,6 +6,19 @@ namespace Cgm.Core.Tests.Serialization;
 
 public sealed class MigratorTests
 {
+    /// <summary>A do-nothing step for an arbitrary version, so tests that only care about the walk
+    /// mechanism need no hand-written class per schema bump.</summary>
+    private sealed class NoOp(int from) : IJsonMigration
+    {
+        public int FromVersion { get; } = from;
+        public void Apply(JsonObject json) { }
+    }
+
+    /// <summary>A complete v1→current chain. Derived from <see cref="Migrator.CurrentVersion"/> so a
+    /// schema bump does not silently need another literal added here.</summary>
+    private static IJsonMigration[] NoOpChain() =>
+        [.. Enumerable.Range(1, Migrator.CurrentVersion - 1).Select(v => new NoOp(v))];
+
     /// <summary>A synthetic v0→v1 step used to exercise the mechanism.</summary>
     private sealed class RenameFooToBar : IJsonMigration
     {
@@ -17,61 +30,12 @@ public sealed class MigratorTests
         }
     }
 
-    private sealed class NoOpV1ToV2 : IJsonMigration
-    {
-        public int FromVersion => 1;
-        public void Apply(JsonObject json) { }
-    }
-
-    private sealed class NoOpV2ToV3 : IJsonMigration
-    {
-        public int FromVersion => 2;
-        public void Apply(JsonObject json) { }
-    }
-
-    private sealed class NoOpV3ToV4 : IJsonMigration
-    {
-        public int FromVersion => 3;
-        public void Apply(JsonObject json) { }
-    }
-
-    private sealed class NoOpV4ToV5 : IJsonMigration
-    {
-        public int FromVersion => 4;
-        public void Apply(JsonObject json) { }
-    }
-
-    private sealed class NoOpV5ToV6 : IJsonMigration
-    {
-        public int FromVersion => 5;
-        public void Apply(JsonObject json) { }
-    }
-
-    private sealed class NoOpV6ToV7 : IJsonMigration
-    {
-        public int FromVersion => 6;
-        public void Apply(JsonObject json) { }
-    }
-
-    private sealed class NoOpV7ToV8 : IJsonMigration
-    {
-        public int FromVersion => 7;
-        public void Apply(JsonObject json) { }
-    }
-
-    private sealed class NoOpV8ToV9 : IJsonMigration
-    {
-        public int FromVersion => 8;
-        public void Apply(JsonObject json) { }
-    }
-
     [Fact]
     public void Migrate_AppliesStepAndBumpsVersion()
     {
         var json = new JsonObject { ["schemaVersion"] = 0, ["foo"] = 42 };
         JsonObject result = Migrator.Migrate(json,
-            [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4(), new NoOpV4ToV5(),
-                new NoOpV5ToV6(), new NoOpV6ToV7(), new NoOpV7ToV8(), new NoOpV8ToV9()]);
+            [new RenameFooToBar(), .. NoOpChain()]);
 
         Assert.Equal(Migrator.CurrentVersion, result["schemaVersion"]!.GetValue<int>());
         Assert.Null(result["foo"]);

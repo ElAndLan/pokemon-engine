@@ -9,7 +9,14 @@ namespace Cgm.Runtime.Engine;
 /// <paramref name="ContentHash"/> identifies the content a save was written against: packs carry one
 /// in their manifest, raw project mode has none, and an empty hash skips the save's content check
 /// rather than blocking development.</summary>
-public sealed record RuntimeContent(GameDb Db, Map StartMap, RuntimeConfig Config, string ContentHash = "");
+public sealed record RuntimeContent(GameDb Db, Map StartMap, RuntimeConfig Config, string ContentHash = "",
+    IAssetSource? Assets = null)
+{
+    /// <summary>Asset bytes for this content. A source is always present, so scenes never branch on
+    /// whether art was available; an empty one simply reports every asset as missing.</summary>
+    public IAssetSource Assets { get; init; } =
+        Assets ?? new PackAssetSource(new Dictionary<string, byte[]>());
+}
 
 /// <summary>Steps 2-7 of the 16A startup state machine: select one data source, canonicalize its
 /// root, verify versions and hash, materialize one <see cref="GameDb"/>, and resolve the start
@@ -66,7 +73,8 @@ public static class BootLoader
             SaveDirName = RuntimeConfig.SafeSaveDir(project.Settings.Name),
             Debug = debug,
         };
-        return TryComplete(GameDb.FromProject(project), config, "", out content, out error);
+        return TryComplete(GameDb.FromProject(project), config, "", new FolderAssetSource(projectPath),
+            out content, out error);
     }
 
     private static bool TryLoadExported(string exeDir, bool debug, out RuntimeContent? content,
@@ -97,25 +105,25 @@ public static class BootLoader
         PackManifest manifest;
         using (FileStream header = File.OpenRead(packPath))
             manifest = CgmPack.ReadManifest(header);
-        if (manifest.PackFormatVersion != CgmPack.FormatVersion)
+        if (manifest.PackFormatVersion is < CgmPack.MinReadableFormatVersion or > CgmPack.FormatVersion)
             return Fail(out error, RuntimeExit.Content, "content",
-                $"Pack format v{manifest.PackFormatVersion} is not the supported v{CgmPack.FormatVersion}.");
+                $"Pack format v{manifest.PackFormatVersion} is outside the supported "
+                + $"v{CgmPack.MinReadableFormatVersion}-v{CgmPack.FormatVersion}.");
         if (!string.Equals(manifest.RequiredRuntimeVersion, RuntimeVersion, StringComparison.Ordinal))
             return Fail(out error, RuntimeExit.Content, "content",
                 $"Pack requires runtime {manifest.RequiredRuntimeVersion}; this runtime is {RuntimeVersion}.");
 
         // CgmPack.Read verifies the content hash before deserializing sections.
-        GameDb db;
+        PackContent packed;
         using (FileStream body = File.OpenRead(packPath))
-            db = CgmPack.Read(body);
-        return TryComplete(db, config with { Debug = config.Debug || debug }, manifest.ContentHash,
-            out content, out error);
+            packed = CgmPack.Read(body);
+        return TryComplete(packed.Db, config with { Debug = config.Debug || debug }, manifest.ContentHash,
+            new PackAssetSource(packed.Assets), out content, out error);
     }
 
     /// <summary>Step 7: resolve and validate the start state. Never chooses a fallback entity.</summary>
     private static bool TryComplete(GameDb db, RuntimeConfig config, string contentHash,
-        out RuntimeContent? content,
-        out BootDiagnostic? error)
+        IAssetSource assets, out RuntimeContent? content, out BootDiagnostic? error)
     {
         content = null;
         if (db.Settings.StartMap is not { } startMapId)
@@ -130,7 +138,7 @@ public static class BootLoader
                 $"Start position ({start.X},{start.Y}) is outside the {startMap.Width}x{startMap.Height} start map.",
                 startMapId.ToString());
 
-        content = new RuntimeContent(db, startMap, config, contentHash);
+        content = new RuntimeContent(db, startMap, config, contentHash, assets);
         error = null;
         return true;
     }

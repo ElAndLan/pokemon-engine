@@ -182,8 +182,17 @@ those timings. `effects[]` uses the shared `Effect` shape with the closed abilit
 BATTLE_SYSTEM_SPEC.md.
 
 ### 4.6 spritesheet (`sheet:overworld`) & 4.7 sprite (`sprite:*`) & 4.8 animation (`anim:*`)
-- **spritesheet**: `{ asset: "assets/x.png", contentHash, mode: grid|rects, cellW, cellH,
-  offsetX, offsetY, spacingX, spacingY, cells: [{index|rect, spriteId, tags[]}] }`.
+- **spritesheet**: `{ asset: "assets/x.png", contentHash, imageW, imageH, mode: grid|rects,
+  cellW, cellH, offsetX, offsetY, spacingX, spacingY, cells: [{index|rect, spriteId, tags[]}] }`.
+- `asset` is **project-relative** and canonicalized by `AssetPath`: forward slashes, no absolute or
+  rooted paths, no `..` segment. Authored data becomes a filesystem read and a pack section name, so
+  an unsafe path is a validation error rather than something the loader resolves.
+- `imageW`/`imageH` are the source image's pixel size, recorded at import (**schema v10**). Grid
+  slicing needs a column count and validation needs to know a cell lies inside the image; deriving
+  either would force Core to decode PNGs, which it must not do. Columns are
+  `(imageW - offsetX + spacingX) / (cellW + spacingX)` — the trailing cell needs no spacing after it.
+- Cell geometry is resolved by `SpriteResolver` (Core). A cell that slices outside the image is a
+  `sheet-slice` validation error: it would otherwise draw neighbouring art with no diagnostic.
 - **sprite / tile are not standalone files.** `sprite:*` ids are defined inside sheet `cells`
   (each cell: `{index|rect, spriteId, class, tags[]}`) and `tile` data lives inside tilesets
   (§4.9). They are projections, resolved by indexing sheets/tilesets — the loader does not read
@@ -340,3 +349,7 @@ or accept the documented fallback-to-defaults path.
   `trigger.actions[]` entries and object `interaction` become explicit `dialogue` actions carrying
   the original text; object `interaction` also becomes a list. Lossless and hand-correctable — no
   string is ever assumed to mean something executable.
+- v9→v10: no-op data migration adding `sheet.imageW`/`imageH` (§4.6). The size cannot be derived
+  from the document and Core must not decode images, so migrated sheets keep `0` and the
+  `sheet-slice` rule reports them as needing re-import. Inventing a size would produce cells that
+  slice the wrong pixels **and pass validation**, which is strictly worse than a loud error.

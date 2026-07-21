@@ -9,13 +9,20 @@ public sealed class Project
 {
     private readonly IReadOnlyDictionary<EntityId, IEntity> _entities;
 
-    public Project(ProjectSettings settings, IReadOnlyDictionary<EntityId, IEntity> entities)
+    public Project(ProjectSettings settings, IReadOnlyDictionary<EntityId, IEntity> entities,
+        string root = "")
     {
         Settings = settings;
         _entities = entities;
+        Root = root;
     }
 
     public ProjectSettings Settings { get; }
+
+    /// <summary>The folder this project was loaded from, or empty for one built in memory. Asset
+    /// paths (<see cref="SpriteSheet.Asset"/>) are relative to it; nothing else resolves them, so a
+    /// rootless project simply has no readable assets rather than guessing a location.</summary>
+    public string Root { get; }
 
     public IReadOnlyCollection<IEntity> Entities => (IReadOnlyCollection<IEntity>)_entities.Values;
 

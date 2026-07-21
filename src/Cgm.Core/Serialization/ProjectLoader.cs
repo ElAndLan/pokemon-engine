@@ -38,6 +38,6 @@ public static class ProjectLoader
             }
         }
 
-        return new Project(settings, entities);
+        return new Project(settings, entities, projectFolder);
     }
 }

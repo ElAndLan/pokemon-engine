@@ -36,7 +36,7 @@ public sealed class ExporterTests : IDisposable
         Exporter.ExportData(project, new ExportOptions(), _out);
 
         using FileStream packStream = File.OpenRead(Path.Combine(_out, "game.cgmpack"));
-        GameDb fromPack = CgmPack.Read(packStream);
+        GameDb fromPack = CgmPack.Read(packStream).Db;
         GameDb fromFolder = GameDb.FromProject(project);
         Assert.Equal(fromFolder.Entities.Count, fromPack.Entities.Count);
         Assert.NotNull(fromPack.Find<Species>(EntityId.Parse("species:leafcub")));

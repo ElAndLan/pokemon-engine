@@ -17,6 +17,13 @@ public sealed record SpriteSheet : IEntity
 
     public string Asset { get; init; } = "";
     public string? ContentHash { get; init; }
+
+    /// <summary>The source image's pixel size, recorded at import (schema v10). Grid slicing needs a
+    /// column count, and validation needs to know a cell is inside the image — deriving either from
+    /// the PNG would force Core to decode images, which it must not do.</summary>
+    public int ImageW { get; init; }
+    public int ImageH { get; init; }
+
     public SliceMode Mode { get; init; } = SliceMode.Grid;
     public int CellW { get; init; }
     public int CellH { get; init; }
