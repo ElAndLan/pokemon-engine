@@ -1,3 +1,4 @@
+using Cgm.Core.Model;
 using Cgm.Runtime.Engine;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -167,7 +168,28 @@ internal sealed class RuntimeHost : IDisposable
     }
 
     /// <summary>One simulation tick. 16C's scene stack consumes this; 16A/16B own only the cadence.</summary>
-    private void Tick(TickInput input) => _scenes.Tick(input);
+    private void Tick(TickInput input)
+    {
+        _scenes.Tick(input);
+
+        // The title reports intent; the host owns the transition, so Title never needs to know what
+        // Overworld is. New Game and Continue both enter the start map until 16E adds save loading.
+        if (_scenes.Active is TitleScene { Choice: not TitleChoice.None } && !_scenes.IsTransitioning)
+            _scenes.Replace(NewOverworld());
+    }
+
+    private OverworldScene NewOverworld()
+    {
+        ProjectSettings settings = _content.Db.Settings;
+        IReadOnlyList<Tileset> tilesets = _content.StartMap.Tilesets
+            .Select(_content.Db.Find<Tileset>)
+            .OfType<Tileset>()
+            .ToList();
+
+        return new OverworldScene(_ui!.Painter, _content.StartMap, tilesets, settings.StartPos,
+            settings.StartFacing, settings.TileSize,
+            _content.Config.VirtualWidth, _content.Config.VirtualHeight);
+    }
 
     private IReadOnlyList<GameAction> ReadHeldActions()
     {

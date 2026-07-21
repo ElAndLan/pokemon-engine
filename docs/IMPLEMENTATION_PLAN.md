@@ -3580,7 +3580,7 @@ resumes, contract deltas are reconciled at that boundary before further certific
    passed with 0 warnings/errors; the full solution passed **2,327/2,327** (1,700 Core, 104 Creator,
    316 Runtime, 207 Tools), of which 27 are the new vocabulary tests; both samples still boot to
    smoke success, and no `vocabulary grows` placeholder remains in Core.
-4. **16D — Asset-backed overworld integration (`PLANNED`; prerequisites 16A-C).**
+4. **16D — Asset-backed overworld integration (`IN PROGRESS`; prerequisites 16A-C).**
    - **Spec lock:** OverworldScene state ownership, map/entity instantiation, render layers, interaction
      priority, encounter/trainer trigger order, dialogue commands already represented in Core data,
      warp/blackout transitions, and debug spawn contract.
@@ -3596,6 +3596,38 @@ resumes, contract deltas are reconciled at that boundary before further certific
      replay, trainer once/defeat flag, pickup persistence, blackout, chunk boundary/camera, missing
      asset diagnostics, and raw/pack parity. Exit: fixture supports walking, dialogue, encounter,
      trainer, warp, pickup, center, mart, and PC entry.
+   Progress (2026-07-21): **16D movement and camera COMPLETE; the demo is walkable.**
+   `OverworldScene` owns presentation state only. Every movement, collision, ledge, and interaction
+   decision comes from Core — `GridMover`, `MovementRules.Resolve`, `MapCollision.Derive`, and
+   `Interaction.InFront` — and the scene recomputes no rule. One movement intent is queued per tick:
+   the merged devices resolve to a single direction through `InputMerger`, so opposing directions
+   cancel before Core ever sees them. NPCs are passed to Core as occupied tiles rather than checked
+   separately, so blocking stays one rule in one place.
+
+   Camera clamping reuses the existing Runtime `Camera.Clamp`; an intermediate wrapper written during
+   this slice was deleted once it proved to be pure indirection. Tile drawing walks only the window
+   around the camera, so a 200x200 map submits roughly two hundred quads rather than forty thousand —
+   asserted, not assumed. Tiles render as collision-derived flat colours with a `ponytail:` note:
+   the chunk walk and camera maths are identical once `IAssetSource` can supply a tileset atlas, so
+   that becomes a texture change rather than a rewrite.
+
+   `RuntimeHost` now performs the locked transition: the title reports a typed choice and the host
+   replaces it with the overworld built from the project's start map, position, facing, and tile
+   size. New Game and Continue both enter the start map until 16E adds save loading. **This closes
+   the 16C reachability row that was previously left open by design** — headless scripts now drive
+   Title → New Game → a walkable Overworld, and Overworld → Menu → back, asserting that a covered
+   overworld does not update while the menu is open and that control returns on Cancel.
+
+   Schema impact: none. Dependency impact: none. RNG impact: none — no encounter roll exists yet.
+   Golden impact: none. Verification: build passed with 0 warnings/errors; the full solution passed
+   **2,352/2,352** (1,700 Core, 104 Creator, 341 Runtime, 207 Tools), of which 25 are new; both
+   samples still boot to smoke success.
+
+   Remaining in 16D: the completed-step trigger order (warp → tile trigger → trainer sight → random
+   encounter, stopping at the first transition), interaction priority and executing the closed
+   `TriggerAction` vocabulary, NPC updates in stable entity-ID order with injected Core RNG,
+   encounter rolls, warp and blackout transitions, and real tile/sprite assets once `IAssetSource`
+   lands.
 5. **16E — Player systems, save, clock, and audio (`PLANNED`; prerequisite 16D).**
    - **Spec lock:** party/bag/storage/shop scene contracts, progression/evolution prompts, save slots,
      game clock/day-night input, audio buses/loop/crossfade, and debug overlay content.

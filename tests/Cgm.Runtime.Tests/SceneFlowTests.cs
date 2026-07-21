@@ -248,6 +248,71 @@ public sealed class SceneFlowTests : IDisposable
         Assert.Equal(1, _stack.Count);
     }
 
+    /// <summary>Title → New Game → Overworld, the flow the host performs, driven headless. This is
+    /// the Overworld half of the 16C reachability row, previously blocked on 16D.</summary>
+    [Fact]
+    public void ReachabilityScript_TitleThroughNewGameIntoAWalkableOverworld()
+    {
+        TitleScene title = PushTitle();
+        Frame(Press(GameAction.Confirm));
+        Assert.Equal(TitleChoice.NewGame, title.Choice);
+
+        var map = new Cgm.Core.Model.Map
+        {
+            Id = Cgm.Core.Model.EntityId.Parse("map:test"),
+            Name = "Test",
+            Width = 8,
+            Height = 8,
+            Layers = new Cgm.Core.Model.MapLayers { Ground = Enumerable.Repeat(0, 64).ToList() },
+        };
+        var overworld = new OverworldScene(_ui, map, [], new Cgm.Core.Model.GridPos(3, 3),
+            Cgm.Core.Model.Facing.Right, 16, W, H);
+
+        _stack.Replace(overworld, fade: false);
+        Frame(Idle);
+        Assert.Same(overworld, _stack.Active);
+
+        for (int i = 0; i < 16; i++)
+            Frame(Press(GameAction.Right));
+        Assert.Equal(4, overworld.PlayerPos.X);   // the player actually walked
+    }
+
+    /// <summary>Menu opens over the overworld and closing it returns control to the player.</summary>
+    [Fact]
+    public void ReachabilityScript_OverworldToMenuAndBack()
+    {
+        var map = new Cgm.Core.Model.Map
+        {
+            Id = Cgm.Core.Model.EntityId.Parse("map:test"),
+            Name = "Test",
+            Width = 8,
+            Height = 8,
+            Layers = new Cgm.Core.Model.MapLayers { Ground = Enumerable.Repeat(0, 64).ToList() },
+        };
+        var overworld = new OverworldScene(_ui, map, [], new Cgm.Core.Model.GridPos(3, 3),
+            Cgm.Core.Model.Facing.Right, 16, W, H);
+        _stack.Push(overworld);
+        Frame(Idle);
+
+        var menu = new MenuScene(_ui, W, H, ["PARTY", "SAVE"]);
+        _stack.Push(menu);
+        Frame(Idle);
+        Assert.Equal(2, _stack.RenderOrder().Count);   // overworld still draws beneath
+
+        Cgm.Core.Model.GridPos frozen = overworld.PlayerPos;
+        for (int i = 0; i < 20; i++)
+            Frame(Press(GameAction.Right));
+        Assert.Equal(frozen, overworld.PlayerPos);     // covered scenes do not update
+
+        Frame(Press(GameAction.Cancel));
+        _stack.Pop();
+        Frame(Idle);
+
+        for (int i = 0; i < 16; i++)
+            Frame(Press(GameAction.Right));
+        Assert.Equal(frozen.X + 1, overworld.PlayerPos.X);   // control returned
+    }
+
     [Fact]
     public void FadedReplace_BlocksInputThenCompletes()
     {
