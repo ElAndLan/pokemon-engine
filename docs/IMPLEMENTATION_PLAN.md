@@ -4002,7 +4002,39 @@ resumes, contract deltas are reconciled at that boundary before further certific
      invalid resubmission, simultaneous replacement/draw, capture/trainer restrictions, fast-forward
      event identity, and battle→overworld state conservation. Exit: every certified primitive can be
      presented generically even when it has no bespoke animation.
-7. **16G — Runtime verification and phase gate (`PLANNED`; prerequisites 16A-F).**
+7. **16G — Runtime verification and phase gate (`IN PROGRESS`; prerequisites 16A-F).**
+
+   Progress (2026-07-21): **16G replay determinism and raw/pack parity COMPLETE.** `ReplayHarness`
+   runs a scripted input sequence against a content database through the real scene stack and
+   session — the shipping code path, not a parallel one — and records an ordered trace of what
+   happened plus the resulting save. Rendering is deliberately excluded: presentation must not affect
+   simulation, and a trace that changed with rendering would prove the opposite.
+
+   A `ReplayScript` carries its steps and its seed, so everything a replay needs is in the script:
+   no wall-clock, no ambient state. Outcomes are described by kind and identity only, never by
+   anything derived from a memory address or enumeration order, or parity would fail spuriously.
+
+   The acceptance rows are evidenced: a script replays byte-identically twice and across freshly
+   loaded databases; the same content simulates identically from a raw folder and from a pack, line
+   for line and save for save, across four seeds; and the save a replay produces restores to the same
+   world and survives a durable `SaveRepository` round trip. Guard tests keep those from passing
+   vacuously — a different seed and a different script must each change the digest, the trace must
+   contain the route and final state rather than being empty, the route must actually move the
+   player, and it must reach the fixture's interactions.
+
+   No CLI flag was added for the harness: 16A's command-line contract is closed, and widening it for
+   verification tooling would breach it. The harness is engine infrastructure driven by tests.
+
+   Verification: build passed with 0 warnings/errors; the full solution passed **2,716/2,716**
+   (1,724 Core, 104 Creator, 681 Runtime, 207 Tools), of which 15 are the new verification suite;
+   both samples still boot to smoke success.
+
+   Remaining in 16G: the performance and resource budgets (p95 update/render over 10,000 frames,
+   steady-state allocation, startup time, 100-cycle resource growth), which need instrumentation and
+   a documented reference machine; the multi-scale screenshot hashes and GL-object leak counters
+   inherited from 16B, which need a live context; and the keyboard-plus-gamepad smoke, which needs a
+   device. These are measurement gaps rather than behaviour gaps — the fixture loop itself now
+   replays deterministically and identically from both data sources.
    - Build a neutral original fixture script covering new game, movement, dialogue, encounter,
      capture, party/storage, item/shop, save/reload, trainer, evolution, blackout, and doubles debug.
      Run identical scripted inputs in raw and packed modes and compare Core state, save bytes excluding
