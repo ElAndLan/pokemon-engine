@@ -27,7 +27,7 @@ public sealed class BootLoaderTests : IDisposable
             Width = 2,
             Height = 2,
             Layers = new MapLayers { Ground = [0, 0, 0, 0] },
-            Entities = [new PlayerStartEntity { Pos = new GridPos(0, 0) }],
+            Entities = [new PlayerStartEntity { Key = "start", Pos = new GridPos(0, 0) }],
         };
         var species = new Species
         {

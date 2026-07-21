@@ -209,10 +209,25 @@ BATTLE_SYSTEM_SPEC.md.
 | entities | Entity[] | §4.11a |
 | bgm | string? | audio ref · `indoor` bool (time-tint exempt) |
 
-**4.11a Entity placement** (tagged union by `kind`):
-`player-start {pos,facing}` · `npc {pos,facing,sprite,move:static|wander|patrol, radius?/path?,
-dialogue?/trainer:id?}` · `warp {pos,target:map, targetPos, transition:door|edge|stairs}` ·
-`pickup {pos,item,qty,flag}` · `sign {pos,text}` · `trigger {pos,condition,actions[]}` (Phase 7+).
+**4.11a Entity placement** (tagged union by `kind`). Every entity carries `key`, added in
+**schema v8** (2026-07-21, ENGINE_RUNTIME_SPEC 16D prerequisite):
+`player-start {key,pos,facing}` · `npc {key,pos,facing,sprite,move:static|wander|patrol,
+radius?/path?, dialogue?/trainer:id?}` · `warp {key,pos,target:map, targetPos,
+transition:door|edge|stairs}` · `pickup {key,pos,item,qty,flag}` · `sign {key,pos,text}` ·
+`trigger {key,pos,condition,actions[]}` (Phase 7+).
+
+- **`key`** is the entity's stable identity *within its map*: non-empty, unique per map, and
+  immutable once authored. Runtime, saves, and diagnostics address entities by key and never by list
+  position or object identity, so reordering entities in a map file cannot silently repoint a save's
+  defeated-trainer or collected-pickup flags at a different entity.
+- Enforced by validation rule `map-entity-key` (error on empty or duplicate).
+- **Migration v7 → v8:** entities without a key receive `{kind}_{index}` from their original list
+  position, with a `_2`, `_3`… suffix only if that collides with an authored key in the same map.
+  Derivation is positional and therefore identical on every machine and every run; it never depends
+  on enumeration or filesystem order. Authored keys are always preserved.
+- Not yet closed: `trigger.actions[]` and object `interaction` remain open strings. ENGINE_RUNTIME_SPEC
+  requires a closed vocabulary before 16D executes them; Runtime must never `switch` on an arbitrary
+  string or interpret one as script.
 
 ### 4.12 encounter (`encounter:route_001_grass`)
 `{ method: grass|cave|water|tile|interact, baseRate: float, slots: Slot[] }`.
@@ -294,3 +309,8 @@ or accept the documented fallback-to-defaults path.
   existing ability hook remains valid and older files require no rewritten fields.
 - v6→v7: no-op data migration. `onGroundedQuery` is an additive ability-hook enum value; every
   existing ability hook remains valid and older files require no rewritten fields.
+- v7→v8: **data-writing** migration (the first non-additive one). Placed map entities gain the
+  required `key` field (§4.11a); entities without one receive `{kind}_{index}` from their original
+  list position, suffixed only to avoid colliding with an authored key in the same map. Derivation
+  is positional, so it is reproducible on every machine and independent of enumeration order.
+  Authored keys are preserved. Non-map documents are untouched.

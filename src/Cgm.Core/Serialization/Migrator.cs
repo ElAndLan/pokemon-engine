@@ -21,7 +21,7 @@ public static class Migrator
     public const int CurrentVersion = SchemaVersions.Current;
 
     private static readonly IReadOnlyList<IJsonMigration> Registered =
-        [new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6(), new V6ToV7()];
+        [new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6(), new V6ToV7(), new V7ToV8()];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
 
@@ -87,5 +87,41 @@ public static class Migrator
     {
         public int FromVersion => 6;
         public void Apply(JsonObject json) { }
+    }
+
+    /// <summary>Gives every placed map entity a stable key (DATA_SCHEMA §4.11a). Pre-v8 files
+    /// addressed entities by list position, so keys derive from kind plus original index: stable for
+    /// a given file, identical on every machine, and never dependent on enumeration order.</summary>
+    private sealed class V7ToV8 : IJsonMigration
+    {
+        public int FromVersion => 7;
+
+        public void Apply(JsonObject json)
+        {
+            if (json["entities"] is not JsonArray entities)
+                return;
+
+            // Authored keys win; derived keys must not collide with them, so claim those first.
+            var taken = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonNode? node in entities)
+                if (node is JsonObject entity && Existing(entity) is { } key)
+                    taken.Add(key);
+
+            for (int index = 0; index < entities.Count; index++)
+            {
+                if (entities[index] is not JsonObject entity || Existing(entity) is not null)
+                    continue;
+
+                string kind = entity["kind"]?.GetValue<string>() ?? "entity";
+                string candidate = $"{kind.Replace('-', '_')}_{index}";
+                for (int suffix = 2; !taken.Add(candidate); suffix++)
+                    candidate = $"{kind.Replace('-', '_')}_{index}_{suffix}";
+                entity["key"] = candidate;
+            }
+        }
+
+        private static string? Existing(JsonObject entity) =>
+            entity["key"] is JsonValue value && value.TryGetValue(out string? key)
+                && !string.IsNullOrWhiteSpace(key) ? key : null;
     }
 }

@@ -2,6 +2,32 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Validation.Rules;
 
+/// <summary>Every placed entity needs a non-empty key that is unique within its map. Without this a
+/// duplicate silently repoints saved flags at the wrong entity — the exact failure the key exists to
+/// prevent — and an empty key makes an entity unaddressable by Runtime, saves, and diagnostics.</summary>
+public sealed class MapEntityKeyRule : IValidationRule
+{
+    public string Id => "map-entity-key";
+
+    public IEnumerable<ValidationIssue> Check(Project project)
+    {
+        foreach (Map map in project.All<Map>())
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < map.Entities.Count; i++)
+            {
+                string key = map.Entities[i].Key;
+                if (string.IsNullOrWhiteSpace(key))
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, map.Id,
+                        $"Entity {i} has no key.", "Give every placed entity a stable key.");
+                else if (!seen.Add(key))
+                    yield return new ValidationIssue(Id, ValidationSeverity.Error, map.Id,
+                        $"Entity key '{key}' is used more than once.", "Entity keys must be unique per map.");
+            }
+        }
+    }
+}
+
 /// <summary>A project must have exactly one player-start entity across all maps.</summary>
 public sealed class PlayerStartRule : IValidationRule
 {

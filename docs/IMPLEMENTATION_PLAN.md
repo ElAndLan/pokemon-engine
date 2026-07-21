@@ -3516,6 +3516,43 @@ resumes, contract deltas are reconciled at that boundary before further certific
    Remaining in 16C before the package is VERIFIED: Overworld reachability (blocked on 16D by
    design — no fake Overworld was built to satisfy a checklist), the authored 9-slice frame, and
    wiring `RuntimeOptions` into the host so rebinding reaches live input.
+   Progress (2026-07-21): **16D prerequisite — map-entity stable identity — COMPLETE (schema v8).**
+   `ENGINE_RUNTIME_SPEC`'s Phase 15 handoff audit requires `MapEntity` to have a stable ID before
+   16D implementation, with the drift response "reopen Core/schema contract; never use incidental
+   object identity or filesystem order". This is that reconciliation, taken through the full
+   schema/Core workflow rather than worked around in Runtime.
+
+   `MapEntity.Key` is the entity's stable identity within its map: non-empty, unique per map,
+   immutable once authored. Runtime, saves, and diagnostics address entities by key and never by list
+   position, so reordering a map file cannot silently repoint a save's defeated-trainer or
+   collected-pickup flags at a different entity. Project schema bumps 7 -> 8 with the first
+   **data-writing** migration in the project's history: entities lacking a key receive
+   `{kind}_{index}` from their original list position, suffixed only when that would collide with an
+   authored key in the same map. Derivation is positional, so it is reproducible on every machine and
+   never depends on enumeration or filesystem order; authored keys are always preserved; non-map
+   documents pass through untouched. `DATA_SCHEMA` §4.11a and §6 record the field, the rule, and the
+   migration in this same change, as the schema workflow requires.
+
+   Validation rule `map-entity-key` enforces the invariant at author time, which is the half a
+   previous uncommitted attempt at this change omitted: without it a duplicate key silently repoints
+   saved flags — precisely the failure the key exists to prevent — and an empty key leaves an entity
+   unaddressable. Keys are scoped per map, so the same key in two maps is legitimate.
+
+   Two pre-existing tests asserted schema version 7 literally and were updated to track
+   `Migrator.CurrentVersion` instead, so a future bump does not churn them; one Runtime fixture built
+   a keyless `PlayerStartEntity` and was corrected — the new rule caught it, which is the rule
+   working. Both shipped samples still declare schemaVersion 3 and 1, so the v7 -> v8 migration runs
+   on every real load rather than only in tests, and both boot to smoke success.
+
+   Schema impact: project schema **v7 -> v8**, migration `V7ToV8`, `DATA_SCHEMA` updated, no field
+   removed. Dependency impact: none. RNG impact: none. Golden impact: none. Verification: build
+   passed with 0 warnings/errors; the full solution passed **2,300/2,300** (1,673 Core, 104 Creator,
+   316 Runtime, 207 Tools), of which 19 are the new migration and validation tests.
+
+   **16D remains blocked on its second prerequisite:** `TriggerEntity.Actions` and object
+   `interaction` are still open strings. The spec forbids Runtime executing an arbitrary string or
+   interpreting one as script, so a closed vocabulary must land before 16D executes triggers. That is
+   recorded in `DATA_SCHEMA` §4.11a and is the next slice.
 4. **16D — Asset-backed overworld integration (`PLANNED`; prerequisites 16A-C).**
    - **Spec lock:** OverworldScene state ownership, map/entity instantiation, render layers, interaction
      priority, encounter/trainer trigger order, dialogue commands already represented in Core data,

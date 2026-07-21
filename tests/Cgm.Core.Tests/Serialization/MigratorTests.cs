@@ -53,13 +53,19 @@ public sealed class MigratorTests
         public void Apply(JsonObject json) { }
     }
 
+    private sealed class NoOpV7ToV8 : IJsonMigration
+    {
+        public int FromVersion => 7;
+        public void Apply(JsonObject json) { }
+    }
+
     [Fact]
     public void Migrate_AppliesStepAndBumpsVersion()
     {
         var json = new JsonObject { ["schemaVersion"] = 0, ["foo"] = 42 };
         JsonObject result = Migrator.Migrate(json,
             [new RenameFooToBar(), new NoOpV1ToV2(), new NoOpV2ToV3(), new NoOpV3ToV4(), new NoOpV4ToV5(),
-                new NoOpV5ToV6(), new NoOpV6ToV7()]);
+                new NoOpV5ToV6(), new NoOpV6ToV7(), new NoOpV7ToV8()]);
 
         Assert.Equal(Migrator.CurrentVersion, result["schemaVersion"]!.GetValue<int>());
         Assert.Null(result["foo"]);
@@ -143,7 +149,8 @@ public sealed class MigratorTests
         Migrator.Migrate(json);
         Ability ability = CgmJson.Deserialize<Ability>(json.ToJsonString());
 
-        Assert.Equal(7, json["schemaVersion"]!.GetValue<int>());
+        // Tracks the current version rather than a literal, so a later bump does not churn this test.
+        Assert.Equal(Migrator.CurrentVersion, json["schemaVersion"]!.GetValue<int>());
         Assert.Equal(AbilityHookPoint.OnTerrainChange, ability.Hooks.Single().Hook);
     }
 }

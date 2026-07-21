@@ -48,6 +48,11 @@ public enum WarpTransition { Door, Edge, Stairs }
 [JsonDerivedType(typeof(TriggerEntity), "trigger")]
 public abstract record MapEntity
 {
+    /// <summary>Stable identity within its map, immutable once authored. Runtime, saves, and
+    /// diagnostics address entities by this key and never by list position or object identity, so
+    /// reordering a map file cannot silently repoint a save's defeated-trainer or pickup flags.</summary>
+    public string Key { get; init; } = "";
+
     public GridPos Pos { get; init; }
 }
 
