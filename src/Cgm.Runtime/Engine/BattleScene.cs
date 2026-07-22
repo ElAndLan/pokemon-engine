@@ -13,7 +13,8 @@ public sealed record BattleCaptureChoice(EntityId Item, double BallBonus = 1.0, 
 /// <summary><paramref name="Item"/> is set for actions that spend a carried item, so the caller can
 /// consume it without re-deriving which entry produced the action.</summary>
 public sealed record BattleMenuItem(string Label, BattleAction Action, EntityId? Item = null);
-public sealed record BattlePartyMember(string Name, int CurrentHp, int MaxHp, bool IsActive, bool IsFainted);
+public sealed record BattlePartyMember(string Name, int CurrentHp, int MaxHp, bool IsActive, bool IsFainted,
+    PersistentStatus? Status = null);
 public sealed record BattleSceneSnapshot(
     string PlayerName,
     EntityId PlayerSpecies,
@@ -107,7 +108,7 @@ public sealed class BattleScene
     {
         int active = _battle.ActiveIndex(side);
         return _battle.Party(side)
-            .Select((c, i) => new BattlePartyMember(_nameOf(c.Species), c.CurrentHp, c.MaxHp, i == active, c.IsFainted))
+            .Select((c, i) => new BattlePartyMember(_nameOf(c.Species), c.CurrentHp, c.MaxHp, i == active, c.IsFainted, c.Status))
             .ToList();
     }
 

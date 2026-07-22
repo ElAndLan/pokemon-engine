@@ -252,8 +252,8 @@ public sealed class BattleHostScene : IScene
         }
     }
 
-    /// <summary>The party list: name + HP for each member; the active one is marked, switchable
-    /// members are ink, and the rest (active or fainted) are greyed.</summary>
+    /// <summary>The party list: each member's name, a coloured HP bar with numbers, and a status tag
+    /// (BRN/PSN/…). The active member is starred, switchable members are ink, the rest greyed.</summary>
     private void DrawParty(RectI box, Rgba ink, BattleSceneSnapshot snapshot)
     {
         IReadOnlyList<BattlePartyMember> party = snapshot.PlayerParty;
@@ -261,13 +261,51 @@ public sealed class BattleHostScene : IScene
         {
             BattlePartyMember m = party[i];
             int y = box.Y + 6 + i * _ui.Font.LineHeight;
-            string tag = m.IsActive ? "* " : m.IsFainted ? "x " : "  ";
-            _ui.Text($"{tag}{m.Name}  {m.CurrentHp}/{m.MaxHp}", box.X + 18, y,
-                CanSwitchTo(i) ? ink : Disabled, layer: 6);
+            Rgba colour = m.IsActive ? ink : CanSwitchTo(i) ? ink : Disabled;
+
+            _ui.Text($"{(m.IsActive ? "*" : m.IsFainted ? "x" : " ")}{m.Name}", box.X + 18, y, colour, layer: 6);
+
+            // HP bar with numbers on the right half of the row.
+            int barX = box.X + box.Width / 2, barW = 44;
+            var track = new RectI(barX, y + 2, barW, 4);
+            _ui.Panel(track, new Rgba(0x40, 0x38, 0x30, 0xFF), layer: 6);
+            int fill = m.MaxHp <= 0 ? 0 : barW * m.CurrentHp / m.MaxHp;
+            if (fill > 0)
+                _ui.Panel(track with { Width = fill }, PartyHpColour(m), layer: 7);
+            _ui.Text($"{m.CurrentHp}/{m.MaxHp}", barX + barW + 6, y, colour, layer: 6);
+
+            if (StatusTag(m.Status) is { } tag)
+                _ui.Text(tag, barX - 26, y, StatusColour(m.Status!.Value), layer: 6);
             if (_sub.Selected == i)
                 _ui.Cursor(box.X + 8, y, Cursor, layer: 6);
         }
     }
+
+    private static Rgba PartyHpColour(BattlePartyMember m) => m.MaxHp <= 0 || m.CurrentHp * 2 > m.MaxHp
+        ? new Rgba(0x40, 0xC0, 0x50, 0xFF)
+        : m.CurrentHp * 5 > m.MaxHp ? new Rgba(0xE0, 0xC0, 0x40, 0xFF) : new Rgba(0xD0, 0x50, 0x40, 0xFF);
+
+    /// <summary>The three-letter tag shown for a major status (the genre's usual abbreviation), or null.</summary>
+    internal static string? StatusTag(PersistentStatus? status) => status switch
+    {
+        PersistentStatus.Burn => "BRN",
+        PersistentStatus.Poison => "PSN",
+        PersistentStatus.Toxic => "TOX",
+        PersistentStatus.Paralysis => "PAR",
+        PersistentStatus.Sleep => "SLP",
+        PersistentStatus.Freeze => "FRZ",
+        _ => null,
+    };
+
+    private static Rgba StatusColour(PersistentStatus status) => status switch
+    {
+        PersistentStatus.Burn => new Rgba(0xE0, 0x60, 0x40, 0xFF),
+        PersistentStatus.Poison or PersistentStatus.Toxic => new Rgba(0xA0, 0x50, 0xC0, 0xFF),
+        PersistentStatus.Paralysis => new Rgba(0xD0, 0xB0, 0x30, 0xFF),
+        PersistentStatus.Sleep => new Rgba(0x70, 0x78, 0x88, 0xFF),
+        PersistentStatus.Freeze => new Rgba(0x50, 0xB0, 0xD0, 0xFF),
+        _ => new Rgba(0x18, 0x18, 0x18, 0xFF),
+    };
 
     private static Rgba HpColour(ResourceBar hp) => hp.Max <= 0 || hp.Displayed * 2 > hp.Max
         ? new Rgba(0x40, 0xC0, 0x50, 0xFF)

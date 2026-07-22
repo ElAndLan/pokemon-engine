@@ -324,6 +324,19 @@ public sealed class WildVersusTrainerTests : IDisposable
         Assert.True(scene.IsPresenting || scene.Finished);
     }
 
+    /// <summary>The PARTY panel opens and renders the party (HP bars) without any invalid quads.</summary>
+    [Fact]
+    public void PartyPanelRendersHpBars()
+    {
+        WildScene();
+        Frame(Press(GameAction.Right));     // FIGHT -> PARTY
+        Frame(Press(GameAction.Confirm));   // open PARTY
+        Frame(Idle);                        // render a frame
+
+        Assert.NotEmpty(_renderer.Drawn);
+        Assert.All(_renderer.Drawn, q => Assert.False(q.Dest.IsEmpty));
+    }
+
     /// <summary>Cancel backs out of a sub-panel to the root without submitting anything.</summary>
     [Fact]
     public void CancelBacksOutOfASubPanel()
