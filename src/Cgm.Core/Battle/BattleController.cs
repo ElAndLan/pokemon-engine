@@ -50,6 +50,7 @@ public sealed class BattleController
     private readonly BattleStatMetricState _statMetrics;
     private readonly BattleStagePassState _stagePasses = new();
     private readonly BattleActionHistory _actionHistory = new();
+    private int _escapeAttempts;
     private readonly BattleConditionStores _conditions =
         new(new BattleConditionRegistry([.. WeatherConditions.Definitions, .. TerrainConditions.Definitions,
             .. GroundedConditions.Definitions, .. FieldConditions.Definitions, .. SideConditions.Definitions,
@@ -331,8 +332,9 @@ public sealed class BattleController
         ApplyFormActivation(BattleSide.Player, resolvedPlayerAction);
         ApplyFormActivation(BattleSide.Enemy, resolvedEnemyAction);
 
-        // 3. Capture (wild, player only).
-        if (resolvedPlayerAction is ThrowBall ball)
+        // 3. Escape or capture (wild, player only).
+        ResolveEscape(resolvedPlayerAction);
+        if (Outcome is null && resolvedPlayerAction is ThrowBall ball)
             ResolveCapture(ball);
 
         // 4. Battle items resolve before moves, after switches/capture.
@@ -1237,6 +1239,13 @@ public sealed class BattleController
             case ThrowBall when Topology.ActiveSlotsPerSide != 1:
                 throw new ArgumentException("Capture is not available in doubles.");
             case ThrowBall:
+                break;
+
+            case Run when side != BattleSide.Player:
+                throw new ArgumentException("Only the player can run from battle.");
+            case Run when Topology.ActiveSlotsPerSide != 1:
+                throw new ArgumentException("Running is not available in doubles.");
+            case Run:
                 break;
 
             case UseBattleItem item:
@@ -5693,6 +5702,44 @@ public sealed class BattleController
         {
             _log.Add(new BrokeFree());
         }
+    }
+
+    private void ResolveEscape(BattleAction action)
+    {
+        if (action is not Run)
+            return;
+
+        BattleSlot player = new(BattleSide.Player, 0);
+        if (!IsWild)
+        {
+            _log.Add(new EscapePrevented(BattleSide.Player, EscapePreventionReason.TrainerBattle));
+            return;
+        }
+
+        if (Active(player).IsTrapped)
+        {
+            _log.Add(new EscapePrevented(BattleSide.Player, EscapePreventionReason.Trapped));
+            return;
+        }
+
+        BattleSlot enemy = new(BattleSide.Enemy, 0);
+        if (AbilityHooks(enemy).Any(hook => hook.Hook == AbilityHookPoint.OnEscapeAttempt
+                && hook.Effects.Any(effect => effect.Op == "escapeBlock")))
+        {
+            _log.Add(new EscapePrevented(BattleSide.Player, EscapePreventionReason.Ability, enemy));
+            return;
+        }
+
+        EscapeResult result = EscapeCalc.Attempt(
+            Active(player).Stats.Spe, Active(enemy).Stats.Spe, ++_escapeAttempts, _rng);
+        if (!result.Escaped)
+        {
+            _log.Add(new EscapeFailed(BattleSide.Player, _escapeAttempts, result.Odds, result.Roll!.Value));
+            return;
+        }
+
+        _log.Add(new Escaped(BattleSide.Player, _escapeAttempts, result.Odds, result.Roll));
+        EndBattle(null);
     }
 
     private void EndOfTurn()

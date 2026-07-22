@@ -75,8 +75,8 @@ All IDs original, `category:slug`, immutable once created. No new schema shapes 
 if authoring reveals a missing shape, that is a `DATA_SCHEMA.md` change with version bump and
 migration note **before** content is written.
 
-- **Species: 4–6**, drawn from the approved original roster (current candidates: the
-  `bulby` line and the three-stage line now in `raw_images/`), each with front/back battle
+- **Species: 4–6**, drawn from a newly approved original roster selected under decision D1, each
+  with front/back battle
   sprites at the `internal-demo-v1` 64px frame via the normalization pipeline, base stats,
   one type each from the project type chart, level-up learnset of **certified Phase 15
   moves only** (no move may appear that is not conformance-certified), growth rate, capture

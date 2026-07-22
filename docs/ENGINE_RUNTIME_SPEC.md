@@ -599,7 +599,8 @@ or pause by event fields/tags, but it may not check a named move, species, item,
 ### Menus, replacements, and return
 
 Layouts derive from active slots and support singles/doubles without separate controllers. Menus
-cover move, optional form activation, item, switch, pass/fallback, capture where legal, typed target,
+cover move, optional form activation, item, switch, pass/fallback, capture where legal, Run in every
+player singles battle, typed target,
 and simultaneous replacement. Capture/run/trainer restrictions come only from Core.
 
 After `BattleOutcome`, apply its progression, capture, reward, defeat, inventory, party, and world

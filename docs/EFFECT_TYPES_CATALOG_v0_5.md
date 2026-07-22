@@ -284,7 +284,7 @@ per application using ruleset factors 2 (`gen4_like`) or 3 (`modern_reference`).
 | Primitive | What It Does | Covers |
 |---|---|---|
 | `switch_flow` | Forces, prevents, offers, completes, cancels, or chains switching. | Roar, U-turn, Baton Pass, trapping, faint replacement, Eject Button, Red Card. |
-| `run_attempt` | Resolves fleeing. | Wild battle run, Smoke Ball-like guaranteed escape, trainer battle no-run. |
+| `run_attempt` | Resolves the `Run` action through the modern Speed/attempt formula; trainer battles, trapping, and `onEscapeAttempt -> escapeBlock` refuse it without RNG. | Wild escape, visible-but-refused trainer Run. |
 | `capture_attempt` | Runs capture eligibility, modifiers, shake sequence, result routing. | balls, catch rate, HP factor, status bonus, party/storage routing. |
 | `award_rewards` | Awards EXP, EV/training stats, money, items, flags, or battle-specific rewards. | EXP formula, EV yield, Pay Day, Amulet Coin-like bonuses, Pickup-like rewards. |
 | `learn_or_replace_move` | Offers move learning and replacement. | level-up moves, evolution moves, tutor/TM style learning. |

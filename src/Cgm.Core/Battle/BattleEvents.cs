@@ -5,7 +5,7 @@ namespace Cgm.Core.Battle;
 public enum BattleSide { Player, Enemy }
 
 /// <summary>An action a side submits for a turn (UI/AI produce these; the controller applies them).
-/// Switch/item/run join in later battle layers.</summary>
+/// The controller validates and resolves every action; presentation never applies one directly.</summary>
 public abstract record BattleAction;
 public sealed record UseMove(int MoveIndex) : BattleAction;
 public sealed record UseFallback : BattleAction;
@@ -13,6 +13,7 @@ public sealed record ActivateForm(string FormId, int MoveIndex) : BattleAction;
 public sealed record Switch(int PartyIndex) : BattleAction;
 public sealed record ThrowBall(double BallBonus, double StatusBonus) : BattleAction;
 public sealed record UseBattleItem(EntityId Item, int TargetPartyIndex, int HealAmount) : BattleAction;
+public sealed record Run : BattleAction;
 public sealed record Pass : BattleAction;
 
 /// <summary>What happened during resolution — the stream the UI renders (BATTLE_SYSTEM_SPEC).
@@ -384,6 +385,11 @@ public sealed record BallThrown : BattleEvent;
 public sealed record CaptureShakes(int Count) : BattleEvent;
 public sealed record Captured(BattleSide Side) : BattleEvent;
 public sealed record BrokeFree : BattleEvent;
+public enum EscapePreventionReason { TrainerBattle, Trapped, Ability }
+public sealed record EscapePrevented(BattleSide Side, EscapePreventionReason Reason,
+    BattleSlot? Blocker = null) : BattleEvent;
+public sealed record EscapeFailed(BattleSide Side, int Attempt, int Odds, int Roll) : BattleEvent;
+public sealed record Escaped(BattleSide Side, int Attempt, int Odds, int? Roll) : BattleEvent;
 public sealed record BattleEnded(BattleSide? Winner) : BattleEvent;
 
 public sealed record BattleOutcome(BattleSide? Winner)

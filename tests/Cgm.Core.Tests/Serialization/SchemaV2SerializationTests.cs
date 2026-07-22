@@ -69,6 +69,30 @@ public sealed class SchemaV2SerializationTests
     }
 
     [Fact]
+    public void Ability_RoundTripsEscapeAttemptHook()
+    {
+        var ability = new Ability
+        {
+            Id = EntityId.Parse("ability:rooted_gaze"),
+            Name = "Rooted Gaze",
+            Hooks =
+            [
+                new AbilityHook
+                {
+                    Hook = AbilityHookPoint.OnEscapeAttempt,
+                    Effects = [new Effect { Op = "escapeBlock" }],
+                },
+            ],
+        };
+
+        Ability back = CgmJson.Deserialize<Ability>(CgmJson.Serialize(ability));
+
+        Assert.Equal(AbilityHookPoint.OnEscapeAttempt, back.Hooks.Single().Hook);
+        Assert.Equal("escapeBlock", back.Hooks.Single().Effects.Single().Op);
+        Assert.Equal(SchemaVersions.Current, back.SchemaVersion);
+    }
+
+    [Fact]
     public void Species_RoundTripsAbilitiesAndForm()
     {
         var species = new Species

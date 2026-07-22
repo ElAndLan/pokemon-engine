@@ -166,6 +166,7 @@ public sealed class WildVersusTrainerTests : IDisposable
         var scene = new BattleScene(start.Battle!, b => new UseMove(0), null, id => id.Slug, Captures(session));
 
         Assert.Contains(scene.Menu, item => item.Action is ThrowBall);
+        Assert.Contains(scene.Menu, item => item.Action is Run && item.Label == "Run");
     }
 
     [Fact]
@@ -177,6 +178,7 @@ public sealed class WildVersusTrainerTests : IDisposable
         var scene = new BattleScene(start.Battle!, b => new UseMove(0), null, id => id.Slug, Captures(session));
 
         Assert.DoesNotContain(scene.Menu, item => item.Action is ThrowBall);
+        Assert.Contains(scene.Menu, item => item.Action is Run && item.Label == "Run");
     }
 
     /// <summary>Core refuses the action itself, not merely its menu entry — the menu is a

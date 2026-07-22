@@ -150,7 +150,7 @@ whitespace checks passed.
 |---:|---|---|---|
 | 0 | Product Architecture and Governance | VERIFIED | Stack, repository rules, ADRs, and product split exist |
 | 1 | Toolchain and Solution Foundation | VERIFIED | .NET 10 solution, CI build/test, Creator and Runtime hosts |
-| 2 | Schema, Serialization, and Validation Foundation | VERIFIED | Schema foundation, migrations, loaders, IDs, validators; current project schema is v7 after the additive Phase 15E-3 grounded-query hook vocabulary |
+| 2 | Schema, Serialization, and Validation Foundation | VERIFIED | Schema foundation, migrations, loaders, IDs, validators; current project schema is v11 after the additive Runtime escape-attempt ability hook vocabulary |
 | 3 | Creator Shell and Editor Pattern | PARTIAL | Shell/undo/pathfinder editors exist; lifecycle/manual gates and shared controls incomplete |
 | 4 | Asset Processing and Slicing | CORE BASELINE | Decode/slice/atlas algorithms tested; asset browser and slicer canvas absent |
 | 5 | World Authoring | CORE BASELINE | Map layer/collision/tool helpers tested; tileset/map/entity UI absent |
@@ -3963,6 +3963,23 @@ resumes, contract deltas are reconciled at that boundary before further certific
    it is a Core change (a wild-only action plus its escape odds), so it is recorded here for Phase 15
    resumption rather than approximated in Runtime.
 
+   Progress (2026-07-21): **Wild Run/flee gap CLOSED by explicit user request as a targeted Runtime
+   regression.** Core now owns a player-only singles `Run` action. It admits the action in wild and
+   trainer battles so Runtime can always show the command; trainer attempts emit a deterministic
+   refusal and consume the turn, while enemy/doubles submissions are rejected. Wild attempts resolve
+   the modern unmodified-Speed formula with attempt escalation through the injected battle RNG.
+   Faster/equal runners and odds at 256 consume no draw; failures consume the
+   turn and allow the opponent/end-turn sequence, while success emits ordered escape/outcome events,
+   awards no experience, and returns to the encounter origin. Existing volatile trapping prevents
+   escape, and schema v11 adds the generic `onEscapeAttempt -> escapeBlock` effective-ability hook so
+   authored abilities prevent escape without named-ID branches. Runtime offers Run in every player
+   singles menu through Core legality and presents success/failure/prevention generically, including
+   the explicit trainer-battle refusal. Schema migration v10→v11 is
+   no-op because the enum addition is backward compatible. Dependency and golden impact: none.
+   Verification: focused Core schema/validation/escape passed 61/61, focused Runtime battle and
+   presentation passed 126/126, build passed with 0 warnings/errors, and the full solution passed
+   **2,909/2,909** (1,840 Core, 104 Creator, 758 Runtime, 207 Tools).
+
    Verification: build passed with 0 warnings/errors; the full solution passed **2,690/2,690**
    (1,724 Core, 104 Creator, 655 Runtime, 207 Tools), of which 15 are the new wild/trainer suite;
    both samples still boot to smoke success.
@@ -4106,11 +4123,10 @@ resumes, contract deltas are reconciled at that boundary before further certific
    `TECH_STACK` still scopes StbImageSharp to Creator; extending it to Runtime belongs with the
    code that decodes, not ahead of it.
 
-   Remaining 16H blockers, in order: (1) **content** — creature sprites and a player walk sheet
-   do not exist
-   (`PHASE_16_DEMO_PLAN` §5 R1 flags the sprite generation method as designed but never validated
-   against a real generator; the fall_village tilesets in `docs/art/generated/` are further along);
-   (2) **decision D1** — final species selection and display names, which is the user's call.
+   Remaining 16H blockers, in order: (1) **content** — no generated-art candidates are retained;
+   newly approved creature sprites, player walk sheet, and outdoor tileset must be produced under
+   `PHASE_16_DEMO_PLAN` §5 R1; (2) **decision D1** — final species selection and display names,
+   which is the user's call.
 
    Progress (2026-07-21): **16H-2 texture loading and tile rendering COMPLETE.** The engine blocker
    above is closed; 16H is now waiting only on content and D1. Delivered: `PngImage` (StbImageSharp

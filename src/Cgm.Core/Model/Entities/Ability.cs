@@ -12,6 +12,7 @@ public enum AbilityHookPoint
     OnWeatherChange,
     OnTerrainChange,
     OnGroundedQuery,
+    OnEscapeAttempt,
     OnFaint,
 }
 

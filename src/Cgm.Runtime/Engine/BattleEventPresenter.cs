@@ -120,6 +120,12 @@ public static class BattleEventPresenter
             CaptureShakes => "The device shook",
             Captured => "It was caught",
             BrokeFree => "It broke free",
+            EscapePrevented { Reason: EscapePreventionReason.TrainerBattle } =>
+                "You cannot run from a trainer battle!",
+            EscapePrevented { Reason: EscapePreventionReason.Ability } => "An ability prevents escape",
+            EscapePrevented => "It cannot escape while trapped",
+            EscapeFailed => "Could not get away",
+            Escaped => "Got away safely",
 
             // --- Overlays and mutation (Phase 15 mechanics) ---------------------------
             AbilityMutated => "Its ability changed",
@@ -166,7 +172,8 @@ public static class BattleEventPresenter
             HookDispatchFailed => "An ability could not resolve",
 
             // --- Outcome -------------------------------------------------------------
-            BattleEnded ended => $"{ended.Winner} won",
+            BattleEnded { Winner: { } winner } => $"{winner} won",
+            BattleEnded => "The battle ended",
 
             _ => null,   // uncovered: the completeness test fails on this
         };

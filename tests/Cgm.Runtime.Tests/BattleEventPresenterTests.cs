@@ -83,6 +83,11 @@ public sealed class BattleEventPresenterTests
             new MoveUsed(BattleSide.Player, EntityId.Parse("move:tackle")), id => id.Slug));
         Assert.Contains("fainted", BattleEventPresenter.Line(new Fainted(BattleSide.Enemy)));
         Assert.Contains("won", BattleEventPresenter.Line(new BattleEnded(BattleSide.Player)));
+        Assert.Equal("The battle ended", BattleEventPresenter.Line(new BattleEnded(null)));
+        Assert.Equal("Got away safely", BattleEventPresenter.Line(
+            new Escaped(BattleSide.Player, 1, 256, null)));
+        Assert.Equal("You cannot run from a trainer battle!", BattleEventPresenter.Line(
+            new EscapePrevented(BattleSide.Player, EscapePreventionReason.TrainerBattle)));
     }
 
     /// <summary>The fallback is visible rather than silent, so a gap shows up in play too.</summary>

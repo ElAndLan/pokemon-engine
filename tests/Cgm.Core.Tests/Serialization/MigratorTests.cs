@@ -111,7 +111,7 @@ public sealed class MigratorTests
     }
 
     [Fact]
-    public void Migrate_V6Ability_PreservesExistingHookAndLoadsAtV7()
+    public void Migrate_V6Ability_PreservesExistingHookAndLoadsAtCurrent()
     {
         string text = File.ReadAllText(TestPaths.Fixture("schema-v6/ability.json"));
         var json = JsonNode.Parse(text)!.AsObject();
@@ -122,5 +122,23 @@ public sealed class MigratorTests
         // Tracks the current version rather than a literal, so a later bump does not churn this test.
         Assert.Equal(Migrator.CurrentVersion, json["schemaVersion"]!.GetValue<int>());
         Assert.Equal(AbilityHookPoint.OnTerrainChange, ability.Hooks.Single().Hook);
+    }
+
+    [Fact]
+    public void Migrate_V10Document_PreservesDataForAdditiveEscapeHookVocabulary()
+    {
+        var json = new JsonObject
+        {
+            ["schemaVersion"] = 10,
+            ["id"] = "ability:steady",
+            ["name"] = "Steady",
+            ["hooks"] = new JsonArray(),
+        };
+
+        Migrator.Migrate(json);
+
+        Assert.Equal(11, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal("ability:steady", json["id"]!.GetValue<string>());
+        Assert.Empty(json["hooks"]!.AsArray());
     }
 }

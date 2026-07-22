@@ -19,6 +19,7 @@ public sealed class AbilityHookRule : IValidationRule
         AbilityHookPoint.OnWeatherChange,
         AbilityHookPoint.OnTerrainChange,
         AbilityHookPoint.OnGroundedQuery,
+        AbilityHookPoint.OnEscapeAttempt,
     };
 
     public IEnumerable<ValidationIssue> Check(Project project)
@@ -45,6 +46,15 @@ public sealed class AbilityHookRule : IValidationRule
                     else if (hook.Hook == AbilityHookPoint.OnGroundedQuery && effect.Op != "groundedModify")
                         yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
                             $"Ability hook 'onGroundedQuery' does not support effect op '{effect.Op}'.");
+                    else if (effect.Op == "escapeBlock" && hook.Hook != AbilityHookPoint.OnEscapeAttempt)
+                        yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                            "Effect op 'escapeBlock' requires onEscapeAttempt.");
+                    else if (hook.Hook == AbilityHookPoint.OnEscapeAttempt && effect.Op != "escapeBlock")
+                        yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                            $"Ability hook 'onEscapeAttempt' does not support effect op '{effect.Op}'.");
+                    else if (effect.Op == "escapeBlock" && (effect.Chance is not null || effect.Params?.Count > 0))
+                        yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
+                            "Effect op 'escapeBlock' accepts no chance or params.");
                     else if (effect.Op is "sideConditionBypass" or "protectionBypass"
                         && hook.Hook != AbilityHookPoint.OnModifyOutgoingDamage)
                         yield return new ValidationIssue(Id, ValidationSeverity.Error, ability.Id,
@@ -184,6 +194,7 @@ internal static class Phase15EffectRules
         "statModify", "typeDamageModify", "statusImmunity", "weatherSummon", "terrainSummon",
         "contactChanceEffect", "residualHeal", "residualDamage", "groundedModify",
         "sideConditionBypass", "protectionBypass", "itemMutationGuard", "abilityMutationGuard",
+        "escapeBlock",
     };
 
     public static readonly IReadOnlySet<string> HeldItemOps = new HashSet<string>

@@ -463,6 +463,29 @@ public sealed class ValidationTests
     }
 
     [Fact]
+    public void EscapeBlockRequiresItsDedicatedParameterlessAbilityHook()
+    {
+        Ability Valid(AbilityHookPoint hook, Effect effect) => new()
+        {
+            Id = EntityId.Parse("ability:rooted_gaze"),
+            Name = "Rooted Gaze",
+            Hooks = [new AbilityHook { Hook = hook, Effects = [effect] }],
+        };
+
+        Assert.Empty(Run(new AbilityHookRule(), Project(Valid(
+            AbilityHookPoint.OnEscapeAttempt, new Effect { Op = "escapeBlock" }))));
+
+        ValidationIssue[] wrongHook = Run(new AbilityHookRule(), Project(Valid(
+            AbilityHookPoint.OnSwitchIn, new Effect { Op = "escapeBlock" }))).ToArray();
+        Assert.Contains(wrongHook, issue => issue.Message.Contains("requires onEscapeAttempt"));
+
+        ValidationIssue[] parameters = Run(new AbilityHookRule(), Project(Valid(
+            AbilityHookPoint.OnEscapeAttempt,
+            new Effect { Op = "escapeBlock", Chance = 50, Params = Params(("extra", 1)) }))).ToArray();
+        Assert.Contains(parameters, issue => issue.Message.Contains("accepts no chance or params"));
+    }
+
+    [Fact]
     public void HeldItemBattleEffects_RequireHoldableAndClosedOps()
     {
         var item = new Item

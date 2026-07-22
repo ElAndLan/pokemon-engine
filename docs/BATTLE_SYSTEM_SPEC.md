@@ -678,7 +678,7 @@ slots plus an optional hidden slot; generated creature instances store the chose
 
 Phase 15 supports only these hook points: `onSwitchIn`, `onModifyOutgoingDamage`,
 `onModifyIncomingDamage`, `onStatusAttempt`, `onEndOfTurn`, `onContactReceived`,
-`onWeatherChange`, `onTerrainChange`, and `onGroundedQuery`. `statModify` effects run through the outgoing/incoming damage hooks because
+`onWeatherChange`, `onTerrainChange`, `onGroundedQuery`, and `onEscapeAttempt`. `statModify` effects run through the outgoing/incoming damage hooks because
 they modify damage-stat queries during damage calculation. `onModifyStat` and `onFaint` are reserved
 until a closed op needs those timings; Phase 15 validation rejects them.
 
@@ -707,6 +707,9 @@ Closed ability-op palette for the first v6 slice:
   faint the attacker after all snapshotted direct targets have resolved.
 - `residualHeal` - heal a fraction of max HP at end of turn. Params: `{ num: int, den: int }`.
 - `residualDamage` - damage a fraction of max HP at end of turn. Params: `{ num: int, den: int }`.
+- `escapeBlock` - prevent an opposing player's Run attempt. It is valid only on
+  `onEscapeAttempt`, accepts no chance or params, reads the current effective ability (so
+  suppression/replacement applies), emits `EscapePrevented`, and draws no RNG.
 
 ### Held-item hooks and ops
 
@@ -961,6 +964,23 @@ Switches and items are deliberately separate action classes, so even the highest
 not precede them. A pass produces no event unless it replaced an action through a visible gate. PP
 and move legality are not reserved across actions; they are revalidated at execution for effects
 that may alter moves or PP later in Phase 15.
+
+#### Wild escape action
+
+`Run` is a player-only singles action and appears in both wild and trainer battle menus. Core rejects
+enemy-side and doubles submissions. A trainer-battle attempt consumes the action, emits
+`EscapePrevented(TrainerBattle)`, draws no RNG, and allows the opponent and normal end-turn sequence
+to continue. Runtime asks `CanSubmitAction` rather than duplicating those restrictions. In a wild
+battle, selecting Run while trapped or while an opposing effective ability declares
+`onEscapeAttempt -> escapeBlock` consumes the action, emits `EscapePrevented`, and draws no RNG.
+
+Otherwise the current attempt is numbered starting at one. If the player's unmodified Speed is at
+least the wild creature's unmodified Speed, escape succeeds without a draw. For a slower player,
+Core computes `odds = min(256, floor(playerSpeed * 128 / wildSpeed) + 30 * attempt)`. Odds 256
+succeed without a draw; otherwise Core draws exactly `rng.Next(256)` and succeeds iff `roll < odds`.
+A failed attempt emits `EscapeFailed`, then the opponent acts and normal end-turn processing runs.
+A success emits `Escaped`, ends with a no-winner outcome, cancels the opponent action, awards no
+experience, and returns Runtime to the encounter origin after ordered event presentation.
 
 #### Typed selections and live target materialization
 
