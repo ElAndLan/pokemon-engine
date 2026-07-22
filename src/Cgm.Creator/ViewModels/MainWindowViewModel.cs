@@ -294,21 +294,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>A cell's pixel rect: authored rects directly; grid cells from the sheet's original
-    /// grid parameters (row-major over the original column count).</summary>
-    private static Cgm.Core.Model.Rect? CellRect(SpriteSheet sheet, SheetCell cell)
-    {
-        if (cell.Rect is { } rect)
-            return rect;
-        if (cell.Index is not { } index || sheet.CellW <= 0 || sheet.CellH <= 0)
-            return null;
-        int strideX = sheet.CellW + sheet.SpacingX;
-        int columns = Math.Max(1, (sheet.ImageW - sheet.OffsetX + sheet.SpacingX) / strideX);
-        return new Cgm.Core.Model.Rect(
-            sheet.OffsetX + index % columns * strideX,
-            sheet.OffsetY + index / columns * (sheet.CellH + sheet.SpacingY),
-            sheet.CellW, sheet.CellH);
-    }
+    private static Cgm.Core.Model.Rect? CellRect(SpriteSheet sheet, SheetCell cell) =>
+        Assets.SheetBuilder.ResolveRect(sheet, cell);
 
     /// <summary>The 17B import transaction (ASSET_PIPELINE_SPEC): decode/validate the source in
     /// place first — a malformed file rejects before anything is copied — then copy the validated
@@ -712,6 +699,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         EntityCategory.Item when Session!.Find<Item>(id) is { } i => new ItemDocument(Session, i),
         EntityCategory.Ability when Session!.Find<Ability>(id) is { } a => new AbilityDocument(Session, a),
         EntityCategory.Species when Session!.Find<Species>(id) is { } s => new SpeciesDocument(Session, s),
+        EntityCategory.Sheet when Session!.Find<SpriteSheet>(id) is { } sheet => new SheetDocument(Session, sheet),
         _ => null,
     };
 

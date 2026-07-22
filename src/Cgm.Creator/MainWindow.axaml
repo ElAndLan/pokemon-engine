@@ -14,6 +14,7 @@
     <DataTemplate DataType="vm:AbilityDocument"><views:AbilityView /></DataTemplate>
     <DataTemplate DataType="vm:SpeciesDocument"><views:SpeciesView /></DataTemplate>
     <DataTemplate DataType="vm:TypeChartDocument"><views:TypeChartView /></DataTemplate>
+    <DataTemplate DataType="vm:SheetDocument"><views:SheetView /></DataTemplate>
   </Window.DataTemplates>
 
   <DockPanel>

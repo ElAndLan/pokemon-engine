@@ -135,8 +135,10 @@ fits:
 - Batch naming: a pattern containing `{n}` (e.g. `coin_{n}`) names accepted cells
   `coin_0, coin_1, …` in cell order; a pattern without `{n}` gets `_{n}` appended. Names must
   satisfy the slug grammar; the sprite id is `sprite:<sheetSlug>_<name>`.
-- Include/exclude: a cell can be excluded (kept in metadata, projected to no sprite) — used for
-  blank grid cells and rejected components.
+- Include/exclude: excluding a cell removes it from the sheet (undo restores it; a grid re-slice
+  regenerates grid cells). No excluded-cell flag is stored — absence *is* exclusion, matching how
+  fully-transparent grid cells are already dropped at import. Add a persisted flag only if
+  round-tripping exclusions through re-slice ever matters.
 
 ### Canvas semantics (view layer over the headless document)
 

@@ -52,6 +52,22 @@ public static class SheetBuilder
         };
     }
 
+    /// <summary>A cell's pixel rect: authored rects directly; grid cells from the sheet's grid
+    /// parameters (row-major over the column count of the recorded image width).</summary>
+    public static Rect? ResolveRect(SpriteSheet sheet, SheetCell cell)
+    {
+        if (cell.Rect is { } rect)
+            return rect;
+        if (cell.Index is not { } index || sheet.CellW <= 0 || sheet.CellH <= 0)
+            return null;
+        int strideX = sheet.CellW + sheet.SpacingX;
+        int columns = Math.Max(1, (sheet.ImageW - sheet.OffsetX + sheet.SpacingX) / strideX);
+        return new Rect(
+            sheet.OffsetX + index % columns * strideX,
+            sheet.OffsetY + index / columns * (sheet.CellH + sheet.SpacingY),
+            sheet.CellW, sheet.CellH);
+    }
+
     private static bool IsFullyTransparent(ImageData image, Rect r)
     {
         for (int y = r.Y; y < r.Y + r.H; y++)

@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Cgm.Creator.ViewModels"
+             x:Class="Cgm.Creator.Views.SheetView"
+             x:DataType="vm:SheetDocument">
+  <DockPanel Margin="8">
+
+    <!-- Toolbar: slicing layers + zoom -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <Button Content="Fit gutters" Click="OnApplyGutter" IsEnabled="{Binding HasGutterSuggestion}"
+              ToolTip.Tip="Slice by the detected transparent-gutter grid" />
+      <Button Content="Fit common size" Click="OnApplySize" IsEnabled="{Binding HasSizeSuggestion}"
+              ToolTip.Tip="Slice by the largest common cell size" />
+      <Button Content="Detect sprites" Click="OnApplyComponents" IsEnabled="{Binding HasPixels}"
+              ToolTip.Tip="Find sprite bounds by connected pixels (irregular sheets)" />
+      <Separator Width="16" />
+      <TextBlock Text="Zoom" VerticalAlignment="Center" />
+      <Slider x:Name="ZoomSlider" Minimum="1" Maximum="8" Value="2" TickFrequency="1"
+              IsSnapToTickEnabled="True" Width="120" ValueChanged="OnZoomChanged" />
+    </StackPanel>
+
+    <!-- Grid parameters -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+      <TextBlock Text="Cell" VerticalAlignment="Center" />
+      <NumericUpDown Value="{Binding CellW}" Minimum="1" Increment="1" Width="110" FormatString="0" />
+      <NumericUpDown Value="{Binding CellH}" Minimum="1" Increment="1" Width="110" FormatString="0" />
+      <TextBlock Text="Offset" VerticalAlignment="Center" />
+      <NumericUpDown Value="{Binding OffsetX}" Minimum="0" Increment="1" Width="110" FormatString="0" />
+      <NumericUpDown Value="{Binding OffsetY}" Minimum="0" Increment="1" Width="110" FormatString="0" />
+      <TextBlock Text="Spacing" VerticalAlignment="Center" />
+      <NumericUpDown Value="{Binding SpacingX}" Minimum="0" Increment="1" Width="110" FormatString="0" />
+      <NumericUpDown Value="{Binding SpacingY}" Minimum="0" Increment="1" Width="110" FormatString="0" />
+    </StackPanel>
+
+    <!-- Cell list + per-cell actions -->
+    <Border DockPanel.Dock="Right" Width="260" Margin="8,0,0,0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+          <TextBox x:Name="RenameBox" PlaceholderText="name_{n}" Width="150" />
+          <Button Content="Rename all" Click="OnRenameAll" />
+        </StackPanel>
+        <Button DockPanel.Dock="Bottom" Content="Exclude selected" Click="OnRemoveSelected" Margin="0,6,0,0" />
+        <ListBox x:Name="CellList" ItemsSource="{Binding CellViews}">
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <VirtualizingStackPanel />
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:SheetCellView">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding SpriteId.Slug}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Rect}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- Canvas: the sheet at integer zoom with the cell overlay -->
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <LayoutTransformControl x:Name="ZoomHost">
+        <Panel>
+          <Image x:Name="SheetImage" Stretch="None" />
+          <ItemsControl ItemsSource="{Binding CellViews}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <Canvas />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.Styles>
+              <Style Selector="ItemsControl > ContentPresenter" x:DataType="vm:SheetCellView">
+                <Setter Property="Canvas.Left" Value="{Binding Rect.X}" />
+                <Setter Property="Canvas.Top" Value="{Binding Rect.Y}" />
+              </Style>
+            </ItemsControl.Styles>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:SheetCellView">
+                <Border Width="{Binding Rect.W}" Height="{Binding Rect.H}"
+                        BorderBrush="#80FF4040" BorderThickness="1" Background="Transparent" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Panel>
+      </LayoutTransformControl>
+    </ScrollViewer>
+
+  </DockPanel>
+</UserControl>
