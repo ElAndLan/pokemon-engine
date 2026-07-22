@@ -327,7 +327,8 @@ internal sealed class RuntimeHost : IDisposable
 
         var presenter = new BattleScene(battle,
             b => new UseMove(RandomAi.ChooseMove(b.Active(BattleSide.Enemy), _session.Rng)),
-            formChoices: null, nameOf: Name, captureChoices: captures);
+            formChoices: null, nameOf: Name, captureChoices: captures,
+            battleItems: _session.BattleItems());
 
         _battleController = battle;
         _battleWasTrainer = trainer;

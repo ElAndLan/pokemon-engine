@@ -10,6 +10,11 @@ public sealed record BattleFormChoice(string FormId, int MoveIndex);
 // ponytail: bonuses default to 1.0; per-device bonuses need a schema field on Item, which is a
 // DATA_SCHEMA change rather than something to invent here.
 public sealed record BattleCaptureChoice(EntityId Item, double BallBonus = 1.0, double StatusBonus = 1.0);
+
+/// <summary>A consumable the player can use in battle (potion, revive, …). <paramref name="HealAmount"/>
+/// is the authored heal from the item's battle effects; Core applies it. <paramref name="Pocket"/> is
+/// the display group (medicine, …).</summary>
+public sealed record BattleItemChoice(EntityId Item, int HealAmount, string Pocket);
 /// <summary><paramref name="Item"/> is set for actions that spend a carried item, so the caller can
 /// consume it without re-deriving which entry produced the action.</summary>
 public sealed record BattleMenuItem(string Label, BattleAction Action, EntityId? Item = null);
@@ -37,6 +42,7 @@ public sealed class BattleScene
     private readonly Func<BattleController, BattleAction, BattleAction> _enemyAction;
     private readonly IReadOnlyList<BattleFormChoice> _formChoices;
     private readonly IReadOnlyList<BattleCaptureChoice> _captureChoices;
+    private readonly IReadOnlyList<BattleItemChoice> _battleItems;
     private readonly Func<EntityId, string> _nameOf;
     private readonly List<string> _presented = [];
     private readonly List<BattleEvent> _events = [];
@@ -45,17 +51,20 @@ public sealed class BattleScene
 
     public BattleScene(BattleController battle, Func<BattleController, BattleAction> enemyAction,
         IReadOnlyList<BattleFormChoice>? formChoices = null, Func<EntityId, string>? nameOf = null,
-        IReadOnlyList<BattleCaptureChoice>? captureChoices = null)
-        : this(battle, (b, _) => enemyAction(b), formChoices, nameOf, captureChoices) { }
+        IReadOnlyList<BattleCaptureChoice>? captureChoices = null,
+        IReadOnlyList<BattleItemChoice>? battleItems = null)
+        : this(battle, (b, _) => enemyAction(b), formChoices, nameOf, captureChoices, battleItems) { }
 
     public BattleScene(BattleController battle, Func<BattleController, BattleAction, BattleAction> enemyAction,
         IReadOnlyList<BattleFormChoice>? formChoices = null, Func<EntityId, string>? nameOf = null,
-        IReadOnlyList<BattleCaptureChoice>? captureChoices = null)
+        IReadOnlyList<BattleCaptureChoice>? captureChoices = null,
+        IReadOnlyList<BattleItemChoice>? battleItems = null)
     {
         _battle = battle;
         _enemyAction = enemyAction;
         _formChoices = formChoices ?? [];
         _captureChoices = captureChoices ?? [];
+        _battleItems = battleItems ?? [];
         _nameOf = nameOf ?? (id => id.ToString());
         RefreshMenu();
     }
@@ -153,6 +162,16 @@ public sealed class BattleScene
             var action = new ThrowBall(capture.BallBonus, capture.StatusBonus);
             if (_battle.CanSubmitAction(BattleSide.Player, action))
                 items.Add(new BattleMenuItem($"Throw {_nameOf(capture.Item)}", action, capture.Item));
+        }
+
+        // Consumables target the active creature. Core applies the authored heal; the label carries
+        // the pocket so the Items panel can group by type.
+        int activeIndex = _battle.ActiveIndex(BattleSide.Player);
+        foreach (BattleItemChoice choice in _battleItems)
+        {
+            var action = new UseBattleItem(choice.Item, activeIndex, choice.HealAmount);
+            if (_battle.CanSubmitAction(BattleSide.Player, action))
+                items.Add(new BattleMenuItem($"Use {_nameOf(choice.Item)}", action, choice.Item));
         }
 
         var run = new Run();

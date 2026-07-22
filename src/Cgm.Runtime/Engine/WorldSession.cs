@@ -167,6 +167,32 @@ public sealed class WorldSession
             .OrderBy(id => id.ToString(), StringComparer.Ordinal)
             .ToList();
 
+    /// <summary>Carried consumables usable in battle (potions, revives, …): battle-usable, non-key,
+    /// and not a capture device (those throw via <see cref="CaptureItems"/>). The heal amount is the
+    /// authored value from the item's battle effects; Core applies it. Grouped by pocket for display.</summary>
+    public IReadOnlyList<BattleItemChoice> BattleItems() =>
+        Bag.Where(entry => entry.Value > 0)
+            .Select(entry => _db.Find<Item>(entry.Key))
+            .OfType<Item>()
+            .Where(item => item.UsableInBattle && !item.KeyItem
+                && !string.Equals(item.Pocket, "balls", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(item => item.Pocket, StringComparer.Ordinal).ThenBy(item => item.Id.ToString(), StringComparer.Ordinal)
+            .Select(item => new BattleItemChoice(item.Id, BattleHeal(item), item.Pocket))
+            .ToList();
+
+    /// <summary>The authored heal amount from an item's effects, or 0 for a non-healing item. Reads
+    /// the general <see cref="Item.Effects"/>: a potion restores the same HP in the field or in
+    /// battle, and <c>battleEffects</c> is reserved for the closed held-item op palette.</summary>
+    private static int BattleHeal(Item item)
+    {
+        foreach (Effect effect in item.Effects)
+            if (effect.Op == "heal" && effect.Params is { } p
+                && p.TryGetValue("amount", out System.Text.Json.JsonElement amount)
+                && amount.TryGetInt32(out int value))
+                return value;
+        return 0;
+    }
+
     /// <summary>One world RNG stream for the whole session, so encounters replay identically.</summary>
     public IRng Rng { get; }
 
