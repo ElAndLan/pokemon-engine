@@ -268,11 +268,18 @@ public sealed class BattleHostSceneTests : IDisposable
     [Fact]
     public void StartsOnTheFirstMenuEntry() => Assert.Equal(0, Scene(_ui).SelectedIndex);
 
+    /// <summary>Root FIGHT then move 0: the two-step path from the four-way menu to a submitted move.</summary>
+    private void ChooseFirstMove(BattleHostScene scene)
+    {
+        Frame(scene, Press(GameAction.Confirm));   // open the FIGHT panel
+        Frame(scene, Press(GameAction.Confirm));   // pick the first move
+    }
+
     [Fact]
     public void ConfirmSubmitsAnActionAndQueuesTheResultingEvents()
     {
         BattleHostScene scene = Scene(_ui);
-        Frame(scene, Press(GameAction.Confirm));
+        ChooseFirstMove(scene);
         Assert.True(scene.IsPresenting, "submitting a move should produce events to present");
     }
 
@@ -281,7 +288,7 @@ public sealed class BattleHostSceneTests : IDisposable
     public void PresentationGatesFurtherInput()
     {
         BattleHostScene scene = Scene(_ui);
-        Frame(scene, Press(GameAction.Confirm));
+        ChooseFirstMove(scene);
         Assert.True(scene.IsPresenting);
 
         int before = scene.Log.Count;
@@ -294,7 +301,7 @@ public sealed class BattleHostSceneTests : IDisposable
     public void PresentationDrainsAndReturnsControl()
     {
         BattleHostScene scene = Scene(_ui);
-        Frame(scene, Press(GameAction.Confirm));
+        ChooseFirstMove(scene);
 
         for (int i = 0; i < 400 && scene.IsPresenting; i++)
             Frame(scene, Idle);
@@ -307,7 +314,7 @@ public sealed class BattleHostSceneTests : IDisposable
     public void EveryPresentedLineIsHumanReadable()
     {
         BattleHostScene scene = Scene(_ui);
-        Frame(scene, Press(GameAction.Confirm));
+        ChooseFirstMove(scene);
         for (int i = 0; i < 400 && scene.IsPresenting; i++)
             Frame(scene, Idle);
 

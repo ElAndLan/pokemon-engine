@@ -239,13 +239,16 @@ public sealed class WildVersusTrainerTests : IDisposable
         _scenes.Push(scene);
         Frame(Idle);
 
-        int throwIndex = presenter.Menu.Select((item, i) => (item, i))
-            .First(entry => entry.item.Action is ThrowBall).i;
-        for (int i = 0; i < throwIndex; i++)
-            Frame(Press(GameAction.Down));
-        Frame(Press(GameAction.Confirm));
-
+        OpenItemsAndSelectFirst();
         Assert.Equal(1, session.ItemCount(Orb));
+    }
+
+    /// <summary>Root FIGHT -> ITEMS, open the panel, select the first item (the capture device).</summary>
+    private void OpenItemsAndSelectFirst()
+    {
+        Frame(Press(GameAction.Down));      // the four-way root: FIGHT -> ITEMS
+        Frame(Press(GameAction.Confirm));   // open the ITEMS panel
+        Frame(Press(GameAction.Confirm));   // select the first item
     }
 
     /// <summary>With an empty bag the spend fails and the throw is cancelled, so a device cannot be
@@ -265,14 +268,9 @@ public sealed class WildVersusTrainerTests : IDisposable
         _scenes.Push(scene);
         Frame(Idle);
 
-        int throwIndex = presenter.Menu.Select((item, i) => (item, i))
-            .First(entry => entry.item.Action is ThrowBall).i;
-        for (int i = 0; i < throwIndex; i++)
-            Frame(Press(GameAction.Down));
-        Frame(Press(GameAction.Confirm));
-
+        OpenItemsAndSelectFirst();
         Assert.False(start.Battle!.Captured);
-        Assert.False(scene.IsPresenting);   // nothing happened at all
+        Assert.False(scene.IsPresenting);   // the spend failed, so nothing happened at all
     }
 
     [Fact]
@@ -286,8 +284,59 @@ public sealed class WildVersusTrainerTests : IDisposable
         _scenes.Push(scene);
         Frame(Idle);
 
-        Frame(Press(GameAction.Confirm));   // the first entry is a move
+        Frame(Press(GameAction.Confirm));   // open FIGHT
+        Frame(Press(GameAction.Confirm));   // submit the first move — a non-item action
         Assert.Equal(1, session.ItemCount(Orb));
+    }
+
+    // --- Four-way menu panels -----------------------------------------------------
+
+    private BattleHostScene WildScene(int orbs = 1)
+    {
+        GameDb db = Db();
+        WorldSession session = Session(db, orbs: orbs);
+        BattleStart start = BattleLauncher.Wild(db, session, WildId, 4, new Rng(2));
+        var presenter = new BattleScene(start.Battle!, b => new UseMove(0), null, id => id.Slug, Captures(session));
+        var scene = new BattleHostScene(_ui, presenter, W, H, item => session.ConsumeItem(item));
+        _scenes.Push(scene);
+        Frame(Idle);
+        return scene;
+    }
+
+    /// <summary>FIGHT opens the move panel, and choosing a move submits it.</summary>
+    [Fact]
+    public void FightPanelSubmitsAMove()
+    {
+        BattleHostScene scene = WildScene();
+        Frame(Press(GameAction.Confirm));   // open FIGHT
+        Frame(Press(GameAction.Confirm));   // move 0
+        Assert.True(scene.IsPresenting);
+    }
+
+    /// <summary>RUN (root 2x2 bottom-right) attempts to flee, which produces events or ends the battle.</summary>
+    [Fact]
+    public void RunFromTheRootAttemptsToFlee()
+    {
+        BattleHostScene scene = WildScene();
+        Frame(Press(GameAction.Down));      // FIGHT -> ITEMS
+        Frame(Press(GameAction.Right));     // ITEMS -> RUN
+        Frame(Press(GameAction.Confirm));   // flee
+        Assert.True(scene.IsPresenting || scene.Finished);
+    }
+
+    /// <summary>Cancel backs out of a sub-panel to the root without submitting anything.</summary>
+    [Fact]
+    public void CancelBacksOutOfASubPanel()
+    {
+        BattleHostScene scene = WildScene();
+        Frame(Press(GameAction.Confirm));   // open FIGHT
+        Frame(Press(GameAction.Cancel));    // back to the root menu
+        Assert.False(scene.IsPresenting);   // nothing was submitted
+
+        // Proof we are back at the root on FIGHT: two confirms reach a move again.
+        Frame(Press(GameAction.Confirm));
+        Frame(Press(GameAction.Confirm));
+        Assert.True(scene.IsPresenting);
     }
 
     // --- Both demo paths, end to end ----------------------------------------------

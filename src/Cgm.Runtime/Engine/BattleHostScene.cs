@@ -10,6 +10,11 @@ namespace Cgm.Runtime.Engine;
 /// snapshot, and HP bars animate a Core-reported value rather than recomputing damage.</summary>
 public sealed class BattleHostScene : IScene
 {
+    /// <summary>Which battle panel currently owns input: the four-way root, or a sub-screen.</summary>
+    private enum Panel { Root, Fight, Party, Items }
+
+    private static readonly string[] RootLabels = ["FIGHT", "PARTY", "ITEMS", "RUN"];
+
     private readonly UiPainter _ui;
     private readonly BattleScene _battle;
     private readonly BattleBeatQueue _beats = new();
@@ -17,7 +22,15 @@ public sealed class BattleHostScene : IScene
     private readonly ResourceBar _enemyHp;
     private readonly int _width;
     private readonly int _height;
-    private SelectionList _menu;
+
+    private Panel _panel = Panel.Root;
+    private SelectionList _root;      // FIGHT / PARTY / ITEMS / RUN, 2x2
+    private SelectionList _sub;       // the active sub-panel's list
+    // Sub-panel entries map a display row back to the Core-validated menu action.
+    private IReadOnlyList<int> _fight = [];    // snapshot.Menu indices that are UseMove
+    private IReadOnlyList<int> _items = [];    // snapshot.Menu indices that are ThrowBall / UseBattleItem
+    private IReadOnlyList<int> _party = [];    // party indices, in party order (all shown)
+    private int _runMenuIndex = -1;            // snapshot.Menu index of the Run action, or -1
     private SelectionList? _replacements;
     private int _presented;
 
@@ -46,7 +59,8 @@ public sealed class BattleHostScene : IScene
         BattleSceneSnapshot snapshot = battle.Snapshot();
         _playerHp = new ResourceBar(snapshot.PlayerHp, snapshot.PlayerMaxHp);
         _enemyHp = new ResourceBar(snapshot.EnemyHp, snapshot.EnemyMaxHp);
-        _menu = BuildMenu(snapshot);
+        _root = _sub = new SelectionList([true]);
+        RebuildMenus(snapshot);
     }
 
     public bool IsOverlay => false;
@@ -56,7 +70,7 @@ public sealed class BattleHostScene : IScene
 
     public bool Finished => Outcome is not null && !_beats.IsPresenting;
 
-    public int SelectedIndex => _menu.Selected ?? 0;
+    public int SelectedIndex => (_panel == Panel.Root ? _root.Selected : _sub.Selected) ?? 0;
 
     /// <summary>True while events are still being presented; the action menu is hidden then.</summary>
     public bool IsPresenting => _beats.IsPresenting;
@@ -93,12 +107,15 @@ public sealed class BattleHostScene : IScene
             return;
         }
 
-        foreach (GameAction direction in (GameAction[])[GameAction.Up, GameAction.Down])
+        SelectionList active = _panel == Panel.Root ? _root : _sub;
+        foreach (GameAction direction in (GameAction[])[GameAction.Up, GameAction.Down, GameAction.Left, GameAction.Right])
             if (input.WasPressed(direction))
-                _menu.Move(direction);
+                active.Move(direction);
 
         if (input.WasPressed(GameAction.Confirm))
-            Submit();
+            Confirm();
+        else if (input.WasPressed(GameAction.Cancel) && _panel != Panel.Root)
+            _panel = Panel.Root;   // back out of a sub-panel to the four-way menu
     }
 
     public void Render()
@@ -196,12 +213,59 @@ public sealed class BattleHostScene : IScene
             return;
         }
 
-        for (int i = 0; i < snapshot.Menu.Count && i < 4; i++)
+        switch (_panel)
+        {
+            case Panel.Root: DrawRoot(box, ink); break;
+            case Panel.Fight: DrawActionList(box, ink, _fight, snapshot); break;
+            case Panel.Items: DrawActionList(box, ink, _items, snapshot); break;
+            case Panel.Party: DrawParty(box, ink, snapshot); break;
+        }
+    }
+
+    private static readonly Rgba Cursor = new(0xC0, 0x40, 0x30, 0xFF);
+    private static readonly Rgba Disabled = new(0xA0, 0x9C, 0x90, 0xFF);
+
+    /// <summary>The four-way root menu as a 2x2 grid: FIGHT / PARTY over ITEMS / RUN.</summary>
+    private void DrawRoot(RectI box, Rgba ink)
+    {
+        bool[] enabled = [_fight.Count > 0, _party.Count > 0, _items.Count > 0, _runMenuIndex >= 0];
+        int colW = (box.Width - 24) / 2;
+        for (int i = 0; i < 4; i++)
+        {
+            int x = box.X + 20 + i % 2 * colW;
+            int y = box.Y + 6 + i / 2 * _ui.Font.LineHeight;
+            _ui.Text(RootLabels[i], x, y, enabled[i] ? ink : Disabled, layer: 6);
+            if (_root.Selected == i)
+                _ui.Cursor(x - 10, y, Cursor, layer: 6);
+        }
+    }
+
+    /// <summary>A one-column list of the given menu actions (moves, or items), with the cursor.</summary>
+    private void DrawActionList(RectI box, Rgba ink, IReadOnlyList<int> map, BattleSceneSnapshot snapshot)
+    {
+        for (int i = 0; i < map.Count && i < 4; i++)
         {
             int y = box.Y + 6 + i * _ui.Font.LineHeight;
-            _ui.Text(snapshot.Menu[i].Label, box.X + 18, y, ink, layer: 6);
-            if (_menu.Selected == i)
-                _ui.Cursor(box.X + 8, y, new Rgba(0xC0, 0x40, 0x30, 0xFF), layer: 6);
+            _ui.Text(snapshot.Menu[map[i]].Label, box.X + 18, y, ink, layer: 6);
+            if (_sub.Selected == i)
+                _ui.Cursor(box.X + 8, y, Cursor, layer: 6);
+        }
+    }
+
+    /// <summary>The party list: name + HP for each member; the active one is marked, switchable
+    /// members are ink, and the rest (active or fainted) are greyed.</summary>
+    private void DrawParty(RectI box, Rgba ink, BattleSceneSnapshot snapshot)
+    {
+        IReadOnlyList<BattlePartyMember> party = snapshot.PlayerParty;
+        for (int i = 0; i < party.Count && i < 4; i++)
+        {
+            BattlePartyMember m = party[i];
+            int y = box.Y + 6 + i * _ui.Font.LineHeight;
+            string tag = m.IsActive ? "* " : m.IsFainted ? "x " : "  ";
+            _ui.Text($"{tag}{m.Name}  {m.CurrentHp}/{m.MaxHp}", box.X + 18, y,
+                CanSwitchTo(i) ? ink : Disabled, layer: 6);
+            if (_sub.Selected == i)
+                _ui.Cursor(box.X + 8, y, Cursor, layer: 6);
         }
     }
 
@@ -211,21 +275,113 @@ public sealed class BattleHostScene : IScene
             ? new Rgba(0xE0, 0xC0, 0x40, 0xFF)
             : new Rgba(0xD0, 0x50, 0x40, 0xFF);
 
-    private void Submit()
+    /// <summary>Acts on the current panel's selection: the root opens a sub-panel (or runs), a
+    /// sub-panel submits the chosen Core action.</summary>
+    private void Confirm()
     {
-        BattleSceneSnapshot snapshot = _battle.Snapshot();
-        if (_menu.Selected is not { } index || index >= snapshot.Menu.Count)
+        if (_panel == Panel.Root)
+        {
+            OpenRootChoice();
+            return;
+        }
+
+        // Sub-panel: map the selected row to a Core-validated menu action and submit it.
+        int? menuIndex = _panel switch
+        {
+            Panel.Fight => Index(_fight, _sub.Selected),
+            Panel.Items => Index(_items, _sub.Selected),
+            Panel.Party => PartySwitchMenuIndex(_sub.Selected),
+            _ => null,
+        };
+        if (menuIndex is { } index)
+            SubmitMenu(index);
+    }
+
+    private void OpenRootChoice()
+    {
+        switch (_root.Selected)
+        {
+            case 0 when _fight.Count > 0: OpenPanel(Panel.Fight, _fight.Count); break;
+            case 1: OpenPanel(Panel.Party, Math.Max(1, _party.Count),
+                enabled: [.. _party.Select(CanSwitchTo)]); break;
+            case 2 when _items.Count > 0: OpenPanel(Panel.Items, _items.Count); break;
+            case 3 when _runMenuIndex >= 0: SubmitMenu(_runMenuIndex); break;
+        }
+    }
+
+    private void OpenPanel(Panel panel, int count, IReadOnlyList<bool>? enabled = null)
+    {
+        _panel = panel;
+        _sub = new SelectionList(enabled ?? [.. Enumerable.Repeat(true, count)]);
+    }
+
+    /// <summary>Submits a menu action, spending its item first so a device the bag cannot pay for is
+    /// not used at all, then returns to the root panel and drains the resulting events.</summary>
+    private void SubmitMenu(int index)
+    {
+        IReadOnlyList<BattleMenuItem> menu = _battle.Snapshot().Menu;
+        if (index < 0 || index >= menu.Count)
             return;
 
-        BattleMenuItem chosen = snapshot.Menu[index];
-
-        // Spend before submitting: a device the bag cannot pay for is not thrown at all, rather than
-        // thrown and then billed.
+        BattleMenuItem chosen = menu[index];
         if (chosen.Item is { } item && _spendItem is not null && !_spendItem(item))
             return;
 
+        _panel = Panel.Root;
         _battle.Submit(chosen.Action);
         Drain();
+    }
+
+    private static int? Index(IReadOnlyList<int> map, int? row) =>
+        row is { } r && r >= 0 && r < map.Count ? map[r] : null;
+
+    /// <summary>The Switch menu index for the party row, if that member can be switched in.</summary>
+    private int? PartySwitchMenuIndex(int? row)
+    {
+        if (row is not { } r || r < 0 || r >= _party.Count || !CanSwitchTo(_party[r]))
+            return null;
+        IReadOnlyList<BattleMenuItem> menu = _battle.Snapshot().Menu;
+        for (int i = 0; i < menu.Count; i++)
+            if (menu[i].Action is Switch s && s.PartyIndex == _party[r])
+                return i;
+        return null;
+    }
+
+    private bool CanSwitchTo(int partyIndex)
+    {
+        IReadOnlyList<BattleMenuItem> menu = _battle.Snapshot().Menu;
+        return menu.Any(item => item.Action is Switch s && s.PartyIndex == partyIndex);
+    }
+
+    /// <summary>Categorises the Core-validated action menu into the sub-panels and (re)builds the
+    /// four-way root, disabling any choice with nothing behind it.</summary>
+    private void RebuildMenus(BattleSceneSnapshot snapshot)
+    {
+        var fight = new List<int>();
+        var items = new List<int>();
+        _runMenuIndex = -1;
+        for (int i = 0; i < snapshot.Menu.Count; i++)
+        {
+            switch (snapshot.Menu[i].Action)
+            {
+                case UseMove or ActivateForm or UseFallback: fight.Add(i); break;
+                case ThrowBall or UseBattleItem: items.Add(i); break;
+                case Run: _runMenuIndex = i; break;
+            }
+        }
+        _fight = fight;
+        _items = items;
+        _party = [.. Enumerable.Range(0, snapshot.PlayerParty.Count)];
+
+        bool[] rootEnabled = [_fight.Count > 0, _party.Count > 0, _items.Count > 0, _runMenuIndex >= 0];
+        _root = new SelectionList(rootEnabled, columns: 2);
+        if (_panel != Panel.Root && (_panel switch
+        {
+            Panel.Fight => _fight.Count == 0,
+            Panel.Items => _items.Count == 0,
+            _ => false,
+        }))
+            _panel = Panel.Root;   // the sub-panel emptied out (last move's PP, last ball); fall back
     }
 
     /// <summary>Queues every event Core produced since the last drain, in order. Replacements are
@@ -241,7 +397,7 @@ public sealed class BattleHostScene : IScene
         BattleSceneSnapshot snapshot = _battle.Snapshot();
         _playerHp.Set(snapshot.PlayerHp, snapshot.PlayerMaxHp);
         _enemyHp.Set(snapshot.EnemyHp, snapshot.EnemyMaxHp);
-        _menu = BuildMenu(snapshot);
+        RebuildMenus(snapshot);
     }
 
     /// <summary>The eligible reserves for the slot currently awaiting a player choice: party members
@@ -319,7 +475,4 @@ public sealed class BattleHostScene : IScene
 
     private static IReadOnlyList<int> Eligible(IReadOnlyList<BattlePartyMember> party) =>
         [.. Enumerable.Range(0, party.Count).Where(i => !party[i].IsActive && !party[i].IsFainted)];
-
-    private static SelectionList BuildMenu(BattleSceneSnapshot snapshot) =>
-        new(Enumerable.Repeat(true, Math.Max(1, snapshot.Menu.Count)));
 }
