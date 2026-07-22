@@ -384,13 +384,22 @@ public sealed class OverworldScene : IScene
         return true;
     }
 
+    /// <summary>The player's interpolated pixel offset within the current step — the same value the
+    /// sprite and the camera follow, so they can never drift apart. Presentation only, never written
+    /// back to Core.</summary>
+    private (int X, int Y) WalkOffset()
+    {
+        if (_mover.State != MoverState.Moving)
+            return (0, 0);
+        (int dx, int dy) = Offset(_mover.Facing);
+        int progress = (int)(_mover.Progress * _tileSize);
+        return (dx * progress, dy * progress);
+    }
+
     private void DrawPlayer()
     {
-        // Interpolate along the facing between tiles; presentation only, never written back.
-        (int dx, int dy) = _mover.State == MoverState.Moving ? Offset(_mover.Facing) : (0, 0);
-        int progress = (int)(_mover.Progress * _tileSize);
         RectI tile = TileRect(_mover.Position.X, _mover.Position.Y);
-        int ox = dx * progress, oy = dy * progress;
+        (int ox, int oy) = WalkOffset();
 
         // Character sprites are taller than a tile, so they anchor by the feet: bottom-aligned to the
         // tile and horizontally centred, with the top overhanging upward. Layer 1 keeps the player
@@ -429,10 +438,17 @@ public sealed class OverworldScene : IScene
         return cells;
     }
 
-    private void UpdateCamera() => Camera = Engine.Camera.Clamp(
-        _mover.Position.X * _tileSize + _tileSize / 2,
-        _mover.Position.Y * _tileSize + _tileSize / 2,
-        _width, _height, _map.Width * _tileSize, _map.Height * _tileSize);
+    /// <summary>Camera follows the interpolated player presentation (ENGINE_RUNTIME_SPEC), not the
+    /// committed tile — tracking mid-step keeps the follow smooth instead of leaping a tile at a
+    /// time when the step lands.</summary>
+    private void UpdateCamera()
+    {
+        (int ox, int oy) = WalkOffset();
+        Camera = Engine.Camera.Clamp(
+            _mover.Position.X * _tileSize + _tileSize / 2 + ox,
+            _mover.Position.Y * _tileSize + _tileSize / 2 + oy,
+            _width, _height, _map.Width * _tileSize, _map.Height * _tileSize);
+    }
 
     private static Facing? Direction(GameAction? action) => action switch
     {

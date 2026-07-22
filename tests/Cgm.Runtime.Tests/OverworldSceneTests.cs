@@ -245,6 +245,25 @@ public sealed class OverworldSceneTests : IDisposable
         Assert.True(scene.Camera.X > before);
     }
 
+    /// <summary>The camera tracks the interpolated player presentation (ENGINE_RUNTIME_SPEC), so it
+    /// advances every tick of a step rather than leaping a full tile when the step commits.</summary>
+    [Fact]
+    public void Camera_TracksMidStep_NeverJumpsAWholeTile()
+    {
+        OverworldScene scene = Scene(Map(64, 64), new GridPos(32, 32), Facing.Right);
+        int previous = scene.Camera.X;
+        bool moved = false;
+        for (int i = 0; i < 40; i++)
+        {
+            scene.Update(Hold(GameAction.Right));
+            int step = scene.Camera.X - previous;
+            Assert.InRange(step, 0, Tile / 4); // smooth: a few pixels per tick, never a tile
+            moved |= step > 0;
+            previous = scene.Camera.X;
+        }
+        Assert.True(moved);
+    }
+
     // --- Rendering ----------------------------------------------------------------
 
     [Fact]
