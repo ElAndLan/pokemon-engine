@@ -53,6 +53,10 @@ derived/                     # slicer metadata, import staging (regenerable)
 | startMap | id `map:*` | · `startPos` `{x,y}` · `startFacing` enum down/up/left/right |
 | starterParty | id[] `species:*` | 1–6; instances rolled at new-game |
 | playerSprites | `{front,back,walkClips}` | sprite/anim IDs |
+
+- **`walkClips`** is four `anim:*` clips ordered by `Facing` (Down, Up, Left, Right). Each clip's
+  **frame 0 is the standing pose**, shown by the runtime whenever the character is idle; the runtime
+  advances the clip only while moving, one fixed tick at a time (deterministic, replay-safe).
 | typeChart | id `... ` | implicit: the set of `type:*` entities + their relations (§4.2) |
 | pockets | string[] | ordered pocket keys (default: `items,medicine,balls,key`) |
 | boxes | `{count,capacity,names[]}` | default count 8, capacity 30 |

@@ -23,6 +23,9 @@ public sealed class OverworldScene : IScene
     private readonly int _tileSize;
     private readonly int _width;
     private readonly int _height;
+    private readonly WalkAnimator? _playerWalk;
+    private readonly double _tickMs;
+    private EntityId? _playerSprite;
     private Typewriter? _dialogue;
 
     public OverworldScene(UiPainter ui, Map map, IReadOnlyList<Tileset> tilesets, GridPos start,
@@ -30,7 +33,8 @@ public sealed class OverworldScene : IScene
         FlagStore? flags = null, IRng? rng = null,
         IReadOnlyDictionary<EntityId, Trainer>? trainers = null,
         IReadOnlyDictionary<EntityId, EncounterTable>? tables = null,
-        SpriteAtlas? sprites = null)
+        SpriteAtlas? sprites = null, WalkAnimator? playerWalk = null,
+        double tickMs = 1000.0 / Cgm.Core.Timing.FixedStepClock.DefaultTickRate)
     {
         ArgumentNullException.ThrowIfNull(ui);
         ArgumentNullException.ThrowIfNull(map);
@@ -48,6 +52,8 @@ public sealed class OverworldScene : IScene
         _width = virtualWidth;
         _height = virtualHeight;
         _sprites = sprites;
+        _playerWalk = playerWalk;
+        _tickMs = tickMs;
         // The same flattening MapCollision uses, so the tile a player walks through is the tile drawn.
         _palette = new TilePalette(tilesets);
         _collision = MapCollision.Derive(map, tilesets);
@@ -130,6 +136,10 @@ public sealed class OverworldScene : IScene
         GridPos before = _mover.Position;
         _mover.Tick(Direction(_merger.Direction()));
         UpdateCamera();
+
+        // Advance the walk cycle by one tick, in sync with the sim, so the sprite and the movement
+        // interpolation never drift apart.
+        _playerSprite = _playerWalk?.Advance(_mover.Facing, _mover.State == MoverState.Moving, _tickMs);
 
         // NPCs tick after the player, in ordinal key order, sharing the session RNG stream.
         foreach (NpcActor npc in _npcs)
@@ -328,7 +338,24 @@ public sealed class OverworldScene : IScene
         (int dx, int dy) = _mover.State == MoverState.Moving ? Offset(_mover.Facing) : (0, 0);
         int progress = (int)(_mover.Progress * _tileSize);
         RectI tile = TileRect(_mover.Position.X, _mover.Position.Y);
-        _ui.Panel(tile with { X = tile.X + dx * progress, Y = tile.Y + dy * progress },
+        int ox = dx * progress, oy = dy * progress;
+
+        // Character sprites are taller than a tile, so they anchor by the feet: bottom-aligned to the
+        // tile and horizontally centred, with the top overhanging upward. Layer 1 keeps the player
+        // under decoAbove canopies (layer 2) and over the ground (layer 0).
+        if (_sprites is not null && _playerSprite is { } sprite
+            && _sprites.TryGet(sprite, out TextureHandle texture, out RectI source))
+        {
+            var dest = new RectI(
+                tile.X + (_tileSize - source.Width) / 2 + ox,
+                tile.Y + _tileSize - source.Height + oy,
+                source.Width, source.Height);
+            _ui.Sprite(texture, source, dest, layer: 1);
+            return;
+        }
+
+        // No art (or none resolved): the flat marker keeps an unarted map playable.
+        _ui.Panel(tile with { X = tile.X + ox, Y = tile.Y + oy },
             new Rgba(0xF0, 0xC0, 0x40, 0xFF), layer: 1);
     }
 
