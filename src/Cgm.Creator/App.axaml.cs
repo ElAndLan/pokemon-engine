@@ -16,8 +16,10 @@ public partial class App : Application
         {
             var window = new MainWindow();
             var dialogs = new AvaloniaDialogService(() => window);
-            window.DataContext = new MainWindowViewModel(dialogs);
+            var viewModel = new MainWindowViewModel(dialogs);
+            window.DataContext = viewModel;
             desktop.MainWindow = window;
+            desktop.Exit += (_, _) => viewModel.Session?.Close(); // clean close releases the lock (§10.3)
         }
 
         base.OnFrameworkInitializationCompleted();

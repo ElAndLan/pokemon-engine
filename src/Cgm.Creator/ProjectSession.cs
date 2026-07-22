@@ -33,6 +33,9 @@ public sealed class ProjectSession
 
     public static ProjectSession Open(string folder)
     {
+        // Spec §10.1 order: lock first (refuse a second writer before touching anything), then
+        // finish any interrupted save, then load the now-consistent project.
+        Editing.ProjectLock.Acquire(folder);
         bool rolledBack = Editing.SaveTransaction.RollbackIfUnfinished(folder);
         Project project = ProjectLoader.Load(folder);
         return new ProjectSession(folder, project.Settings, project.Entities.ToDictionary(e => e.Id))
@@ -40,6 +43,9 @@ public sealed class ProjectSession
             RolledBackInterruptedSave = rolledBack,
         };
     }
+
+    /// <summary>Clean close: releases this process's lock. Safe to call more than once.</summary>
+    public void Close() => Editing.ProjectLock.Release(Folder);
 
     /// <summary>A read-only view for validation.</summary>
     public Project Snapshot() => new(Settings, _entities);

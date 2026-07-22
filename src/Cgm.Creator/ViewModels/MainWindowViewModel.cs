@@ -143,15 +143,24 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public void OpenProject(string folder)
     {
+        ProjectSession? previous = Session;
         try
         {
             Session = ProjectSession.Open(folder);
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException
+            or InvalidOperationException) // InvalidOperation = locked by another Creator (§10.3)
         {
             StatusText = $"Could not open project: {ex.Message}";
             return;
         }
+
+        // Release the old project's lock only once the new one opened — but not when reopening the
+        // same folder, where "previous" and the new session share one lock file.
+        if (previous is not null && !string.Equals(previous.Folder, Session.Folder, StringComparison.OrdinalIgnoreCase))
+            previous.Close();
+        if (Session.RolledBackInterruptedSave)
+            StatusText = "An interrupted save from a previous session was rolled back.";
 
         Documents.Clear();
         ActiveDocument = null;

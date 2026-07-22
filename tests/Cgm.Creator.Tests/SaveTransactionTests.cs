@@ -109,11 +109,14 @@ public sealed class SaveTransactionTests : IDisposable
     }
 
     [Fact]
-    public void EmptySave_TouchesNothing()
+    public void EmptySave_WritesNoSaveArtifacts()
     {
         var session = ProjectSession.Open(_dir);
         session.Save();
-        Assert.False(Directory.Exists(PathOf(".cgm")));
+        // The lock file (§10.3) lives in .cgm too; an empty save must add nothing beyond it.
+        Assert.False(File.Exists(PathOf(".cgm/save-journal.json")));
+        Assert.False(Directory.Exists(PathOf(".cgm/staging")));
+        Assert.False(Directory.Exists(PathOf(".cgm/backup")));
     }
 
     [Fact]
