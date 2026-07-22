@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 10,
+  "id": "anim:player_walk_left",
+  "name": "Player walk left",
+  "frames": [
+    {
+      "sprite": "sprite:player_left_0",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_left_1",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_left_2",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_left_1",
+      "ms": 130
+    }
+  ],
+  "loop": true
+}

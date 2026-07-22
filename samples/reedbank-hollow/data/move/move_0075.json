@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 10,
+  "id": "move:move_0075",
+  "name": "Vine Rush",
+  "type": "type:reference_12",
+  "damageClass": "physical",
+  "power": 55,
+  "accuracy": 95,
+  "pp": 25,
+  "priority": 0,
+  "critStage": 1,
+  "makesContact": false,
+  "target": "allOpponents",
+  "effects": [
+    {
+      "op": "damage"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 10,
+  "id": "item:capture_orb",
+  "name": "Capture Orb",
+  "pocket": "balls",
+  "price": 200,
+  "consumable": true,
+  "usableInField": false,
+  "usableInBattle": true,
+  "holdable": false,
+  "keyItem": false,
+  "effects": [
+    {
+      "op": "capture",
+      "params": {
+        "ballBonus": 2
+      }
+    }
+  ],
+  "battleEffects": []
+}

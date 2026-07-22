@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 10,
+  "id": "species:pyrevenant",
+  "name": "Pyrevenant",
+  "types": [
+    "type:reference_10",
+    "type:reference_08"
+  ],
+  "baseStats": {
+    "hp": 80,
+    "atk": 94,
+    "def": 74,
+    "spa": 112,
+    "spd": 84,
+    "spe": 102
+  },
+  "weightHectograms": 60,
+  "heightDecimeters": 5,
+  "evYield": {
+    "hp": 0,
+    "atk": 0,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 1
+  },
+  "baseExp": 200,
+  "growthRate": "medium-fast",
+  "catchRate": 45,
+  "baseHappiness": 70,
+  "genderFemaleEighths": 4,
+  "eggCycles": 20,
+  "eggGroups": [],
+  "learnset": [
+    {
+      "level": 1,
+      "move": "move:move_0257"
+    },
+    {
+      "level": 1,
+      "move": "move:move_0506"
+    }
+  ],
+  "evolutions": [],
+  "abilities": [],
+  "forms": [],
+  "sprites": {
+    "front": "sprite:pyrevenant_front",
+    "back": "sprite:pyrevenant_back"
+  }
+}

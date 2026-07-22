@@ -46,6 +46,7 @@ public enum WarpTransition { Door, Edge, Stairs }
 [JsonDerivedType(typeof(PickupEntity), "pickup")]
 [JsonDerivedType(typeof(SignEntity), "sign")]
 [JsonDerivedType(typeof(TriggerEntity), "trigger")]
+[JsonDerivedType(typeof(ObjectEntity), "object")]
 public abstract record MapEntity
 {
     /// <summary>Stable identity within its map, immutable once authored. Runtime, saves, and
@@ -89,6 +90,14 @@ public sealed record PickupEntity : MapEntity
 public sealed record SignEntity : MapEntity
 {
     public string Text { get; init; } = "";
+}
+
+/// <summary>A placed multi-tile object (a building, a sign post), referencing an <c>object:*</c>
+/// definition (§4.10) at a map position. The object's footprint, collision, anchor, and sprite live
+/// on the definition; placement only says which object and where (schema v11).</summary>
+public sealed record ObjectEntity : MapEntity
+{
+    public EntityId Object { get; init; }
 }
 
 public sealed record TriggerEntity : MapEntity

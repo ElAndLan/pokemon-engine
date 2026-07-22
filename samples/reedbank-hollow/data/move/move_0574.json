@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 10,
+  "id": "move:move_0574",
+  "name": "Glimmer Wave",
+  "type": "type:reference_18",
+  "damageClass": "special",
+  "power": 40,
+  "pp": 15,
+  "priority": 0,
+  "critStage": 0,
+  "makesContact": false,
+  "target": "allOpponents",
+  "effects": [
+    {
+      "op": "damage"
+    }
+  ]
+}

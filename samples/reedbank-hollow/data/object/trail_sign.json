@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 10,
+  "id": "object:trail_sign",
+  "name": "Reedbank Trail Sign",
+  "footprintW": 3,
+  "footprintH": 2,
+  "collision": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "anchor": {
+    "x": 1,
+    "y": 1
+  },
+  "layer": "below",
+  "sprite": "sprite:trail_sign",
+  "interaction": [
+    {
+      "op": "dialogue",
+      "text": "REEDBANK HOLLOW - clinic west, trainer trail east, deep reeds south."
+    }
+  ]
+}

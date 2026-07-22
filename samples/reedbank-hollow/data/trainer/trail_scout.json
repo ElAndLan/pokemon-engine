@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 10,
+  "id": "trainer:trail_scout",
+  "name": "Mira",
+  "class": "Trail Scout",
+  "overworldSprite": "sprite:npc_scout",
+  "sightRange": 4,
+  "aiProfile": "basic",
+  "money": 120,
+  "party": [
+    {
+      "species": "species:censeral",
+      "level": 5,
+      "moves": [
+        "move:move_0257",
+        "move:move_0506"
+      ]
+    }
+  ],
+  "dialogue": {
+    "sight": "I spotted you from the marker stones!",
+    "intro": "Let me see how your new partner handles the trail.",
+    "defeat": "Good footing. You earned that win.",
+    "postDefeat": "The duo farther east battles together. Bring two healthy partners."
+  }
+}

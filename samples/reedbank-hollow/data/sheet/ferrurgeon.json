@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 10,
+  "id": "sheet:ferrurgeon",
+  "name": "ferrurgeon",
+  "asset": "assets/creatures/ferrurgeon.png",
+  "mode": "rects",
+  "cellW": 0,
+  "cellH": 0,
+  "offsetX": 0,
+  "offsetY": 0,
+  "spacingX": 0,
+  "spacingY": 0,
+  "cells": [
+    {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "spriteId": "sprite:ferrurgeon_front",
+      "class": "creatureFront",
+      "tags": [
+        "battle-front"
+      ]
+    },
+    {
+      "rect": {
+        "x": 64,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "spriteId": "sprite:ferrurgeon_back",
+      "class": "creatureBack",
+      "tags": [
+        "battle-back"
+      ]
+    }
+  ],
+  "imageW": 128,
+  "imageH": 64
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 10,
+  "id": "type:reference_18",
+  "name": "Fairy",
+  "doubleDamageTo": [
+    "type:reference_08"
+  ],
+  "halfDamageTo": [
+    "type:reference_10"
+  ],
+  "noDamageTo": []
+}

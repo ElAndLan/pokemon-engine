@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 10,
+  "id": "sheet:trainer_characters",
+  "name": "Private placeholder characters",
+  "asset": "assets/world/trainer_characters.png",
+  "colorKey": "#0080FF",
+  "mode": "rects",
+  "cellW": 0,
+  "cellH": 0,
+  "offsetX": 0,
+  "offsetY": 0,
+  "spacingX": 0,
+  "spacingY": 0,
+  "cells": [
+    {
+      "rect": {
+        "x": 2,
+        "y": 3,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_down_0",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 23,
+        "y": 3,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_down_1",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 44,
+        "y": 3,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_down_2",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 2,
+        "y": 31,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_left_0",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 23,
+        "y": 31,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_left_1",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 44,
+        "y": 31,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_left_2",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 2,
+        "y": 59,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_up_0",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 23,
+        "y": 59,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_up_1",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 44,
+        "y": 59,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_up_2",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 2,
+        "y": 87,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_right_0",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 23,
+        "y": 87,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_right_1",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 44,
+        "y": 87,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:player_right_2",
+      "class": "character",
+      "tags": [
+        "player"
+      ]
+    },
+    {
+      "rect": {
+        "x": 359,
+        "y": 184,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:npc_resident",
+      "class": "character",
+      "tags": [
+        "resident"
+      ]
+    },
+    {
+      "rect": {
+        "x": 334,
+        "y": 221,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:npc_scout",
+      "class": "character",
+      "tags": [
+        "trainer"
+      ]
+    },
+    {
+      "rect": {
+        "x": 334,
+        "y": 350,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:npc_duo_alpha",
+      "class": "character",
+      "tags": [
+        "trainer"
+      ]
+    },
+    {
+      "rect": {
+        "x": 14,
+        "y": 350,
+        "w": 21,
+        "h": 28
+      },
+      "spriteId": "sprite:npc_duo_beta",
+      "class": "character",
+      "tags": [
+        "trainer"
+      ]
+    }
+  ],
+  "imageW": 411,
+  "imageH": 474
+}

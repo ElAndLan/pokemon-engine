@@ -1,16 +1,18 @@
 # DATA_SCHEMA
 
-Status: **Schema v7 (2026-07-16)** — the single source of truth for all serialized shapes.
+Status: **Schema v11 (2026-07-21)** — the single source of truth for all serialized shapes.
 Derived from the local PokeAPI corpus per [ADR-010](adr/ADR-010-pokeapi-derived-schema.md).
 Changes require a `schemaVersion` bump + migration + this doc edited in the same change
 (CLAUDE.md §2). v3 adds the move contact marker used by Phase 15 contact hooks; v4 expands the
 move target vocabulary required by Phase 15B topology; v5 adds positive species weight/height
 metrics required by Phase 15C-3 formulas; v6 adds the `onTerrainChange` ability-hook enum value
 required by the Phase 15E-3 terrain lifecycle; v7 adds the `onGroundedQuery` ability-hook enum value
-required by the Phase 15E-3 shared grounded-state query. Save-file
+required by the Phase 15E-3 shared grounded-state query; v8 adds stable map-entity keys, v9 closes
+the world-action vocabulary, v10 records source-image dimensions, and v11 adds the
+`onEscapeAttempt` ability-hook enum value. Save-file
 ability/form progression remains under `saveFormatVersion`.
 
-Scope of v7: the MVP + vertical-slice entities plus Phase 15 Core authoring data. Numbers in
+Scope of v11: the MVP + vertical-slice entities plus current Core and Runtime authoring data. Numbers in
 `(PokeAPI: x)` note the source field.
 
 ---
@@ -18,7 +20,7 @@ Scope of v7: the MVP + vertical-slice entities plus Phase 15 Core authoring data
 ## 1. Conventions
 - One JSON file per entity: `data/<category>/<id-slug>.json`. UTF-8, `\n`, 2-space indent,
   **stable property order** (byte-stable output so git diffs and fixtures stay honest).
-- Every file starts: `{ "schemaVersion": 7, "id": "<category:slug>", "name": "<display>", ... }`.
+- Every file starts: `{ "schemaVersion": 11, "id": "<category:slug>", "name": "<display>", ... }`.
 - Unknown fields tolerated on read (forward-compat); never written back.
 - All numbers are integers unless the field says otherwise. `null` = "not applicable" (e.g. a
   status move has `power: null`), distinct from `0`.
@@ -176,7 +178,8 @@ Prose `effect_entries` are discarded (ADR-010).
 
 **AbilityHook**: `{ hook, effects[] }`, where `hook` is one of `onSwitchIn`,
 `onModifyOutgoingDamage`, `onModifyIncomingDamage`, `onStatusAttempt`, `onEndOfTurn`,
-`onContactReceived`, `onWeatherChange`, `onTerrainChange`, `onGroundedQuery`. `onModifyStat` and `onFaint` are reserved/deferred enum
+`onContactReceived`, `onWeatherChange`, `onTerrainChange`, `onGroundedQuery`, `onEscapeAttempt`.
+`onEscapeAttempt` admits only the parameterless `escapeBlock` op. `onModifyStat` and `onFaint` are reserved/deferred enum
 values and are rejected by Phase 15 validation until BATTLE_SYSTEM_SPEC.md assigns closed ops to
 those timings. `effects[]` uses the shared `Effect` shape with the closed ability-op palette in
 BATTLE_SYSTEM_SPEC.md.
@@ -224,7 +227,11 @@ BATTLE_SYSTEM_SPEC.md.
 `player-start {key,pos,facing}` · `npc {key,pos,facing,sprite,move:static|wander|patrol,
 radius?/path?, dialogue?/trainer:id?}` · `warp {key,pos,target:map, targetPos,
 transition:door|edge|stairs}` · `pickup {key,pos,item,qty,flag}` · `sign {key,pos,text}` ·
-`trigger {key,pos,condition,actions[]}` (Phase 7+).
+`trigger {key,pos,condition,actions[]}` (Phase 7+) ·
+`object {key,pos,object:id}` (**schema v11**, 2026-07-22): places a multi-tile `object:*`
+definition (§4.10) at a map position. Footprint, collision, anchor, and sprite live on the
+definition; the placement only says which object and where. `object` is a reference and is checked
+by broken-reference validation.
 
 - **`key`** is the entity's stable identity *within its map*: non-empty, unique per map, and
   immutable once authored. Runtime, saves, and diagnostics address entities by key and never by list
@@ -353,3 +360,7 @@ or accept the documented fallback-to-defaults path.
   from the document and Core must not decode images, so migrated sheets keep `0` and the
   `sheet-slice` rule reports them as needing re-import. Inventing a size would produce cells that
   slice the wrong pixels **and pass validation**, which is strictly worse than a loud error.
+- v10→v11: no-op data migration bundling two additive changes shipped together. (1) `onEscapeAttempt`
+  is an additive ability-hook enum value; every existing ability hook remains valid. (2) The `object`
+  map-entity placement kind (§4.11a) becomes available; a map without placed objects is unchanged.
+  Both are additive, so older files require no rewritten fields.

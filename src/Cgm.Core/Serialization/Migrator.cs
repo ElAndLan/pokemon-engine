@@ -23,7 +23,7 @@ public static class Migrator
     private static readonly IReadOnlyList<IJsonMigration> Registered =
     [
         new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6(), new V6ToV7(),
-        new V7ToV8(), new V8ToV9(), new V9ToV10(),
+        new V7ToV8(), new V8ToV9(), new V9ToV10(), new V10ToV11(),
     ];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
@@ -126,6 +126,14 @@ public static class Migrator
         private static string? Existing(JsonObject entity) =>
             entity["key"] is JsonValue value && value.TryGetValue(out string? key)
                 && !string.IsNullOrWhiteSpace(key) ? key : null;
+    }
+
+    /// <summary>Adds the <c>object</c> map-entity placement kind (DATA_SCHEMA §4.11a). Additive: a
+    /// map without placed objects is unchanged, so no document needs rewriting.</summary>
+    private sealed class V10ToV11 : IJsonMigration
+    {
+        public int FromVersion => 10;
+        public void Apply(JsonObject json) { }
     }
 
     /// <summary>Sheets record their source image size (DATA_SCHEMA §4.6). The size cannot be derived

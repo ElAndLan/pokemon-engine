@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 10,
+  "id": "species:petalune",
+  "name": "Petalune",
+  "types": [
+    "type:reference_12",
+    "type:reference_18"
+  ],
+  "baseStats": {
+    "hp": 62,
+    "atk": 68,
+    "def": 62,
+    "spa": 78,
+    "spd": 72,
+    "spe": 66
+  },
+  "weightHectograms": 60,
+  "heightDecimeters": 5,
+  "evYield": {
+    "hp": 0,
+    "atk": 0,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 1
+  },
+  "baseExp": 100,
+  "growthRate": "medium-fast",
+  "catchRate": 105,
+  "baseHappiness": 70,
+  "genderFemaleEighths": 4,
+  "eggCycles": 20,
+  "eggGroups": [],
+  "learnset": [
+    {
+      "level": 1,
+      "move": "move:move_0075"
+    },
+    {
+      "level": 1,
+      "move": "move:move_0574"
+    }
+  ],
+  "evolutions": [
+    {
+      "target": "species:sylvalume",
+      "trigger": "levelUp",
+      "minLevel": 7
+    }
+  ],
+  "abilities": [],
+  "forms": [],
+  "sprites": {
+    "front": "sprite:petalune_front",
+    "back": "sprite:petalune_back"
+  }
+}

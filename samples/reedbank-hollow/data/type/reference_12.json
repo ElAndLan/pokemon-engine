@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 10,
+  "id": "type:reference_12",
+  "name": "Grass",
+  "doubleDamageTo": [
+    "type:reference_11"
+  ],
+  "halfDamageTo": [
+    "type:reference_10",
+    "type:reference_12"
+  ],
+  "noDamageTo": []
+}

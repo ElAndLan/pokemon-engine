@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 10,
+  "id": "move:move_0257",
+  "name": "Cinder Gale",
+  "type": "type:reference_10",
+  "damageClass": "special",
+  "power": 95,
+  "accuracy": 90,
+  "pp": 10,
+  "priority": 0,
+  "critStage": 0,
+  "makesContact": false,
+  "target": "allOpponents",
+  "effects": [
+    {
+      "op": "damage"
+    },
+    {
+      "op": "ailment",
+      "chance": 10,
+      "params": {
+        "ailment": "burn"
+      }
+    }
+  ]
+}

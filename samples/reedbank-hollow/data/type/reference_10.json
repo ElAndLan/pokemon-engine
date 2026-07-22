@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 10,
+  "id": "type:reference_10",
+  "name": "Fire",
+  "doubleDamageTo": [
+    "type:reference_12",
+    "type:reference_09"
+  ],
+  "halfDamageTo": [
+    "type:reference_10",
+    "type:reference_11"
+  ],
+  "noDamageTo": []
+}

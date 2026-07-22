@@ -83,6 +83,27 @@ public sealed class ProjectLoaderTests
         Assert.IsType<WarpEntity>(back.Entities[2]);
     }
 
+    /// <summary>The v11 <c>object</c> placement kind carries an <c>object:*</c> reference and survives
+    /// the polymorphic round-trip like every other kind.</summary>
+    [Fact]
+    public void ObjectPlacementEntity_RoundTripsWithItsReference()
+    {
+        var map = new Map
+        {
+            Id = EntityId.Parse("map:m"), Width = 4, Height = 4,
+            Entities = [new ObjectEntity { Key = "clinic", Pos = new GridPos(1, 2), Object = EntityId.Parse("object:clinic") }],
+        };
+
+        Map back = Cgm.Core.Serialization.CgmJson.Deserialize<Map>(Cgm.Core.Serialization.CgmJson.Serialize(map));
+        var placed = Assert.IsType<ObjectEntity>(Assert.Single(back.Entities));
+        Assert.Equal("clinic", placed.Key);
+        Assert.Equal(new GridPos(1, 2), placed.Pos);
+        Assert.Equal(EntityId.Parse("object:clinic"), placed.Object);
+
+        // The reference is reachable by the reflection walk, so broken-reference validation covers it.
+        Assert.Contains(EntityId.Parse("object:clinic"), EntityReferences.Collect(placed));
+    }
+
     [Fact]
     public void Contains_And_Find_BehaveForMissing()
     {

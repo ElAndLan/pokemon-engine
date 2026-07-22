@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 10,
+  "id": "type:reference_11",
+  "name": "Water",
+  "doubleDamageTo": [
+    "type:reference_10"
+  ],
+  "halfDamageTo": [
+    "type:reference_11",
+    "type:reference_12"
+  ],
+  "noDamageTo": []
+}

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 10,
+  "id": "sheet:reedbank_objects",
+  "name": "Reedbank building and sign",
+  "asset": "assets/world/marsh_terrain.png",
+  "colorKey": "#FFFFFF",
+  "mode": "rects",
+  "cellW": 0,
+  "cellH": 0,
+  "offsetX": 0,
+  "offsetY": 0,
+  "spacingX": 0,
+  "spacingY": 0,
+  "cells": [
+    {
+      "rect": {
+        "x": 0,
+        "y": 2992,
+        "w": 160,
+        "h": 176
+      },
+      "spriteId": "sprite:reedbank_clinic",
+      "class": "object",
+      "tags": [
+        "building"
+      ]
+    },
+    {
+      "rect": {
+        "x": 176,
+        "y": 3136,
+        "w": 48,
+        "h": 40
+      },
+      "spriteId": "sprite:trail_sign",
+      "class": "object",
+      "tags": [
+        "sign"
+      ]
+    }
+  ],
+  "imageW": 256,
+  "imageH": 3296
+}

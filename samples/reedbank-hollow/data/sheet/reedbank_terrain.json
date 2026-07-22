@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 10,
+  "id": "sheet:reedbank_terrain",
+  "name": "Reedbank terrain cells",
+  "asset": "assets/world/marsh_terrain.png",
+  "mode": "rects",
+  "cellW": 0,
+  "cellH": 0,
+  "offsetX": 0,
+  "offsetY": 0,
+  "spacingX": 0,
+  "spacingY": 0,
+  "cells": [
+    {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "spriteId": "sprite:ground_reed",
+      "class": "tile",
+      "tags": [
+        "ground"
+      ]
+    },
+    {
+      "rect": {
+        "x": 96,
+        "y": 192,
+        "w": 16,
+        "h": 16
+      },
+      "spriteId": "sprite:path_reed",
+      "class": "tile",
+      "tags": [
+        "path"
+      ]
+    },
+    {
+      "rect": {
+        "x": 16,
+        "y": 288,
+        "w": 16,
+        "h": 16
+      },
+      "spriteId": "sprite:grass_reed",
+      "class": "tile",
+      "tags": [
+        "tall-grass"
+      ]
+    },
+    {
+      "rect": {
+        "x": 96,
+        "y": 1104,
+        "w": 16,
+        "h": 16
+      },
+      "spriteId": "sprite:ledge_reed",
+      "class": "tile",
+      "tags": [
+        "ledge"
+      ]
+    }
+  ],
+  "imageW": 256,
+  "imageH": 3296
+}

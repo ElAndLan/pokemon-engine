@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 10,
+  "id": "move:move_0353",
+  "name": "Iron Echo",
+  "type": "type:reference_09",
+  "damageClass": "special",
+  "power": 140,
+  "accuracy": 100,
+  "pp": 5,
+  "priority": 0,
+  "critStage": 0,
+  "makesContact": false,
+  "target": "selected",
+  "effects": [
+    {
+      "op": "damage"
+    },
+    {
+      "op": "delayedDamage",
+      "params": {
+        "turns": 2,
+        "uniquePerSlot": true
+      }
+    }
+  ]
+}

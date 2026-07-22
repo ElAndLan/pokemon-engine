@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 10,
+  "id": "species:scutlet",
+  "name": "Scutlet",
+  "types": [
+    "type:reference_11",
+    "type:reference_09"
+  ],
+  "baseStats": {
+    "hp": 52,
+    "atk": 48,
+    "def": 66,
+    "spa": 54,
+    "spd": 62,
+    "spe": 42
+  },
+  "weightHectograms": 60,
+  "heightDecimeters": 5,
+  "evYield": {
+    "hp": 0,
+    "atk": 0,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 1
+  },
+  "baseExp": 55,
+  "growthRate": "medium-fast",
+  "catchRate": 190,
+  "baseHappiness": 70,
+  "genderFemaleEighths": 4,
+  "eggCycles": 20,
+  "eggGroups": [],
+  "learnset": [
+    {
+      "level": 1,
+      "move": "move:move_0145"
+    },
+    {
+      "level": 1,
+      "move": "move:move_0353"
+    }
+  ],
+  "evolutions": [
+    {
+      "target": "species:sturgarde",
+      "trigger": "levelUp",
+      "minLevel": 6
+    }
+  ],
+  "abilities": [],
+  "forms": [],
+  "sprites": {
+    "front": "sprite:scutlet_front",
+    "back": "sprite:scutlet_back"
+  }
+}

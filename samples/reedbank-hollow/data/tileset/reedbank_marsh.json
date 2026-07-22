@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 10,
+  "id": "tileset:reedbank_marsh",
+  "name": "Reedbank Marsh",
+  "tiles": [
+    {
+      "sprite": "sprite:ground_reed",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "marsh-ground"
+    },
+    {
+      "sprite": "sprite:path_reed",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "settlement-path"
+    },
+    {
+      "sprite": "sprite:grass_reed",
+      "solid": false,
+      "grass": true,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "tall-grass"
+    },
+    {
+      "sprite": "sprite:ledge_reed",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "down",
+      "counter": false,
+      "terrainTag": "south-ledge"
+    }
+  ]
+}
