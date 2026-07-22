@@ -1,5 +1,6 @@
 using Cgm.Core.Battle;
 using Cgm.Core.Model;
+using Cgm.Runtime.Audio;
 using Cgm.Runtime.Engine;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -27,6 +28,8 @@ internal sealed class RuntimeHost : IDisposable
     private readonly SceneStack _scenes = new();
     private UiResources? _ui;
     private SpriteAtlas? _sprites;
+    private RuntimeAudioSystem? _audio;
+    private bool _audioWarningReported;
     private WorldSession? _session;
     private SaveRepository? _saves;
 
@@ -128,6 +131,13 @@ internal sealed class RuntimeHost : IDisposable
         _sprites.PreloadAll();   // before the metrics baseline: decoding is load time, not frame time
         _session = new WorldSession(_content.Db, _ui.Painter, _content.Db.Settings.TileSize,
             _content.Config.VirtualWidth, _content.Config.VirtualHeight, sprites: _sprites);
+
+        // Audio degrades to silence, never a failure: a missing device or missing sound files leaves
+        // the game fully playable. Volumes come from the player's options (defaults on first run).
+        RuntimeOptions options = RuntimeOptionsFileStore.Load(AppContext.BaseDirectory, out _);
+        _audio = new RuntimeAudioSystem(_content.Assets, OpenAlAudioAdapter.CreateOrNoAudio(),
+            options.MusicVolume, options.SfxVolume);
+        ReportAudioWarning();
         _saves = new SaveRepository(System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             RuntimeConfig.SafeSaveDir(_content.Config.GameName)));
@@ -199,6 +209,11 @@ internal sealed class RuntimeHost : IDisposable
     private void Tick(TickInput input)
     {
         _scenes.Tick(input);
+        // Follow the active map's authored BGM (silent when none, or when audio is unavailable), then
+        // pump the mixer's streaming and crossfades once per tick.
+        _audio?.SyncMusic(_session is { } s ? _content.Db.Find<Map>(s.CurrentMap)?.Bgm : null);
+        _audio?.Tick();
+        ReportAudioWarning();
         if (_scenes.IsTransitioning)
             return;
 
@@ -416,6 +431,7 @@ internal sealed class RuntimeHost : IDisposable
         // with the window. Releasing here is the only point where both are still valid. Scenes go
         // first: their leases are borrowed from the renderer that outlives them.
         _scenes.Shutdown();
+        _audio?.Dispose();       // no GL/thread constraint, but tidy it here with the rest
         _sprites?.Dispose();     // sheet textures, borrowed by scenes the same way
         _ui?.Dispose();          // scenes borrow the atlas, so it goes after them
         _renderer?.Dispose();
@@ -424,6 +440,17 @@ internal sealed class RuntimeHost : IDisposable
             Console.WriteLine($"[runtime] closing - {_loop.TotalTicks} ticks, {_loop.TotalFrames} frames total");
             Console.WriteLine($"[runtime] budget: {_metrics.End().Format()}");
         }
+    }
+
+    /// <summary>Prints the audio subsystem's single warning once, if it produced one (missing device
+    /// or missing sound file). Audio never blocks play, so this is informational only.</summary>
+    private void ReportAudioWarning()
+    {
+        if (_audioWarningReported || string.IsNullOrWhiteSpace(_audio?.Warning))
+            return;
+        _audioWarningReported = true;
+        if (_debug)
+            Console.Error.WriteLine($"[runtime] {_audio.Warning}");
     }
 
     public void Dispose()
