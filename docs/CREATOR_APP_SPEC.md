@@ -41,7 +41,7 @@ A single main window, four regions in a dock:
 - **Save model — explicit, whole-project.** Edits mutate in-memory entity view-models; **Save**
   (Ctrl+S) writes every dirty entity to its `data/<cat>/<slug>.json` via `CgmJson` (byte-stable).
   A per-document dirty flag drives the • marker and the "unsaved changes" guard on app close.
-  No autosave in Phase 3 (Phase 17).
+  Phase 17 supersedes the write path with the transactional save and recovery snapshots of §10.
 - **Entity ops:** New (prompts for slug, validated against EntityId grammar + uniqueness), Duplicate
   (new slug, deep copy), Delete (lists referencing entities as a warning first), Rename (edits
   display `name` only — the `id` is immutable, per DATA_SCHEMA §2).
@@ -120,3 +120,104 @@ code, add its exact lifecycle/recovery, asset, world, structured-data, catalog e
 or verification behavior here using §7's defaults and acceptance criteria. This document's existing
 pathfinder pattern remains mandatory. No additional confirmation is required unless v4 §2.1 reserves
 the decision.
+
+## 10. 17A — Project lifecycle & shared infrastructure (locked 2026-07-22)
+
+### 10.1 Session ownership & lifecycle state machine
+
+One project per Creator process. `MainWindowViewModel` owns the single `ProjectSession`; documents
+are tabs borrowing that session; every edit goes through a document `UndoStack`. Views never touch
+the filesystem or the session directly.
+
+States: `NoProject → Open(Clean) ⇄ Open(Dirty) → Closing → NoProject`. Transitions:
+
+| Event | From | Behavior |
+|---|---|---|
+| New/Open | NoProject or Open | If Open(Dirty): unsaved guard first (§10.5). Acquire lock (§10.3); on failure, refuse with the holder's PID. Load via `ProjectLoader`; failure shows the Core message and returns to the prior state. On success: complete any unfinished save journal (§10.2), then offer recovery if snapshots exist (§10.4). |
+| Edit | Open | Dirty = any document's undo position ≠ its saved position, or session-level dirt (adds/deletes/settings). |
+| Save / Save All | Open(Dirty) | The §10.2 transaction. Success → Open(Clean) and every document `MarkSaved`. Failure → state unchanged, dirt intact, error surfaced. Save on Clean is a no-op. |
+| Close project / Exit | Open | Unsaved guard (§10.5) → discard recovery snapshots on clean close → release lock → NoProject. |
+
+### 10.2 Transactional save
+
+Explicit Save is the only operation that replaces project source. The write is atomic at the
+project level:
+
+1. **Stage:** serialize the settings file (if dirty) and every dirty entity through `CgmJson` into
+   `<project>/.cgm/staging/<relative-path>`. Any serialization failure aborts before source is touched.
+2. **Journal:** write `<project>/.cgm/save-journal.json`:
+   `{ "schemaVersion": 1, "startedUtc", "entries": [{ "path": "data/move/x.json", "action": "replace" | "delete", "hadOriginal": bool }, …] }`
+   — entries ordered by canonical relative path (ordinal), deletes included (a removed entity's file).
+3. **Backup + swap:** per entry in journal order: if the target exists, move it to
+   `<project>/.cgm/backup/<relative-path>`; then for `replace`, move the staged file to the target.
+4. **Commit:** delete the journal, then delete `.cgm/staging` and `.cgm/backup`. Only now do
+   documents `MarkSaved` and the session clear its dirty set.
+5. **Rollback** (any step-3 failure, or a journal found at open): per journal entry, restore the
+   backup if `hadOriginal`, otherwise delete the target if present; then remove journal, staging,
+   and backup. The project is byte-identical to before the save began. A rollback completed at open
+   is reported to the user.
+
+`.cgm/` is Creator-private working state: never validated, never exported, ignored by the Runtime
+raw loader.
+
+### 10.3 Project lock
+
+`<project>/.cgm/lock.json`: `{ "pid", "processStartUtc" }`, written on open, deleted on clean
+close. A second open of the same project refuses while the lock's PID exists **and** its process
+start time matches (PID reuse otherwise defeats the check). A stale lock (no such process, or
+start-time mismatch) may be removed after that absence check, then acquisition proceeds.
+
+### 10.4 Recovery snapshots
+
+Autosave writes **snapshots, not source files**: the full current in-memory project (settings +
+all entities) serialized to
+`%APPDATA%/CreatureGameMaker/recovery/<project-key>/<timestampUtc>/`, where `project-key` is a
+filesystem-safe hash of the canonical project path. Triggers: 120 s of dirty inactivity (timer
+resets on each edit), and app deactivation while dirty. Retention: newest five, older pruned after
+each write. A clean close (saved or explicitly discarded) deletes the project's snapshots. At open,
+existing snapshots mean the last session ended unclean: offer newest-snapshot recovery with
+timestamp; **never applied without confirmation**; declining leaves snapshots until a clean close.
+Applying loads the snapshot as the in-memory state, marked fully dirty (source untouched until an
+explicit Save).
+
+### 10.5 Unsaved guard
+
+Closing the project or app while dirty prompts once: **Save** (run §10.2, abort close on failure) /
+**Discard** (drop edits and this session's snapshots) / **Cancel** (return, no state change).
+
+### 10.6 Recent projects
+
+`%APPDATA%/CreatureGameMaker/recent.json`: up to ten canonical absolute folders, newest first,
+deduplicated case-insensitively; updated on successful open/create. Missing paths remain listed
+(shown as missing) with a remove action; opening one offers removal. File dialogs start at the
+last successful folder. A malformed recent file is treated as empty, not an error.
+
+### 10.7 Usage search & safe delete
+
+`FindUsages(target)` scans the session snapshot and reports `(referencingEntity, fieldPath)` pairs
+grouped by entity — field path named from the schema (e.g. `species:ember_fox → learnset[3].move`).
+Delete of a referenced entity is blocked; the usage list is shown, and the user may (a) navigate to
+each usage, or (b) pick an explicit replacement entity of the same category, which rewrites every
+reference **and** deletes the original as one grouped undo step (§10.9). No blanket cascade,
+ever. Unreferenced delete keeps the existing confirm-and-remove path.
+
+### 10.8 Validation navigation & reference picker
+
+Clicking a validation issue opens/focuses the owning document **and focuses the named field** when
+the issue carries one; issues without a field fall back to the document. The shared reference
+picker is one searchable control binding an `EntityId`: filters by display name and slug as typed,
+lists `name (category:slug)`, shows a broken current value as broken rather than clearing it.
+Every editor reference field uses it; none builds its own.
+
+### 10.9 Undo grouping
+
+`UndoStack.BeginGroup()` … `EndGroup()` wraps N pushed commands into one composite command — one
+Ctrl+Z reverses all, one Ctrl+Y reapplies all in order. Used by replace-references-and-delete
+(§10.7) and any future multi-edit gesture (paste, bulk edit). Depth stays ≥ 100 groups; dirty
+tracking counts groups, not members.
+
+### 10.10 Virtualization & responsiveness defaults
+
+Lists over 200 rows and canvases larger than the viewport virtualize. Validation debounce stays
+400 ms; Save forces an immediate complete validation pass. These are defaults, not per-editor
+decisions.

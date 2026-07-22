@@ -27,10 +27,18 @@ public sealed class ProjectSession
     public bool SettingsDirty { get; private set; }
     public bool IsDirty => _dirty.Count > 0 || SettingsDirty;
 
+    /// <summary>True when opening found and rolled back a save the previous process never finished
+    /// (CREATOR_APP_SPEC §10.2 step 5). The shell reports it; the data is already consistent.</summary>
+    public bool RolledBackInterruptedSave { get; private init; }
+
     public static ProjectSession Open(string folder)
     {
+        bool rolledBack = Editing.SaveTransaction.RollbackIfUnfinished(folder);
         Project project = ProjectLoader.Load(folder);
-        return new ProjectSession(folder, project.Settings, project.Entities.ToDictionary(e => e.Id));
+        return new ProjectSession(folder, project.Settings, project.Entities.ToDictionary(e => e.Id))
+        {
+            RolledBackInterruptedSave = rolledBack,
+        };
     }
 
     /// <summary>A read-only view for validation.</summary>
@@ -69,31 +77,25 @@ public sealed class ProjectSession
         SettingsDirty = true;
     }
 
+    /// <summary>Writes every dirty file as one atomic transaction (CREATOR_APP_SPEC §10.2). On
+    /// failure the project on disk is unchanged and the session stays dirty; the caller surfaces
+    /// the error and the user may retry.</summary>
     public void Save()
     {
+        var writes = new List<(string RelPath, string? Content)>();
         if (SettingsDirty)
-        {
-            ProjectFile.Save(Folder, Settings);
-            SettingsDirty = false;
-        }
-
+            writes.Add((ProjectFile.FileName, CgmJson.Serialize(Settings)));
         foreach (EntityId id in _dirty)
-        {
-            string path = EntityPath(id);
-            if (_entities.TryGetValue(id, out IEntity? entity))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.WriteAllText(path, CgmJson.SerializeEntity(entity));
-            }
-            else if (File.Exists(path))
-            {
-                File.Delete(path); // entity was removed
-            }
-        }
+            writes.Add((EntityRelPath(id),
+                _entities.TryGetValue(id, out IEntity? entity) ? CgmJson.SerializeEntity(entity) : null));
 
+        Editing.SaveTransaction.Run(Folder, writes);
+
+        // Only a committed transaction clears dirt; an exception above leaves everything dirty.
         _dirty.Clear();
+        SettingsDirty = false;
     }
 
-    private string EntityPath(EntityId id) =>
-        Path.Combine(Folder, "data", id.Prefix, id.Slug + ".json");
+    private static string EntityRelPath(EntityId id) =>
+        Path.Combine("data", id.Prefix, id.Slug + ".json");
 }
