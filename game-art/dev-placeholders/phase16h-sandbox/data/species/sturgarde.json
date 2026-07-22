@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 9,
+  "id": "species:sturgarde",
+  "name": "Sturgarde",
+  "types": [
+    "type:reference_11",
+    "type:reference_09"
+  ],
+  "baseStats": {
+    "hp": 68,
+    "atk": 62,
+    "def": 84,
+    "spa": 70,
+    "spd": 80,
+    "spe": 52
+  },
+  "weightHectograms": 60,
+  "heightDecimeters": 5,
+  "evYield": {
+    "hp": 0,
+    "atk": 0,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 1
+  },
+  "baseExp": 100,
+  "growthRate": "medium-fast",
+  "catchRate": 105,
+  "baseHappiness": 70,
+  "genderFemaleEighths": 4,
+  "eggCycles": 20,
+  "eggGroups": [],
+  "learnset": [
+    {
+      "level": 1,
+      "move": "move:move_0145"
+    },
+    {
+      "level": 1,
+      "move": "move:move_0353"
+    }
+  ],
+  "evolutions": [
+    {
+      "target": "species:ferrurgeon",
+      "trigger": "levelUp",
+      "minLevel": 7
+    }
+  ],
+  "abilities": [],
+  "forms": [],
+  "sprites": {
+    "front": "sprite:sturgarde_front",
+    "back": "sprite:sturgarde_back"
+  }
+}

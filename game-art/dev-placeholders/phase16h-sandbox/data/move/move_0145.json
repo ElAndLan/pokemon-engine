@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 9,
+  "id": "move:move_0145",
+  "name": "River Pulse",
+  "type": "type:reference_11",
+  "damageClass": "special",
+  "power": 40,
+  "accuracy": 100,
+  "pp": 30,
+  "priority": 0,
+  "critStage": 0,
+  "makesContact": false,
+  "target": "allOpponents",
+  "effects": [
+    {
+      "op": "damage"
+    },
+    {
+      "op": "statStage",
+      "chance": 10,
+      "params": {
+        "stat": "spe",
+        "delta": -1,
+        "onSelf": false
+      }
+    }
+  ]
+}

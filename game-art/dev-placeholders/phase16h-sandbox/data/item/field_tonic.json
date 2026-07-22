@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 9,
+  "id": "item:field_tonic",
+  "name": "Field Tonic",
+  "pocket": "medicine",
+  "price": 120,
+  "consumable": true,
+  "usableInField": true,
+  "usableInBattle": true,
+  "holdable": false,
+  "keyItem": false,
+  "effects": [
+    {
+      "op": "heal",
+      "params": {
+        "amount": 30
+      }
+    }
+  ],
+  "battleEffects": []
+}

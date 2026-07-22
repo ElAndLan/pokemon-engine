@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 9,
+  "id": "type:reference_08",
+  "name": "Ghost",
+  "doubleDamageTo": [
+    "type:reference_08"
+  ],
+  "halfDamageTo": [],
+  "noDamageTo": []
+}

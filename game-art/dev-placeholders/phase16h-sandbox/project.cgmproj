@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 9,
+  "id": "project:main",
+  "name": "Reedbank Hollow - Private Phase 16H Sandbox",
+  "engineVersion": "1.0.0",
+  "tileSize": 16,
+  "startMap": "map:reedbank_hollow",
+  "startPos": {
+    "x": 7,
+    "y": 13
+  },
+  "startFacing": "down",
+  "starterParty": [],
+  "starterChoices": [
+    "species:budlup",
+    "species:scutlet",
+    "species:wickitten"
+  ],
+  "playerSprites": {
+    "front": "sprite:player_down_1",
+    "back": "sprite:player_up_1",
+    "walkClips": [
+      "anim:player_walk_down",
+      "anim:player_walk_up",
+      "anim:player_walk_left",
+      "anim:player_walk_right"
+    ]
+  },
+  "pockets": [
+    "items",
+    "medicine",
+    "balls",
+    "key"
+  ],
+  "boxes": {
+    "count": 4,
+    "capacity": 30,
+    "names": [
+      "Reed Box",
+      "Moss Box",
+      "Tide Box",
+      "Ember Box"
+    ]
+  },
+  "clock": {
+    "mode": "ingame",
+    "cycleMinutes": 60
+  },
+  "encounterDefaults": {
+    "grassRatePerStep": 0.18
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 9,
+  "id": "move:move_0506",
+  "name": "Wisp Bite",
+  "type": "type:reference_08",
+  "damageClass": "special",
+  "power": 65,
+  "accuracy": 100,
+  "pp": 10,
+  "priority": 0,
+  "critStage": 0,
+  "makesContact": false,
+  "target": "selected",
+  "effects": [
+    {
+      "op": "damage"
+    },
+    {
+      "op": "statusPower",
+      "params": {
+        "subject": "target",
+        "status": "any",
+        "multiplierNum": 2,
+        "multiplierDen": 1,
+        "ignoreSourceBurnPenalty": false
+      }
+    }
+  ]
+}

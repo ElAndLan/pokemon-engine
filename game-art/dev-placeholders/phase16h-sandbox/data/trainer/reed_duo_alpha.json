@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 9,
+  "id": "trainer:reed_duo_alpha",
+  "name": "Nemi",
+  "class": "Reed Duo",
+  "overworldSprite": "sprite:npc_duo_alpha",
+  "sightRange": 3,
+  "aiProfile": "basic",
+  "money": 80,
+  "partner": "trainer:reed_duo_beta",
+  "party": [
+    {
+      "species": "species:budlup",
+      "level": 6,
+      "moves": [
+        "move:move_0075",
+        "move:move_0574"
+      ]
+    }
+  ],
+  "dialogue": {
+    "sight": "Two trails meet here - so do two battlers!",
+    "intro": "Nemi and Oren battle as one team.",
+    "defeat": "Our timing slipped.",
+    "postDefeat": "The deep southern reeds are far stronger than we are."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 9,
+  "id": "anim:player_walk_up",
+  "name": "Player walk up",
+  "frames": [
+    {
+      "sprite": "sprite:player_up_0",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_up_1",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_up_2",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_up_1",
+      "ms": 130
+    }
+  ],
+  "loop": true
+}

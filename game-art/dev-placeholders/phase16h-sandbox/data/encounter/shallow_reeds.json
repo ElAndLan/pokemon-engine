@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 9,
+  "id": "encounter:shallow_reeds",
+  "name": "Shallow Reeds",
+  "method": "grass",
+  "baseRate": 0.32,
+  "winMoney": 24,
+  "slots": [
+    {
+      "species": "species:budlup",
+      "weight": 1,
+      "minLevel": 3,
+      "maxLevel": 4
+    },
+    {
+      "species": "species:scutlet",
+      "weight": 1,
+      "minLevel": 3,
+      "maxLevel": 4
+    },
+    {
+      "species": "species:wickitten",
+      "weight": 1,
+      "minLevel": 3,
+      "maxLevel": 4
+    }
+  ]
+}

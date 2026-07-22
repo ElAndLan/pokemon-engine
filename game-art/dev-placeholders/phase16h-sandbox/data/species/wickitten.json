@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 9,
+  "id": "species:wickitten",
+  "name": "Wickitten",
+  "types": [
+    "type:reference_10",
+    "type:reference_08"
+  ],
+  "baseStats": {
+    "hp": 46,
+    "atk": 58,
+    "def": 44,
+    "spa": 64,
+    "spd": 50,
+    "spe": 62
+  },
+  "weightHectograms": 60,
+  "heightDecimeters": 5,
+  "evYield": {
+    "hp": 0,
+    "atk": 0,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 1
+  },
+  "baseExp": 55,
+  "growthRate": "medium-fast",
+  "catchRate": 190,
+  "baseHappiness": 70,
+  "genderFemaleEighths": 4,
+  "eggCycles": 20,
+  "eggGroups": [],
+  "learnset": [
+    {
+      "level": 1,
+      "move": "move:move_0257"
+    },
+    {
+      "level": 1,
+      "move": "move:move_0506"
+    }
+  ],
+  "evolutions": [
+    {
+      "target": "species:censeral",
+      "trigger": "levelUp",
+      "minLevel": 6
+    }
+  ],
+  "abilities": [],
+  "forms": [],
+  "sprites": {
+    "front": "sprite:wickitten_front",
+    "back": "sprite:wickitten_back"
+  }
+}

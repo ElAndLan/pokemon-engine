@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 9,
+  "id": "encounter:deep_reeds",
+  "name": "Deep Reeds",
+  "method": "grass",
+  "baseRate": 0.75,
+  "winMoney": 80,
+  "slots": [
+    {
+      "species": "species:sylvalume",
+      "weight": 1,
+      "minLevel": 22,
+      "maxLevel": 24
+    },
+    {
+      "species": "species:ferrurgeon",
+      "weight": 1,
+      "minLevel": 22,
+      "maxLevel": 24
+    },
+    {
+      "species": "species:pyrevenant",
+      "weight": 1,
+      "minLevel": 22,
+      "maxLevel": 24
+    }
+  ]
+}

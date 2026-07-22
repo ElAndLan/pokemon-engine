@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 9,
+  "id": "anim:player_walk_right",
+  "name": "Player walk right",
+  "frames": [
+    {
+      "sprite": "sprite:player_right_0",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_right_1",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_right_2",
+      "ms": 130
+    },
+    {
+      "sprite": "sprite:player_right_1",
+      "ms": 130
+    }
+  ],
+  "loop": true
+}

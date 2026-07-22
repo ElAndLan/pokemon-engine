@@ -33,3 +33,6 @@ Thumbs.db
 
 # Generated creature/tileset art (see convert-images.bat, normalize-sprites.ps1)
 raw_images/
+
+# Other agent's sandbox build output under the art library
+game-art/dev-placeholders/phase16h-sandbox/build/

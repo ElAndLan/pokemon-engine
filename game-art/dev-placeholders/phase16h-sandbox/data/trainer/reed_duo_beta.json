@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 9,
+  "id": "trainer:reed_duo_beta",
+  "name": "Oren",
+  "class": "Reed Duo",
+  "overworldSprite": "sprite:npc_duo_beta",
+  "sightRange": 3,
+  "aiProfile": "basic",
+  "money": 90,
+  "partner": "trainer:reed_duo_alpha",
+  "party": [
+    {
+      "species": "species:scutlet",
+      "level": 6,
+      "moves": [
+        "move:move_0145",
+        "move:move_0353"
+      ]
+    }
+  ],
+  "dialogue": {
+    "sight": "Nemi, take the near side!",
+    "intro": "We cover each other\u0027s openings.",
+    "defeat": "You broke our formation.",
+    "postDefeat": "A second active partner makes all the difference."
+  }
+}

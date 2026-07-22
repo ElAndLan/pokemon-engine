@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 9,
+  "id": "species:sylvalume",
+  "name": "Sylvalume",
+  "types": [
+    "type:reference_12",
+    "type:reference_18"
+  ],
+  "baseStats": {
+    "hp": 82,
+    "atk": 88,
+    "def": 82,
+    "spa": 104,
+    "spd": 96,
+    "spe": 86
+  },
+  "weightHectograms": 60,
+  "heightDecimeters": 5,
+  "evYield": {
+    "hp": 0,
+    "atk": 0,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 1
+  },
+  "baseExp": 200,
+  "growthRate": "medium-fast",
+  "catchRate": 45,
+  "baseHappiness": 70,
+  "genderFemaleEighths": 4,
+  "eggCycles": 20,
+  "eggGroups": [],
+  "learnset": [
+    {
+      "level": 1,
+      "move": "move:move_0075"
+    },
+    {
+      "level": 1,
+      "move": "move:move_0574"
+    }
+  ],
+  "evolutions": [],
+  "abilities": [],
+  "forms": [],
+  "sprites": {
+    "front": "sprite:sylvalume_front",
+    "back": "sprite:sylvalume_back"
+  }
+}

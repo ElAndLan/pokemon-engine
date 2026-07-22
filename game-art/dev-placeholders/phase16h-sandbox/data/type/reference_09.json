@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 9,
+  "id": "type:reference_09",
+  "name": "Steel",
+  "doubleDamageTo": [
+    "type:reference_18"
+  ],
+  "halfDamageTo": [
+    "type:reference_10",
+    "type:reference_11",
+    "type:reference_09"
+  ],
+  "noDamageTo": []
+}

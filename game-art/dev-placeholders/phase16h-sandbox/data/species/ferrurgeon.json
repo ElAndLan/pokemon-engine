@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 9,
+  "id": "species:ferrurgeon",
+  "name": "Ferrurgeon",
+  "types": [
+    "type:reference_11",
+    "type:reference_09"
+  ],
+  "baseStats": {
+    "hp": 92,
+    "atk": 84,
+    "def": 116,
+    "spa": 94,
+    "spd": 108,
+    "spe": 66
+  },
+  "weightHectograms": 60,
+  "heightDecimeters": 5,
+  "evYield": {
+    "hp": 0,
+    "atk": 0,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 1
+  },
+  "baseExp": 200,
+  "growthRate": "medium-fast",
+  "catchRate": 45,
+  "baseHappiness": 70,
+  "genderFemaleEighths": 4,
+  "eggCycles": 20,
+  "eggGroups": [],
+  "learnset": [
+    {
+      "level": 1,
+      "move": "move:move_0145"
+    },
+    {
+      "level": 1,
+      "move": "move:move_0353"
+    }
+  ],
+  "evolutions": [],
+  "abilities": [],
+  "forms": [],
+  "sprites": {
+    "front": "sprite:ferrurgeon_front",
+    "back": "sprite:ferrurgeon_back"
+  }
+}
