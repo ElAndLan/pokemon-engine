@@ -164,8 +164,8 @@ whitespace checks passed.
 | 13 | Original Vertical Slice | NOT STARTED | Placeholder data and a battle harness are not a start-to-badge game |
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
 | **15** | **Complete Core Game Logic and Move Conformance** | **PAUSED (2026-07-21 user directive; resume requires explicit user decision — §10 item 10)** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6, and 15G-2 complete; 937 inventoried, 173/937 certified; 15F-7 is next** |
-| 16 | Reusable Runtime Engine Completion | IN PROGRESS — ACTIVE FOCUS | Activated by the 2026-07-21 user directive; Phase 15 is PAUSED (see §10 pause record); consumes the paused Core contract per §6 prerequisite note |
-| 17 | Creator Application Completion | NOT STARTED | Begins only after Runtime/Core contracts are stable |
+| 16 | Reusable Runtime Engine Completion | IN PROGRESS — verification tails run in parallel with Phase 17 (2026-07-22 amendment, §7) | Remaining: 16A `IAssetSource` cleanup, 16B screenshot-hash comparison, 16C overworld reachability, 16G/16H gates — none change the contracts Phase 17 consumes |
+| 17 | Creator Application Completion | IN PROGRESS — ACTIVE FOCUS (2026-07-22 user directive) | Activated early by explicit user decision: its real prerequisite (16A launch contract, raw/pack parity, stable schemas) is COMPLETE; 17F playtest remains gated on full Phase 16 closure |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
 | 19 | Release Hardening and 1.0 | NOT STARTED | Distribution, docs, migration matrix, beta, legal sweep |
 
@@ -4181,6 +4181,15 @@ Goal: make every required engine capability authorable without hand-editing JSON
 Prerequisite: Phase 16 exposes stable Runtime launch/debug contracts and Phase 15 catalogs are frozen.
 Creator writes project data through Core schemas/validation and launches Runtime out of process.
 
+**Amendment (2026-07-22, user directive):** Phase 17 is activated before the Phase 16 gate closes.
+Rationale: the contracts 17A–17E consume — the 16A argument contract and error taxonomy, raw/pack
+parity, and the frozen schema/validation surface — are COMPLETE; the remaining Phase 16 items (16A
+`IAssetSource` cleanup, 16B screenshot-hash comparison, 16C overworld reachability, 16G/16H
+verification gates) are verification-side and run in parallel. **17F (playtest/export workflows)
+stays gated on full Phase 16 closure** and must not start until 16G/16H are VERIFIED. Driving need:
+the map/tileset editors (17B/17C) are the tool for finding and fixing live tileset defects and for
+hand-authoring the world.
+
 ### 7.1 Locked Creator defaults
 
 - One project is open per Creator process. Documents are tabs owned by `ProjectSession`; all edits
@@ -4204,8 +4213,8 @@ Creator writes project data through Core schemas/validation and launches Runtime
 
 ### 7.2 Ordered Creator packages
 
-1. **17A — Project lifecycle and shared infrastructure (`PLANNED`; prerequisite Phase 16 launch
-   contract).**
+1. **17A — Project lifecycle and shared infrastructure (`IN PROGRESS` — activated 2026-07-22;
+   prerequisite Phase 16 launch contract, COMPLETE).**
    - **Spec lock:** complete `CREATOR_APP_SPEC` session ownership, lifecycle state machine, recent/
      recovery formats, save transaction, document close, usage/safe-delete, validation navigation,
      reference picker, undo transaction/grouping, and virtualization defaults.
