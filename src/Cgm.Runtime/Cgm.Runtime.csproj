@@ -19,6 +19,10 @@
     <ProjectReference Include="..\Cgm.Core\Cgm.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cgm.Runtime.Tests" />
+  </ItemGroup>
+
   <!-- OpenAL Soft is LGPL; ship its unmodified-library notice beside the executable. -->
   <ItemGroup>
     <None Include="..\..\licenses\OpenAL-Soft-LGPL-2.0-or-later.txt"

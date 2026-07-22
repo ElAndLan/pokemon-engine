@@ -412,17 +412,29 @@ internal sealed class RuntimeHost : IDisposable
         if (_input is null)
             return [];
 
-        var actions = new List<GameAction>(3);
+        var actions = new List<GameAction>();
         foreach (IKeyboard keyboard in _input.Keyboards)
-        {
-            if (keyboard.IsKeyPressed(Key.Up) || keyboard.IsKeyPressed(Key.W))
-                actions.Add(GameAction.Up);
-            if (keyboard.IsKeyPressed(Key.Down) || keyboard.IsKeyPressed(Key.S))
-                actions.Add(GameAction.Down);
-            if (keyboard.IsKeyPressed(Key.Enter) || keyboard.IsKeyPressed(Key.Space) || keyboard.IsKeyPressed(Key.Z))
-                actions.Add(GameAction.Confirm);
-        }
+            actions.AddRange(KeyboardActions(keyboard.IsKeyPressed));
         return actions.Distinct().ToList();
+    }
+
+    /// <summary>The fixed keyboard map (WASD/arrows + confirm/cancel/menu), as a pure function of a
+    /// key-pressed predicate so every action is reachable and testable without a device. Every
+    /// <see cref="GameAction"/> a scene consumes must have a binding here — the earlier omission of
+    /// Left/Right/Cancel/Menu made side movement and the menu impossible.
+    /// <para>Escape is intercepted by the window as quit and is deliberately not a game action.</para></summary>
+    // ponytail: fixed bindings until the options screen writes the rebindable InputBindings through
+    // to here; then this becomes a lookup over the loaded bindings.
+    internal static IEnumerable<GameAction> KeyboardActions(Func<Key, bool> pressed)
+    {
+        ArgumentNullException.ThrowIfNull(pressed);
+        if (pressed(Key.Up) || pressed(Key.W)) yield return GameAction.Up;
+        if (pressed(Key.Down) || pressed(Key.S)) yield return GameAction.Down;
+        if (pressed(Key.Left) || pressed(Key.A)) yield return GameAction.Left;
+        if (pressed(Key.Right) || pressed(Key.D)) yield return GameAction.Right;
+        if (pressed(Key.Enter) || pressed(Key.Space) || pressed(Key.Z)) yield return GameAction.Confirm;
+        if (pressed(Key.X) || pressed(Key.Backspace)) yield return GameAction.Cancel;
+        if (pressed(Key.Tab) || pressed(Key.M)) yield return GameAction.Menu;
     }
 
     private void OnClosing()
