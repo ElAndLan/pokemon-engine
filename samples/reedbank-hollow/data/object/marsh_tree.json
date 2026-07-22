@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 11,
+  "id": "object:marsh_tree",
+  "name": "Marsh Tree",
+  "footprintW": 4,
+  "footprintH": 2,
+  "collision": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "anchor": {
+    "x": 0,
+    "y": 1
+  },
+  "layer": "below",
+  "sprite": "sprite:marsh_tree",
+  "interaction": []
+}

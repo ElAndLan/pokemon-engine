@@ -153,6 +153,45 @@
       "tags": [
         "ground"
       ]
+    },
+    {
+      "rect": {
+        "x": 128,
+        "y": 1616,
+        "w": 16,
+        "h": 16
+      },
+      "spriteId": "sprite:water_deep",
+      "class": "tile",
+      "tags": [
+        "ground"
+      ]
+    },
+    {
+      "rect": {
+        "x": 16,
+        "y": 1776,
+        "w": 16,
+        "h": 16
+      },
+      "spriteId": "sprite:marsh_mud",
+      "class": "tile",
+      "tags": [
+        "ground"
+      ]
+    },
+    {
+      "rect": {
+        "x": 112,
+        "y": 2160,
+        "w": 64,
+        "h": 160
+      },
+      "spriteId": "sprite:marsh_tree",
+      "class": "object",
+      "tags": [
+        "tree"
+      ]
     }
   ],
   "imageW": 256,

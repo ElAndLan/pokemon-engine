@@ -101,6 +101,24 @@
       "ledge": "none",
       "counter": false,
       "terrainTag": "bush_clump"
+    },
+    {
+      "sprite": "sprite:water_deep",
+      "solid": false,
+      "grass": false,
+      "water": true,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "water_deep"
+    },
+    {
+      "sprite": "sprite:marsh_mud",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "marsh_mud"
     }
   ]
 }
