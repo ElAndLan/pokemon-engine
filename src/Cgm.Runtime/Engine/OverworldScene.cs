@@ -24,6 +24,7 @@ public sealed class OverworldScene : IScene
     private readonly int _width;
     private readonly int _height;
     private readonly WalkAnimator? _playerWalk;
+    private readonly IReadOnlyDictionary<EntityId, MapObject> _objects;
     private readonly double _tickMs;
     private EntityId? _playerSprite;
     private Typewriter? _dialogue;
@@ -34,6 +35,7 @@ public sealed class OverworldScene : IScene
         IReadOnlyDictionary<EntityId, Trainer>? trainers = null,
         IReadOnlyDictionary<EntityId, EncounterTable>? tables = null,
         SpriteAtlas? sprites = null, WalkAnimator? playerWalk = null,
+        IReadOnlyDictionary<EntityId, MapObject>? objects = null,
         double tickMs = 1000.0 / Cgm.Core.Timing.FixedStepClock.DefaultTickRate)
     {
         ArgumentNullException.ThrowIfNull(ui);
@@ -53,10 +55,11 @@ public sealed class OverworldScene : IScene
         _height = virtualHeight;
         _sprites = sprites;
         _playerWalk = playerWalk;
+        _objects = objects ?? new Dictionary<EntityId, MapObject>();
         _tickMs = tickMs;
         // The same flattening MapCollision uses, so the tile a player walks through is the tile drawn.
         _palette = new TilePalette(tilesets);
-        _collision = MapCollision.Derive(map, tilesets);
+        _collision = MapCollision.Derive(map, tilesets, _objects);
         _mover = new GridMover(start, facing, (from, dir) =>
             MovementRules.Resolve(from, dir, _collision, map.Width, map.Height, Occupied()));
 
@@ -244,9 +247,41 @@ public sealed class OverworldScene : IScene
     {
         _ui.Panel(new RectI(0, 0, _width, _height), new Rgba(0x0A, 0x0C, 0x10, 0xFF));
         DrawTiles();
+        DrawObjects();   // after tiles: below-objects (layer 0) sort over the ground, under the player
         DrawEntities();
         DrawPlayer();
         DrawDialogue();
+    }
+
+    /// <summary>Draws each placed multi-tile object at its footprint. The sprite is bottom-anchored
+    /// to the footprint and horizontally centred, so an overhanging roof rises above the base tiles.
+    /// A <c>below</c> object sorts under the player (layer 0, over the ground it was drawn after); an
+    /// <c>above</c> object sorts over the player (layer 2), like a canopy.</summary>
+    private void DrawObjects()
+    {
+        if (_sprites is null)
+            return;
+
+        foreach (ObjectEntity placed in _map.Entities.OfType<ObjectEntity>())
+        {
+            if (!_objects.TryGetValue(placed.Object, out MapObject? def) || def.Sprite is not { } sprite)
+                continue;
+            if (!_sprites.TryGet(sprite, out TextureHandle texture, out RectI source))
+                continue;
+
+            // The anchor tile of the footprint sits on the placement position.
+            int leftTile = placed.Pos.X - def.Anchor.X;
+            int topTile = placed.Pos.Y - def.Anchor.Y;
+            int footW = def.FootprintW * _tileSize;
+            int footH = def.FootprintH * _tileSize;
+            RectI origin = TileRect(leftTile, topTile);
+
+            var dest = new RectI(
+                origin.X + (footW - source.Width) / 2,
+                origin.Y + footH - source.Height,
+                source.Width, source.Height);
+            _ui.Sprite(texture, source, dest, layer: def.Layer == ObjectLayer.Above ? 2 : 0);
+        }
     }
 
     private void DrawEntities()

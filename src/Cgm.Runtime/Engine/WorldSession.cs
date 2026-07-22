@@ -21,6 +21,7 @@ public sealed class WorldSession
     private readonly IReadOnlyDictionary<EntityId, EncounterTable> _tables;
     private readonly SpriteAtlas? _sprites;
     private readonly Animation?[] _walkClips;
+    private readonly IReadOnlyDictionary<EntityId, MapObject> _objects;
 
     public WorldSession(GameDb db, UiPainter ui, int tileSize, int virtualWidth, int virtualHeight,
         IRng? rng = null, FlagStore? flags = null, SpriteAtlas? sprites = null)
@@ -39,6 +40,7 @@ public sealed class WorldSession
         IReadOnlyList<EntityId> clipIds = db.Settings.PlayerSprites.WalkClips;
         for (int i = 0; i < clipIds.Count && i < _walkClips.Length; i++)
             _walkClips[i] = db.Find<Animation>(clipIds[i]);
+        _objects = db.All<MapObject>().ToDictionary(o => o.Id);
         _tileSize = tileSize;
         _width = virtualWidth;
         _height = virtualHeight;
@@ -192,7 +194,7 @@ public sealed class WorldSession
 
         // A fresh animator per scene, so walk-cycle timing starts clean on each map entry.
         return new OverworldScene(_ui, map, tilesets, position, facing, _tileSize, _width, _height,
-            Flags, Rng, _trainers, _tables, _sprites, new WalkAnimator(_walkClips));
+            Flags, Rng, _trainers, _tables, _sprites, new WalkAnimator(_walkClips), _objects);
     }
 
     /// <summary>Follows a warp to its target map and landing tile, preserving facing.</summary>
