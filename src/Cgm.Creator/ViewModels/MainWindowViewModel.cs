@@ -15,8 +15,15 @@ namespace Cgm.Creator.ViewModels;
 public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly IDialogService _dialogs;
+    private readonly Editing.RecentProjects _recent;
 
-    public MainWindowViewModel(IDialogService dialogs) => _dialogs = dialogs;
+    public MainWindowViewModel(IDialogService dialogs, Editing.RecentProjects? recent = null)
+    {
+        _dialogs = dialogs;
+        _recent = recent ?? Editing.RecentProjects.Default();
+        foreach (string folder in _recent.Folders)
+            Recent.Add(folder);
+    }
 
     [ObservableProperty] private ProjectSession? _session;
     [ObservableProperty] private EditorDocument? _activeDocument;
@@ -26,6 +33,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public ObservableCollection<NavCategory> Nav { get; } = [];
     public ObservableCollection<EditorDocument> Documents { get; } = [];
     public ObservableCollection<ValidationIssue> Issues { get; } = [];
+    public ObservableCollection<string> Recent { get; } = [];
 
     public bool HasProject => Session is not null;
     public int ErrorCount => Issues.Count(i => i.Severity == ValidationSeverity.Error);
@@ -43,6 +51,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task OpenAsync()
     {
+        if (!await ConfirmLoseChangesAsync()) return;
         if (await _dialogs.PickProjectFolderAsync() is { } folder)
             OpenProject(folder);
     }
@@ -50,8 +59,49 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task NewAsync()
     {
+        if (!await ConfirmLoseChangesAsync()) return;
         if (await _dialogs.PromptNewProjectAsync() is { } request)
             NewProject(request);
+    }
+
+    /// <summary>Opens a recent entry; a missing folder offers removal from the list (§10.6).</summary>
+    [RelayCommand]
+    private async Task OpenRecentAsync(string folder)
+    {
+        if (!Directory.Exists(folder))
+        {
+            if (await _dialogs.ConfirmAsync($"'{folder}' no longer exists. Remove it from the recent list?"))
+                RemoveRecent(folder);
+            return;
+        }
+        if (!await ConfirmLoseChangesAsync()) return;
+        OpenProject(folder);
+    }
+
+    [RelayCommand]
+    private void RemoveRecent(string folder)
+    {
+        _recent.Remove(folder);
+        SyncRecent();
+    }
+
+    /// <summary>The §10.5 unsaved guard. True = proceed (clean, saved, or discarded); false =
+    /// cancelled, or Save failed (never silently lose the edits behind a failed save).</summary>
+    public async Task<bool> ConfirmLoseChangesAsync()
+    {
+        if (Session is not { IsDirty: true })
+            return true;
+
+        switch (await _dialogs.PromptUnsavedAsync())
+        {
+            case UnsavedChoice.Save:
+                SaveAll();
+                return Session.IsDirty == false; // a failed save leaves dirt and aborts the close
+            case UnsavedChoice.Discard:
+                return true;
+            default:
+                return false;
+        }
     }
 
     [RelayCommand]
@@ -159,6 +209,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         // same folder, where "previous" and the new session share one lock file.
         if (previous is not null && !string.Equals(previous.Folder, Session.Folder, StringComparison.OrdinalIgnoreCase))
             previous.Close();
+
+        _recent.Add(folder);
+        SyncRecent();
         if (Session.RolledBackInterruptedSave)
             StatusText = "An interrupted save from a previous session was rolled back.";
 
@@ -180,10 +233,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public void SaveAll()
     {
         if (Session is null) return;
-        Session.Save();
+        try
+        {
+            Session.Save();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The transaction rolled back: disk is untouched, edits are intact, retry is safe.
+            StatusText = $"Save failed (project unchanged on disk): {ex.Message}";
+            return;
+        }
         foreach (EditorDocument doc in Documents) doc.MarkSaved();
         RefreshValidation();
         StatusText = "Saved.";
+    }
+
+    private void SyncRecent()
+    {
+        Recent.Clear();
+        foreach (string folder in _recent.Folders)
+            Recent.Add(folder);
     }
 
     public void OpenDocument(EntityId id)

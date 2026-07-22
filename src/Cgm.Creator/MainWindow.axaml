@@ -22,6 +22,15 @@
       <MenuItem Header="_File">
         <MenuItem Header="_New Project…" Command="{Binding NewCommand}" />
         <MenuItem Header="_Open Project…" Command="{Binding OpenCommand}" />
+        <MenuItem Header="Open _Recent" ItemsSource="{Binding Recent}">
+          <MenuItem.ItemTemplate>
+            <DataTemplate>
+              <MenuItem Header="{Binding}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenRecentCommand}"
+                        CommandParameter="{Binding}" />
+            </DataTemplate>
+          </MenuItem.ItemTemplate>
+        </MenuItem>
         <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
         <Separator />
         <MenuItem Header="_Import Sheet…" Command="{Binding ImportSheetCommand}" />

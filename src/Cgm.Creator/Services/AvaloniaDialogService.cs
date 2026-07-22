@@ -44,6 +44,21 @@ public sealed class AvaloniaDialogService : IDialogService
         return files.Count > 0 ? files[0].Path.LocalPath : null;
     }
 
+    public async Task<UnsavedChoice> PromptUnsavedAsync()
+    {
+        if (_topLevel() is not Window owner) return UnsavedChoice.Cancel;
+        int? choice = await new ChoiceWindow("The project has unsaved changes.",
+            "Discard", "Cancel", "Save").ShowDialog<int?>(owner);
+        return choice switch { 0 => UnsavedChoice.Discard, 2 => UnsavedChoice.Save, _ => UnsavedChoice.Cancel };
+    }
+
+    public async Task<bool> ConfirmAsync(string message)
+    {
+        if (_topLevel() is not Window owner) return false;
+        int? choice = await new ChoiceWindow(message, "No", "Yes").ShowDialog<int?>(owner);
+        return choice == 1;
+    }
+
     private async Task<string?> PickFolderAsync(string title)
     {
         if (_topLevel() is not { } top) return null;
