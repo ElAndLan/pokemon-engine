@@ -1,13 +1,13 @@
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "project:main",
   "name": "Reedbank Hollow - Private Phase 16H Sandbox",
   "engineVersion": "1.0.0",
   "tileSize": 16,
-  "startMap": "map:reedbank_hollow",
+  "startMap": "map:starter_town",
   "startPos": {
-    "x": 7,
-    "y": 13
+    "x": 13,
+    "y": 15
   },
   "startFacing": "down",
   "starterParty": [

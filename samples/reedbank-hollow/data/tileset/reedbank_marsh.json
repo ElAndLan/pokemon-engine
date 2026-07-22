@@ -10,7 +10,7 @@
       "water": false,
       "ledge": "none",
       "counter": false,
-      "terrainTag": "marsh-ground"
+      "terrainTag": "ground_reed"
     },
     {
       "sprite": "sprite:path_reed",
@@ -19,7 +19,7 @@
       "water": false,
       "ledge": "none",
       "counter": false,
-      "terrainTag": "settlement-path"
+      "terrainTag": "path_reed"
     },
     {
       "sprite": "sprite:grass_reed",
@@ -28,7 +28,7 @@
       "water": false,
       "ledge": "none",
       "counter": false,
-      "terrainTag": "tall-grass"
+      "terrainTag": "grass_reed"
     },
     {
       "sprite": "sprite:ledge_reed",
@@ -37,7 +37,7 @@
       "water": false,
       "ledge": "down",
       "counter": false,
-      "terrainTag": "south-ledge"
+      "terrainTag": "ledge_reed"
     },
     {
       "sprite": "sprite:grass_base",
@@ -119,6 +119,24 @@
       "ledge": "none",
       "counter": false,
       "terrainTag": "marsh_mud"
+    },
+    {
+      "sprite": "sprite:grass_v3",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "grass_v3"
+    },
+    {
+      "sprite": "sprite:fence",
+      "solid": true,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "fence"
     }
   ]
 }

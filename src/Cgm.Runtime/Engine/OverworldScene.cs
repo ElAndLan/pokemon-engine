@@ -299,9 +299,26 @@ public sealed class OverworldScene : IScene
         {
             (int dx, int dy) = npc.State == MoverState.Moving ? Offset(npc.Facing) : (0, 0);
             int progress = (int)(npc.Progress * _tileSize);
-            RectI tile = Inset(TileRect(npc.Position.X, npc.Position.Y), 2);
-            _ui.Panel(tile with { X = tile.X + dx * progress, Y = tile.Y + dy * progress },
-                new Rgba(0x70, 0xA0, 0xE0, 0xFF), layer: 1);
+            int ox = dx * progress, oy = dy * progress;
+            RectI tile = TileRect(npc.Position.X, npc.Position.Y);
+
+            // A placed NPC draws its character sprite feet-anchored, like the player; without a sprite
+            // (or atlas) it falls back to the marker so an unarted NPC still shows.
+            if (_sprites is not null && npc.Entity.Sprite is { } sprite
+                && _sprites.TryGet(sprite, out TextureHandle texture, out RectI source))
+            {
+                var dest = new RectI(
+                    tile.X + (_tileSize - source.Width) / 2 + ox,
+                    tile.Y + _tileSize - source.Height + oy,
+                    source.Width, source.Height);
+                _ui.Sprite(texture, source, dest, layer: 1);
+            }
+            else
+            {
+                RectI marker = Inset(tile, 2);
+                _ui.Panel(marker with { X = marker.X + ox, Y = marker.Y + oy },
+                    new Rgba(0x70, 0xA0, 0xE0, 0xFF), layer: 1);
+            }
         }
     }
 

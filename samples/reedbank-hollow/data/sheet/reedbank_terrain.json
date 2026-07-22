@@ -192,6 +192,58 @@
       "tags": [
         "tree"
       ]
+    },
+    {
+      "rect": {
+        "x": 64,
+        "y": 32,
+        "w": 16,
+        "h": 16
+      },
+      "spriteId": "sprite:grass_v3",
+      "class": "tile",
+      "tags": [
+        "ground"
+      ]
+    },
+    {
+      "rect": {
+        "x": 96,
+        "y": 2496,
+        "w": 16,
+        "h": 16
+      },
+      "spriteId": "sprite:fence",
+      "class": "tile",
+      "tags": [
+        "ground"
+      ]
+    },
+    {
+      "rect": {
+        "x": 192,
+        "y": 2896,
+        "w": 64,
+        "h": 80
+      },
+      "spriteId": "sprite:house_small",
+      "class": "object",
+      "tags": [
+        "house_small"
+      ]
+    },
+    {
+      "rect": {
+        "x": 0,
+        "y": 2896,
+        "w": 160,
+        "h": 80
+      },
+      "spriteId": "sprite:house_big",
+      "class": "object",
+      "tags": [
+        "house_big"
+      ]
     }
   ],
   "imageW": 256,
