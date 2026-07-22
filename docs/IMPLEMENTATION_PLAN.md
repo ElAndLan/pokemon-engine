@@ -4215,6 +4215,19 @@ hand-authoring the world.
 
 1. **17A — Project lifecycle and shared infrastructure (`IN PROGRESS` — activated 2026-07-22;
    prerequisite Phase 16 launch contract, COMPLETE).**
+
+   Progress (2026-07-22): **17A core infrastructure COMPLETE.** CREATOR_APP_SPEC §10 locked, then:
+   transactional save (stage → journal → backup → swap → commit; rollback on failure and at next
+   open after a crash — the project on disk is only ever pre-save or post-save state); project lock
+   file (PID + start time, reentrant in-process, stale-lock removal); recent list (10 canonical
+   folders, missing entries removable); unsaved guard (Save/Discard/Cancel before New/Open/Recent/
+   exit; a failed save refuses to close); recovery snapshots (120 s dirty-inactivity + deactivation,
+   app-data only, newest five, offered — never auto-applied — after an unclean close); usage search
+   with field paths; safe delete with explicit replacement as one grouped undo step on a session
+   undo stack; validation navigation to document + field; shared searchable reference picker; undo
+   grouping; virtualized nav/validation lists. 142 headless Creator tests; full solution green
+   (3,049). Remaining before VERIFIED: keyboard-shortcut baseline audit (Ctrl+W close-tab et al.)
+   and the formal lifecycle/dirty/failure acceptance matrix pass.
    - **Spec lock:** complete `CREATOR_APP_SPEC` session ownership, lifecycle state machine, recent/
      recovery formats, save transaction, document close, usage/safe-delete, validation navigation,
      reference picker, undo transaction/grouping, and virtualization defaults.
