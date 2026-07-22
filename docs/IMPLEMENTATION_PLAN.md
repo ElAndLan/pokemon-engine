@@ -4244,7 +4244,19 @@ hand-authoring the world.
      prevention, lock/recovery/recent tests, reference replace/delete, navigation, 100-step undo,
      keyboard shortcuts, and headless ViewModel coverage. Exit: fixture projects can be managed with
      no lost edits or direct filesystem mutations from Views.
-2. **17B — Asset authoring (`PLANNED`; prerequisite 17A).**
+2. **17B — Asset authoring (`IN PROGRESS` — 2026-07-22; prerequisite 17A core, COMPLETE).**
+
+   Progress (2026-07-22): **17B algorithm + import/reimport + slicer editor baseline COMPLETE.**
+   ASSET_PIPELINE_SPEC 17B contract locked. ComponentSlicer (v3): iterative flood fill, noise
+   discard, fixed-point ≤2px merge, reading order. Import: validate-before-copy, SHA-256 content
+   hash, collision-free asset filenames, v2→v1→v0 suggestion ladder. Reimport: id + authored cells
+   preserved, invalidated rects reported, confirmation-gated, decline untouched. SheetDocument +
+   SheetView: undoable grid re-slice, three suggestion layers, manual rects, exclusion, batch
+   `{n}` naming, per-cell class, integer-zoom canvas with rect overlay, missing-asset degradation.
+   Remaining: drag-handle rect editing on the canvas, animation grouping + fixed-tick preview,
+   orphan/hash-mismatch validation rules, asset-browser preview panel, 4096² performance check.
+   **Audio import is blocked on a reserved schema decision** (no audio entity category exists —
+   see ASSET_PIPELINE_SPEC §17B Audio); the user decides `sound` entity vs. path-based.
    - **Spec lock:** complete `ASSET_PIPELINE_SPEC` import/reimport transaction, asset ID/path/hash,
      connected-component algorithm, canvas coordinate/selection, slice acceptance/naming, animation,
      audio metadata, orphan handling, and atlas diagnostics.
