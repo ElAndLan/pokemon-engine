@@ -24,6 +24,16 @@ public abstract class EditorDocument : ObservableObject
     public EntityId? Id { get; }
     public UndoStack Undo { get; } = new();
 
+    /// <summary>Set by validation-issue navigation (CREATOR_APP_SPEC §10.8): the camelCase path of
+    /// the field to focus (e.g. <c>learnset[3].move</c>). Views observe it to move focus; a null
+    /// clears the request. Behavior-tested headlessly; visual focus is per-view binding.</summary>
+    private string? _focusedField;
+    public string? FocusedField
+    {
+        get => _focusedField;
+        set => SetProperty(ref _focusedField, value);
+    }
+
     public abstract string Title { get; }
     public bool IsDirty => Undo.IsDirty;
     public string TabTitle => IsDirty ? Title + " •" : Title;

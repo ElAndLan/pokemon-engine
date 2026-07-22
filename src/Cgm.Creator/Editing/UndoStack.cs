@@ -27,10 +27,40 @@ public sealed class UndoStack
 
     public event Action? Changed;
 
+    private List<IEditCommand>? _group;
+
     public void Push(IEditCommand command)
     {
         command.Do();
 
+        if (_group is not null)
+        {
+            _group.Add(command); // grouped members join the stack as one entry at EndGroup
+            return;
+        }
+
+        AddApplied(command);
+        Changed?.Invoke();
+    }
+
+    /// <summary>Starts collecting pushes into one composite step (CREATOR_APP_SPEC §10.9): each
+    /// still executes immediately, but one Undo reverses them all. Groups do not nest.</summary>
+    public void BeginGroup() => _group = [];
+
+    public void EndGroup()
+    {
+        List<IEditCommand>? group = _group;
+        _group = null;
+        if (group is { Count: > 0 })
+        {
+            AddApplied(new CompositeCommand(group));
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Adds an already-executed command to the history (shared by Push and EndGroup).</summary>
+    private void AddApplied(IEditCommand command)
+    {
         if (_index < _commands.Count)
             _commands.RemoveRange(_index, _commands.Count - _index); // drop redo tail
 
@@ -44,8 +74,6 @@ public sealed class UndoStack
             _index -= drop;
             _savedIndex -= drop; // if this goes negative the saved point was trimmed → stays dirty
         }
-
-        Changed?.Invoke();
     }
 
     public void Undo()
@@ -66,6 +94,23 @@ public sealed class UndoStack
     {
         _savedIndex = _index;
         Changed?.Invoke();
+    }
+}
+
+/// <summary>N already-grouped edits as one undo step: Do replays in order, Undo reverses in
+/// reverse order (CREATOR_APP_SPEC §10.9).</summary>
+public sealed class CompositeCommand(IReadOnlyList<IEditCommand> members) : IEditCommand
+{
+    public void Do()
+    {
+        foreach (IEditCommand member in members)
+            member.Do();
+    }
+
+    public void Undo()
+    {
+        for (int i = members.Count - 1; i >= 0; i--)
+            members[i].Undo();
     }
 }
 

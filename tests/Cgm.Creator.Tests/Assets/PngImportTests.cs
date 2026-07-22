@@ -49,7 +49,7 @@ public sealed class PngImportTests
         try
         {
             string png = WriteSolidPng(src, 32, 32);
-            var vm = new MainWindowViewModel(new FakeDialogService());
+            var vm = TestRepo.NewVm();
             vm.OpenProject(projectDir);
 
             vm.ImportSheet(png, "overworld");
@@ -74,7 +74,7 @@ public sealed class PngImportTests
         try
         {
             string png = WriteSolidPng(src, 16, 16);
-            var vm = new MainWindowViewModel(new FakeDialogService());
+            var vm = TestRepo.NewVm();
             vm.OpenProject(projectDir);
 
             vm.ImportSheet(png, "Bad Slug");

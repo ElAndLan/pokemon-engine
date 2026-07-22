@@ -59,7 +59,15 @@ public sealed class RecentProjects
 
     private void Write()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(_folders));
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            File.WriteAllText(_path, JsonSerializer.Serialize(_folders));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best-effort convenience state: two Creator instances may race on this file, and a
+            // failed write must never break opening a project. The in-memory list stays correct.
+        }
     }
 }

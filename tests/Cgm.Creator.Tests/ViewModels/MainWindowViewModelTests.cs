@@ -8,7 +8,7 @@ public sealed class MainWindowViewModelTests
     private static MainWindowViewModel OnFixture(out string dir, FakeDialogService? dialogs = null)
     {
         dir = TestRepo.CopySampleToTemp("fixture-min");
-        var vm = new MainWindowViewModel(dialogs ?? new FakeDialogService());
+        var vm = TestRepo.NewVm(dialogs);
         vm.OpenProject(dir);
         return vm;
     }
@@ -71,7 +71,7 @@ public sealed class MainWindowViewModelTests
             vm.SaveAll();
             Assert.False(doc.IsDirty);
 
-            var reopened = new MainWindowViewModel(new FakeDialogService());
+            var reopened = TestRepo.NewVm();
             reopened.OpenProject(dir);
             reopened.OpenDocument(EntityId.Parse("move:ember"));
             Assert.Equal(60, ((MoveDocument)reopened.ActiveDocument!).Power);
@@ -100,7 +100,7 @@ public sealed class MainWindowViewModelTests
         string dir = TestRepo.CopySampleToTemp("fixture-min");
         try
         {
-            var vm = new MainWindowViewModel(new FakeDialogService { FolderToReturn = dir });
+            var vm = TestRepo.NewVm(new FakeDialogService { FolderToReturn = dir });
             await vm.OpenCommand.ExecuteAsync(null);
             Assert.True(vm.HasProject);
         }
@@ -113,7 +113,7 @@ public sealed class MainWindowViewModelTests
         string dir = Path.Combine(Path.GetTempPath(), "cgm-new-" + Guid.NewGuid().ToString("N"));
         try
         {
-            var vm = new MainWindowViewModel(new FakeDialogService());
+            var vm = TestRepo.NewVm();
             vm.NewProject(new Cgm.Creator.Services.NewProjectRequest(dir, "Fresh Start", 16));
             Assert.True(vm.HasProject);
             Assert.Equal("Fresh Start", vm.ProjectName);
@@ -125,7 +125,7 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void OpenProject_BadFolder_SetsStatus_NoCrash()
     {
-        var vm = new MainWindowViewModel(new FakeDialogService());
+        var vm = TestRepo.NewVm();
         vm.OpenProject(Path.Combine(Path.GetTempPath(), "does-not-exist-" + Guid.NewGuid().ToString("N")));
         Assert.False(vm.HasProject);
         Assert.Contains("Could not open", vm.StatusText);

@@ -54,6 +54,12 @@
 
     <Expander DockPanel.Dock="Bottom" Header="{Binding ValidationSummary}" ExpandDirection="Up">
       <ListBox ItemsSource="{Binding Issues}" SelectionChanged="OnIssueSelected" MaxHeight="200">
+        <!-- §10.10: long lists virtualize; issue counts scale with project size. -->
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <VirtualizingStackPanel />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="val:ValidationIssue">
             <TextBlock Text="{Binding Message}" TextWrapping="NoWrap" />
@@ -73,6 +79,12 @@
           <Button Content="＋ New" Command="{Binding NewEntityCommand}" />
         </StackPanel>
         <TreeView ItemsSource="{Binding Nav}" SelectionChanged="OnNavSelectionChanged">
+          <!-- §10.10: the entity tree virtualizes; categories can hold hundreds of entities. -->
+          <TreeView.ItemsPanel>
+            <ItemsPanelTemplate>
+              <VirtualizingStackPanel />
+            </ItemsPanelTemplate>
+          </TreeView.ItemsPanel>
           <TreeView.DataTemplates>
             <TreeDataTemplate DataType="vm:NavCategory" ItemsSource="{Binding Entities}">
               <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />

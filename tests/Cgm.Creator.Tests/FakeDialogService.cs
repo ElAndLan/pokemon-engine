@@ -24,4 +24,14 @@ internal sealed class FakeDialogService : IDialogService
     }
 
     public Task<bool> ConfirmAsync(string message) => Task.FromResult(ConfirmToReturn);
+
+    public Cgm.Core.Model.EntityId? EntityToReturn { get; set; }
+    public IReadOnlyList<(Cgm.Core.Model.EntityId Id, string Name)>? LastPickCandidates { get; private set; }
+
+    public Task<Cgm.Core.Model.EntityId?> PickEntityAsync(Cgm.Core.Model.EntityCategory category,
+        IReadOnlyList<(Cgm.Core.Model.EntityId Id, string Name)> candidates, string prompt)
+    {
+        LastPickCandidates = candidates;
+        return Task.FromResult(EntityToReturn);
+    }
 }

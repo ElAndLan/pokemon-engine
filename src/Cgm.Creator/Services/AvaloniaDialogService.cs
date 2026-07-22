@@ -59,6 +59,14 @@ public sealed class AvaloniaDialogService : IDialogService
         return choice == 1;
     }
 
+    public async Task<Cgm.Core.Model.EntityId?> PickEntityAsync(Cgm.Core.Model.EntityCategory category,
+        IReadOnlyList<(Cgm.Core.Model.EntityId Id, string Name)> candidates, string prompt)
+    {
+        if (_topLevel() is not Window owner) return null;
+        var picker = new ViewModels.ReferencePickerViewModel(candidates);
+        return await new PickEntityWindow(picker, prompt).ShowDialog<Cgm.Core.Model.EntityId?>(owner);
+    }
+
     private async Task<string?> PickFolderAsync(string title)
     {
         if (_topLevel() is not { } top) return null;

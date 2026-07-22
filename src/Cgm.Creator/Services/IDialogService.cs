@@ -25,4 +25,9 @@ public interface IDialogService
 
     /// <summary>A yes/no confirmation; closing the dialog is no.</summary>
     Task<bool> ConfirmAsync(string message);
+
+    /// <summary>Picks an entity of a category via the searchable reference picker (§10.8), e.g. the
+    /// replacement in a safe delete (§10.7). Null = cancelled.</summary>
+    Task<Cgm.Core.Model.EntityId?> PickEntityAsync(Cgm.Core.Model.EntityCategory category,
+        IReadOnlyList<(Cgm.Core.Model.EntityId Id, string Name)> candidates, string prompt);
 }

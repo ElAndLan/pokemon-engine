@@ -207,7 +207,8 @@ Clicking a validation issue opens/focuses the owning document **and focuses the 
 the issue carries one; issues without a field fall back to the document. The shared reference
 picker is one searchable control binding an `EntityId`: filters by display name and slug as typed,
 lists `name (category:slug)`, shows a broken current value as broken rather than clearing it.
-Every editor reference field uses it; none builds its own.
+It is the only reference-picking implementation: new editors use it from the start, and the
+Phase 3 pathfinder combos migrate to it when 17D rebuilds their forms.
 
 ### 10.9 Undo grouping
 

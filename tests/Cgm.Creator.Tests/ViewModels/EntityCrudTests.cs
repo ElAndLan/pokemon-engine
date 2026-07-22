@@ -8,7 +8,7 @@ public sealed class EntityCrudTests
     private static MainWindowViewModel OnFixture(out string dir)
     {
         dir = TestRepo.CopySampleToTemp("fixture-min");
-        var vm = new MainWindowViewModel(new FakeDialogService());
+        var vm = TestRepo.NewVm();
         vm.OpenProject(dir);
         return vm;
     }
@@ -94,13 +94,14 @@ public sealed class EntityCrudTests
     }
 
     [Fact]
-    public void Delete_RefusesWhenReferenced()
+    public async Task Delete_RefusesWhenReferenced_AndNoReplacementPicked()
     {
         MainWindowViewModel vm = OnFixture(out string dir);
         try
         {
-            // type:grass is referenced by species:leafcub and move:vine_whip.
-            vm.DeleteEntity(EntityId.Parse("type:grass"));
+            // type:grass is referenced by species:leafcub and move:vine_whip; the fake dialog
+            // cancels the replacement pick, so nothing may change.
+            Assert.False(await vm.DeleteEntityAsync(EntityId.Parse("type:grass")));
             Assert.True(vm.Session!.Contains(EntityId.Parse("type:grass")));
             Assert.Contains("Can't delete", vm.StatusText);
         }
@@ -108,27 +109,27 @@ public sealed class EntityCrudTests
     }
 
     [Fact]
-    public void Delete_SucceedsWhenUnreferenced()
+    public async Task Delete_SucceedsWhenUnreferenced()
     {
         MainWindowViewModel vm = OnFixture(out string dir);
         try
         {
             // item:potion isn't referenced by anything in the fixture.
-            vm.DeleteEntity(EntityId.Parse("item:potion"));
+            Assert.True(await vm.DeleteEntityAsync(EntityId.Parse("item:potion")));
             Assert.False(vm.Session!.Contains(EntityId.Parse("item:potion")));
         }
         finally { Directory.Delete(dir, true); }
     }
 
     [Fact]
-    public void FindReferencers_ReportsReferencingEntities()
+    public void FindUsages_ReportsReferencingEntitiesWithFieldPaths()
     {
         MainWindowViewModel vm = OnFixture(out string dir);
         try
         {
-            var refs = vm.FindReferencers(EntityId.Parse("type:grass"));
-            Assert.Contains(EntityId.Parse("species:leafcub"), refs);
-            Assert.Contains(EntityId.Parse("move:vine_whip"), refs);
+            var usages = vm.FindUsages(EntityId.Parse("type:grass"));
+            Assert.Contains(usages, u => u.Entity == EntityId.Parse("species:leafcub") && u.Field.StartsWith("types["));
+            Assert.Contains(usages, u => u.Entity == EntityId.Parse("move:vine_whip") && u.Field == "type");
         }
         finally { Directory.Delete(dir, true); }
     }

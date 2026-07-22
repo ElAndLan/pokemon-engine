@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using Cgm.Core.Model;
 using Cgm.Core.Serialization;
 using Cgm.Core.Validation;
+using Cgm.Creator.Editing;
 using Cgm.Creator.Services;
 
 namespace Cgm.Creator.ViewModels;
@@ -28,6 +29,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _recovery = recovery ?? Editing.RecoverySnapshots.Default();
         foreach (string folder in _recent.Folders)
             Recent.Add(folder);
+
+        // Session-level undo (safe delete + rewrites) changes entities without an open document,
+        // so the nav tree and validation strip refresh on every stack movement.
+        SessionUndo.Changed += () =>
+        {
+            RebuildNav();
+            RefreshValidation();
+        };
     }
 
     [ObservableProperty] private ProjectSession? _session;
@@ -39,6 +48,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public ObservableCollection<EditorDocument> Documents { get; } = [];
     public ObservableCollection<ValidationIssue> Issues { get; } = [];
     public ObservableCollection<string> Recent { get; } = [];
+
+    /// <summary>Undo history for session-level operations that span entities (safe delete with
+    /// replacement, §10.7/§10.9). Document edits stay on their own per-document stacks; Ctrl+Z
+    /// falls back here when the active document has nothing to undo.</summary>
+    public Editing.UndoStack SessionUndo { get; } = new();
 
     public bool HasProject => Session is not null;
     public int ErrorCount => Issues.Count(i => i.Severity == ValidationSeverity.Error);
@@ -171,10 +185,22 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private void Save() => SaveAll();
 
     [RelayCommand]
-    private void Undo() => ActiveDocument?.Undo.Undo();
+    private void Undo()
+    {
+        if (ActiveDocument?.Undo.CanUndo == true)
+            ActiveDocument.Undo.Undo();
+        else
+            SessionUndo.Undo();
+    }
 
     [RelayCommand]
-    private void Redo() => ActiveDocument?.Undo.Redo();
+    private void Redo()
+    {
+        if (ActiveDocument?.Undo.CanRedo == true)
+            ActiveDocument.Undo.Redo();
+        else
+            SessionUndo.Redo();
+    }
 
     [RelayCommand]
     private async Task NewEntityAsync()
@@ -193,10 +219,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void DeleteActive()
+    private async Task DeleteActiveAsync()
     {
         if (ActiveDocument?.Id is { } id)
-            DeleteEntity(id);
+            await DeleteEntityAsync(id);
     }
 
     [RelayCommand]
@@ -348,10 +374,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
             ActiveDocument = Documents.LastOrDefault();
     }
 
+    /// <summary>Opens the issue's document and focuses the named field when the issue carries one
+    /// (§10.8); issues without a field fall back to the document.</summary>
     public void NavigateToIssue(ValidationIssue issue)
     {
-        if (issue.EntityId is { } id)
-            OpenDocument(id);
+        if (issue.EntityId is not { } id)
+            return;
+        OpenDocument(id);
+        if (ActiveDocument?.Id == id)
+            ActiveDocument.FocusedField = issue.Field;
     }
 
     public void CreateEntity(EntityCategory category, string slug)
@@ -412,34 +443,128 @@ public sealed partial class MainWindowViewModel : ObservableObject
         StatusText = $"Duplicated to '{newId}'.";
     }
 
-    public void DeleteEntity(EntityId id)
+    /// <summary>Deletes an entity per §10.7: unreferenced deletes directly; a referenced entity
+    /// shows its usages and offers an explicit same-category replacement, applied as one grouped
+    /// undo step — rewrite every reference, then delete. Cancelling the pick deletes nothing.</summary>
+    public async Task<bool> DeleteEntityAsync(EntityId id)
     {
-        if (Session is null) return;
+        if (Session is null) return false;
 
-        IReadOnlyList<EntityId> referencers = FindReferencers(id);
-        if (referencers.Count > 0)
+        IReadOnlyList<(EntityId Entity, string Field)> usages = FindUsages(id);
+        if (usages.Count == 0)
         {
-            string list = string.Join(", ", referencers.Take(3));
-            if (referencers.Count > 3) list += "…";
-            StatusText = $"Can't delete '{id}': referenced by {list}.";
-            return;
+            if (Documents.FirstOrDefault(d => d.Id == id) is { } doc)
+                CloseDocument(doc);
+            Session.Remove(id);
+            RebuildNav();
+            RefreshValidation();
+            StatusText = $"Deleted '{id}'.";
+            return true;
         }
 
-        if (Documents.FirstOrDefault(d => d.Id == id) is { } doc)
-            CloseDocument(doc);
-        Session.Remove(id);
+        var candidates = Session.Snapshot().Entities
+            .Where(e => e.Id.Category == id.Category && !e.Id.Equals(id))
+            .Select(e => (e.Id, DisplayName(e)))
+            .ToList();
+
+        EntityId? replacement = await _dialogs.PickEntityAsync(id.Category, candidates,
+            $"'{id}' is referenced by {UsageSummary(usages)}. Pick the replacement every reference " +
+            "will be rewritten to; the delete and the rewrites are one undo step.");
+
+        if (replacement is not { } target || target.Equals(id) || Session.Get(target) is null)
+        {
+            StatusText = $"Can't delete '{id}': referenced by {UsageSummary(usages)}.";
+            return false;
+        }
+
+        SessionUndo.BeginGroup();
+        foreach (EntityId referencer in usages.Select(u => u.Entity).Distinct())
+        {
+            IEntity before = Session.Get(referencer)!;
+            IEntity after = RewriteReferences(before, id, target);
+            SessionUndo.Push(new SnapshotCommand<IEntity>(before, after, e => Session.Put(e)));
+        }
+        IEntity deleted = Session.Get(id)!;
+        SessionUndo.Push(new SnapshotCommand<IEntity?>(deleted, null,
+            e => { if (e is null) Session!.Remove(id); else Session!.Put(e); }));
+        SessionUndo.EndGroup();
+
+        if (Documents.FirstOrDefault(d => d.Id == id) is { } open)
+            CloseDocument(open);
         RebuildNav();
         RefreshValidation();
-        StatusText = $"Deleted '{id}'.";
+        StatusText = $"Deleted '{id}'; {usages.Count} reference(s) now point to '{target}'.";
+        return true;
     }
 
-    public IReadOnlyList<EntityId> FindReferencers(EntityId target)
+    /// <summary>Every (entity, field-path) holding a reference to the target (§10.7), grouped by
+    /// entity in stable order — e.g. <c>species:ember_fox → learnset[3].move</c>.</summary>
+    public IReadOnlyList<(EntityId Entity, string Field)> FindUsages(EntityId target)
     {
         if (Session is null) return [];
         return Session.Snapshot().Entities
-            .Where(e => !e.Id.Equals(target) && EntityReferences.Collect(e).Contains(target))
-            .Select(e => e.Id)
+            .Where(e => !e.Id.Equals(target))
+            .SelectMany(e => EntityReferences.CollectWithPaths(e)
+                .Where(r => r.Id.Equals(target))
+                .Select(r => (e.Id, r.Path)))
+            .OrderBy(u => u.Item1.ToString(), StringComparer.Ordinal)
+            .ThenBy(u => u.Path, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static string UsageSummary(IReadOnlyList<(EntityId Entity, string Field)> usages)
+    {
+        string list = string.Join(", ", usages.Take(3).Select(u => $"{u.Entity}.{u.Field}"));
+        return usages.Count > 3 ? $"{list}, … ({usages.Count} total)" : list;
+    }
+
+    private string DisplayName(IEntity entity) =>
+        entity.GetType().GetProperty("Name")?.GetValue(entity) as string ?? entity.Id.Slug;
+
+    /// <summary>Rewrites every reference to <paramref name="from"/> as <paramref name="to"/> via
+    /// the same JSON round-trip Duplicate uses — generic over any entity shape. Only whole string
+    /// values equal to the id are touched; the root "id" declaration is preserved.</summary>
+    private static IEntity RewriteReferences(IEntity entity, EntityId from, EntityId to)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(CgmJson.SerializeEntity(entity))!.AsObject();
+        var own = node["id"]!.GetValue<string>();
+        Rewrite(node, from.ToString(), to.ToString());
+        node["id"] = own;
+        return (IEntity)CgmJson.Deserialize(node.ToJsonString(), entity.GetType());
+    }
+
+    private static void Rewrite(System.Text.Json.Nodes.JsonNode? node, string from, string to)
+    {
+        switch (node)
+        {
+            case System.Text.Json.Nodes.JsonObject obj:
+                foreach (var key in obj.Select(p => p.Key).ToList())
+                {
+                    if (obj[key] is System.Text.Json.Nodes.JsonValue v
+                        && v.TryGetValue(out string? s) && s == from)
+                        obj[key] = to;
+                    else
+                        Rewrite(obj[key], from, to);
+
+                    if (key == from) // dictionaries keyed by EntityId serialize ids as property names
+                    {
+                        System.Text.Json.Nodes.JsonNode? moved = obj[key];
+                        obj.Remove(key);
+                        obj[to] = moved;
+                    }
+                }
+                break;
+            case System.Text.Json.Nodes.JsonArray arr:
+                for (int i = 0; i < arr.Count; i++)
+                {
+                    if (arr[i] is System.Text.Json.Nodes.JsonValue v
+                        && v.TryGetValue(out string? s) && s == from)
+                        arr[i] = to;
+                    else
+                        Rewrite(arr[i], from, to);
+                }
+                break;
+        }
     }
 
     private IEntity? NewEntityOf(EntityId id) => id.Category switch

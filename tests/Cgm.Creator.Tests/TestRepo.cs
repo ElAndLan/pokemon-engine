@@ -7,6 +7,16 @@ internal static class TestRepo
 
     public static string Sample(string relative) => Path.Combine(Root, "samples", relative);
 
+    /// <summary>A shell view-model with throwaway recent/recovery stores, so tests never touch the
+    /// user's real %APPDATA% state (which is also shared mutable state across parallel tests).</summary>
+    public static Creator.ViewModels.MainWindowViewModel NewVm(FakeDialogService? dialogs = null)
+    {
+        string state = Path.Combine(Path.GetTempPath(), "cgm-teststate-" + Guid.NewGuid().ToString("N"));
+        return new Creator.ViewModels.MainWindowViewModel(dialogs ?? new FakeDialogService(),
+            new Creator.Editing.RecentProjects(state),
+            new Creator.Editing.RecoverySnapshots(Path.Combine(state, "recovery")));
+    }
+
     /// <summary>Copies a sample project into a fresh temp folder; caller deletes it.</summary>
     public static string CopySampleToTemp(string sampleName)
     {

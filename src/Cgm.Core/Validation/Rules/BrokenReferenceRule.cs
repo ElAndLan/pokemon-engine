@@ -22,15 +22,15 @@ public sealed class BrokenReferenceRule : IValidationRule
                 resolvable.Add(cell.SpriteId);
 
         foreach (IEntity entity in project.Entities)
-            foreach (EntityId reference in EntityReferences.Collect(entity))
+            foreach ((EntityId reference, string path) in EntityReferences.CollectWithPaths(entity))
                 if (!resolvable.Contains(reference))
                     yield return new ValidationIssue(Id, ValidationSeverity.Error, entity.Id,
                         $"References '{reference}', which does not exist.",
-                        "Create the target entity or fix the reference.");
+                        "Create the target entity or fix the reference.", Field: path);
 
-        foreach (EntityId reference in EntityReferences.Collect(project.Settings))
+        foreach ((EntityId reference, string path) in EntityReferences.CollectWithPaths(project.Settings))
             if (!resolvable.Contains(reference))
                 yield return new ValidationIssue(Id, ValidationSeverity.Error, project.Settings.Id,
-                    $"Project settings reference '{reference}', which does not exist.");
+                    $"Project settings reference '{reference}', which does not exist.", Field: path);
     }
 }
