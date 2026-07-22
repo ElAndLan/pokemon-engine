@@ -38,6 +38,69 @@
       "ledge": "down",
       "counter": false,
       "terrainTag": "south-ledge"
+    },
+    {
+      "sprite": "sprite:grass_base",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "grass_base"
+    },
+    {
+      "sprite": "sprite:grass_v1",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "grass_v1"
+    },
+    {
+      "sprite": "sprite:grass_v2",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "grass_v2"
+    },
+    {
+      "sprite": "sprite:flower_orange",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "flower_orange"
+    },
+    {
+      "sprite": "sprite:flower_white",
+      "solid": false,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "flower_white"
+    },
+    {
+      "sprite": "sprite:reed_border",
+      "solid": true,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "reed_border"
+    },
+    {
+      "sprite": "sprite:bush_clump",
+      "solid": true,
+      "grass": false,
+      "water": false,
+      "ledge": "none",
+      "counter": false,
+      "terrainTag": "bush_clump"
     }
   ]
 }
