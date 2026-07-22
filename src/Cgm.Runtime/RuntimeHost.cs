@@ -318,7 +318,9 @@ internal sealed class RuntimeHost : IDisposable
         _battleWasTrainer = trainer;
         _scenes.Replace(new BattleHostScene(_ui!.Painter, presenter,
             _content.Config.VirtualWidth, _content.Config.VirtualHeight,
-            spendItem: item => _session.ConsumeItem(item)));
+            spendItem: item => _session.ConsumeItem(item),
+            sprites: _sprites,
+            speciesSprites: id => _content.Db.Find<Species>(id)?.Sprites));
     }
 
     /// <summary>Returns from a finished battle: apply the result once, award experience on a win, and

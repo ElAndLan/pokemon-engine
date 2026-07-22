@@ -16,9 +16,11 @@ public sealed record BattleMenuItem(string Label, BattleAction Action, EntityId?
 public sealed record BattlePartyMember(string Name, int CurrentHp, int MaxHp, bool IsActive, bool IsFainted);
 public sealed record BattleSceneSnapshot(
     string PlayerName,
+    EntityId PlayerSpecies,
     int PlayerHp,
     int PlayerMaxHp,
     string EnemyName,
+    EntityId EnemySpecies,
     int EnemyHp,
     int EnemyMaxHp,
     IReadOnlyList<BattlePartyMember> PlayerParty,
@@ -69,9 +71,11 @@ public sealed class BattleScene
         BattleCreature enemy = _battle.Active(BattleSide.Enemy);
         return new BattleSceneSnapshot(
             _nameOf(player.Species),
+            player.Species,
             player.CurrentHp,
             player.MaxHp,
             _nameOf(enemy.Species),
+            enemy.Species,
             enemy.CurrentHp,
             enemy.MaxHp,
             PartySnapshot(BattleSide.Player),
@@ -149,6 +153,10 @@ public sealed class BattleScene
             if (_battle.CanSubmitAction(BattleSide.Player, action))
                 items.Add(new BattleMenuItem($"Throw {_nameOf(capture.Item)}", action, capture.Item));
         }
+
+        var run = new Run();
+        if (_battle.CanSubmitAction(BattleSide.Player, run))
+            items.Add(new BattleMenuItem("Run", run));
 
         _menu = items;
         if (_selected >= _menu.Count)

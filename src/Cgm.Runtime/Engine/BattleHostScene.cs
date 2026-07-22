@@ -22,17 +22,24 @@ public sealed class BattleHostScene : IScene
     private int _presented;
 
     private readonly Func<EntityId, bool>? _spendItem;
+    private readonly SpriteAtlas? _sprites;
+    private readonly Func<EntityId, SpeciesSprites?>? _speciesSprites;
 
     /// <summary><paramref name="spendItem"/> consumes an item an action requires and returns whether
-    /// the bag could pay. A refused spend cancels the action, so a device cannot be thrown twice.</summary>
+    /// the bag could pay. A refused spend cancels the action, so a device cannot be thrown twice.
+    /// <paramref name="sprites"/> and <paramref name="speciesSprites"/> draw the combatants; without
+    /// them the scene falls back to the coloured platform markers.</summary>
     public BattleHostScene(UiPainter ui, BattleScene battle, int virtualWidth, int virtualHeight,
-        Func<EntityId, bool>? spendItem = null)
+        Func<EntityId, bool>? spendItem = null, SpriteAtlas? sprites = null,
+        Func<EntityId, SpeciesSprites?>? speciesSprites = null)
     {
         ArgumentNullException.ThrowIfNull(ui);
         ArgumentNullException.ThrowIfNull(battle);
         _ui = ui;
         _battle = battle;
         _spendItem = spendItem;
+        _sprites = sprites;
+        _speciesSprites = speciesSprites;
         _width = virtualWidth;
         _height = virtualHeight;
 
@@ -99,15 +106,37 @@ public sealed class BattleHostScene : IScene
         _ui.Panel(new RectI(0, 0, _width, _height), new Rgba(0x18, 0x24, 0x30, 0xFF));
         BattleSceneSnapshot snapshot = _battle.Snapshot();
 
-        // Opponent upper-right on its ground, info panel upper-left (no numeric HP for opponents).
-        _ui.Panel(new RectI(_width - 84, 30, 48, 40), new Rgba(0x90, 0x50, 0x40, 0xFF), layer: 1);
+        // Opponent upper-right on its ground platform, info panel upper-left (no numeric HP).
+        var enemyGround = new RectI(_width - 84, 30, 48, 40);
+        _ui.Panel(enemyGround, new Rgba(0x90, 0x50, 0x40, 0xFF), layer: 1);
+        DrawCombatant(FrontOf(snapshot.EnemySpecies), enemyGround);
         Info(new RectI(8, 12, 108, 34), snapshot.EnemyName, _enemyHp, showNumbers: false);
 
         // Player lower-left, info panel lower-right with numeric HP.
-        _ui.Panel(new RectI(36, _height - 108, 48, 40), new Rgba(0x40, 0x70, 0x90, 0xFF), layer: 1);
+        var playerGround = new RectI(36, _height - 108, 48, 40);
+        _ui.Panel(playerGround, new Rgba(0x40, 0x70, 0x90, 0xFF), layer: 1);
+        DrawCombatant(BackOf(snapshot.PlayerSpecies), playerGround);
         Info(new RectI(_width - 124, _height - 96, 116, 34), snapshot.PlayerName, _playerHp, showNumbers: true);
 
         Message(snapshot);
+    }
+
+    private EntityId? FrontOf(EntityId species) => _speciesSprites?.Invoke(species)?.Front;
+    private EntityId? BackOf(EntityId species) => _speciesSprites?.Invoke(species)?.Back;
+
+    /// <summary>Draws a combatant sprite centred over its ground platform and standing on it (feet at
+    /// the platform's vertical centre), on layer 2 so it sits above the platform. Draws nothing when
+    /// there is no atlas or the sprite does not resolve — the platform marker then stands in.</summary>
+    private void DrawCombatant(EntityId? sprite, RectI ground)
+    {
+        if (_sprites is null || sprite is not { } id || !_sprites.TryGet(id, out TextureHandle texture, out RectI source))
+            return;
+
+        var dest = new RectI(
+            ground.X + (ground.Width - source.Width) / 2,
+            ground.Y + ground.Height / 2 - source.Height,
+            source.Width, source.Height);
+        _ui.Sprite(texture, source, dest, layer: 2);
     }
 
     public void Exit() => _beats.Clear();
