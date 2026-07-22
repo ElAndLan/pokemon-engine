@@ -12,7 +12,7 @@ public enum EntityCategory
 
 /// <summary>
 /// A stable, immutable entity reference of the form <c>category:slug</c> (DATA_SCHEMA.md §2),
-/// e.g. <c>species:bulbasaur</c>. Slugs match <c>[a-z0-9_]+</c>. Serializes as its string form.
+/// e.g. <c>species:sproutling</c>. Slugs match <c>[a-z0-9_]+</c>. Serializes as its string form.
 /// </summary>
 [JsonConverter(typeof(EntityIdJsonConverter))]
 public readonly record struct EntityId

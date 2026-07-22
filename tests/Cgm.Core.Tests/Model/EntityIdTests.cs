@@ -6,7 +6,7 @@ namespace Cgm.Core.Tests.Model;
 public sealed class EntityIdTests
 {
     [Theory]
-    [InlineData("species:bulbasaur", EntityCategory.Species, "bulbasaur")]
+    [InlineData("species:sproutling", EntityCategory.Species, "sproutling")]
     [InlineData("type:fire", EntityCategory.Type, "fire")]
     [InlineData("move:ember", EntityCategory.Move, "ember")]
     [InlineData("ability:sturdy_root", EntityCategory.Ability, "sturdy_root")]
@@ -39,9 +39,9 @@ public sealed class EntityIdTests
     [Fact]
     public void TryParse_IsCaseInsensitiveOnCategoryOnly()
     {
-        Assert.True(EntityId.TryParse("SPECIES:bulbasaur", out EntityId id));
+        Assert.True(EntityId.TryParse("SPECIES:sproutling", out EntityId id));
         Assert.Equal(EntityCategory.Species, id.Category);
-        Assert.Equal("species:bulbasaur", id.ToString()); // normalized to lowercase prefix
+        Assert.Equal("species:sproutling", id.ToString()); // normalized to lowercase prefix
     }
 
     [Fact]
