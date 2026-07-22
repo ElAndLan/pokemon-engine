@@ -231,36 +231,140 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (Session is null) return;
         if (await _dialogs.PickPngAsync() is not { } png) return;
         string suggested = Path.GetFileNameWithoutExtension(png).ToLowerInvariant();
-        if (await _dialogs.PromptTextAsync("Sheet id slug:", suggested) is { } slug)
-            ImportSheet(png, slug);
+        if (await _dialogs.PromptTextAsync("Sheet id slug:", suggested) is not { } slug) return;
+
+        // An existing sheet id offers the reimport path (§17B collision: replace or new slug).
+        var id = new EntityId(EntityCategory.Sheet, EntityId.IsValidSlug(slug) ? slug : "invalid");
+        if (EntityId.IsValidSlug(slug) && Session.Contains(id))
+        {
+            if (await _dialogs.ConfirmAsync($"'{id}' already exists. Replace its pixels with this file (reimport)?"))
+                await ReimportSheetAsync(id, png);
+            else
+                StatusText = $"'{id}' already exists — import again with a different slug.";
+            return;
+        }
+
+        ImportSheet(png, slug);
     }
 
-    public void ImportSheet(string pngPath, string slug)
+    /// <summary>The 17B reimport: keeps the sheet's id and authored cells, updates pixels/hash/
+    /// dimensions, and removes cells that no longer fit — reported and confirmation-gated before
+    /// anything is written. Declining leaves project and file untouched.</summary>
+    public async Task<bool> ReimportSheetAsync(EntityId id, string pngPath)
     {
-        if (Session is null) return;
+        if (Session?.Find<SpriteSheet>(id) is not { } sheet) return false;
+
+        byte[] bytes;
+        Assets.ImageData image;
+        try
+        {
+            bytes = File.ReadAllBytes(pngPath);
+            image = Assets.PngDecoder.Decode(bytes); // same trust boundary as import
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            StatusText = $"Reimport failed — not a readable PNG: {ex.Message}";
+            return false;
+        }
+
+        var invalidated = sheet.Cells
+            .Where(c => CellRect(sheet, c) is not { } r
+                || r.X + r.W > image.Width || r.Y + r.H > image.Height)
+            .ToList();
+
+        string report = invalidated.Count == 0
+            ? $"All {sheet.Cells.Count} cells still fit."
+            : $"{invalidated.Count} of {sheet.Cells.Count} cells fall outside the new bounds and will be removed: "
+              + string.Join(", ", invalidated.Take(5).Select(c => c.SpriteId.Slug))
+              + (invalidated.Count > 5 ? ", …" : "");
+        if (!await _dialogs.ConfirmAsync(
+            $"Reimport '{id}' from {Path.GetFileName(pngPath)} ({image.Width}×{image.Height})? {report}"))
+            return false;
+
+        File.WriteAllBytes(Path.Combine(Session.Folder, sheet.Asset), bytes);
+        Session.Put(sheet with
+        {
+            ImageW = image.Width,
+            ImageH = image.Height,
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)),
+            Cells = sheet.Cells.Except(invalidated).ToList(),
+        });
+        RefreshValidation();
+        StatusText = $"Reimported '{id}'; {invalidated.Count} cell(s) removed.";
+        return true;
+    }
+
+    /// <summary>A cell's pixel rect: authored rects directly; grid cells from the sheet's original
+    /// grid parameters (row-major over the original column count).</summary>
+    private static Cgm.Core.Model.Rect? CellRect(SpriteSheet sheet, SheetCell cell)
+    {
+        if (cell.Rect is { } rect)
+            return rect;
+        if (cell.Index is not { } index || sheet.CellW <= 0 || sheet.CellH <= 0)
+            return null;
+        int strideX = sheet.CellW + sheet.SpacingX;
+        int columns = Math.Max(1, (sheet.ImageW - sheet.OffsetX + sheet.SpacingX) / strideX);
+        return new Cgm.Core.Model.Rect(
+            sheet.OffsetX + index % columns * strideX,
+            sheet.OffsetY + index / columns * (sheet.CellH + sheet.SpacingY),
+            sheet.CellW, sheet.CellH);
+    }
+
+    /// <summary>The 17B import transaction (ASSET_PIPELINE_SPEC): decode/validate the source in
+    /// place first — a malformed file rejects before anything is copied — then copy the validated
+    /// bytes under a collision-free name, hash them, and slice via the suggestion ladder.</summary>
+    public bool ImportSheet(string pngPath, string slug)
+    {
+        if (Session is null) return false;
         if (!EntityId.IsValidSlug(slug))
         {
             StatusText = $"Invalid slug '{slug}'.";
-            return;
+            return false;
         }
         var id = new EntityId(EntityCategory.Sheet, slug);
         if (Session.Contains(id))
         {
             StatusText = $"'{id}' already exists.";
-            return;
+            return false;
         }
 
+        byte[] bytes;
+        Assets.ImageData image;
+        try
+        {
+            bytes = File.ReadAllBytes(pngPath);
+            // StbImageSharp reports malformed input as a bare Exception; this is the trust
+            // boundary where arbitrary user files are rejected, so the catch is deliberately wide.
+            image = Assets.PngDecoder.Decode(bytes);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            StatusText = $"Import failed — not a readable PNG: {ex.Message}";
+            return false;
+        }
+
+        // One asset file per sheet: never silently overwrite another sheet's pixels.
         string assetsDir = Path.Combine(Session.Folder, "assets");
         Directory.CreateDirectory(assetsDir);
-        string fileName = Path.GetFileName(pngPath);
-        File.Copy(pngPath, Path.Combine(assetsDir, fileName), overwrite: true);
+        string baseName = Path.GetFileNameWithoutExtension(pngPath);
+        string fileName = baseName + ".png";
+        if (File.Exists(Path.Combine(assetsDir, fileName)))
+            fileName = $"{baseName}_{slug}.png";
+        for (int n = 2; File.Exists(Path.Combine(assetsDir, fileName)); n++)
+            fileName = $"{baseName}_{slug}_{n}.png";
 
-        var sheet = Assets.SheetImporter.Import(
-            id, Path.Combine(assetsDir, fileName), $"assets/{fileName}", Session.Settings.TileSize);
+        File.WriteAllBytes(Path.Combine(assetsDir, fileName), bytes);
+
+        SpriteSheet sheet = Assets.SheetImporter.Import(
+            id, image, $"assets/{fileName}", Session.Settings.TileSize) with
+        {
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)),
+        };
         Session.Add(sheet);
         RebuildNav();
         RefreshValidation();
         StatusText = $"Imported '{id}' ({sheet.Cells.Count} cells).";
+        return true;
     }
 
     [RelayCommand]

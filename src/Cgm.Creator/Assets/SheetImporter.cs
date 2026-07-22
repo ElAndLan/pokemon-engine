@@ -18,13 +18,19 @@ public static class PngDecoder
     public static ImageData DecodeFile(string path) => Decode(File.ReadAllBytes(path));
 }
 
-/// <summary>Imports a PNG into a <see cref="SpriteSheet"/>: decode → suggest a cell size → slice
-/// (ASSET_PIPELINE_SPEC v0–v1). Falls back to the project tile size, then the image size.</summary>
+/// <summary>Imports a decoded image as a <see cref="SpriteSheet"/> using the suggestion ladder
+/// (ASSET_PIPELINE_SPEC 17B): v2 gutter fit → v1 common size → project tile size → whole image.</summary>
 public static class SheetImporter
 {
-    public static SpriteSheet Import(EntityId sheetId, string pngPath, string assetRelPath, int? tileSize)
+    public static SpriteSheet Import(EntityId sheetId, string pngPath, string assetRelPath, int? tileSize) =>
+        Import(sheetId, PngDecoder.DecodeFile(pngPath), assetRelPath, tileSize);
+
+    public static SpriteSheet Import(EntityId sheetId, ImageData image, string assetRelPath, int? tileSize)
     {
-        ImageData image = PngDecoder.DecodeFile(pngPath);
+        if (GutterDetector.Detect(image.Opaque, image.Width, image.Height) is { } fit)
+            return SheetBuilder.Build(sheetId, assetRelPath, image,
+                new GridSpec(fit.CellW, fit.CellH, fit.MarginX, fit.MarginY, fit.SpacingX, fit.SpacingY));
+
         int size = SizeSuggester.Suggest(image.Width, image.Height, tileSize)
             ?? tileSize
             ?? Math.Min(image.Width, image.Height);

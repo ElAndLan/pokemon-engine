@@ -39,6 +39,8 @@ public static class SheetBuilder
             Id = sheetId,
             Name = sheetId.Slug,
             Asset = assetPath,
+            ImageW = image.Width,
+            ImageH = image.Height,
             Mode = SliceMode.Grid,
             CellW = grid.CellW,
             CellH = grid.CellH,

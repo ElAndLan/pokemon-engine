@@ -83,3 +83,77 @@ non-positive frame duration, or an invalid base slug (EntityId grammar).
 component, reimport, animation/audio metadata, atlas diagnostics, and production pack asset contracts.
 Before 17B or 18C code, copy/reconcile the exact transaction, algorithm, ordering, hashing, rollback,
 and acceptance decisions into this spec. No extra user confirmation is required under v4 §2.1.
+
+## 17B — Asset authoring (locked 2026-07-22)
+
+### Import transaction
+
+Import never modifies the user's source file, and a failed import never leaves partial project
+state. Order is validate-first:
+
+1. **Decode/validate** the picked PNG in place (StbImageSharp). A malformed file rejects here —
+   nothing was copied, nothing changed.
+2. **Slug + collision.** The proposed sheet slug must satisfy the EntityId grammar. If
+   `sheet:<slug>` already exists, prompt: **Replace** (a reimport of that sheet, below) or **new
+   slug**. If the target file name `assets/<file>.png` is taken by a *different* sheet, the copy
+   is renamed `<file>_<slug>.png` — one asset file per sheet, never a silent overwrite.
+3. **Copy** into `assets/` (canonical project asset folder), compute **SHA-256** of the bytes into
+   `SpriteSheet.ContentHash`, record `ImageW/ImageH`.
+4. **Slice + register.** Initial slicing = the v2→v1→v0 suggestion ladder (gutter fit, else
+   common size, else project tile size, else whole image). The sheet entity joins the session
+   dirty (it is saved by the ordinary transactional save, not written directly).
+
+### Reimport
+
+Reimport replaces a sheet's pixels while preserving its identity and authored work:
+
+- The sheet's `EntityId` and every authored cell (sprite ids, classes, rects, includes) are kept.
+- The new file is decoded/validated first, then copied over the sheet's existing `Asset` path;
+  `ContentHash`/`ImageW/ImageH` update.
+- Cells whose rect (or grid cell) no longer fits inside the new bounds are **invalidated**:
+  reported to the user before commit, and the commit is confirmation-gated. Declining leaves the
+  project untouched (the file copy happens only on confirm). Invalidated cells are removed on
+  commit — their sprite ids disappear and the broken-reference rule surfaces every consumer.
+
+### Import v3 — connected components (`ComponentSlicer`)
+
+`Detect(opaque[], width, height, mergeThreshold = 2) → Rect[]` — for irregular sheets no grid
+fits:
+
+- **Flood fill** 4-neighbor over opaque pixels (alpha > 0); each component's tight bounds is a
+  candidate rect. Iterative fill (explicit stack) — a 4096² image must not recurse.
+- **Noise discard:** components of 1 pixel are dropped; fully transparent images yield `[]`.
+- **Merge:** two bounds merge when they overlap or when the gap between them is ≤
+  `mergeThreshold` px on one axis and they overlap on the other (a sprite whose outline breaks
+  into pieces reads as one). Merging repeats to a fixed point.
+- **Sort:** top-to-bottom by `Y`, then left-to-right by `X` — reading order, deterministic.
+- Snap-to-grid is off by default (the plan's default); the canvas may snap on request.
+
+### Slice acceptance & naming
+
+- Accepting a suggestion (any layer) replaces the sheet's cells wholesale as **one undo step**.
+- Batch naming: a pattern containing `{n}` (e.g. `coin_{n}`) names accepted cells
+  `coin_0, coin_1, …` in cell order; a pattern without `{n}` gets `_{n}` appended. Names must
+  satisfy the slug grammar; the sprite id is `sprite:<sheetSlug>_<name>`.
+- Include/exclude: a cell can be excluded (kept in metadata, projected to no sprite) — used for
+  blank grid cells and rejected components.
+
+### Canvas semantics (view layer over the headless document)
+
+- Zoom 25–800% stepped, pan, pixel grid at ≥400%; rect edit = drag handles at 100%+ pixel
+  precision. All state changes route through the document's undo stack; the canvas holds no
+  authoring state of its own. One drag = one undo step.
+
+### Orphans & diagnostics
+
+- An `assets/` file no sheet references is an **orphan**: reported by validation as a warning
+  (not deleted — deleting files is the user's call, offered in the browser).
+- A sheet whose `Asset` file is missing, or whose `ContentHash` no longer matches the file, is
+  an error with a fix hint naming reimport.
+
+### Audio (blocked — schema decision pending)
+
+The schema has no audio entity category; music/SFX are referenced by path (e.g. `Map.Bgm`).
+Authoring audio kind/loop/volume metadata therefore requires either a new `sound` entity
+category (schema change, DATA_SCHEMA + migration) or staying path-based with no metadata.
+**Decision reserved for the user**; audio import UI does not land until it is made.
