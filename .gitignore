@@ -13,6 +13,9 @@ TestResults/
 exports/
 templates/*.exe
 templates/*.zip
+
+# Standalone release builds (large self-contained artifacts, produced by scripts/build-release.ps1)
+releases/
 .cgm-cache/
 .autosave/
 *.cgmpack

@@ -83,6 +83,21 @@ the old pack/config-only path.
 hash, loads the start map, initializes the showcase battle path, submits one legal showcase action,
 and exits `0`. Load/smoke failures exit nonzero with a console error.
 
+## Standalone release build (`scripts/build-release.ps1`)
+
+Wraps the export into a versioned, self-contained game folder (user directive 2026-07-22):
+
+- Publishes `Cgm.Runtime` **self-contained** (`--self-contained -r win-x64`), so the target needs no
+  .NET install. The OpenAL native (`soft_oal.dll`) flattens to the output root next to the exe, which
+  is where `OpenAlAudioAdapter.CanLoadNative` looks first.
+- Exports the project onto that template → `releases\<version>\` containing `<GameName>.exe`,
+  `game.cgmpack` (assets embedded, §pack asset sections), `config.json`, and the bundled runtime.
+- **Version auto-increments**: the script finds the highest `releases\X.Y.Z` folder and bumps the
+  patch (starting `0.0.1`); `-Minor`/`-Major`/`-Version` override. It refuses to overwrite an
+  existing version folder.
+- Verifies the result by running `<GameName>.exe --smoke` against its own pack before reporting.
+- `releases\` is gitignored — the artifacts are large (~84 MB self-contained) and reproducible.
+
 ## Pack asset sections (pack format v2)
 
 Amended 2026-07-21 (user directive; `ENGINE_RUNTIME_SPEC` 16H prerequisite). Asset embedding was
