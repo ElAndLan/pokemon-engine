@@ -47,6 +47,24 @@ public sealed class ProjectSession
     /// <summary>Clean close: releases this process's lock. Safe to call more than once.</summary>
     public void Close() => Editing.ProjectLock.Release(Folder);
 
+    /// <summary>Applies a recovery snapshot (CREATOR_APP_SPEC §10.4): the snapshot becomes the
+    /// in-memory state, marked fully dirty — including deletes for entities the snapshot lacks —
+    /// so project source stays untouched until an explicit Save.</summary>
+    public void RestoreSnapshot(string snapshotDir)
+    {
+        Project snapshot = ProjectLoader.Load(snapshotDir);
+
+        _dirty.UnionWith(_entities.Keys); // anything not in the snapshot must save as a delete
+        _entities.Clear();
+        foreach (IEntity entity in snapshot.Entities)
+        {
+            _entities[entity.Id] = entity;
+            _dirty.Add(entity.Id);
+        }
+        Settings = snapshot.Settings;
+        SettingsDirty = true;
+    }
+
     /// <summary>A read-only view for validation.</summary>
     public Project Snapshot() => new(Settings, _entities);
 

@@ -16,11 +16,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly IDialogService _dialogs;
     private readonly Editing.RecentProjects _recent;
+    private readonly Editing.RecoverySnapshots _recovery;
+    private DateTime _lastEditUtc;
+    private bool _snapshotUpToDate;
 
-    public MainWindowViewModel(IDialogService dialogs, Editing.RecentProjects? recent = null)
+    public MainWindowViewModel(IDialogService dialogs, Editing.RecentProjects? recent = null,
+        Editing.RecoverySnapshots? recovery = null)
     {
         _dialogs = dialogs;
         _recent = recent ?? Editing.RecentProjects.Default();
+        _recovery = recovery ?? Editing.RecoverySnapshots.Default();
         foreach (string folder in _recent.Folders)
             Recent.Add(folder);
     }
@@ -52,8 +57,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private async Task OpenAsync()
     {
         if (!await ConfirmLoseChangesAsync()) return;
-        if (await _dialogs.PickProjectFolderAsync() is { } folder)
-            OpenProject(folder);
+        if (await _dialogs.PickProjectFolderAsync() is { } folder && OpenProject(folder))
+            await OfferRecoveryAsync();
     }
 
     [RelayCommand]
@@ -75,7 +80,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
             return;
         }
         if (!await ConfirmLoseChangesAsync()) return;
-        OpenProject(folder);
+        if (OpenProject(folder))
+            await OfferRecoveryAsync();
     }
 
     [RelayCommand]
@@ -86,21 +92,78 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>The §10.5 unsaved guard. True = proceed (clean, saved, or discarded); false =
-    /// cancelled, or Save failed (never silently lose the edits behind a failed save).</summary>
+    /// cancelled, or Save failed (never silently lose the edits behind a failed save). A true
+    /// result is a clean close for the current project, so its recovery snapshots are discarded.</summary>
     public async Task<bool> ConfirmLoseChangesAsync()
     {
+        bool proceed;
         if (Session is not { IsDirty: true })
-            return true;
-
-        switch (await _dialogs.PromptUnsavedAsync())
         {
-            case UnsavedChoice.Save:
-                SaveAll();
-                return Session.IsDirty == false; // a failed save leaves dirt and aborts the close
-            case UnsavedChoice.Discard:
-                return true;
-            default:
-                return false;
+            proceed = true;
+        }
+        else
+        {
+            switch (await _dialogs.PromptUnsavedAsync())
+            {
+                case UnsavedChoice.Save:
+                    SaveAll();
+                    proceed = !Session.IsDirty; // a failed save leaves dirt and aborts the close
+                    break;
+                case UnsavedChoice.Discard:
+                    proceed = true;
+                    break;
+                default:
+                    proceed = false;
+                    break;
+            }
+        }
+
+        if (proceed && Session is { } session)
+            _recovery.Discard(session.Folder);
+        return proceed;
+    }
+
+    // --- Recovery snapshots (§10.4) ---
+
+    /// <summary>Offers the newest recovery snapshot after an unclean previous session. Applying
+    /// loads it as in-memory state, fully dirty; declining leaves snapshots on disk.</summary>
+    public async Task OfferRecoveryAsync()
+    {
+        if (Session is null || _recovery.For(Session.Folder) is not [{ } newest, ..])
+            return;
+
+        string stamp = Path.GetFileName(newest);
+        if (!await _dialogs.ConfirmAsync(
+            $"The last session ended without a clean close. Apply the recovery snapshot from {stamp} (UTC)? " +
+            "Project files stay untouched until you save."))
+            return;
+
+        Session.RestoreSnapshot(newest);
+        Documents.Clear();
+        ActiveDocument = null;
+        RebuildNav();
+        RefreshValidation();
+        StatusText = $"Recovery snapshot {stamp} applied — save to keep it.";
+    }
+
+    /// <summary>Called by the shell timer. Snapshots after 120 s of dirty inactivity, once per
+    /// edit burst; each edit re-arms it via <see cref="RefreshValidation"/>.</summary>
+    public void AutosaveTick(DateTime nowUtc)
+    {
+        if (Session is not { IsDirty: true } session || _snapshotUpToDate
+            || nowUtc - _lastEditUtc < TimeSpan.FromSeconds(120))
+            return;
+        _recovery.Write(session);
+        _snapshotUpToDate = true;
+    }
+
+    /// <summary>App deactivation while dirty writes a snapshot immediately (§10.4).</summary>
+    public void SnapshotNow()
+    {
+        if (Session is { IsDirty: true } session && !_snapshotUpToDate)
+        {
+            _recovery.Write(session);
+            _snapshotUpToDate = true;
         }
     }
 
@@ -191,7 +254,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     // --- Testable core ---
 
-    public void OpenProject(string folder)
+    public bool OpenProject(string folder)
     {
         ProjectSession? previous = Session;
         try
@@ -202,7 +265,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             or InvalidOperationException) // InvalidOperation = locked by another Creator (§10.3)
         {
             StatusText = $"Could not open project: {ex.Message}";
-            return;
+            return false;
         }
 
         // Release the old project's lock only once the new one opened — but not when reopening the
@@ -212,16 +275,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         _recent.Add(folder);
         SyncRecent();
-        if (Session.RolledBackInterruptedSave)
-            StatusText = "An interrupted save from a previous session was rolled back.";
 
         Documents.Clear();
         ActiveDocument = null;
         ProjectName = Session.Settings.Name;
         RebuildNav();
         RefreshValidation();
-        StatusText = $"Opened {Session.Settings.Name}.";
+        StatusText = Session.RolledBackInterruptedSave
+            ? $"Opened {Session.Settings.Name} — an interrupted save from a previous session was rolled back."
+            : $"Opened {Session.Settings.Name}.";
         OnPropertyChanged(nameof(HasProject));
+        return true;
     }
 
     public void NewProject(NewProjectRequest request)
@@ -399,6 +463,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public void RefreshValidation()
     {
+        // Every edit funnels through here (undo-stack Changed + entity ops), so it doubles as the
+        // autosave inactivity marker: the 120 s clock restarts and the next tick may snapshot.
+        _lastEditUtc = DateTime.UtcNow;
+        _snapshotUpToDate = false;
+
         Issues.Clear();
         if (Session is not null)
             foreach (ValidationIssue issue in Validator.Run(Session.Snapshot()).Issues)
