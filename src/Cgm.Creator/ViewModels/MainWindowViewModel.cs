@@ -61,7 +61,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     /// <summary>Entity categories the Creator can currently create from the UI (Phase 3).</summary>
     public IReadOnlyList<EntityCategory> CreatableCategories { get; } =
-        [EntityCategory.Type, EntityCategory.Item, EntityCategory.Move, EntityCategory.Ability, EntityCategory.Species];
+        [EntityCategory.Type, EntityCategory.Item, EntityCategory.Move, EntityCategory.Ability,
+         EntityCategory.Species, EntityCategory.Tileset, EntityCategory.Map];
 
     [ObservableProperty] private EntityCategory _newCategory = EntityCategory.Move;
 
@@ -808,7 +809,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 BaseStats = new Stats(45, 45, 45, 45, 45, 45),
                 GrowthRate = "medium-fast",
             },
+        EntityCategory.Tileset => new Tileset { Id = id, Name = id.Slug },
+        EntityCategory.Map => new Map { Id = id, Name = id.Slug, Width = 16, Height = 16, Layers = BlankLayers(16, 16) },
         _ => null,
+    };
+
+    private static MapLayers BlankLayers(int w, int h) => new()
+    {
+        Ground = Enumerable.Repeat(-1, w * h).ToList(),
+        DecoBelow = Enumerable.Repeat(-1, w * h).ToList(),
+        DecoAbove = Enumerable.Repeat(-1, w * h).ToList(),
     };
 
     public void RefreshValidation()
@@ -904,6 +914,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         EntityCategory.Sheet when Session!.Find<SpriteSheet>(id) is { } sheet => new SheetDocument(Session, sheet),
         EntityCategory.Sound when Session!.Find<Sound>(id) is { } sound => new SoundDocument(Session, sound),
         EntityCategory.Anim when Session!.Find<Animation>(id) is { } anim => new AnimDocument(Session, anim),
+        EntityCategory.Tileset when Session!.Find<Tileset>(id) is { } ts => new TilesetDocument(Session, ts),
+        EntityCategory.Map when Session!.Find<Map>(id) is { } map => new MapDocument(Session, map),
         _ => null,
     };
 
