@@ -64,6 +64,7 @@
         <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" IsEnabled="{Binding HasProject}" />
         <Separator />
         <MenuItem Header="Import _Sprite Sheet…" Command="{Binding ImportSheetCommand}" IsEnabled="{Binding HasProject}" />
+        <MenuItem Header="Import Sheet as _Tileset…" Command="{Binding ImportTilesetCommand}" IsEnabled="{Binding HasProject}" />
         <MenuItem Header="Import _Audio…" Command="{Binding ImportSoundCommand}" IsEnabled="{Binding HasProject}" />
       </MenuItem>
       <MenuItem Header="_Edit" IsEnabled="{Binding HasProject}">
@@ -86,6 +87,8 @@
         <Rectangle Width="1" Fill="#33445A" Margin="4,2" />
         <Button Classes="tool" Content="🖼  Import sprite sheet" Command="{Binding ImportSheetCommand}"
                 ToolTip.Tip="Import a PNG and slice it into sprites" />
+        <Button Classes="tool" Content="🧱  Import as tileset" Command="{Binding ImportTilesetCommand}"
+                ToolTip.Tip="Import a PNG, dice it on the tile grid, and build a paintable tileset" />
         <Button Classes="tool" Content="🔊  Import audio" Command="{Binding ImportSoundCommand}"
                 ToolTip.Tip="Import a WAV sound" />
         <Rectangle Width="1" Fill="#33445A" Margin="4,2" />

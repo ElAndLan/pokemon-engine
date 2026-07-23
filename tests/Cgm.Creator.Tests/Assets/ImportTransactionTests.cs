@@ -116,4 +116,59 @@ public sealed class ImportTransactionTests : IDisposable
         Assert.Equal(before, _vm.Session.Find<SpriteSheet>(id));
         Assert.Equal(fileBefore, File.ReadAllBytes(Path.Combine(_project, before.Asset)));
     }
+
+    // --- Import straight to tileset ---
+
+    [Fact]
+    public void ImportAsTileset_BuildsSheetPlusTileset_OpensTileset()
+    {
+        Assert.True(_vm.ImportSheetAsTileset(Png("town.png", 48, 32), "town")); // 3×2 = 6 tiles
+
+        var sheet = _vm.Session!.Find<SpriteSheet>(EntityId.Parse("sheet:town"))!;
+        var tileset = _vm.Session.Find<Tileset>(EntityId.Parse("tileset:town"))!;
+        Assert.Equal(6, sheet.Cells.Count);
+        Assert.Equal(6, tileset.Tiles.Count);
+        // Every tile references a real sheet sprite.
+        var sprites = sheet.Cells.Select(c => c.SpriteId).ToHashSet();
+        Assert.All(tileset.Tiles, t => Assert.Contains(t.Sprite!.Value, sprites));
+        Assert.IsType<TilesetDocument>(_vm.ActiveDocument);
+    }
+
+    [Theory]
+    [InlineData(512, 16, 32)] // really wide → one row of 32 tiles
+    [InlineData(16, 512, 32)] // really tall → one column of 32 tiles
+    [InlineData(160, 96, 60)] // ordinary grid
+    public void ImportAsTileset_DicesAnySheetSize_OnTheTileGrid(int w, int h, int expectedTiles)
+    {
+        Assert.True(_vm.ImportSheetAsTileset(Png($"s{w}x{h}.png", w, h), $"s{w}_{h}"));
+        var tileset = _vm.Session!.Find<Tileset>(EntityId.Parse($"tileset:s{w}_{h}"))!;
+        Assert.Equal(expectedTiles, tileset.Tiles.Count); // fixture-min tile size is 16
+    }
+
+    [Fact]
+    public void ImportAsTileset_RefusesWhenSheetOrTilesetSlugTaken()
+    {
+        _vm.ImportSheetAsTileset(Png("dup.png", 16, 16), "dup");
+        Assert.False(_vm.ImportSheetAsTileset(Png("dup2.png", 16, 16), "dup"));
+        Assert.Contains("already exists", _vm.StatusText);
+    }
+
+    [Fact]
+    public void OffGridSheet_IsFlagged_AtImportAndInValidation()
+    {
+        _vm.ImportSheet(Png("odd.png", 40, 24), "odd"); // 40,24 not multiples of 16
+        Assert.Contains("isn't a multiple", _vm.StatusText);
+
+        _vm.RefreshValidation();
+        Assert.Contains(_vm.Issues, i => i.RuleId == "sheet-grid-fit"
+            && i.EntityId == EntityId.Parse("sheet:odd"));
+    }
+
+    [Fact]
+    public void OnGridSheet_ProducesNoGridWarning()
+    {
+        _vm.ImportSheet(Png("even.png", 64, 32), "even");
+        _vm.RefreshValidation();
+        Assert.DoesNotContain(_vm.Issues, i => i.RuleId == "sheet-grid-fit");
+    }
 }

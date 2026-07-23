@@ -130,6 +130,23 @@ fits:
 - **Sort:** top-to-bottom by `Y`, then left-to-right by `X` — reading order, deterministic.
 - Snap-to-grid is off by default (the plan's default); the canvas may snap on request.
 
+### Import straight to tileset (convenience)
+
+"Import as tileset" runs the import transaction with the grid **forced to the project tile size**
+(any sheet size → uniform tile-size cells, offset 0, no spacing — the caller knows the cells are
+tiles), then builds a `tileset:<slug>` whose tiles are one-per-non-blank-cell with the sprite
+assigned and gameplay flags at their defaults, and opens the tileset editor. The sheet and tileset
+share the slug. This closes the sheet-→-paintable-terrain gap: only the per-tile flags
+(solid/grass/water/ledge) remain to set, since those carry gameplay meaning the importer cannot
+infer.
+
+### Off-grid warning
+
+A grid-sliced sheet whose pixel size is not a multiple of the tile size leaves an uncovered
+right/bottom edge strip. This is surfaced twice: a note in the import status line, and a persistent
+`sheet-grid-fit` warning in the validation strip (grid-mode sheets only — rects-mode is exempt),
+so an off-grid sheet is visible rather than silently mis-sliced.
+
 ### Slice acceptance & naming
 
 - Accepting a suggestion (any layer) replaces the sheet's cells wholesale as **one undo step**.

@@ -25,8 +25,15 @@ public static class SheetImporter
     public static SpriteSheet Import(EntityId sheetId, string pngPath, string assetRelPath, int? tileSize) =>
         Import(sheetId, PngDecoder.DecodeFile(pngPath), assetRelPath, tileSize);
 
-    public static SpriteSheet Import(EntityId sheetId, ImageData image, string assetRelPath, int? tileSize)
+    /// <param name="forceCell">When set, slices on exactly this square cell grid instead of the
+    /// suggestion ladder — used for tileset import, where the caller knows the cells are tiles, so
+    /// a sheet of any size is diced into uniform tile-size cells (offset 0, no spacing).</param>
+    public static SpriteSheet Import(EntityId sheetId, ImageData image, string assetRelPath, int? tileSize,
+        int? forceCell = null)
     {
+        if (forceCell is { } fc && fc > 0)
+            return SheetBuilder.Build(sheetId, assetRelPath, image, new GridSpec(fc, fc));
+
         if (GutterDetector.Detect(image.Opaque, image.Width, image.Height) is { } fit)
             return SheetBuilder.Build(sheetId, assetRelPath, image,
                 new GridSpec(fit.CellW, fit.CellH, fit.MarginX, fit.MarginY, fit.SpacingX, fit.SpacingY));

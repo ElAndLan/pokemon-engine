@@ -436,6 +436,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
         ImportSheet(png, slug);
     }
 
+    /// <summary>Import a PNG straight into a paintable tileset (sheet + tileset in one step).</summary>
+    [RelayCommand]
+    private async Task ImportTilesetAsync()
+    {
+        if (Session is null) return;
+        if (await _dialogs.PickPngAsync() is not { } png) return;
+        string suggested = Path.GetFileNameWithoutExtension(png).ToLowerInvariant();
+        if (await _dialogs.PromptTextAsync("Tileset id slug (shared by its sheet):", suggested) is { } slug)
+            ImportSheetAsTileset(png, slug);
+    }
+
     /// <summary>The 17B reimport: keeps the sheet's id and authored cells, updates pixels/hash/
     /// dimensions, and removes cells that no longer fit — reported and confirmation-gated before
     /// anything is written. Declining leaves project and file untouched.</summary>
@@ -504,6 +515,54 @@ public sealed partial class MainWindowViewModel : ObservableObject
             return false;
         }
 
+        if (AddImportedSheet(pngPath, id, forceTileGrid: false) is not { } sheet)
+            return false;
+        RebuildNav();
+        RefreshValidation();
+        StatusText = $"Imported '{id}' ({sheet.Cells.Count} cells).{GridFitNote(sheet)}";
+        return true;
+    }
+
+    /// <summary>Imports a PNG and builds a ready-to-paint tileset from it in one step: the sheet is
+    /// diced on the exact project tile grid (any sheet size → uniform tile cells), and every
+    /// non-blank cell becomes a tile with its sprite assigned. Lands in the tileset editor so only
+    /// the gameplay flags (solid/grass/…) remain to set. Sheet and tileset share the slug.</summary>
+    public bool ImportSheetAsTileset(string pngPath, string slug)
+    {
+        if (Session is null) return false;
+        if (!EntityId.IsValidSlug(slug))
+        {
+            StatusText = $"Invalid slug '{slug}'.";
+            return false;
+        }
+        var sheetId = new EntityId(EntityCategory.Sheet, slug);
+        var tilesetId = new EntityId(EntityCategory.Tileset, slug);
+        if (Session.Contains(sheetId)) { StatusText = $"'{sheetId}' already exists."; return false; }
+        if (Session.Contains(tilesetId)) { StatusText = $"'{tilesetId}' already exists."; return false; }
+
+        if (AddImportedSheet(pngPath, sheetId, forceTileGrid: true) is not { } sheet)
+            return false;
+
+        // One tile per non-blank sprite cell, in reading order, sprite assigned, flags at defaults.
+        Session.Add(new Tileset
+        {
+            Id = tilesetId,
+            Name = slug,
+            Tiles = sheet.Cells.Select(c => new Tile { Sprite = c.SpriteId }).ToList(),
+        });
+        RebuildNav();
+        RefreshValidation();
+        OpenDocument(tilesetId);
+        StatusText = $"Built tileset '{tilesetId}' with {sheet.Cells.Count} tiles — set each tile's "
+            + $"flags (solid/grass/…).{GridFitNote(sheet)}";
+        return true;
+    }
+
+    /// <summary>Shared body of the import transaction: validate-before-copy, collision-free asset
+    /// name, SHA-256, slice. Adds the sheet to the session and returns it, or null on failure
+    /// (status set). Does not touch nav/validation/status beyond the failure message.</summary>
+    private SpriteSheet? AddImportedSheet(string pngPath, EntityId id, bool forceTileGrid)
+    {
         byte[] bytes;
         Assets.ImageData image;
         try
@@ -516,31 +575,40 @@ public sealed partial class MainWindowViewModel : ObservableObject
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             StatusText = $"Import failed — not a readable PNG: {ex.Message}";
-            return false;
+            return null;
         }
 
         // One asset file per sheet: never silently overwrite another sheet's pixels.
-        string assetsDir = Path.Combine(Session.Folder, "assets");
+        string assetsDir = Path.Combine(Session!.Folder, "assets");
         Directory.CreateDirectory(assetsDir);
         string baseName = Path.GetFileNameWithoutExtension(pngPath);
         string fileName = baseName + ".png";
         if (File.Exists(Path.Combine(assetsDir, fileName)))
-            fileName = $"{baseName}_{slug}.png";
+            fileName = $"{baseName}_{id.Slug}.png";
         for (int n = 2; File.Exists(Path.Combine(assetsDir, fileName)); n++)
-            fileName = $"{baseName}_{slug}_{n}.png";
+            fileName = $"{baseName}_{id.Slug}_{n}.png";
 
         File.WriteAllBytes(Path.Combine(assetsDir, fileName), bytes);
 
         SpriteSheet sheet = Assets.SheetImporter.Import(
-            id, image, $"assets/{fileName}", Session.Settings.TileSize) with
+            id, image, $"assets/{fileName}", Session.Settings.TileSize,
+            forceCell: forceTileGrid ? Session.Settings.TileSize : null) with
         {
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)),
         };
         Session.Add(sheet);
-        RebuildNav();
-        RefreshValidation();
-        StatusText = $"Imported '{id}' ({sheet.Cells.Count} cells).";
-        return true;
+        return sheet;
+    }
+
+    /// <summary>A gentle note when a grid-sliced sheet's pixel size is not a multiple of the tile
+    /// size, so the uncovered edge strip is flagged at import instead of silently mis-slicing.</summary>
+    private string GridFitNote(SpriteSheet sheet)
+    {
+        int ts = Session!.Settings.TileSize;
+        if (sheet.Mode != SliceMode.Grid || ts <= 0 || (sheet.ImageW % ts == 0 && sheet.ImageH % ts == 0))
+            return "";
+        return $"  ⚠ {sheet.ImageW}×{sheet.ImageH} isn't a multiple of {ts}px — the right/bottom edge "
+            + "isn't fully covered by the grid.";
     }
 
     [RelayCommand]
@@ -952,6 +1020,18 @@ public sealed partial class MainWindowViewModel : ObservableObject
                     Field: "contentHash");
             }
         }
+
+        // Grid-sliced sheets whose pixel size isn't a multiple of the tile size have an uncovered
+        // edge strip — flagged so off-grid sheets are visible, not silently mis-sliced.
+        int ts = Session.Settings.TileSize;
+        if (ts > 0)
+            foreach (SpriteSheet sheet in Session.All<SpriteSheet>())
+                if (sheet.Mode == SliceMode.Grid && sheet.ImageW > 0 && sheet.ImageH > 0
+                    && (sheet.ImageW % ts != 0 || sheet.ImageH % ts != 0))
+                    yield return new ValidationIssue("sheet-grid-fit", ValidationSeverity.Warning, sheet.Id,
+                        $"Sheet is {sheet.ImageW}×{sheet.ImageH}, not a multiple of the {ts}px tile size; "
+                        + "the right/bottom edge isn't fully covered by the grid.",
+                        "Crop the sheet to a multiple of the tile size, or slice it with rects instead.");
 
         string assetsDir = Path.Combine(Session.Folder, "assets");
         if (!Directory.Exists(assetsDir))
