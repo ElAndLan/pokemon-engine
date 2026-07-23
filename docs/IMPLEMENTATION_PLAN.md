@@ -4253,10 +4253,13 @@ hand-authoring the world.
    preserved, invalidated rects reported, confirmation-gated, decline untouched. SheetDocument +
    SheetView: undoable grid re-slice, three suggestion layers, manual rects, exclusion, batch
    `{n}` naming, per-cell class, integer-zoom canvas with rect overlay, missing-asset degradation.
-   Remaining: drag-handle rect editing on the canvas, animation grouping + fixed-tick preview,
-   orphan/hash-mismatch validation rules, asset-browser preview panel, 4096² performance check.
-   **Audio import is blocked on a reserved schema decision** (no audio entity category exists —
-   see ASSET_PIPELINE_SPEC §17B Audio); the user decides `sound` entity vs. path-based.
+   Progress (2026-07-23): **17B COMPLETE.** Schema v12 added the `sound` entity category (user
+   chose the entity route over path-based); audio import (WavProbe container-validation, no second
+   decoder), Sound + Animation editors (fixed-tick preview honoring per-frame durations, walk-clip
+   shortcut), slicer canvas drag (rubber-band create / drag-move, one undo step), and Creator-side
+   asset diagnostics (missing / hash-mismatch / orphan) all landed. ComponentSlicer 4096² perf
+   test passes. Full solution green (3,091). Remaining before VERIFIED: asset-browser preview
+   panel polish and the formal 17B acceptance-matrix pass (rollback/undo/keyboard-canvas fixtures).
    - **Spec lock:** complete `ASSET_PIPELINE_SPEC` import/reimport transaction, asset ID/path/hash,
      connected-component algorithm, canvas coordinate/selection, slice acceptance/naming, animation,
      audio metadata, orphan handling, and atlas diagnostics.
