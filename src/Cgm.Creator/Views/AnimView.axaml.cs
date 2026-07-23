@@ -14,7 +14,7 @@ namespace Cgm.Creator.Views;
 public partial class AnimView : UserControl
 {
     private readonly DispatcherTimer _timer = new();
-    private readonly Dictionary<string, Bitmap> _sheets = [];
+    private SpriteBitmaps? _bitmaps;
     private int _frame;
 
     public AnimView()
@@ -22,12 +22,15 @@ public partial class AnimView : UserControl
         InitializeComponent();
         RenderOptions.SetBitmapInterpolationMode(PreviewImage, BitmapInterpolationMode.None);
         _timer.Tick += (_, _) => Advance();
+        DataContextChanged += (_, _) =>
+        {
+            _bitmaps?.Dispose();
+            _bitmaps = Doc is { } doc ? new SpriteBitmaps(doc.Session) : null;
+        };
         DetachedFromVisualTree += (_, _) =>
         {
             _timer.Stop();
-            foreach (Bitmap bitmap in _sheets.Values)
-                bitmap.Dispose();
-            _sheets.Clear();
+            _bitmaps?.Dispose();
         };
     }
 
@@ -74,34 +77,10 @@ public partial class AnimView : UserControl
         if (Doc is not { } doc || _frame >= doc.Frames.Count)
             return;
         AnimFrame frame = doc.Frames[_frame];
-        PreviewImage.Source = Crop(doc, frame.Sprite);
+        PreviewImage.Source = _bitmaps?.Crop(frame.Sprite);
         PreviewLabel.Text = $"{frame.Sprite.Slug} · {frame.Ms} ms";
         _timer.Interval = TimeSpan.FromMilliseconds(frame.Ms);
         _timer.Start();
-    }
-
-    private CroppedBitmap? Crop(AnimDocument doc, EntityId sprite)
-    {
-        foreach (SpriteSheet sheet in doc.Session.All<SpriteSheet>())
-            foreach (SheetCell cell in sheet.Cells)
-                if (cell.SpriteId == sprite && SpriteResolver.TryRect(sheet, cell, out Rect rect))
-                {
-                    if (!_sheets.TryGetValue(sheet.Asset, out Bitmap? bitmap))
-                    {
-                        try
-                        {
-                            bitmap = new Bitmap(System.IO.Path.Combine(doc.Session.Folder, sheet.Asset));
-                        }
-                        catch (Exception ex) when (ex is not OutOfMemoryException)
-                        {
-                            return null; // missing sheet art: preview shows nothing, validation reports
-                        }
-                        _sheets[sheet.Asset] = bitmap;
-                    }
-                    return new CroppedBitmap(bitmap,
-                        new Avalonia.PixelRect(rect.X, rect.Y, rect.W, rect.H));
-                }
-        return null;
     }
 
     private int Selected => FrameList.SelectedIndex;

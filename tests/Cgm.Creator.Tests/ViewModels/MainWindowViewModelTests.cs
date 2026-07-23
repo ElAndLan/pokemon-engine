@@ -50,7 +50,7 @@ public sealed class MainWindowViewModelTests
         MainWindowViewModel vm = OnFixture(out string dir);
         try
         {
-            vm.OpenDocument(EntityId.Parse("map:test_room")); // no map editor in this shell yet
+            vm.OpenDocument(EntityId.Parse("encounter:test_room_grass")); // no encounter editor yet
             Assert.Empty(vm.Documents);
             Assert.Contains("No editor", vm.StatusText);
         }

@@ -17,6 +17,8 @@
     <DataTemplate DataType="vm:SheetDocument"><views:SheetView /></DataTemplate>
     <DataTemplate DataType="vm:SoundDocument"><views:SoundView /></DataTemplate>
     <DataTemplate DataType="vm:AnimDocument"><views:AnimView /></DataTemplate>
+    <DataTemplate DataType="vm:TilesetDocument"><views:TilesetView /></DataTemplate>
+    <DataTemplate DataType="vm:MapDocument"><views:MapView /></DataTemplate>
   </Window.DataTemplates>
 
   <DockPanel>

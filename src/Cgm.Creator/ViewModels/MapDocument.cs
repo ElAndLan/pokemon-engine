@@ -6,6 +6,9 @@ namespace Cgm.Creator.ViewModels;
 public enum MapLayerId { Ground, DecoBelow, DecoAbove }
 public enum MapTool { Paint, RectFill, Bucket, Eyedropper, Erase }
 
+/// <summary>One palette entry: a global tile index and the sprite that draws it.</summary>
+public sealed record PaletteTile(int Index, EntityId? Sprite);
+
 /// <summary>
 /// Map editor (MAP_EDITOR_SPEC 17C). Visual-layer painting goes through the pure
 /// <see cref="MapLayerOps"/>; collision and encounter overlays edit the sparse override lists.
@@ -26,6 +29,10 @@ public sealed class MapDocument : EntityEditorDocument<Map>
 
     public int Width => Model.Width;
     public int Height => Model.Height;
+    public int TileSize => Session.Settings.TileSize;
+
+    /// <summary>The sprite that draws a global tile index, or null (empty or unknown index).</summary>
+    public EntityId? SpriteFor(int tileIndex) => Palette.At(tileIndex)?.Sprite;
 
     // --- Active editing state (presentation only, never serialized) ---
     public MapLayerId ActiveLayer { get; set; } = MapLayerId.Ground;
@@ -36,6 +43,12 @@ public sealed class MapDocument : EntityEditorDocument<Map>
 
     /// <summary>The map's tilesets flattened into the global index space layers store into.</summary>
     public TilePalette Palette { get; private set; }
+
+    /// <summary>Every palette tile with its global index and sprite, for the palette strip.</summary>
+    public IReadOnlyList<PaletteTile> PaletteTiles =>
+        Enumerable.Range(0, Palette.Count)
+            .Select(i => new PaletteTile(i, Palette.At(i)?.Sprite))
+            .ToList();
 
     public IReadOnlyList<int> Layer(MapLayerId id) => id switch
     {

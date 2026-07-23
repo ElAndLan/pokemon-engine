@@ -2,6 +2,15 @@ using Cgm.Core.Model;
 
 namespace Cgm.Creator.ViewModels;
 
+/// <summary>One tile with its index, for the tileset grid. A short summary of its flags aids
+/// scanning for the wrong-flag bugs the editor exists to catch.</summary>
+public sealed record TileRow(int Index, Tile Tile)
+{
+    public string Flags => string.Concat(
+        Tile.Solid ? "S" : "", Tile.Grass ? "G" : "", Tile.Water ? "W" : "",
+        Tile.Counter ? "C" : "", Tile.Ledge != Cgm.Core.Model.LedgeDir.None ? "L" : "");
+}
+
 /// <summary>
 /// Tileset editor (MAP_EDITOR_SPEC 17C): edits each <see cref="Tile"/>'s sprite and gameplay flags.
 /// A tile's list position is its local index, and maps store global indices across their tilesets,
@@ -19,6 +28,10 @@ public sealed class TilesetDocument : EntityEditorDocument<Tileset>
     }
 
     public IReadOnlyList<Tile> Tiles => Model.Tiles;
+
+    /// <summary>Tiles with their global index, for the grid view.</summary>
+    public IReadOnlyList<TileRow> TileRows =>
+        Model.Tiles.Select((t, i) => new TileRow(i, t)).ToList();
 
     public IReadOnlyList<LedgeDir> LedgeDirs { get; } =
         [LedgeDir.None, LedgeDir.Up, LedgeDir.Down, LedgeDir.Left, LedgeDir.Right];

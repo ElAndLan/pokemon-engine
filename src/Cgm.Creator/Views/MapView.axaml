@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Cgm.Creator.ViewModels"
+             x:Class="Cgm.Creator.Views.MapView"
+             x:DataType="vm:MapDocument">
+  <DockPanel Margin="8">
+
+    <!-- Toolbar -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+      <ComboBox x:Name="ToolBox" SelectionChanged="OnToolChanged" Width="120" />
+      <ComboBox x:Name="LayerBox" SelectionChanged="OnLayerChanged" Width="130" />
+      <Separator Width="8" />
+      <TextBlock Text="Zoom" VerticalAlignment="Center" />
+      <Slider x:Name="ZoomSlider" Minimum="1" Maximum="8" Value="2" TickFrequency="1"
+              IsSnapToTickEnabled="True" Width="110" ValueChanged="OnZoomChanged" />
+      <Separator Width="8" />
+      <ToggleButton x:Name="CollisionToggle" Content="Collision" IsCheckedChanged="OnOverlayToggled" />
+      <ToggleButton x:Name="EncounterToggle" Content="Encounters" IsCheckedChanged="OnOverlayToggled" />
+    </StackPanel>
+
+    <!-- Layer visibility -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
+      <CheckBox x:Name="ShowGround" Content="Ground" IsChecked="True" IsCheckedChanged="OnRedraw" />
+      <CheckBox x:Name="ShowBelow" Content="Deco below" IsChecked="True" IsCheckedChanged="OnRedraw" />
+      <CheckBox x:Name="ShowAbove" Content="Deco above" IsChecked="True" IsCheckedChanged="OnRedraw" />
+    </StackPanel>
+
+    <!-- Palette -->
+    <Border DockPanel.Dock="Right" Width="180" Margin="8,0,0,0">
+      <ScrollViewer>
+        <WrapPanel x:Name="Palette" />
+      </ScrollViewer>
+    </Border>
+
+    <!-- Canvas -->
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <LayoutTransformControl x:Name="ZoomHost">
+        <Image x:Name="MapImage" Stretch="None"
+               PointerPressed="OnCanvasPressed" PointerMoved="OnCanvasMoved" PointerReleased="OnCanvasReleased" />
+      </LayoutTransformControl>
+    </ScrollViewer>
+
+  </DockPanel>
+</UserControl>

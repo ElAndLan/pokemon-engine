@@ -723,6 +723,22 @@ public sealed partial class MainWindowViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>Picks a sprite via the shared reference picker — used by the tileset and map
+    /// editors to assign tile art (MAP_EDITOR_SPEC 17C).</summary>
+    public Task<EntityId?> PickSpriteAsync(IReadOnlyList<(EntityId Id, string Name)> candidates) =>
+        _dialogs.PickEntityAsync(EntityCategory.Sprite, candidates, "Pick a sprite:");
+
+    /// <summary>Picks any entity of a category via the shared picker (map picker for warp targets,
+    /// encounter tables, objects, etc.).</summary>
+    public Task<EntityId?> PickEntityAsync(EntityCategory category, string prompt)
+    {
+        var candidates = Session is null ? [] : Session.Snapshot().Entities
+            .Where(e => e.Id.Category == category)
+            .Select(e => (e.Id, DisplayName(e)))
+            .ToList();
+        return _dialogs.PickEntityAsync(category, candidates, prompt);
+    }
+
     /// <summary>Every (entity, field-path) holding a reference to the target (§10.7), grouped by
     /// entity in stable order — e.g. <c>species:ember_fox → learnset[3].move</c>.</summary>
     public IReadOnlyList<(EntityId Entity, string Field)> FindUsages(EntityId target)
