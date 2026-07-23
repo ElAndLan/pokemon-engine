@@ -953,7 +953,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 GrowthRate = "medium-fast",
             },
         EntityCategory.Tileset => new Tileset { Id = id, Name = id.Slug },
-        EntityCategory.Map => new Map { Id = id, Name = id.Slug, Width = 16, Height = 16, Layers = BlankLayers(16, 16) },
+        // A new map adopts the first tileset in the project so its palette isn't empty on open;
+        // more can be added from the map editor. No tileset yet → empty, and the editor prompts.
+        EntityCategory.Map => new Map
+        {
+            Id = id, Name = id.Slug, Width = 16, Height = 16, Layers = BlankLayers(16, 16),
+            Tilesets = Session!.All<Tileset>().Take(1).Select(t => t.Id).ToList(),
+        },
         _ => null,
     };
 

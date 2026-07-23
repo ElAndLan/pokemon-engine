@@ -53,6 +53,12 @@ public partial class MapView : UserControl
         Palette.Children.Clear();
         if (Doc is not { } doc)
             return;
+
+        EmptyPaletteHint.IsVisible = doc.PaletteTiles.Count == 0;
+        TilesetLabel.Text = doc.MapTilesets.Count == 0
+            ? "no tileset"
+            : string.Join(", ", doc.MapTilesets.Select(t => t.Slug));
+
         foreach (PaletteTile tile in doc.PaletteTiles)
         {
             var image = new Image { Width = 32, Height = 32, Stretch = Stretch.Uniform };
@@ -253,6 +259,25 @@ public partial class MapView : UserControl
     private void OnOverlayToggled(object? sender, RoutedEventArgs e) => Redraw();
 
     private void OnRedraw(object? sender, RoutedEventArgs e) => Redraw();
+
+    /// <summary>Assigns a tileset to the map so its tiles fill the palette. The picked tileset's
+    /// tiles append to the global index space, so existing painted tiles keep their meaning.</summary>
+    private async void OnAddTileset(object? sender, RoutedEventArgs e)
+    {
+        if (Doc is not { } doc || Shell is not { } shell)
+            return;
+        if (!doc.AvailableTilesets.Any())
+        {
+            shell.StatusText = "No tilesets in the project yet — create one first (File ▸ Import as Tileset).";
+            return;
+        }
+        if (await shell.PickEntityAsync(Cgm.Core.Model.EntityCategory.Tileset, "Add a tileset to this map:") is { } id)
+        {
+            doc.AddTileset(id); // no-op if already on the map
+            BuildPalette();
+            Redraw();
+        }
+    }
 
     // --- Entity actions ---
 

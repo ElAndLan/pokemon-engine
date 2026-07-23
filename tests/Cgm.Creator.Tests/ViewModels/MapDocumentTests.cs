@@ -38,6 +38,46 @@ public sealed class MapDocumentTests : IDisposable
         return new MapDocument(_session, map);
     }
 
+    // --- Tileset assignment (the palette source) ---
+
+    [Fact]
+    public void AddTileset_PopulatesPalette_Undoable()
+    {
+        // A map with no tilesets has an empty palette; adding one fills it.
+        var map = new Map
+        {
+            Id = EntityId.Parse("map:blank"), Name = "blank", Width = 4, Height = 4,
+            Layers = new MapLayers
+            {
+                Ground = Enumerable.Repeat(-1, 16).ToList(),
+                DecoBelow = Enumerable.Repeat(-1, 16).ToList(),
+                DecoAbove = Enumerable.Repeat(-1, 16).ToList(),
+            },
+        };
+        _session.Add(map);
+        var doc = new MapDocument(_session, map);
+        Assert.False(doc.HasTileset);
+        Assert.Equal(0, doc.Palette.Count);
+
+        doc.AddTileset(EntityId.Parse("tileset:exterior"));
+        Assert.True(doc.HasTileset);
+        Assert.True(doc.Palette.Count > 0); // exterior has tiles in the fixture
+
+        doc.Undo.Undo();
+        Assert.False(doc.HasTileset);
+        Assert.Equal(0, doc.Palette.Count); // palette rebuilds on undo
+    }
+
+    [Fact]
+    public void AddTileset_IgnoresDuplicateAndUnknown()
+    {
+        MapDocument doc = Doc(); // already has tileset:exterior
+        int before = doc.MapTilesets.Count;
+        doc.AddTileset(EntityId.Parse("tileset:exterior")); // duplicate
+        doc.AddTileset(EntityId.Parse("tileset:nonexistent")); // unknown
+        Assert.Equal(before, doc.MapTilesets.Count);
+    }
+
     [Fact]
     public void Paint_SetsOneCell()
     {

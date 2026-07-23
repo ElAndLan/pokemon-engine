@@ -27,18 +27,27 @@
       <TextBlock x:Name="EntityLabel" VerticalAlignment="Center" Opacity="0.7" />
     </StackPanel>
 
-    <!-- Layer visibility -->
+    <!-- Layer visibility + tilesets -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
       <CheckBox x:Name="ShowGround" Content="Ground" IsChecked="True" IsCheckedChanged="OnRedraw" />
       <CheckBox x:Name="ShowBelow" Content="Deco below" IsChecked="True" IsCheckedChanged="OnRedraw" />
       <CheckBox x:Name="ShowAbove" Content="Deco above" IsChecked="True" IsCheckedChanged="OnRedraw" />
+      <Rectangle Width="1" Fill="#33445A" Margin="4,2" />
+      <Button Content="＋ Add tileset" Click="OnAddTileset"
+              ToolTip.Tip="Choose a tileset whose tiles fill the palette on the right" />
+      <TextBlock x:Name="TilesetLabel" VerticalAlignment="Center" Opacity="0.7" />
     </StackPanel>
 
     <!-- Palette -->
     <Border DockPanel.Dock="Right" Width="180" Margin="8,0,0,0">
-      <ScrollViewer>
-        <WrapPanel x:Name="Palette" />
-      </ScrollViewer>
+      <Grid>
+        <ScrollViewer>
+          <WrapPanel x:Name="Palette" />
+        </ScrollViewer>
+        <TextBlock x:Name="EmptyPaletteHint" IsVisible="False" TextWrapping="Wrap"
+                   VerticalAlignment="Top" Foreground="#8A97A6" TextAlignment="Center" Margin="6,20"
+                   Text="No tiles yet.&#10;Click ＋ Add tileset to pick one, then click a tile here to paint with it." />
+      </Grid>
     </Border>
 
     <!-- Canvas -->

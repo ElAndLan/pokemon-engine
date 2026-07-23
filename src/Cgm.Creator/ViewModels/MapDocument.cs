@@ -21,11 +21,8 @@ public sealed class MapDocument : EntityEditorDocument<Map>
     private int[]? _strokeLayer;   // working copy during a stroke; committed on EndStroke
     private bool _strokeChanged;
 
-    public MapDocument(ProjectSession session, Map model) : base(session, model)
-    {
-        Palette = new TilePalette(Tilesets());
+    public MapDocument(ProjectSession session, Map model) : base(session, model) =>
         SelectedTile = Palette.Count > 0 ? 0 : MapLayerOps.Empty;
-    }
 
     public int Width => Model.Width;
     public int Height => Model.Height;
@@ -41,8 +38,40 @@ public sealed class MapDocument : EntityEditorDocument<Map>
     public CollisionValue SelectedCollision { get; set; } = CollisionValue.Solid;
     public EntityId? SelectedEncounterTable { get; set; }
 
-    /// <summary>The map's tilesets flattened into the global index space layers store into.</summary>
-    public TilePalette Palette { get; private set; }
+    /// <summary>The map's tilesets flattened into the global index space layers store into. Rebuilt
+    /// whenever the map's tileset list changes (including undo/redo) — the immutable record hands us
+    /// a fresh list reference each edit, so a cheap reference check decides when to reflatten instead
+    /// of allocating a palette per render access.</summary>
+    private IReadOnlyList<EntityId>? _paletteKey;
+    private TilePalette _palette = new([]);
+    public TilePalette Palette
+    {
+        get
+        {
+            if (!ReferenceEquals(_paletteKey, Model.Tilesets))
+            {
+                _paletteKey = Model.Tilesets;
+                _palette = new TilePalette(Tilesets());
+            }
+            return _palette;
+        }
+    }
+
+    /// <summary>The tilesets currently on the map, and every tileset available to add.</summary>
+    public IReadOnlyList<EntityId> MapTilesets => Model.Tilesets;
+    public IEnumerable<Tileset> AvailableTilesets => Session.All<Tileset>();
+    public bool HasTileset => Model.Tilesets.Count > 0;
+
+    /// <summary>Adds a tileset to the map's palette (undoable). Appends, so existing painted tile
+    /// indices keep their meaning. No-op if already present or unknown.</summary>
+    public void AddTileset(EntityId tilesetId)
+    {
+        if (Model.Tilesets.Contains(tilesetId) || Session.Find<Tileset>(tilesetId) is null)
+            return;
+        Edit(Model with { Tilesets = Model.Tilesets.Append(tilesetId).ToList() });
+        if (SelectedTile < 0 && Palette.Count > 0)
+            SelectedTile = 0;
+    }
 
     /// <summary>Every palette tile with its global index and sprite, for the palette strip.</summary>
     public IReadOnlyList<PaletteTile> PaletteTiles =>
