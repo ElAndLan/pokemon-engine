@@ -137,8 +137,45 @@ public sealed class MigratorTests
 
         Migrator.Migrate(json);
 
-        Assert.Equal(11, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(Migrator.CurrentVersion, json["schemaVersion"]!.GetValue<int>());
         Assert.Equal("ability:steady", json["id"]!.GetValue<string>());
         Assert.Empty(json["hooks"]!.AsArray());
+    }
+
+    /// <summary>v11→v12 is additive (the sound category, DATA_SCHEMA §4.6b): a v11 document of any
+    /// category migrates without any field rewritten, and a legacy raw-path bgm survives.</summary>
+    [Fact]
+    public void Migrate_V11Document_IsUntouchedByTheSoundCategoryAddition()
+    {
+        var json = new JsonObject
+        {
+            ["schemaVersion"] = 11,
+            ["id"] = "map:town",
+            ["name"] = "Town",
+            ["bgm"] = "assets/audio/town.wav",
+        };
+
+        Migrator.Migrate(json);
+
+        Assert.Equal(Migrator.CurrentVersion, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal("assets/audio/town.wav", json["bgm"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Sound_RoundTripsThroughCgmJson()
+    {
+        var sound = new Sound
+        {
+            Id = EntityId.Parse("sound:town_theme"),
+            Name = "Town Theme",
+            Asset = "assets/audio/town.wav",
+            ContentHash = "ABC123",
+            Kind = SoundKind.Music,
+            Loop = true,
+            Volume = 80,
+        };
+
+        var loaded = (Sound)CgmJson.DeserializeVersioned(CgmJson.SerializeEntity(sound), typeof(Sound));
+        Assert.Equal(sound, loaded);
     }
 }

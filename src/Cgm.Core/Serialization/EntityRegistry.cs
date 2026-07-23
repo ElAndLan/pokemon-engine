@@ -25,6 +25,7 @@ public static class EntityRegistry
             [EntityCategory.Tileset] = typeof(Tileset),
             [EntityCategory.Object] = typeof(MapObject),
             [EntityCategory.Map] = typeof(Map),
+            [EntityCategory.Sound] = typeof(Sound),
         };
 
     public static Type TypeFor(EntityCategory category) =>

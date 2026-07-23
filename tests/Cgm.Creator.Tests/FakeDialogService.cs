@@ -17,6 +17,9 @@ internal sealed class FakeDialogService : IDialogService
     public Task<string?> PromptTextAsync(string prompt, string initial) => Task.FromResult(TextToReturn);
     public Task<string?> PickPngAsync() => Task.FromResult(PngToReturn);
 
+    public string? WavToReturn { get; set; }
+    public Task<string?> PickWavAsync() => Task.FromResult(WavToReturn);
+
     public Task<UnsavedChoice> PromptUnsavedAsync()
     {
         UnsavedPrompts++;

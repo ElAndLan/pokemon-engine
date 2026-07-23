@@ -44,6 +44,18 @@ public sealed class AvaloniaDialogService : IDialogService
         return files.Count > 0 ? files[0].Path.LocalPath : null;
     }
 
+    public async Task<string?> PickWavAsync()
+    {
+        if (_topLevel() is not { } top) return null;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import WAV audio",
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType("WAV audio") { Patterns = ["*.wav"] }],
+        });
+        return files.Count > 0 ? files[0].Path.LocalPath : null;
+    }
+
     public async Task<UnsavedChoice> PromptUnsavedAsync()
     {
         if (_topLevel() is not Window owner) return UnsavedChoice.Cancel;

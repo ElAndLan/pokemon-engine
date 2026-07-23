@@ -1,9 +1,10 @@
 # ASSET_PIPELINE_SPEC
 
-Status: **Implemented algorithm baseline plus Phase 17/18 package contracts authorized.** v0 manual grid, v1 common-size
-suggestions, v2 transparent-gutter detection, character animation helper, and v5 atlas packing
-are written and have matching code/tests. The slicer canvas/import browser UI, audio import UI,
-and v3 connected-component slicing are **not** implemented here.
+Status: **17B implemented (2026-07-23).** v0 manual grid, v1 common-size suggestions, v2
+transparent-gutter detection, v3 connected components, character animation helper, and v5 atlas
+packing are written with matching code/tests, as are the import/reimport transactions, the slicer
+canvas (SheetDocument/SheetView), the sound and animation editors, and the asset-file
+diagnostics.
 
 ## Purpose
 How art becomes runtime assets: PNG import, the slicing layers (manual grid → common-size →
@@ -153,9 +154,22 @@ fits:
 - A sheet whose `Asset` file is missing, or whose `ContentHash` no longer matches the file, is
   an error with a fix hint naming reimport.
 
-### Audio (blocked — schema decision pending)
+### Audio (decided 2026-07-23: `sound` entity category, schema v12)
 
-The schema has no audio entity category; music/SFX are referenced by path (e.g. `Map.Bgm`).
-Authoring audio kind/loop/volume metadata therefore requires either a new `sound` entity
-category (schema change, DATA_SCHEMA + migration) or staying path-based with no metadata.
-**Decision reserved for the user**; audio import UI does not land until it is made.
+Audio imports as a `sound:*` entity (DATA_SCHEMA §4.6b): kind (music|sfx), loop intent, volume
+0–100, `assets/audio/` file + SHA-256 hash. Import is container-validated by `WavProbe`
+(RIFF/WAVE magic + intact length) **before any copy** — deliberately not a decoder: the Runtime's
+`PcmWaveDecoder` stays the one authority on playable PCM (no-second-decoder rule), so a
+container-valid but unplayable file surfaces at playtest with the decoder's conversion hint.
+`map.bgm` may name a `sound:*` id (the Runtime resolves it to the asset) or remain a legacy raw
+path. The Creator plays no audio; audition is the Runtime.
+<!-- ponytail: per-sound volume/loop are authored but the mixer applies channel volume only;
+     plumb per-sound gain when the mixer grows it (18C pack work). -->
+
+### Asset-file diagnostics (Creator-side)
+
+Core validation never reads the machine's filesystem, so these live in the Creator shell and
+append to the validation strip: missing asset file (error, reimport hint), content-hash mismatch
+against the recorded SHA-256 (error — the file changed outside the Creator), and orphaned
+`assets/` files nothing references (warning; deletion stays the user's call). Hashes are cached
+by (mtime, length) so the debounced validation pass never re-hashes unchanged art.

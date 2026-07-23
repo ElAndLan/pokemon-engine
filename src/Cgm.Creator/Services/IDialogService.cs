@@ -20,6 +20,9 @@ public interface IDialogService
     /// <summary>Picks a PNG file to import. Returns null if cancelled.</summary>
     Task<string?> PickPngAsync();
 
+    /// <summary>Picks a WAV file to import. Returns null if cancelled.</summary>
+    Task<string?> PickWavAsync();
+
     /// <summary>The §10.5 unsaved guard: Save / Discard / Cancel. Closing the dialog is Cancel.</summary>
     Task<UnsavedChoice> PromptUnsavedAsync();
 

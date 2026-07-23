@@ -7,7 +7,7 @@ namespace Cgm.Core.Model;
 public enum EntityCategory
 {
     Project, Type, Species, Move, Item, Ability, Tileset, Tile, Object,
-    Sheet, Sprite, Anim, Map, Encounter, Trainer, Flag, Box,
+    Sheet, Sprite, Anim, Map, Encounter, Trainer, Flag, Box, Sound,
 }
 
 /// <summary>

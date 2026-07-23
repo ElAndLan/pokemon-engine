@@ -130,6 +130,20 @@ public sealed class ComponentSlicerTests
         Assert.Equal(new Rect(0, 0, n, n), Assert.Single(rects));
     }
 
+    /// <summary>The 17B performance bound: a fully-opaque 4096² image (the worst case for the
+    /// flood fill — one 16.7M-pixel component) completes. No timing assert — CI boxes vary — but
+    /// a hang or overflow fails the run.</summary>
+    [Fact]
+    public void MaxSizeImage_4096Square_Completes()
+    {
+        const int n = 4096;
+        var opaque = new bool[n * n];
+        Array.Fill(opaque, true);
+
+        var rects = ComponentSlicer.Detect(opaque, n, n);
+        Assert.Equal(new Rect(0, 0, n, n), Assert.Single(rects));
+    }
+
     [Fact]
     public void InvalidArguments_Throw()
     {

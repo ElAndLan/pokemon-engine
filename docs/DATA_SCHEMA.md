@@ -1,6 +1,6 @@
 # DATA_SCHEMA
 
-Status: **Schema v11 (2026-07-21)** — the single source of truth for all serialized shapes.
+Status: **Schema v12 (2026-07-22)** — the single source of truth for all serialized shapes.
 Derived from the local PokeAPI corpus per [ADR-010](adr/ADR-010-pokeapi-derived-schema.md).
 Changes require a `schemaVersion` bump + migration + this doc edited in the same change
 (CLAUDE.md §2). v3 adds the move contact marker used by Phase 15 contact hooks; v4 expands the
@@ -8,11 +8,11 @@ move target vocabulary required by Phase 15B topology; v5 adds positive species 
 metrics required by Phase 15C-3 formulas; v6 adds the `onTerrainChange` ability-hook enum value
 required by the Phase 15E-3 terrain lifecycle; v7 adds the `onGroundedQuery` ability-hook enum value
 required by the Phase 15E-3 shared grounded-state query; v8 adds stable map-entity keys, v9 closes
-the world-action vocabulary, v10 records source-image dimensions, and v11 adds the
-`onEscapeAttempt` ability-hook enum value. Save-file
-ability/form progression remains under `saveFormatVersion`.
+the world-action vocabulary, v10 records source-image dimensions, v11 adds the
+`onEscapeAttempt` ability-hook enum value, and v12 adds the `sound` entity category (§4.6b).
+Save-file ability/form progression remains under `saveFormatVersion`.
 
-Scope of v11: the MVP + vertical-slice entities plus current Core and Runtime authoring data. Numbers in
+Scope of v12: the MVP + vertical-slice entities plus current Core and Runtime authoring data. Numbers in
 `(PokeAPI: x)` note the source field.
 
 ---
@@ -20,7 +20,7 @@ Scope of v11: the MVP + vertical-slice entities plus current Core and Runtime au
 ## 1. Conventions
 - One JSON file per entity: `data/<category>/<id-slug>.json`. UTF-8, `\n`, 2-space indent,
   **stable property order** (byte-stable output so git diffs and fixtures stay honest).
-- Every file starts: `{ "schemaVersion": 11, "id": "<category:slug>", "name": "<display>", ... }`.
+- Every file starts: `{ "schemaVersion": 12, "id": "<category:slug>", "name": "<display>", ... }`.
 - Unknown fields tolerated on read (forward-compat); never written back.
 - All numbers are integers unless the field says otherwise. `null` = "not applicable" (e.g. a
   status move has `power: null`), distinct from `0`.
@@ -206,6 +206,14 @@ BATTLE_SYSTEM_SPEC.md.
   `data/sprite/` or `data/tile/` folders. (The categories still exist for referencing.)
 - **animation**: `{ frames: [{sprite: id, ms: int}], loop: bool }`.
 
+### 4.6b sound (`sound:town_theme`) — schema v12
+`{ asset: "assets/audio/x.wav", contentHash, kind: music|sfx, loop: bool, volume: 0–100 }` —
+audio playback metadata for a WAV under `assets/audio/`. `asset` follows the same `AssetPath`
+rules as sheets; `volume` is a per-sound multiplier against the player's channel volume (default
+100); `loop` records authoring intent (music currently always loops in the mixer). The `sound`
+rule validates path safety and volume range. `map.bgm` may name a `sound:*` id — the Runtime
+resolves it to the sound's asset — or remain a legacy raw path, which plays unchanged.
+
 ### 4.9 tileset (`tileset:exterior`) & tile
 - **tileset**: `{ tiles: Tile[] }`. **Tile**: `{ sprite|anim: id, solid: bool, grass: bool,
   water: bool, ledge: null|up|down|left|right, counter: bool, terrainTag: string }`.
@@ -224,7 +232,7 @@ BATTLE_SYSTEM_SPEC.md.
 | collisionOverrides | `{index:int, value:enum}[]` | force-solid/open/ledge (sparse) |
 | encounterZones | `{index:int, table:id}[]` | painted cells → `encounter:*` (sparse) |
 | entities | Entity[] | §4.11a |
-| bgm | string? | audio ref · `indoor` bool (time-tint exempt) |
+| bgm | string? | `sound:*` id (v12) or legacy raw path · `indoor` bool (time-tint exempt) |
 
 **4.11a Entity placement** (tagged union by `kind`). Every entity carries `key`, added in
 **schema v8** (2026-07-21, ENGINE_RUNTIME_SPEC 16D prerequisite):
@@ -368,3 +376,6 @@ or accept the documented fallback-to-defaults path.
   is an additive ability-hook enum value; every existing ability hook remains valid. (2) The `object`
   map-entity placement kind (§4.11a) becomes available; a map without placed objects is unchanged.
   Both are additive, so older files require no rewritten fields.
+- v11→v12: no-op data migration adding the `sound` entity category (§4.6b). Purely additive: no
+  existing document changes shape, and a legacy raw-path `map.bgm` keeps loading and playing —
+  the Runtime resolves `sound:*` ids and passes anything else through unchanged.

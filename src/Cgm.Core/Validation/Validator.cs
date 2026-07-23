@@ -37,6 +37,7 @@ public static class Validator
         new TrainerPartyRule(),
         new WarpTargetRule(),
         new AnimationRule(),
+        new SoundRule(),
         new SpriteUniquenessRule(),
         new SheetSliceRule(),
         new MapEntityKeyRule(),

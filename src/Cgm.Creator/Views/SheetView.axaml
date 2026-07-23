@@ -39,8 +39,12 @@
           <TextBox x:Name="RenameBox" PlaceholderText="name_{n}" Width="150" />
           <Button Content="Rename all" Click="OnRenameAll" />
         </StackPanel>
-        <Button DockPanel.Dock="Bottom" Content="Exclude selected" Click="OnRemoveSelected" Margin="0,6,0,0" />
-        <ListBox x:Name="CellList" ItemsSource="{Binding CellViews}">
+        <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,6,0,0">
+          <Button Content="Exclude selected" Click="OnRemoveSelected" />
+          <Button Content="Create animation from selection" Click="OnCreateAnimation" />
+          <Button Content="Create walk clips (12-cell sheet)" Click="OnCreateWalkClips" />
+        </StackPanel>
+        <ListBox x:Name="CellList" ItemsSource="{Binding CellViews}" SelectionMode="Multiple">
           <ListBox.ItemsPanel>
             <ItemsPanelTemplate>
               <VirtualizingStackPanel />
@@ -61,7 +65,8 @@
     <!-- Canvas: the sheet at integer zoom with the cell overlay -->
     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
       <LayoutTransformControl x:Name="ZoomHost">
-        <Panel>
+        <Panel x:Name="CanvasPanel" Background="Transparent"
+               PointerPressed="OnCanvasPressed" PointerMoved="OnCanvasMoved" PointerReleased="OnCanvasReleased">
           <Image x:Name="SheetImage" Stretch="None" />
           <ItemsControl ItemsSource="{Binding CellViews}">
             <ItemsControl.ItemsPanel>
@@ -82,6 +87,10 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          <Canvas>
+            <Border x:Name="RubberBand" BorderBrush="#C040C0FF" BorderThickness="1"
+                    Background="#3040C0FF" IsVisible="False" />
+          </Canvas>
         </Panel>
       </LayoutTransformControl>
     </ScrollViewer>

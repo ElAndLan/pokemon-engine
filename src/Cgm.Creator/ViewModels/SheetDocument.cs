@@ -146,6 +146,18 @@ public sealed class SheetDocument : EntityEditorDocument<SpriteSheet>
     public void RemoveCell(EntityId spriteId) =>
         EditCells(Model.Cells.Where(c => c.SpriteId != spriteId).ToList());
 
+    /// <summary>Moves/resizes one cell's rect (a canvas drag = one undo step). The cell becomes an
+    /// authored rect even if it was a grid cell, and the whole rect must stay in bounds.</summary>
+    public void SetCellRect(EntityId spriteId, Rect rect)
+    {
+        if (rect.W <= 0 || rect.H <= 0 || rect.X < 0 || rect.Y < 0
+            || rect.X + rect.W > _image.Width || rect.Y + rect.H > _image.Height)
+            return;
+        EditCells(Model.Cells
+            .Select(c => c.SpriteId == spriteId ? c with { Index = null, Rect = rect } : c)
+            .ToList());
+    }
+
     public void SetCellClass(EntityId spriteId, SpriteClass @class) =>
         EditCells(Model.Cells.Select(c => c.SpriteId == spriteId ? c with { Class = @class } : c).ToList());
 

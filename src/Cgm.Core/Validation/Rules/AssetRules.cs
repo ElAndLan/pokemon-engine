@@ -71,6 +71,27 @@ public sealed class SheetSliceRule : IValidationRule
     }
 }
 
+/// <summary>A sound must name a safe asset path and keep its volume in range
+/// (DATA_SCHEMA.md §4.6b).</summary>
+public sealed class SoundRule : IValidationRule
+{
+    public string Id => "sound";
+
+    public IEnumerable<ValidationIssue> Check(Project project)
+    {
+        foreach (Sound sound in project.All<Sound>())
+        {
+            if (AssetPath.Normalize(sound.Asset).Length == 0)
+                yield return new ValidationIssue(Id, ValidationSeverity.Error, sound.Id,
+                    $"Asset path '{sound.Asset}' is empty, absolute, or escapes the project folder.",
+                    Field: "asset");
+            if (sound.Volume is < 0 or > 100)
+                yield return new ValidationIssue(Id, ValidationSeverity.Error, sound.Id,
+                    $"Volume {sound.Volume} is outside 0–100.", Field: "volume");
+        }
+    }
+}
+
 /// <summary>A sprite id may be defined by only one sheet cell — duplicate definitions make
 /// references ambiguous (and slip past broken-reference, which dedupes the resolvable set).</summary>
 public sealed class SpriteUniquenessRule : IValidationRule

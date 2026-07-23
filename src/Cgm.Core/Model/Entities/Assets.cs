@@ -54,3 +54,26 @@ public sealed record Animation : IEntity
 }
 
 public readonly record struct AnimFrame(EntityId Sprite, int Ms);
+
+public enum SoundKind { Music, Sfx }
+
+/// <summary>An audio asset + its playback metadata (DATA_SCHEMA.md §4.6b, schema v12). The WAV
+/// itself lives at <see cref="Asset"/> (project-relative, AssetPath rules); this entity is the
+/// authorable reference — <c>map.bgm</c> may name a <c>sound:*</c> id instead of a raw path.</summary>
+public sealed record Sound : IEntity
+{
+    public int SchemaVersion { get; init; } = SchemaVersions.Current;
+    public EntityId Id { get; init; }
+    public string Name { get; init; } = "";
+
+    public string Asset { get; init; } = "";
+    public string? ContentHash { get; init; }
+    public SoundKind Kind { get; init; } = SoundKind.Sfx;
+
+    /// <summary>Authoring intent for playback looping. Music currently always loops in the mixer;
+    /// this records the author's choice for SFX and future mixer honoring.</summary>
+    public bool Loop { get; init; }
+
+    /// <summary>Per-sound volume 0–100, multiplied with the player's channel volume.</summary>
+    public int Volume { get; init; } = 100;
+}

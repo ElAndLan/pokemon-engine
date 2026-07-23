@@ -225,6 +225,140 @@ public sealed partial class MainWindowViewModel : ObservableObject
             await DeleteEntityAsync(id);
     }
 
+    /// <summary>Creates an animation from sheet cells in selection order (17B grouping), prompting
+    /// for a slug; frames start at 150 ms and are tuned in the animation editor.</summary>
+    public async Task<bool> CreateAnimationAsync(IReadOnlyList<EntityId> sprites)
+    {
+        if (Session is null || sprites.Count == 0) return false;
+        if (await _dialogs.PromptTextAsync("Animation id slug:", "anim") is not { } slug) return false;
+        if (!EntityId.IsValidSlug(slug))
+        {
+            StatusText = $"Invalid slug '{slug}'.";
+            return false;
+        }
+        var id = new EntityId(EntityCategory.Anim, slug);
+        if (Session.Contains(id))
+        {
+            StatusText = $"'{id}' already exists.";
+            return false;
+        }
+
+        Session.Add(new Animation
+        {
+            Id = id,
+            Name = slug,
+            Frames = sprites.Select(s => new AnimFrame(s, 150)).ToList(),
+        });
+        RebuildNav();
+        RefreshValidation();
+        OpenDocument(id);
+        StatusText = $"Created '{id}' with {sprites.Count} frame(s).";
+        return true;
+    }
+
+    /// <summary>The 12-cell walk-clip shortcut: a standard 3-frame × 4-direction character sheet
+    /// becomes four looping clips via <see cref="Assets.CharacterAnimation"/>.</summary>
+    public bool CreateWalkClips(EntityId sheetId)
+    {
+        if (Session?.Find<SpriteSheet>(sheetId) is not { Cells.Count: 12 } sheet)
+        {
+            StatusText = "Walk clips need a sheet with exactly 12 cells (3 frames × 4 directions).";
+            return false;
+        }
+
+        List<Animation> clips;
+        try
+        {
+            clips = Assets.CharacterAnimation.BuildWalkClips(sheet.Id.Slug,
+                sheet.Cells.Select(c => c.SpriteId).ToList()).Values.ToList();
+        }
+        catch (ArgumentException ex)
+        {
+            StatusText = $"Walk clips failed: {ex.Message}";
+            return false;
+        }
+        if (clips.Any(c => Session.Contains(c.Id)))
+        {
+            StatusText = "Walk clips already exist for this sheet.";
+            return false;
+        }
+
+        foreach (Animation clip in clips)
+            Session.Add(clip);
+        RebuildNav();
+        RefreshValidation();
+        StatusText = $"Created {clips.Count} walk clips for '{sheet.Id}'.";
+        return true;
+    }
+
+    [RelayCommand]
+    private async Task ImportSoundAsync()
+    {
+        if (Session is null) return;
+        if (await _dialogs.PickWavAsync() is not { } wav) return;
+        string suggested = Path.GetFileNameWithoutExtension(wav).ToLowerInvariant();
+        if (await _dialogs.PromptTextAsync("Sound id slug:", suggested) is { } slug)
+            ImportSound(wav, slug);
+    }
+
+    /// <summary>The audio arm of the 17B import transaction: container-validate before any copy,
+    /// collision-free file names under assets/audio/, SHA-256 into ContentHash. Kind defaults to
+    /// SFX; the sound editor sets music/loop/volume.</summary>
+    public bool ImportSound(string wavPath, string slug)
+    {
+        if (Session is null) return false;
+        if (!EntityId.IsValidSlug(slug))
+        {
+            StatusText = $"Invalid slug '{slug}'.";
+            return false;
+        }
+        var id = new EntityId(EntityCategory.Sound, slug);
+        if (Session.Contains(id))
+        {
+            StatusText = $"'{id}' already exists.";
+            return false;
+        }
+
+        byte[] bytes;
+        try
+        {
+            bytes = File.ReadAllBytes(wavPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusText = $"Import failed: {ex.Message}";
+            return false;
+        }
+        if (!Assets.WavProbe.LooksLikeWave(bytes, out string? error))
+        {
+            StatusText = $"Import failed — {error}";
+            return false;
+        }
+
+        string audioDir = Path.Combine(Session.Folder, "assets", "audio");
+        Directory.CreateDirectory(audioDir);
+        string baseName = Path.GetFileNameWithoutExtension(wavPath);
+        string fileName = baseName + ".wav";
+        if (File.Exists(Path.Combine(audioDir, fileName)))
+            fileName = $"{baseName}_{slug}.wav";
+        for (int n = 2; File.Exists(Path.Combine(audioDir, fileName)); n++)
+            fileName = $"{baseName}_{slug}_{n}.wav";
+        File.WriteAllBytes(Path.Combine(audioDir, fileName), bytes);
+
+        Session.Add(new Sound
+        {
+            Id = id,
+            Name = slug,
+            Asset = $"assets/audio/{fileName}",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)),
+        });
+        RebuildNav();
+        RefreshValidation();
+        OpenDocument(id);
+        StatusText = $"Imported '{id}'.";
+        return true;
+    }
+
     [RelayCommand]
     private async Task ImportSheetAsync()
     {
@@ -686,11 +820,79 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         Issues.Clear();
         if (Session is not null)
+        {
             foreach (ValidationIssue issue in Validator.Run(Session.Snapshot()).Issues)
                 Issues.Add(issue);
+            foreach (ValidationIssue issue in AssetDiagnostics())
+                Issues.Add(issue);
+        }
         OnPropertyChanged(nameof(ErrorCount));
         OnPropertyChanged(nameof(WarningCount));
         OnPropertyChanged(nameof(ValidationSummary));
+    }
+
+    /// <summary>Asset-file diagnostics (ASSET_PIPELINE_SPEC 17B) — Creator-side because Core
+    /// validation never reads the machine's filesystem: a missing asset file, a file whose bytes no
+    /// longer match the recorded hash (edited outside the Creator — reimport records the change),
+    /// and orphaned files in assets/ nothing references (warning; deleting is the user's call).</summary>
+    private readonly Dictionary<string, (DateTime Stamp, long Length, string Hash)> _hashCache = [];
+
+    public IEnumerable<ValidationIssue> AssetDiagnostics()
+    {
+        if (Session is null)
+            yield break;
+
+        var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var owners = Session.All<SpriteSheet>().Select(s => (s.Id, s.Asset, s.ContentHash))
+            .Concat(Session.All<Sound>().Select(s => (s.Id, s.Asset, s.ContentHash)));
+
+        foreach ((EntityId id, string asset, string? hash) in owners)
+        {
+            if (string.IsNullOrWhiteSpace(asset))
+                continue; // the Core path rule owns empty/unsafe paths
+            referenced.Add(asset.Replace('\\', '/'));
+
+            string full = Path.Combine(Session.Folder, asset);
+            if (!File.Exists(full))
+            {
+                yield return new ValidationIssue("asset-file", ValidationSeverity.Error, id,
+                    $"Asset file '{asset}' is missing.", "Reimport the asset or restore the file.",
+                    Field: "asset");
+            }
+            else if (hash is not null && Hash(full) != hash)
+            {
+                yield return new ValidationIssue("asset-file", ValidationSeverity.Error, id,
+                    $"Asset file '{asset}' has changed outside the Creator (content hash mismatch).",
+                    "Reimport to accept the new pixels, or restore the original file.",
+                    Field: "contentHash");
+            }
+        }
+
+        string assetsDir = Path.Combine(Session.Folder, "assets");
+        if (!Directory.Exists(assetsDir))
+            yield break;
+        foreach (string file in Directory.EnumerateFiles(assetsDir, "*.*", SearchOption.AllDirectories))
+        {
+            string rel = Path.GetRelativePath(Session.Folder, file).Replace('\\', '/');
+            if (!referenced.Contains(rel))
+                yield return new ValidationIssue("asset-orphan", ValidationSeverity.Warning, null,
+                    $"'{rel}' is not referenced by any sheet or sound.",
+                    "Import it as an asset or delete the file.");
+        }
+    }
+
+    /// <summary>SHA-256 with a (stamp, length) cache — validation runs on every debounced edit and
+    /// must not re-hash unchanged art each time.</summary>
+    private string Hash(string path)
+    {
+        var info = new FileInfo(path);
+        if (_hashCache.TryGetValue(path, out var cached)
+            && cached.Stamp == info.LastWriteTimeUtc && cached.Length == info.Length)
+            return cached.Hash;
+
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)));
+        _hashCache[path] = (info.LastWriteTimeUtc, info.Length, hash);
+        return hash;
     }
 
     private EditorDocument? CreateDocument(EntityId id) => id.Category switch
@@ -700,6 +902,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         EntityCategory.Ability when Session!.Find<Ability>(id) is { } a => new AbilityDocument(Session, a),
         EntityCategory.Species when Session!.Find<Species>(id) is { } s => new SpeciesDocument(Session, s),
         EntityCategory.Sheet when Session!.Find<SpriteSheet>(id) is { } sheet => new SheetDocument(Session, sheet),
+        EntityCategory.Sound when Session!.Find<Sound>(id) is { } sound => new SoundDocument(Session, sound),
+        EntityCategory.Anim when Session!.Find<Animation>(id) is { } anim => new AnimDocument(Session, anim),
         _ => null,
     };
 

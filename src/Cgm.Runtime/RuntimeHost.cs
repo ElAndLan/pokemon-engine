@@ -211,7 +211,7 @@ internal sealed class RuntimeHost : IDisposable
         _scenes.Tick(input);
         // Follow the active map's authored BGM (silent when none, or when audio is unavailable), then
         // pump the mixer's streaming and crossfades once per tick.
-        _audio?.SyncMusic(_session is { } s ? _content.Db.Find<Map>(s.CurrentMap)?.Bgm : null);
+        _audio?.SyncMusic(_session is { } s ? ResolveBgm(_content.Db.Find<Map>(s.CurrentMap)?.Bgm) : null);
         _audio?.Tick();
         ReportAudioWarning();
         if (_scenes.IsTransitioning)
@@ -401,6 +401,13 @@ internal sealed class RuntimeHost : IDisposable
         EntityCategory.Species => _content.Db.Find<Species>(id)?.Name ?? id.ToString(),
         _ => id.ToString(),
     };
+
+    /// <summary>A <c>map.bgm</c> naming a <c>sound:*</c> entity plays that sound's asset (schema
+    /// v12); anything else — including a legacy raw path — passes through unchanged.</summary>
+    private string? ResolveBgm(string? bgm) =>
+        EntityId.TryParse(bgm, out EntityId id) && id.Category == EntityCategory.Sound
+            ? _content.Db.Find<Sound>(id)?.Asset ?? bgm
+            : bgm;
 
     private void Report(string message)
     {

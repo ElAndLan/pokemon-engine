@@ -23,7 +23,7 @@ public static class Migrator
     private static readonly IReadOnlyList<IJsonMigration> Registered =
     [
         new V1ToV2(), new V2ToV3(), new V3ToV4(), new V4ToV5(), new V5ToV6(), new V6ToV7(),
-        new V7ToV8(), new V8ToV9(), new V9ToV10(), new V10ToV11(),
+        new V7ToV8(), new V8ToV9(), new V9ToV10(), new V10ToV11(), new V11ToV12(),
     ];
 
     public static JsonObject Migrate(JsonObject json) => Migrate(json, Registered);
@@ -133,6 +133,15 @@ public static class Migrator
     private sealed class V10ToV11 : IJsonMigration
     {
         public int FromVersion => 10;
+        public void Apply(JsonObject json) { }
+    }
+
+    /// <summary>Adds the <c>sound</c> entity category (DATA_SCHEMA §4.6b). Additive: no existing
+    /// document changes shape, and a legacy raw-path <c>map.bgm</c> keeps loading and playing —
+    /// the Runtime resolves <c>sound:*</c> ids and falls back to the raw path.</summary>
+    private sealed class V11ToV12 : IJsonMigration
+    {
+        public int FromVersion => 11;
         public void Apply(JsonObject json) { }
     }
 
