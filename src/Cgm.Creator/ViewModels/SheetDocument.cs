@@ -4,7 +4,10 @@ using Cgm.Creator.Assets;
 namespace Cgm.Creator.ViewModels;
 
 /// <summary>A cell with its resolved pixel rect, as the canvas and cell list consume it.</summary>
-public sealed record SheetCellView(EntityId SpriteId, Rect Rect, SpriteClass Class);
+public sealed record SheetCellView(EntityId SpriteId, Rect Rect, SpriteClass Class)
+{
+    public string Size => $"{Rect.W}×{Rect.H}";
+}
 
 /// <summary>
 /// The slicer editor (ASSET_PIPELINE_SPEC 17B): one sprite sheet's grid parameters, suggestion

@@ -15,36 +15,41 @@
               ToolTip.Tip="Find sprite bounds by connected pixels (irregular sheets)" />
       <Separator Width="16" />
       <TextBlock Text="Zoom" VerticalAlignment="Center" />
-      <Slider x:Name="ZoomSlider" Minimum="1" Maximum="8" Value="2" TickFrequency="1"
-              IsSnapToTickEnabled="True" Width="120" ValueChanged="OnZoomChanged" />
+      <Slider x:Name="ZoomSlider" Minimum="0.1" Maximum="8" Value="2" Width="140" ValueChanged="OnZoomChanged" />
+      <TextBlock x:Name="ZoomLabel" VerticalAlignment="Center" Width="44" />
+      <Button Content="Fit" Click="OnFit" ToolTip.Tip="Zoom to fit the whole sheet" />
+      <Button Content="1:1" Click="OnActualSize" ToolTip.Tip="Actual pixel size" />
     </StackPanel>
 
-    <!-- Grid parameters -->
+    <!-- Grid parameters + sheet info -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
       <TextBlock Text="Cell" VerticalAlignment="Center" />
-      <NumericUpDown Value="{Binding CellW}" Minimum="1" Increment="1" Width="110" FormatString="0" />
-      <NumericUpDown Value="{Binding CellH}" Minimum="1" Increment="1" Width="110" FormatString="0" />
+      <NumericUpDown Value="{Binding CellW}" Minimum="1" Increment="1" Width="96" FormatString="0" />
+      <NumericUpDown Value="{Binding CellH}" Minimum="1" Increment="1" Width="96" FormatString="0" />
       <TextBlock Text="Offset" VerticalAlignment="Center" />
-      <NumericUpDown Value="{Binding OffsetX}" Minimum="0" Increment="1" Width="110" FormatString="0" />
-      <NumericUpDown Value="{Binding OffsetY}" Minimum="0" Increment="1" Width="110" FormatString="0" />
+      <NumericUpDown Value="{Binding OffsetX}" Minimum="0" Increment="1" Width="96" FormatString="0" />
+      <NumericUpDown Value="{Binding OffsetY}" Minimum="0" Increment="1" Width="96" FormatString="0" />
       <TextBlock Text="Spacing" VerticalAlignment="Center" />
-      <NumericUpDown Value="{Binding SpacingX}" Minimum="0" Increment="1" Width="110" FormatString="0" />
-      <NumericUpDown Value="{Binding SpacingY}" Minimum="0" Increment="1" Width="110" FormatString="0" />
+      <NumericUpDown Value="{Binding SpacingX}" Minimum="0" Increment="1" Width="96" FormatString="0" />
+      <NumericUpDown Value="{Binding SpacingY}" Minimum="0" Increment="1" Width="96" FormatString="0" />
+      <Rectangle Width="1" Fill="#33445A" Margin="6,2" />
+      <TextBlock x:Name="InfoLabel" VerticalAlignment="Center" Opacity="0.7" />
     </StackPanel>
 
     <!-- Cell list + per-cell actions -->
-    <Border DockPanel.Dock="Right" Width="260" Margin="8,0,0,0">
+    <Border DockPanel.Dock="Right" Width="270" Margin="8,0,0,0">
       <DockPanel>
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
-          <TextBox x:Name="RenameBox" PlaceholderText="name_{n}" Width="150" />
+          <TextBox x:Name="RenameBox" PlaceholderText="name_{n}" Width="160" />
           <Button Content="Rename all" Click="OnRenameAll" />
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,6,0,0">
-          <Button Content="Exclude selected" Click="OnRemoveSelected" />
-          <Button Content="Create animation from selection" Click="OnCreateAnimation" />
-          <Button Content="Create walk clips (12-cell sheet)" Click="OnCreateWalkClips" />
+          <Button Content="Exclude selected" Click="OnRemoveSelected" HorizontalAlignment="Stretch" />
+          <Button Content="Create animation from selection" Click="OnCreateAnimation" HorizontalAlignment="Stretch" />
+          <Button Content="Create walk clips (12-cell sheet)" Click="OnCreateWalkClips" HorizontalAlignment="Stretch" />
         </StackPanel>
-        <ListBox x:Name="CellList" ItemsSource="{Binding CellViews}" SelectionMode="Multiple">
+        <ListBox x:Name="CellList" ItemsSource="{Binding CellViews}" SelectionMode="Multiple"
+                 SelectionChanged="OnListSelectionChanged">
           <ListBox.ItemsPanel>
             <ItemsPanelTemplate>
               <VirtualizingStackPanel />
@@ -54,7 +59,7 @@
             <DataTemplate x:DataType="vm:SheetCellView">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="{Binding SpriteId.Slug}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Rect}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Size}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" />
               </StackPanel>
             </DataTemplate>
           </ListBox.ItemTemplate>
@@ -62,38 +67,22 @@
       </DockPanel>
     </Border>
 
-    <!-- Canvas: the sheet at integer zoom with the cell overlay -->
-    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-      <LayoutTransformControl x:Name="ZoomHost">
-        <Panel x:Name="CanvasPanel" Background="Transparent"
-               PointerPressed="OnCanvasPressed" PointerMoved="OnCanvasMoved" PointerReleased="OnCanvasReleased">
-          <Image x:Name="SheetImage" Stretch="None" />
-          <ItemsControl ItemsSource="{Binding CellViews}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <Canvas />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.Styles>
-              <Style Selector="ItemsControl > ContentPresenter" x:DataType="vm:SheetCellView">
-                <Setter Property="Canvas.Left" Value="{Binding Rect.X}" />
-                <Setter Property="Canvas.Top" Value="{Binding Rect.Y}" />
-              </Style>
-            </ItemsControl.Styles>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:SheetCellView">
-                <Border Width="{Binding Rect.W}" Height="{Binding Rect.H}"
-                        BorderBrush="#80FF4040" BorderThickness="1" Background="Transparent" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <Canvas>
-            <Border x:Name="RubberBand" BorderBrush="#C040C0FF" BorderThickness="1"
-                    Background="#3040C0FF" IsVisible="False" />
-          </Canvas>
-        </Panel>
-      </LayoutTransformControl>
-    </ScrollViewer>
+    <!-- Canvas: the sheet composited with its cell overlay, at any zoom -->
+    <Border Background="#0C0F13">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                    x:Name="CanvasScroll">
+        <LayoutTransformControl x:Name="ZoomHost">
+          <Panel x:Name="CanvasPanel" Background="Transparent"
+                 PointerPressed="OnCanvasPressed" PointerMoved="OnCanvasMoved" PointerReleased="OnCanvasReleased">
+            <Image x:Name="SheetImage" Stretch="None" />
+            <Canvas>
+              <Border x:Name="RubberBand" BorderBrush="#F0F0F040" BorderThickness="1"
+                      Background="#40F0F040" IsVisible="False" />
+            </Canvas>
+          </Panel>
+        </LayoutTransformControl>
+      </ScrollViewer>
+    </Border>
 
   </DockPanel>
 </UserControl>
