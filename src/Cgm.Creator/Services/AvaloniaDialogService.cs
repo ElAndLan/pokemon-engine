@@ -76,7 +76,15 @@ public sealed class AvaloniaDialogService : IDialogService
     {
         if (_topLevel() is not Window owner) return null;
         var picker = new ViewModels.ReferencePickerViewModel(candidates);
-        return await new PickEntityWindow(picker, prompt).ShowDialog<Cgm.Core.Model.EntityId?>(owner);
+
+        // Picking a sprite shows thumbnails: the owning shell holds the session, so build a
+        // cropper from it. The window disposes it on close.
+        SpriteBitmaps? thumbnails = category == Cgm.Core.Model.EntityCategory.Sprite
+            && owner.DataContext is ViewModels.MainWindowViewModel { Session: { } session }
+            ? new SpriteBitmaps(session)
+            : null;
+
+        return await new PickEntityWindow(picker, prompt, thumbnails).ShowDialog<Cgm.Core.Model.EntityId?>(owner);
     }
 
     private async Task<string?> PickFolderAsync(string title)

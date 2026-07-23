@@ -4,18 +4,18 @@
         x:Class="Cgm.Creator.Views.PickEntityWindow"
         x:DataType="vm:ReferencePickerViewModel"
         Title="Creature Game Maker"
-        Width="420" Height="440"
+        Width="460" Height="560" MinWidth="360" MinHeight="320"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="True">
   <DockPanel Margin="16">
     <TextBlock x:Name="PromptText" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8" />
-    <TextBox DockPanel.Dock="Top" PlaceholderText="Search by name or slug…"
+    <TextBox x:Name="SearchBox" DockPanel.Dock="Top" PlaceholderText="Search by name or slug…"
              Text="{Binding SearchText, Mode=TwoWay}" Margin="0,0,0,8" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
       <Button Content="Cancel" Click="OnCancel" MinWidth="80" />
       <Button x:Name="OkButton" Content="OK" Click="OnOk" IsDefault="True" MinWidth="80" />
     </StackPanel>
-    <ListBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+    <ListBox x:Name="ChoiceList" ItemsSource="{Binding Choices}" SelectedItem="{Binding Selected, Mode=TwoWay}"
              DoubleTapped="OnOk">
       <ListBox.ItemsPanel>
         <ItemsPanelTemplate>
@@ -24,7 +24,7 @@
       </ListBox.ItemsPanel>
       <ListBox.ItemTemplate>
         <DataTemplate x:DataType="vm:ReferenceChoice">
-          <TextBlock Text="{Binding Display}" />
+          <TextBlock Text="{Binding Display}" VerticalAlignment="Center" />
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
