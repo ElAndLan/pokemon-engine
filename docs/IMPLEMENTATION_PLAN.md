@@ -165,7 +165,7 @@ whitespace checks passed.
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
 | **15** | **Complete Core Game Logic and Move Conformance** | **PAUSED (2026-07-21 user directive; resume requires explicit user decision — §10 item 10)** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6, and 15G-2 complete; 937 inventoried, 173/937 certified; 15F-7 is next** |
 | 16 | Reusable Runtime Engine Completion | IN PROGRESS — verification tails run in parallel with Phase 17 (2026-07-22 amendment, §7) | Remaining: 16A `IAssetSource` cleanup, 16B screenshot-hash comparison, 16C overworld reachability, 16G/16H gates — none change the contracts Phase 17 consumes |
-| 17 | Creator Application Completion | IN PROGRESS — ACTIVE FOCUS (2026-07-22 user directive) | Activated early by explicit user decision: its real prerequisite (16A launch contract, raw/pack parity, stable schemas) is COMPLETE; 17F playtest remains gated on full Phase 16 closure |
+| 17 | Creator Application Completion | IN PROGRESS — ACTIVE FOCUS (2026-07-22 user directive) | 17A/17B complete, 17C baseline complete + Creator UX pass (see §7.0 handoff snapshot); schema v12 `sound` added. 17D/17E/17G not started; 17F gated on Phase 16 closure. Standing caveat: Views compile + logic is headless-tested, but UI is not visually verified |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
 | 19 | Release Hardening and 1.0 | NOT STARTED | Distribution, docs, migration matrix, beta, legal sweep |
 
@@ -4189,6 +4189,91 @@ verification gates) are verification-side and run in parallel. **17F (playtest/e
 stays gated on full Phase 16 closure** and must not start until 16G/16H are VERIFIED. Driving need:
 the map/tileset editors (17B/17C) are the tool for finding and fixing live tileset defects and for
 hand-authoring the world.
+
+### 7.0 Handoff snapshot (2026-07-23) — read this first
+
+This section is the current-state summary for anyone picking up Phase 17. It reflects the work on
+branch `creator` (22 commits ahead of `main`, clean fast-forward). **All statements below are
+verified by `dotnet build` + the headless test suite unless explicitly marked otherwise.**
+
+**Test/build status:** full solution green — 1848 Core + 854 Runtime + 207 Tools + **216 Creator**
+= ~3125 tests, 0 failures. The Creator exe builds clean. Build/test/run:
+```
+D:\dotnet\dotnet.exe test CreatureGameMaker.slnx          # everything
+D:\dotnet\dotnet.exe test tests\Cgm.Creator.Tests\Cgm.Creator.Tests.csproj
+creator                                                    # launch the app (see creator.cmd)
+```
+
+**⚠ The one standing caveat — UI is not visually verified.** Every Creator ViewModel/document is
+headless-tested, but the Avalonia **Views** (canvas rendering, overlays, thumbnails, layout, the
+welcome screen) were written and compile-checked in an environment with no display. They are thin
+glue over tested logic, but pixel-level correctness (does the tile composite look right, do
+thumbnails render, is spacing sane) has **not** been eyeballed. First hand-off task worth doing:
+launch, exercise each editor, and fix whatever looks wrong. Known-untested surfaces: sheet slicer
+canvas, map canvas + palette + entity markers, tileset grid, sprite-picker thumbnails.
+
+**What is DONE and STRONG (safe to build on):**
+
+- **17A lifecycle & infra — core complete.** Transactional whole-project save (stage → journal →
+  backup → swap → commit; rolls back on failure and at next open after a crash — disk is only ever
+  pre- or post-save state). Project lock file (PID + start-time, reentrant, stale self-clear).
+  Recent list. Unsaved guard (Save/Discard/Cancel; a failed save refuses to close). Recovery
+  snapshots (120 s idle + deactivation, app-data only, offered not auto-applied). Usage search with
+  field paths; safe delete with explicit-replacement rewrite as one grouped undo step; validation
+  navigation to the offending field; shared searchable reference picker; undo grouping;
+  virtualization. Spec: `CREATOR_APP_SPEC.md` §10.
+- **17B asset authoring — complete.** Import transaction (validate-before-copy, SHA-256,
+  collision-free names). Reimport (id + slices preserved, invalidated rects reported,
+  confirmation-gated). v0–v3 slicing (`GridSlicer`, `SizeSuggester`, `GutterDetector`,
+  `ComponentSlicer` — iterative flood fill, tested at 4096²). Slicer editor (composite canvas,
+  fit-to-window + fractional zoom for **any sheet size**, cell selection, drag to create/move rects).
+  Sound editor + WAV-container-validated audio import (schema v12 `sound` entity — see below).
+  Animation grouping + fixed-tick preview + walk-clip shortcut. Asset diagnostics (missing / hash
+  mismatch / orphan / off-grid). **Import-as-tileset** shortcut (any sheet size → tileset with tiles
+  pre-assigned). Spec: `ASSET_PIPELINE_SPEC.md` §17B.
+- **17C world authoring — baseline complete.** Tileset editor (per-tile sprite + flags; append-only
+  adds, trailing-only removes to protect map tile indices). Map document + canvas (global tile index
+  across the map's tilesets, paint/rect/bucket/eyedropper/erase, one stroke = one undo, collision +
+  encounter overlays, resize, layer visibility, integer zoom). **Tileset assignment** in the map
+  editor + auto-adopt first tileset on new map (so the palette is never empty). Entity placement
+  (stable never-reused keys, move/configure/delete, markers). Play-from-map **argument assembly**
+  (validated; the process launch is 17F). Spec: `MAP_EDITOR_SPEC.md` §17C.
+- **Schema v12 (`sound` entity category).** Additive, no-op `V11ToV12` migration; DATA_SCHEMA §4.6b.
+  `map.bgm` resolves a `sound:*` id (Runtime `ResolveBgm`) or a legacy raw path. Decided by the user
+  2026-07-23.
+- **Creator UX pass.** Welcome screen (no project → New/Open + recent), toolbar of labelled
+  state-aware actions (import is now a visible button, not a buried menu item), nav tree with
+  icons/counts/context-menus/empty-categories-shown, closeable tabs + empty-document hint,
+  thumbnail sprite picker (pick a sprite by sight). `creator.cmd` launcher at the repo root.
+
+**What is NOT done (open work, roughly in priority order):**
+
+1. **Visual QA of every View** (see caveat above) — do this before trusting the editors.
+2. **17C polish for VERIFIED:** full per-instance entity config forms (deeper NPC/warp/trigger
+   fields — overlaps 17D), sub-100% canvas zoom, the 17C acceptance matrix (chunk-edge/large-map
+   budget, save→reopen equality). Formal 17A/17B acceptance matrices also outstanding.
+3. **17D — structured data authoring (NOT STARTED).** Editors for every remaining serialized
+   entity/field with a schema-to-editor coverage registry that fails on any unmapped field. This is
+   where the deeper entity-config forms belong.
+4. **17E — catalog-driven mechanics editor (NOT STARTED; needs Phase 15 catalogs frozen).**
+5. **17F — playtest/sandbox/export (NOT STARTED; GATED on full Phase 16 closure — 16G/16H VERIFIED).**
+   17C already builds and unit-tests the `--project/--map/--at` play-from-map argument string; 17F
+   owns the actual process launch.
+6. **17G — verification & phase gate (NOT STARTED):** headless matrices, perf budgets, accessibility
+   audit, the no-JSON two-map trial.
+
+**Architecture the next agent must respect (unchanged rules):**
+- Editors are `EditorDocument`/`EntityEditorDocument<T>` (`src/Cgm.Creator/ViewModels`), one document
+  per open entity, every edit an undoable whole-record snapshot through `UndoStack`. Views
+  (`src/Cgm.Creator/Views`) are thin Avalonia glue — **no game rules, no schema, no validation in
+  ViewModels or Views**; those live in Core. Copy the nearest existing document/view when adding one.
+- Save is the only thing that writes project source, always via the §10.2 transaction. `.cgm/` is
+  Creator-private working state (lock, journal, staging, backup) — never validated or exported.
+- New serialized shape ⇒ `cgm-schema-change` workflow: bump `schemaVersion`, add a `Migrator` step,
+  update `DATA_SCHEMA.md`, add an old-shape fixture. No new NuGet dependencies without TECH_STACK.md
+  sign-off.
+- `SpriteBitmaps` (`src/Cgm.Creator/Views`) is the one sprite-cropping helper shared by the tileset
+  palette, map canvas, animation preview, and sprite picker — reuse it, don't reimplement cropping.
 
 ### 7.1 Locked Creator defaults
 
