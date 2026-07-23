@@ -40,6 +40,7 @@ public static class Validator
         new SoundRule(),
         new SpriteUniquenessRule(),
         new SheetSliceRule(),
+        new MapLayerShapeRule(),
         new MapEntityKeyRule(),
         new TriggerActionRule(),
         new PlayerStartRule(),

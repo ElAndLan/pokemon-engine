@@ -107,6 +107,25 @@ public sealed class MapDocumentTests : IDisposable
     }
 
     [Fact]
+    public void SparsePointerSamples_InterpolateAndPreviewBeforeSingleCommit()
+    {
+        MapDocument doc = Doc();
+        doc.SelectedTile = 1;
+
+        doc.BeginStroke();
+        doc.StrokePaint(0, 0);
+        doc.StrokePaint(7, 0);
+
+        Assert.All(doc.LayerForRender(MapLayerId.Ground).Take(8), tile => Assert.Equal(1, tile));
+        Assert.All(Enumerable.Range(0, 8), x => Assert.Equal(-1, doc.TileAt(MapLayerId.Ground, x, 0)));
+
+        doc.EndStroke();
+        Assert.All(Enumerable.Range(0, 8), x => Assert.Equal(1, doc.TileAt(MapLayerId.Ground, x, 0)));
+        doc.Undo.Undo();
+        Assert.All(Enumerable.Range(0, 8), x => Assert.Equal(-1, doc.TileAt(MapLayerId.Ground, x, 0)));
+    }
+
+    [Fact]
     public void EmptyStroke_CommitsNothing()
     {
         MapDocument doc = Doc();
@@ -152,6 +171,26 @@ public sealed class MapDocumentTests : IDisposable
         Assert.Equal(2, doc.TileAt(MapLayerId.Ground, 1, 1));
         Assert.Equal(2, doc.TileAt(MapLayerId.Ground, 3, 3));
         Assert.Equal(-1, doc.TileAt(MapLayerId.Ground, 0, 0));
+        Assert.Equal(-1, doc.TileAt(MapLayerId.Ground, 4, 4));
+    }
+
+    [Fact]
+    public void RectPreview_ReplacesPriorPreview_WithoutCommittingATrail()
+    {
+        MapDocument doc = Doc();
+        doc.SelectedTile = 2;
+        doc.Tool = MapTool.RectFill;
+
+        doc.BeginStroke();
+        doc.StrokePaint(4, 4, 1, 1);
+        doc.StrokePaint(2, 2, 1, 1);
+
+        Assert.Equal(2, doc.LayerForRender(MapLayerId.Ground)[1 * doc.Width + 1]);
+        Assert.Equal(-1, doc.LayerForRender(MapLayerId.Ground)[4 * doc.Width + 4]);
+        Assert.Equal(-1, doc.TileAt(MapLayerId.Ground, 1, 1));
+
+        doc.EndStroke();
+        Assert.Equal(2, doc.TileAt(MapLayerId.Ground, 2, 2));
         Assert.Equal(-1, doc.TileAt(MapLayerId.Ground, 4, 4));
     }
 

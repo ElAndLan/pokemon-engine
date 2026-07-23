@@ -21,19 +21,25 @@ public static class SaveTransaction
     /// <summary>Writes the given relative-path contents as one transaction. A null content deletes
     /// the file. Throws on failure with the project rolled back to its pre-save state.</summary>
     public static void Run(string folder, IReadOnlyList<(string RelPath, string? Content)> writes)
+        => RunBytes(folder, writes.Select(w =>
+            (w.RelPath, w.Content is null ? null : System.Text.Encoding.UTF8.GetBytes(w.Content))).ToList());
+
+    /// <summary>Binary-capable form used by project Save so imported images/audio and their JSON
+    /// metadata cross the same journal boundary.</summary>
+    public static void RunBytes(string folder, IReadOnlyList<(string RelPath, byte[]? Content)> writes)
     {
         if (writes.Count == 0)
             return;
 
         // 1. Stage: all serialization/write work happens before any source file is touched.
         Directory.CreateDirectory(StagingDir(folder));
-        foreach ((string relPath, string? content) in writes)
+        foreach ((string relPath, byte[]? content) in writes)
         {
             if (content is null)
                 continue;
             string staged = System.IO.Path.Combine(StagingDir(folder), relPath);
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(staged)!);
-            File.WriteAllText(staged, content);
+            File.WriteAllBytes(staged, content);
         }
 
         // 2. Journal: canonical relative-path order, recording whether each target existed.

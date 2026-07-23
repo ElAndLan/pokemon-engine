@@ -57,6 +57,12 @@ Reordering or deleting a tile therefore renumbers every map that references it â
   read-only if present.
 - The editor shows each tile's sprite thumbnail + its flags; this is the surface where tileset
   authoring bugs (wrong flag, wrong sprite, misordered tiles) are found and fixed.
+- Any existing `sheet:*` editor exposes **Create Tileset** after the user finishes its grid/rect
+  slicing. The current accepted sheet-cell order becomes the new tileset's tile order without
+  reimporting or reslicing; an existing same-slug tileset is opened, never silently replaced.
+- Changing a referenced tileset's length must not reinterpret another tileset's global indices.
+  Until an atomic map-index rewrite exists, append/remove is refused when this tileset is not last
+  in every referencing map; trailing removal is also refused while any map paints with that tile.
 
 ### Map document (`MapDocument`)
 
@@ -83,6 +89,10 @@ and encounter overlays edit the sparse `collisionOverrides`/`encounterZones` lis
   locked layer is not editable. Tile palette lists the map's tilesets' tiles by global index with
   sprite thumbnails. One pointer down-drag-up = one stroke = one undo command.
 - Collision, encounter, and trigger overlays are toggleable translucent layers over the tiles.
+- A pointer gesture has one preview buffer and commits exactly one undo command on release.
+  Brush/erase interpolate between pointer samples; rectangle preview always recomputes from the
+  press snapshot and never commits while moving. Tiles/collision/encounters/entities are mutually
+  exclusive edit modes, with an explicit collision value and encounter-table selection.
 
 ### Entity placement
 

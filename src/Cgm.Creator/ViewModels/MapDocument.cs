@@ -5,9 +5,10 @@ namespace Cgm.Creator.ViewModels;
 
 public enum MapLayerId { Ground, DecoBelow, DecoAbove }
 public enum MapTool { Paint, RectFill, Bucket, Eyedropper, Erase }
+public enum MapEditMode { Tiles, Collision, Encounters, Entities }
 
 /// <summary>One palette entry: a global tile index and the sprite that draws it.</summary>
-public sealed record PaletteTile(int Index, EntityId? Sprite);
+public sealed record PaletteTile(int Index, EntityId Tileset, int LocalIndex, EntityId? Sprite);
 
 /// <summary>
 /// Map editor (MAP_EDITOR_SPEC 17C). Visual-layer painting goes through the pure
@@ -19,7 +20,9 @@ public sealed record PaletteTile(int Index, EntityId? Sprite);
 public sealed class MapDocument : EntityEditorDocument<Map>
 {
     private int[]? _strokeLayer;   // working copy during a stroke; committed on EndStroke
+    private int[]? _strokeOriginal;
     private bool _strokeChanged;
+    private (int X, int Y)? _lastStrokeCell;
 
     public MapDocument(ProjectSession session, Map model) : base(session, model) =>
         SelectedTile = Palette.Count > 0 ? 0 : MapLayerOps.Empty;
@@ -34,6 +37,7 @@ public sealed class MapDocument : EntityEditorDocument<Map>
     // --- Active editing state (presentation only, never serialized) ---
     public MapLayerId ActiveLayer { get; set; } = MapLayerId.Ground;
     public MapTool Tool { get; set; } = MapTool.Paint;
+    public MapEditMode EditMode { get; set; } = MapEditMode.Tiles;
     public int SelectedTile { get; set; }
     public CollisionValue SelectedCollision { get; set; } = CollisionValue.Solid;
     public EntityId? SelectedEncounterTable { get; set; }
@@ -43,14 +47,16 @@ public sealed class MapDocument : EntityEditorDocument<Map>
     /// a fresh list reference each edit, so a cheap reference check decides when to reflatten instead
     /// of allocating a palette per render access.</summary>
     private IReadOnlyList<EntityId>? _paletteKey;
+    private int _paletteRevision = -1;
     private TilePalette _palette = new([]);
     public TilePalette Palette
     {
         get
         {
-            if (!ReferenceEquals(_paletteKey, Model.Tilesets))
+            if (!ReferenceEquals(_paletteKey, Model.Tilesets) || _paletteRevision != Session.Revision)
             {
                 _paletteKey = Model.Tilesets;
+                _paletteRevision = Session.Revision;
                 _palette = new TilePalette(Tilesets());
             }
             return _palette;
@@ -74,17 +80,36 @@ public sealed class MapDocument : EntityEditorDocument<Map>
     }
 
     /// <summary>Every palette tile with its global index and sprite, for the palette strip.</summary>
-    public IReadOnlyList<PaletteTile> PaletteTiles =>
-        Enumerable.Range(0, Palette.Count)
-            .Select(i => new PaletteTile(i, Palette.At(i)?.Sprite))
-            .ToList();
-
-    public IReadOnlyList<int> Layer(MapLayerId id) => id switch
+    public IReadOnlyList<PaletteTile> PaletteTiles
     {
+        get
+        {
+            var result = new List<PaletteTile>();
+            int global = 0;
+            foreach (EntityId id in Model.Tilesets)
+                if (Session.Find<Tileset>(id) is { } tileset)
+                    for (int local = 0; local < tileset.Tiles.Count; local++)
+                        result.Add(new PaletteTile(global++, id, local, tileset.Tiles[local].Sprite));
+            return result;
+        }
+    }
+
+    public IReadOnlyList<int> Layer(MapLayerId id)
+    {
+        IReadOnlyList<int> layer = id switch
+        {
         MapLayerId.Ground => Model.Layers.Ground,
         MapLayerId.DecoBelow => Model.Layers.DecoBelow,
         _ => Model.Layers.DecoAbove,
-    };
+        };
+        return layer.Count == Width * Height
+            ? layer
+            : Enumerable.Repeat(MapLayerOps.Empty, Width * Height).ToArray();
+    }
+
+    /// <summary>The live layer shown while a gesture is in progress; committed model otherwise.</summary>
+    public IReadOnlyList<int> LayerForRender(MapLayerId id) =>
+        _strokeLayer is not null && id == ActiveLayer ? _strokeLayer : Layer(id);
 
     public int TileAt(MapLayerId id, int x, int y) =>
         InBounds(x, y) ? Layer(id)[y * Width + x] : MapLayerOps.Empty;
@@ -93,8 +118,10 @@ public sealed class MapDocument : EntityEditorDocument<Map>
 
     public void BeginStroke()
     {
-        _strokeLayer = Layer(ActiveLayer).ToArray();
+        _strokeOriginal = Layer(ActiveLayer).ToArray();
+        _strokeLayer = (int[])_strokeOriginal.Clone();
         _strokeChanged = false;
+        _lastStrokeCell = null;
     }
 
     /// <summary>Applies the active tool at a cell into the in-progress stroke buffer. Bucket and
@@ -105,18 +132,28 @@ public sealed class MapDocument : EntityEditorDocument<Map>
             return;
 
         int[] before = _strokeLayer;
-        _strokeLayer = Tool switch
+        if (Tool is MapTool.Paint or MapTool.Erase && _lastStrokeCell is { } last)
         {
-            MapTool.Paint => MapLayerOps.Paint(before, Width, Height, x, y, SelectedTile),
-            MapTool.Erase => MapLayerOps.Paint(before, Width, Height, x, y, MapLayerOps.Empty),
-            MapTool.Bucket => MapLayerOps.BucketFill(before, Width, Height, x, y, SelectedTile),
-            MapTool.RectFill when rectAnchorX >= 0 =>
-                MapLayerOps.RectFill(before, Width, Height, rectAnchorX, rectAnchorY, x, y, SelectedTile),
-            MapTool.Eyedropper => Eyedrop(before, x, y),
-            _ => before,
-        };
-        if (!_strokeLayer.AsSpan().SequenceEqual(before))
-            _strokeChanged = true;
+            int tile = Tool == MapTool.Erase ? MapLayerOps.Empty : SelectedTile;
+            foreach ((int px, int py) in Line(last.X, last.Y, x, y))
+                _strokeLayer = MapLayerOps.Paint(_strokeLayer, Width, Height, px, py, tile);
+        }
+        else
+        {
+            _strokeLayer = Tool switch
+            {
+                MapTool.Paint => MapLayerOps.Paint(before, Width, Height, x, y, SelectedTile),
+                MapTool.Erase => MapLayerOps.Paint(before, Width, Height, x, y, MapLayerOps.Empty),
+                MapTool.Bucket => MapLayerOps.BucketFill(before, Width, Height, x, y, SelectedTile),
+                MapTool.RectFill when rectAnchorX >= 0 && _strokeOriginal is not null =>
+                    MapLayerOps.RectFill(_strokeOriginal, Width, Height, rectAnchorX, rectAnchorY, x, y, SelectedTile),
+                MapTool.Eyedropper => Eyedrop(before, x, y),
+                _ => before,
+            };
+        }
+        _lastStrokeCell = (x, y);
+        _strokeChanged = _strokeOriginal is not null
+            && !_strokeLayer.AsSpan().SequenceEqual(_strokeOriginal);
     }
 
     public void EndStroke()
@@ -124,7 +161,17 @@ public sealed class MapDocument : EntityEditorDocument<Map>
         if (_strokeLayer is { } layer && _strokeChanged)
             Edit(Model with { Layers = WithLayer(ActiveLayer, layer) });
         _strokeLayer = null;
+        _strokeOriginal = null;
         _strokeChanged = false;
+        _lastStrokeCell = null;
+    }
+
+    public void CancelStroke()
+    {
+        _strokeLayer = null;
+        _strokeOriginal = null;
+        _strokeChanged = false;
+        _lastStrokeCell = null;
     }
 
     /// <summary>A single-cell edit outside a stroke (e.g. a click). Convenience over Begin/End.</summary>
@@ -139,6 +186,22 @@ public sealed class MapDocument : EntityEditorDocument<Map>
     {
         SelectedTile = layer[y * Width + x];
         return layer; // reading a cell changes no pixels
+    }
+
+    private static IEnumerable<(int X, int Y)> Line(int x0, int y0, int x1, int y1)
+    {
+        int dx = Math.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        int dy = -Math.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        int error = dx + dy;
+        while (true)
+        {
+            yield return (x0, y0);
+            if (x0 == x1 && y0 == y1)
+                yield break;
+            int twice = 2 * error;
+            if (twice >= dy) { error += dy; x0 += sx; }
+            if (twice <= dx) { error += dx; y0 += sy; }
+        }
     }
 
     // --- Overlays: sparse per-cell lists keyed by index ---

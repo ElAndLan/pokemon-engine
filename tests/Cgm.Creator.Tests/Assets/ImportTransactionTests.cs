@@ -65,6 +65,8 @@ public sealed class ImportTransactionTests : IDisposable
         SpriteSheet first = _vm.Session!.Find<SpriteSheet>(EntityId.Parse("sheet:first"))!;
         SpriteSheet second = _vm.Session.Find<SpriteSheet>(EntityId.Parse("sheet:second"))!;
         Assert.NotEqual(first.Asset, second.Asset); // never a silent overwrite
+        Assert.False(File.Exists(Path.Combine(_project, first.Asset))); // staged until explicit Save
+        _vm.SaveAll();
         Assert.True(File.Exists(Path.Combine(_project, first.Asset)));
         Assert.True(File.Exists(Path.Combine(_project, second.Asset)));
         Assert.Equal(16, first.ImageW); // first sheet's pixels untouched by the second import
@@ -103,9 +105,27 @@ public sealed class ImportTransactionTests : IDisposable
     }
 
     [Fact]
+    public async Task Reimport_LargerGrid_ExtendsAcrossEntireDecodedImage()
+    {
+        _vm.ImportSheet(Png("small_grid.png", 32, 32), "growing");
+        var id = EntityId.Parse("sheet:growing");
+        SpriteSheet before = _vm.Session!.Find<SpriteSheet>(id)!;
+        EntityId first = before.Cells[0].SpriteId;
+
+        _dialogs.ConfirmToReturn = true;
+        Assert.True(await _vm.ReimportSheetAsync(id, Png("large_grid.png", 64, 32)));
+
+        SpriteSheet after = _vm.Session.Find<SpriteSheet>(id)!;
+        Assert.Equal(8, after.Cells.Count);
+        Assert.Equal(64, after.Cells.Max(c => c.Rect!.Value.X + c.Rect.Value.W));
+        Assert.Equal(first, after.Cells[0].SpriteId); // authored identity preserved
+    }
+
+    [Fact]
     public async Task Reimport_Declined_LeavesFileAndEntityUntouched()
     {
         _vm.ImportSheet(Png("keep.png", 32, 32), "keep");
+        _vm.SaveAll();
         var id = EntityId.Parse("sheet:keep");
         SpriteSheet before = _vm.Session!.Find<SpriteSheet>(id)!;
         byte[] fileBefore = File.ReadAllBytes(Path.Combine(_project, before.Asset));
@@ -131,6 +151,20 @@ public sealed class ImportTransactionTests : IDisposable
         // Every tile references a real sheet sprite.
         var sprites = sheet.Cells.Select(c => c.SpriteId).ToHashSet();
         Assert.All(tileset.Tiles, t => Assert.Contains(t.Sprite!.Value, sprites));
+        Assert.IsType<TilesetDocument>(_vm.ActiveDocument);
+    }
+
+    [Fact]
+    public void ExistingAuthoredSheet_CreatesTilesetWithoutReimport()
+    {
+        Assert.True(_vm.ImportSheet(Png("authored.png", 48, 32), "authored"));
+        var sheetId = EntityId.Parse("sheet:authored");
+        SpriteSheet sheet = _vm.Session!.Find<SpriteSheet>(sheetId)!;
+
+        Assert.True(_vm.CreateTilesetFromSheet(sheetId));
+
+        Tileset tileset = _vm.Session.Find<Tileset>(EntityId.Parse("tileset:authored"))!;
+        Assert.Equal(sheet.Cells.Select(c => c.SpriteId), tileset.Tiles.Select(t => t.Sprite!.Value));
         Assert.IsType<TilesetDocument>(_vm.ActiveDocument);
     }
 

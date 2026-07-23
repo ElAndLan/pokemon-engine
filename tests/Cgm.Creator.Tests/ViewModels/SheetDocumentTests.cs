@@ -156,4 +156,35 @@ public sealed class SheetDocumentTests : IDisposable
         doc.CellW = 32; // grid math still works from recorded dimensions
         Assert.NotEmpty(doc.Cells);
     }
+
+    [Fact]
+    public void DimensionMismatch_RepairsAndCoversActualImage_AsOneUndoStep()
+    {
+        string asset = Path.Combine(_project, "assets", "grown.png");
+        Directory.CreateDirectory(Path.GetDirectoryName(asset)!);
+        File.WriteAllBytes(asset, Assets.TinyPng.Solid(64, 32));
+        var stale = new SpriteSheet
+        {
+            Id = EntityId.Parse("sheet:grown"), Name = "grown", Asset = "assets/grown.png",
+            ImageW = 32, ImageH = 32, Mode = SliceMode.Grid, CellW = 16, CellH = 16,
+            Cells =
+            [
+                new SheetCell { Index = 0, Rect = new Rect(0, 0, 16, 16), SpriteId = EntityId.Parse("sprite:grown_0") },
+                new SheetCell { Index = 1, Rect = new Rect(16, 0, 16, 16), SpriteId = EntityId.Parse("sprite:grown_1") },
+            ],
+        };
+        _session.Add(stale);
+        var doc = new SheetDocument(_session, stale);
+
+        Assert.True(doc.HasDimensionMismatch);
+        doc.ResliceToActualImage();
+
+        Assert.False(doc.HasDimensionMismatch);
+        Assert.Equal(64, doc.ImageW);
+        Assert.Equal(8, doc.Cells.Count);
+        Assert.Equal(64, doc.CellViews.Max(c => c.Rect.X + c.Rect.W));
+
+        doc.Undo.Undo();
+        Assert.Equal(32, doc.ImageW);
+    }
 }

@@ -42,7 +42,13 @@ public sealed class TilesetDocument : EntityEditorDocument<Tileset>
             .OrderBy(id => id.Slug, StringComparer.Ordinal).ToList();
 
     /// <summary>Appends a blank tile — never inserts, so existing indices are never renumbered.</summary>
-    public void AddTile() => Edit(Model with { Tiles = Model.Tiles.Append(new Tile()).ToList() });
+    public bool AddTile()
+    {
+        if (CountChangeBlockReason(removing: false) is not null)
+            return false;
+        Edit(Model with { Tiles = Model.Tiles.Append(new Tile()).ToList() });
+        return true;
+    }
 
     /// <summary>Removes the trailing tile only. Removing an interior tile would renumber the maps
     /// that reference this tileset, so it is refused (use <see cref="ClearTile"/> to blank it).</summary>
@@ -52,8 +58,32 @@ public sealed class TilesetDocument : EntityEditorDocument<Tileset>
             return false;
         if (index != Model.Tiles.Count - 1)
             return false; // interior delete renumbers maps — refused
+        if (CountChangeBlockReason(removing: true) is not null)
+            return false;
         Edit(Model with { Tiles = Model.Tiles.Take(Model.Tiles.Count - 1).ToList() });
         return true;
+    }
+
+    public string? CountChangeBlockReason(bool removing)
+    {
+        foreach (Map map in Session.All<Map>().Where(m => m.Tilesets.Contains(Model.Id)))
+        {
+            int setPosition = map.Tilesets.ToList().IndexOf(Model.Id);
+            if (setPosition != map.Tilesets.Count - 1)
+                return $"Map '{map.Id}' has another tileset after this one; changing the tile count would renumber its painted cells.";
+
+            if (removing && Model.Tiles.Count > 0)
+            {
+                int offset = map.Tilesets.Take(setPosition)
+                    .Select(id => Session.Find<Tileset>(id)?.Tiles.Count ?? 0).Sum();
+                int removedIndex = offset + Model.Tiles.Count - 1;
+                if (map.Layers.Ground.Contains(removedIndex)
+                    || map.Layers.DecoBelow.Contains(removedIndex)
+                    || map.Layers.DecoAbove.Contains(removedIndex))
+                    return $"Map '{map.Id}' paints with trailing tile {Model.Tiles.Count - 1}; clear those cells before removing it.";
+            }
+        }
+        return null;
     }
 
     /// <summary>Resets a tile to blank in place — the index is preserved, so no map is renumbered.</summary>

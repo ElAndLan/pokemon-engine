@@ -12,11 +12,14 @@ namespace Cgm.Creator.Views;
 public sealed class SpriteBitmaps(ProjectSession session) : IDisposable
 {
     private readonly Dictionary<string, Bitmap?> _sheets = [];
+    private readonly Dictionary<EntityId, CroppedBitmap?> _crops = [];
     private readonly SpriteResolver _resolver = new(session.All<SpriteSheet>());
 
     /// <summary>The cropped sprite, or null when unresolved or the sheet art is missing.</summary>
     public CroppedBitmap? Crop(EntityId sprite)
     {
+        if (_crops.TryGetValue(sprite, out CroppedBitmap? cached))
+            return cached;
         if (!_resolver.TryResolve(sprite, out SpriteSheet sheet, out Rect rect))
             return null;
         if (Load(sheet.Asset) is not { } bitmap)
@@ -25,7 +28,9 @@ public sealed class SpriteBitmaps(ProjectSession session) : IDisposable
         if (rect.X < 0 || rect.Y < 0 || rect.X + rect.W > bitmap.PixelSize.Width
             || rect.Y + rect.H > bitmap.PixelSize.Height || rect.W <= 0 || rect.H <= 0)
             return null;
-        return new CroppedBitmap(bitmap, new Avalonia.PixelRect(rect.X, rect.Y, rect.W, rect.H));
+        var crop = new CroppedBitmap(bitmap, new Avalonia.PixelRect(rect.X, rect.Y, rect.W, rect.H));
+        _crops[sprite] = crop;
+        return crop;
     }
 
     private Bitmap? Load(string asset)
@@ -35,7 +40,8 @@ public sealed class SpriteBitmaps(ProjectSession session) : IDisposable
         Bitmap? bitmap = null;
         try
         {
-            bitmap = new Bitmap(Path.Combine(session.Folder, asset));
+            using var stream = new MemoryStream(session.ReadAsset(asset), writable: false);
+            bitmap = new Bitmap(stream);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -47,6 +53,9 @@ public sealed class SpriteBitmaps(ProjectSession session) : IDisposable
 
     public void Dispose()
     {
+        foreach (CroppedBitmap? crop in _crops.Values)
+            crop?.Dispose();
+        _crops.Clear();
         foreach (Bitmap? bitmap in _sheets.Values)
             bitmap?.Dispose();
         _sheets.Clear();

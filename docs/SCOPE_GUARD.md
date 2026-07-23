@@ -19,6 +19,15 @@ limited to recorded targeted regressions Runtime demonstrably needs. The Gen 4 a
 (256×192 single-screen virtual resolution) governs presentation only and authorizes no official
 assets, names, or mechanics.
 
+2026-07-23 user emergency-priority amendment: before additional Encounter Creator tooling, complete
+the cross-layer **E-ENC Encounter Engine Prerequisite** recorded in `IMPLEMENTATION_PLAN.md` §7.
+This is an explicit exception to the Phase 15 pause only for the encounter vertical named there:
+schema/migration, Core area eligibility and typed conditions, complete wild-instance generation,
+Runtime handoff, capture/save fidelity, deterministic traces, and tests. It does not reopen move
+conformance, authorize unrelated Core work, or permit the Creator to expose unproven fields.
+E-ENC supersedes the remaining 17C polish and 17D/17E encounter-tool ordering until its engine exit
+gate is green; then Creator encounter authoring resumes over that proven contract.
+
 Phase 15 record at pause (retained for resume):
 
 **Phase 15 — Complete Core Game Logic and Move Conformance (PAUSED)**
@@ -152,7 +161,34 @@ neutral content or sanitized numeric conformance keys.
 
 ## Idea ledger
 
-- (empty)
+- 2026-07-23: Creator Bible direction — retain the approved robust world-building vision
+  (`CREATOR_BIBLE.md`), including visible paint grids, effectively infinite sparse maps,
+  tile/stamp/object-prefab separation, arbitrary visual layers, semantic overlays, advanced
+  painting/reuse/validation/playtest workflows, and the additional candidate Creator capabilities
+  recorded there. Each item remains planning-only until promoted into the active roadmap and owning
+  executable specs with any required schema migration.
+- 2026-07-23: Engine-backed Creator studios — make moves, items, abilities, creatures, trainers,
+  encounters, objects, triggers, and other authorable content simple but powerful through a
+  Core-owned capability registry, evidence-backed Creator Ready gating, guided and advanced modes,
+  typed parameter controls, ordered multi-effect/hook composition, visible recipes, plain-language
+  summaries, normalized previews, compatibility assistance, and Runtime sandbox traces. No
+  capability becomes selectable until it is proven functional for that exact context in the current
+  engine/catalog version.
+- 2026-07-23: Campaign/scenario and trainer-behavior direction — add a typed Campaign Story graph,
+  quests/objectives/milestones, in-game tracking, reusable Scenario/Event Graphs, spatial/
+  interaction/NPC/object/puzzle/battle/campaign triggers, actor movement/dialogue/battle/state
+  nodes, deterministic Runtime traces, and softlock validation. Trainer placements should compose
+  custom teams with trigger modes, fixed-tick rotation, looped/ping-pong/exact/pathfound patrols,
+  sight during movement/rotation, collision-safe approach, scenario/campaign conditions, dialogue,
+  battle, and post-defeat behavior. AI selection remains limited to engine-provided pre-tuned
+  presets; no user-editable weights, thresholds, noise, prediction, or custom AI profiles.
+- 2026-07-23: Creature Encounter System direction — semantic painted Encounter Areas reference
+  reusable Encounter Pools; slots may use engine-backed move, ability, form, IV-range, nature,
+  gender, held-item, and typed-condition policies; frequency remains separate from slot weight;
+  Core resolves the complete deterministic instance and capture/save preserves it. The missing
+  engine portion is no longer ledger-only: the user promoted it to emergency package E-ENC before
+  Encounter Creator tooling. `CREATOR_BIBLE.md` §15.4-§15.18 owns the product direction and
+  `IMPLEMENTATION_PLAN.md` owns implementation order and exit evidence.
 
 ## Scope challenge protocol
 

@@ -165,7 +165,7 @@ whitespace checks passed.
 | 14 | Advanced Effects, Smart AI, and v6 Foundations | CORE BASELINE | Many v5/v6 systems exist; the complete mechanic surface is not closed |
 | **15** | **Complete Core Game Logic and Move Conformance** | **PAUSED (2026-07-21 user directive; resume requires explicit user decision — §10 item 10)** | **15A, 15B, 15C-1/2/3/4/5/6/7, 15D-1/2/3/4/5/6/7, 15E-1/2/3/4/5/6/7, 15F-1/2/3/4/5/6, and 15G-2 complete; 937 inventoried, 173/937 certified; 15F-7 is next** |
 | 16 | Reusable Runtime Engine Completion | IN PROGRESS — verification tails run in parallel with Phase 17 (2026-07-22 amendment, §7) | Remaining: 16A `IAssetSource` cleanup, 16B screenshot-hash comparison, 16C overworld reachability, 16G/16H gates — none change the contracts Phase 17 consumes |
-| 17 | Creator Application Completion | IN PROGRESS — ACTIVE FOCUS (2026-07-22 user directive) | 17A/17B complete, 17C baseline complete + Creator UX pass (see §7.0 handoff snapshot); schema v12 `sound` added. 17D/17E/17G not started; 17F gated on Phase 16 closure. Standing caveat: Views compile + logic is headless-tested, but UI is not visually verified |
+| 17 | Creator Application Completion | IN PROGRESS — E-ENC EMERGENCY NEXT (2026-07-23 user directive) | 17A/17B complete, 17C baseline complete + Creator UX pass; complete the cross-layer Encounter Engine Prerequisite before encounter tooling or another ordinary 17D/17E slice (see §7.0/§7.2). Schema v12 `sound` added. 17F remains gated on Phase 16 closure. Standing caveat: Views compile + logic is headless-tested, but UI is not visually verified |
 | 18 | Integrated Vertical Slice and Production Export | NOT STARTED | Proves both products together |
 | 19 | Release Hardening and 1.0 | NOT STARTED | Distribution, docs, migration matrix, beta, legal sweep |
 
@@ -4190,6 +4190,16 @@ stays gated on full Phase 16 closure** and must not start until 16G/16H are VERI
 the map/tileset editors (17B/17C) are the tool for finding and fixing live tileset defects and for
 hand-authoring the world.
 
+**Emergency priority amendment (2026-07-23, user directive):** complete **E-ENC — Encounter Engine
+Prerequisite** before additional Encounter Creator tooling and before selecting another ordinary
+17D/17E structured-authoring slice. E-ENC is a user-authorized, narrow exception to the Phase 15
+pause because the existing encounter contract cannot faithfully express or preserve the approved
+Creator workflow. The package owns only the encounter vertical: schema/migration, Core resolution,
+Runtime handoff, capture/save fidelity, and proof. It does not reopen move-conformance work or
+authorize unrelated battle, campaign, or Creator features. Remaining 17C visual/acceptance polish
+may continue only when it does not displace E-ENC or change its engine contracts. Encounter UI
+fields remain blocked until the corresponding E-ENC acceptance rows are green.
+
 ### 7.0 Handoff snapshot (2026-07-23) — read this first
 
 This section is the current-state summary for anyone picking up Phase 17. It reflects the work on
@@ -4245,21 +4255,42 @@ canvas, map canvas + palette + entity markers, tileset grid, sprite-picker thumb
   state-aware actions (import is now a visible button, not a buried menu item), nav tree with
   icons/counts/context-menus/empty-categories-shown, closeable tabs + empty-document hint,
   thumbnail sprite picker (pick a sprite by sight). `creator.cmd` launcher at the repo root.
+- **17C canvas + sheet→tileset correctness checkpoint (2026-07-23).** Existing sheet editors now
+  create a same-slug tileset from their current accepted cell order. Import/reimport bytes remain
+  session-staged and cross the same atomic Save journal as metadata; Discard never replaces source.
+  Grid reimport expands across the full decoded image while preserving existing cell identity, and
+  legacy PNG/metadata dimension mismatches expose one-step repair. Map pointer strokes render their
+  live preview, interpolate skipped cells, commit once, and rectangle previews replace rather than
+  accumulate. Canvas edit modes are exclusive with collision/encounter selectors; undo and
+  referenced sheet/tileset changes redraw open views; tile-count changes that would shift global
+  indices are refused; invalid layer shapes/indices validate. Added 25–800% zoom, grid, coordinates,
+  layer locks, indexed palette tooltips, bitmap/crop disposal and reuse. No schema/dependency change.
+  Verification: build 0 warnings/errors; 1850 Core + 854 Runtime + 207 Tools + 224 Creator =
+  **3135 passed, 0 failed**. Remaining before 17C VERIFIED: visual QA, true viewport-chunk rendering
+  and the 256×256 budget, full resize/entity configuration workflows, save→reopen/manual matrices.
 
 **What is NOT done (open work, roughly in priority order):**
 
-1. **Visual QA of every View** (see caveat above) — do this before trusting the editors.
-2. **17C polish for VERIFIED:** full per-instance entity config forms (deeper NPC/warp/trigger
-   fields — overlaps 17D), sub-100% canvas zoom, the 17C acceptance matrix (chunk-edge/large-map
-   budget, save→reopen equality). Formal 17A/17B acceptance matrices also outstanding.
-3. **17D — structured data authoring (NOT STARTED).** Editors for every remaining serialized
+1. **E-ENC — Encounter Engine Prerequisite (EMERGENCY; NOT STARTED):** lock and implement the
+   approved `CREATOR_BIBLE.md` §15.4-§15.18 engine contract before building the Encounter Area/Pool
+   editor. This includes schema migration, method/traversal/surface eligibility, typed time/flag/
+   party-count conditions, authored moves/abilities/forms/IV ranges/nature/gender/held items,
+   complete deterministic Core encounter results, Runtime no-reroll handoff, and exact
+   battle→capture→storage→save→reload preservation. See §7.2 package E-ENC.
+2. **Visual QA of every View** (see caveat above) — do this before trusting the editors.
+3. **17C polish for VERIFIED:** the 2026-07-23 canvas/sheet-to-tileset correctness checkpoint is
+   green. Remaining: full per-instance entity config forms (deeper NPC/warp/trigger
+   fields — overlaps 17D), the 17C acceptance matrix (chunk-edge/large-map
+   budget, save→reopen equality). Formal 17A/17B acceptance matrices also outstanding. The
+   user-reported existing-sheet→tileset and partial-grid/reimport transaction issues are complete.
+4. **17D — structured data authoring (NOT STARTED).** Editors for every remaining serialized
    entity/field with a schema-to-editor coverage registry that fails on any unmapped field. This is
-   where the deeper entity-config forms belong.
-4. **17E — catalog-driven mechanics editor (NOT STARTED; needs Phase 15 catalogs frozen).**
-5. **17F — playtest/sandbox/export (NOT STARTED; GATED on full Phase 16 closure — 16G/16H VERIFIED).**
+   where the deeper entity-config forms belong. Encounter fields are additionally gated on E-ENC.
+5. **17E — catalog-driven mechanics editor (NOT STARTED; needs Phase 15 catalogs frozen).**
+6. **17F — playtest/sandbox/export (NOT STARTED; GATED on full Phase 16 closure — 16G/16H VERIFIED).**
    17C already builds and unit-tests the `--project/--map/--at` play-from-map argument string; 17F
    owns the actual process launch.
-6. **17G — verification & phase gate (NOT STARTED):** headless matrices, perf budgets, accessibility
+7. **17G — verification & phase gate (NOT STARTED):** headless matrices, perf budgets, accessibility
    audit, the no-JSON two-map trial.
 
 **Architecture the next agent must respect (unchanged rules):**
@@ -4297,6 +4328,99 @@ canvas, map canvas + palette + entity markers, tileset grid, sprite-picker thumb
   current canvas patterns.
 
 ### 7.2 Ordered Creator packages
+
+0. **E-ENC — Encounter Engine Prerequisite (`EMERGENCY — NEXT`; user-prioritized 2026-07-23).**
+   This package is engine-first. Do not add the Encounter Area/Pool editor or expose new encounter
+   controls while it is incomplete.
+
+   - **Owning product contract:** `CREATOR_BIBLE.md` §15.4-§15.18.
+   - **Owning executable specs to lock first:** `DATA_SCHEMA.md`, `ENGINE_RUNTIME_SPEC.md`, the Core
+     overworld/encounter contract, save/capture persistence rules, and `TESTING_STRATEGY.md`.
+     `MAP_EDITOR_SPEC.md` and `CREATOR_APP_SPEC.md` receive only the later editor contract after the
+     engine exit passes.
+   - **Current proven baseline:** sparse map cells reference `encounter:*`; Core performs a
+     per-step rate roll, conditionally filters by day/night and one boolean flag, selects by
+     positive weight, rolls a level range, and returns species+level. Runtime currently derives
+     moves from the learnset and randomizes IVs, nature, and a normal ability.
+   - **Blocking gaps:** slots cannot author moves, ability policy, IV ranges, forms, held items,
+     nature/gender policy, or composed conditions; method is not enforced against traversal/surface
+     context; the outcome does not carry a complete resolved instance specification; and capture
+     deposit does not preserve the complete generated creature identity.
+
+   **E-ENC-1 — Specification and schema lock**
+
+   - Separate map-owned Encounter Areas from reusable `encounter:*` Pools without duplicating a
+     user-entered map/location field on the pool. Areas have stable map-local keys, display names,
+     sparse painted cells, pool reference, method, activation/frequency policy, traversal/surface
+     requirements, and an enabled condition.
+   - Expand pool slots with stable keys and typed policies for level distribution, moves, ability,
+     form, per-stat IV range, nature, gender, held item, and eligibility condition.
+   - Define a closed typed condition tree with `All`/`Any`/`Not`; the required first atoms are time
+     of day, supported flag comparison, and party-count equal/min/max/range.
+   - Specify a deterministic migration from current `map.encounterZones` plus
+     `EncounterTable.Method/BaseRate`. Preserve effective behavior for existing projects, generate
+     stable area/slot keys deterministically, and retain unknown/unsupported payload as blocking
+     diagnostics rather than dropping it.
+   - Lock the complete Core encounter-result type, traversal context, terrain semantic resolution,
+     RNG draw order, no-draw cases, and capture/save identity contract before production edits.
+   - Schema work follows the ordinary rule: update `DATA_SCHEMA.md`, bump `schemaVersion`, add the
+     migrator step, old-shape fixtures, round-trip tests, and migration notes in the same coherent
+     slice.
+
+   **E-ENC-2 — Core area eligibility and conditions**
+
+   - Resolve random encounters only after a completed eligible player step and after warp, trigger,
+     and trainer-sight priority.
+   - Make grass/cave/water/tile/interact method semantics functional through engine-owned traversal
+     and surface rules. Blocked movement, turning, NPC movement, and ordinary scenario motion
+     consume no encounter RNG.
+   - Evaluate area and slot condition trees without RNG. Dynamically normalize weights across
+     eligible slots and return a typed no-encounter reason when an enabled area has no eligible
+     slot.
+   - Keep frequency independent from slot weight. Preserve existing repel behavior and document
+     reset semantics for map entry, encounter return, and any implemented grace/cooldown state.
+
+   **E-ENC-3 — Complete wild-instance generation**
+
+   - Core resolves the selected slot into a complete immutable encounter specification. Required
+     implemented policies: automatic or fixed moves; random-normal or fixed/explicitly permitted
+     hidden ability; default or fixed supported form; per-stat fixed/ranged IVs; random/fixed
+     nature; species/fixed gender where supported; none/fixed held item; and uniform level range.
+   - Validate every reference, range, compatibility rule, and move count in Core. Fixed policies
+     consume zero RNG; random policies consume draws in the documented stable order.
+   - Runtime launches the battle from the resolved specification. It must not reroll IVs, nature,
+     ability, form, moves, gender, or held item, and must not replace invalid content with defaults.
+
+   **E-ENC-4 — Capture, storage, save, and reload fidelity**
+
+   - Preserve species, form, level/experience, IVs, EVs, nature, gender, ability, held item,
+     moves/PP, original trainer fields, and every other supported persistent instance property from
+     generation through battle.
+   - Capture updates only legitimate battle-mutated state such as current HP, status, and PP, then
+     deposits that exact instance into party/storage. No property is regenerated at capture time.
+   - Save/reload preserves byte-stable serialized identity and subsequent battle construction uses
+     the preserved values.
+
+   **E-ENC-5 — Validation, traces, and exit evidence**
+
+   - Add pass/fail Core validation for empty areas/pools, overlap, broken references, weights,
+     level/IV bounds, incompatible policies, invalid condition trees, impossible method/context,
+     and unsupported legacy payload.
+   - Add exact deterministic tests for eligibility, priority, condition filtering, probability
+     normalization, RNG draw counts/order, every policy mode, fixed-policy no-draw behavior, and
+     migration stability.
+   - Add Runtime integration proof that the resolved specification enters battle unchanged and an
+     end-to-end golden path:
+
+     ```text
+     completed step -> encounter -> generated creature -> battle -> capture
+       -> party/storage -> save -> reload -> same persistent creature identity
+     ```
+
+   - Run focused Core/Runtime/schema tests, `dotnet build`, and the full solution suite. Record
+     schema/RNG/golden impacts and exact observed counts.
+   - **Exit:** all five E-ENC criteria are complete and green. Only then may 17D add the Encounter
+     Area/Pool editor and only proven policies may appear in its pickers.
 
 1. **17A — Project lifecycle and shared infrastructure (`IN PROGRESS` — activated 2026-07-22;
    prerequisite Phase 16 launch contract, COMPLETE).**
@@ -4365,7 +4489,7 @@ canvas, map canvas + palette + entity markers, tileset grid, sprite-picker thumb
      usage/orphan validation, undo/redo, keyboard canvas operations, and performance at 4096² image.
 3. **17C — World authoring (`IN PROGRESS` — 2026-07-23; prerequisites 17A/B, COMPLETE).**
 
-   Progress (2026-07-23): **17C baseline COMPLETE.** MAP_EDITOR_SPEC 17C contract locked.
+    Progress (2026-07-23): **17C baseline COMPLETE.** MAP_EDITOR_SPEC 17C contract locked.
    TilesetDocument/View: per-tile sprite + solid/grass/water/counter/ledge/terrain edits, append-
    only adds and trailing-only removes (an interior delete would renumber every map's global tile
    indices), sprite thumbnails + flag summary — the surface for finding tileset bugs. MapDocument/
@@ -4374,10 +4498,14 @@ canvas, map canvas + palette + entity markers, tileset grid, sprite-picker thumb
    collision + encounter overlays, resize (top-left anchor, drops out-of-bounds data), layers
    composited to a RenderTargetBitmap at integer zoom with palette + overlay toggles. Entity
    placement (stable never-reused keys, move/configure/delete, markers) and play-from-map argument
-   assembly (validated in-bounds, non-solid). SpriteBitmaps helper shared by tileset/map/anim.
-   57 new headless tests; full solution green (3,116). Remaining before VERIFIED: full per-instance
-   entity config forms (deeper fields overlap 17D), sub-100% zoom, and the 17C acceptance matrix
-   (chunk-edge/large-map budget, save-reopen equality). The play-from-map process launch is 17F.
+    assembly (validated in-bounds, non-solid). SpriteBitmaps helper shared by tileset/map/anim.
+    57 new headless tests; full solution green (3,116). Remaining before VERIFIED: full per-instance
+    entity config forms (deeper fields overlap 17D), sub-100% zoom, and the 17C acceptance matrix
+    (chunk-edge/large-map budget, save-reopen equality). The play-from-map process launch is 17F.
+    The 2026-07-23 Creator usability audit additionally requires existing-sheet→tileset conversion,
+    full decoded-image grid coverage/repair, preview-backed one-undo pointer strokes, exclusive edit
+    modes, reactive undo/cross-document redraw, safe multi-tileset index changes, and layer/index
+    validation before 17C may advance.
    - **Spec lock:** complete `MAP_EDITOR_SPEC` canvas/chunks, tilesets/objects, all visual/overlay
      layers, tool pointer semantics, stroke undo, entity schemas/forms, warp/path/trigger validation,
      selection, resize, clipboard, and play-from-map arguments.

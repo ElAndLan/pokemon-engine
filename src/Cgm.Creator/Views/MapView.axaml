@@ -9,18 +9,25 @@
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
       <ComboBox x:Name="ToolBox" SelectionChanged="OnToolChanged" Width="120" />
       <ComboBox x:Name="LayerBox" SelectionChanged="OnLayerChanged" Width="130" />
+      <ComboBox x:Name="ModeBox" SelectionChanged="OnModeChanged" Width="120" />
       <Separator Width="8" />
       <TextBlock Text="Zoom" VerticalAlignment="Center" />
-      <Slider x:Name="ZoomSlider" Minimum="1" Maximum="8" Value="2" TickFrequency="1"
-              IsSnapToTickEnabled="True" Width="110" ValueChanged="OnZoomChanged" />
+      <Slider x:Name="ZoomSlider" Minimum="0.25" Maximum="8" Value="1" TickFrequency="0.25"
+              Width="110" ValueChanged="OnZoomChanged" />
+      <TextBlock x:Name="ZoomLabel" Width="44" VerticalAlignment="Center" />
       <Separator Width="8" />
-      <ToggleButton x:Name="CollisionToggle" Content="Collision" IsCheckedChanged="OnOverlayToggled" />
-      <ToggleButton x:Name="EncounterToggle" Content="Encounters" IsCheckedChanged="OnOverlayToggled" />
+      <CheckBox x:Name="CollisionToggle" Content="Show collision" IsCheckedChanged="OnOverlayToggled" />
+      <CheckBox x:Name="EncounterToggle" Content="Show encounters" IsCheckedChanged="OnOverlayToggled" />
     </StackPanel>
 
     <!-- Entity placement -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
-      <ToggleButton x:Name="EntityToggle" Content="Place entities" IsCheckedChanged="OnRedraw" />
+      <TextBlock Text="Collision value" VerticalAlignment="Center" />
+      <ComboBox x:Name="CollisionValueBox" Width="130" SelectionChanged="OnCollisionValueChanged" />
+      <Button Content="Pick encounter table…" Click="OnPickEncounter" />
+      <TextBlock x:Name="EncounterLabel" VerticalAlignment="Center" Opacity="0.7" />
+      <Separator Width="8" />
+      <TextBlock Text="Entity kind" VerticalAlignment="Center" />
       <ComboBox x:Name="EntityKindBox" Width="130" />
       <Button Content="Delete selected" Click="OnDeleteEntity" />
       <Button Content="Configure…" Click="OnConfigureEntity" />
@@ -32,10 +39,15 @@
       <CheckBox x:Name="ShowGround" Content="Ground" IsChecked="True" IsCheckedChanged="OnRedraw" />
       <CheckBox x:Name="ShowBelow" Content="Deco below" IsChecked="True" IsCheckedChanged="OnRedraw" />
       <CheckBox x:Name="ShowAbove" Content="Deco above" IsChecked="True" IsCheckedChanged="OnRedraw" />
+      <CheckBox x:Name="GridToggle" Content="Grid" IsChecked="True" IsCheckedChanged="OnRedraw" />
+      <CheckBox x:Name="LockGround" Content="Lock G" />
+      <CheckBox x:Name="LockBelow" Content="Lock B" />
+      <CheckBox x:Name="LockAbove" Content="Lock A" />
       <Rectangle Width="1" Fill="#33445A" Margin="4,2" />
       <Button Content="＋ Add tileset" Click="OnAddTileset"
               ToolTip.Tip="Choose a tileset whose tiles fill the palette on the right" />
       <TextBlock x:Name="TilesetLabel" VerticalAlignment="Center" Opacity="0.7" />
+      <TextBlock x:Name="CursorLabel" VerticalAlignment="Center" Opacity="0.7" />
     </StackPanel>
 
     <!-- Palette -->
@@ -54,7 +66,8 @@
     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
       <LayoutTransformControl x:Name="ZoomHost">
         <Image x:Name="MapImage" Stretch="None"
-               PointerPressed="OnCanvasPressed" PointerMoved="OnCanvasMoved" PointerReleased="OnCanvasReleased" />
+               PointerPressed="OnCanvasPressed" PointerMoved="OnCanvasMoved" PointerReleased="OnCanvasReleased"
+               PointerCaptureLost="OnCanvasCaptureLost" />
       </LayoutTransformControl>
     </ScrollViewer>
 

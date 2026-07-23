@@ -18,6 +18,8 @@ namespace Cgm.Creator.Views;
 public partial class MapView : UserControl
 {
     private SpriteBitmaps? _bitmaps;
+    private RenderTargetBitmap? _renderTarget;
+    private MapDocument? _subscribed;
     private bool _stroking;
     private (int X, int Y) _anchor;
 
@@ -29,16 +31,60 @@ public partial class MapView : UserControl
         ToolBox.SelectedIndex = 0;
         LayerBox.ItemsSource = Enum.GetValues<MapLayerId>();
         LayerBox.SelectedIndex = 0;
+        ModeBox.ItemsSource = Enum.GetValues<MapEditMode>();
+        ModeBox.SelectedIndex = 0;
+        CollisionValueBox.ItemsSource = Enum.GetValues<CollisionValue>();
+        CollisionValueBox.SelectedItem = CollisionValue.Solid;
         EntityKindBox.ItemsSource = Enum.GetValues<EntityKind>();
         EntityKindBox.SelectedIndex = 0;
-        DataContextChanged += (_, _) => Rebuild();
-        DetachedFromVisualTree += (_, _) => _bitmaps?.Dispose();
+        DataContextChanged += (_, _) => SubscribeAndRebuild();
+        DetachedFromVisualTree += (_, _) => UnsubscribeAndDispose();
         ApplyZoom();
     }
 
     private MapDocument? Doc => DataContext as MapDocument;
 
     private MainWindowViewModel? Shell => this.FindAncestorOfType<Window>()?.DataContext as MainWindowViewModel;
+
+    private void SubscribeAndRebuild()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Undo.Changed -= OnDocumentChanged;
+            _subscribed.Session.Changed -= OnSessionChanged;
+        }
+        _subscribed = Doc;
+        if (_subscribed is not null)
+        {
+            _subscribed.Undo.Changed += OnDocumentChanged;
+            _subscribed.Session.Changed += OnSessionChanged;
+        }
+        Rebuild();
+    }
+
+    private void OnDocumentChanged()
+    {
+        BuildPalette();
+        Redraw();
+    }
+
+    private void OnSessionChanged(EntityId? id)
+    {
+        if (id is null || id.Value.Category is EntityCategory.Tileset or EntityCategory.Sheet)
+            Rebuild();
+    }
+
+    private void UnsubscribeAndDispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Undo.Changed -= OnDocumentChanged;
+            _subscribed.Session.Changed -= OnSessionChanged;
+            _subscribed = null;
+        }
+        _bitmaps?.Dispose();
+        _renderTarget?.Dispose();
+    }
 
     private void Rebuild()
     {
@@ -68,11 +114,25 @@ public partial class MapView : UserControl
 
             var border = new Border
             {
-                Width = 40, Height = 40, Margin = new(2),
+                Width = 46, Height = 58, Margin = new(2),
                 BorderBrush = tile.Index == doc.SelectedTile ? Brushes.DodgerBlue : Brushes.Transparent,
                 BorderThickness = new(2),
-                Child = image,
+                Child = new StackPanel
+                {
+                    Children =
+                    {
+                        image,
+                        new TextBlock
+                        {
+                            Text = tile.Index.ToString(),
+                            FontSize = 10,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            Opacity = 0.7,
+                        },
+                    },
+                },
             };
+            ToolTip.SetTip(border, $"{tile.Tileset.Slug} tile {tile.LocalIndex} · global {tile.Index}");
             int index = tile.Index;
             border.PointerPressed += (_, _) => { doc.SelectedTile = index; BuildPalette(); };
             Palette.Children.Add(border);
@@ -99,8 +159,22 @@ public partial class MapView : UserControl
             DrawLayer(ctx, doc, MapLayerId.DecoAbove, ShowAbove.IsChecked == true, ts);
             DrawOverlays(ctx, doc, ts);
             DrawEntities(ctx, doc, ts);
+            DrawGrid(ctx, doc, ts);
         }
         MapImage.Source = target;
+        _renderTarget?.Dispose();
+        _renderTarget = target;
+    }
+
+    private void DrawGrid(DrawingContext ctx, MapDocument doc, int ts)
+    {
+        if (GridToggle.IsChecked != true)
+            return;
+        var pen = new Pen(new SolidColorBrush(Color.FromArgb(0x35, 0xFF, 0xFF, 0xFF)));
+        for (int x = 0; x <= doc.Width; x++)
+            ctx.DrawLine(pen, new Point(x * ts, 0), new Point(x * ts, doc.Height * ts));
+        for (int y = 0; y <= doc.Height; y++)
+            ctx.DrawLine(pen, new Point(0, y * ts), new Point(doc.Width * ts, y * ts));
     }
 
     private void DrawLayer(DrawingContext ctx, MapDocument doc, MapLayerId layer, bool visible, int ts)
@@ -110,7 +184,7 @@ public partial class MapView : UserControl
         for (int y = 0; y < doc.Height; y++)
             for (int x = 0; x < doc.Width; x++)
             {
-                int index = doc.TileAt(layer, x, y);
+                int index = doc.LayerForRender(layer)[y * doc.Width + x];
                 if (index < 0 || doc.SpriteFor(index) is not { } sprite || _bitmaps?.Crop(sprite) is not { } bmp)
                     continue;
                 ctx.DrawImage(bmp, new Rect(x * ts, y * ts, ts, ts));
@@ -141,7 +215,7 @@ public partial class MapView : UserControl
     /// sprite rendering of NPCs/objects is deferred; the marker is enough to place and address them.</summary>
     private void DrawEntities(DrawingContext ctx, MapDocument doc, int ts)
     {
-        if (EntityToggle.IsChecked != true)
+        if (doc.EditMode != MapEditMode.Entities)
             return;
         var pen = new Pen(Brushes.White);
         foreach (MapEntity entity in doc.Entities)
@@ -169,11 +243,19 @@ public partial class MapView : UserControl
 
     private void OnCanvasPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (!e.GetCurrentPoint(MapImage).Properties.IsLeftButtonPressed)
+            return;
         if (Doc is not { } doc || CellAt(e) is not { } cell)
             return;
+        if (doc.EditMode == MapEditMode.Tiles && ActiveLayerUnavailable(doc.ActiveLayer))
+        {
+            if (Shell is { } shell)
+                shell.StatusText = "The active layer is hidden or locked; show/unlock it before painting.";
+            return;
+        }
 
         // Entity mode: click an existing entity to select it, else place the chosen kind.
-        if (EntityToggle.IsChecked == true)
+        if (doc.EditMode == MapEditMode.Entities)
         {
             if (doc.EntityAt(cell.X, cell.Y) is { } hit)
                 _selectedEntity = hit.Key;
@@ -184,13 +266,13 @@ public partial class MapView : UserControl
             return;
         }
 
-        if (CollisionToggle.IsChecked == true)
+        if (doc.EditMode == MapEditMode.Collision)
         {
             doc.SetCollision(cell.X, cell.Y, doc.CollisionAt(cell.X, cell.Y) is null ? doc.SelectedCollision : null);
             Redraw();
             return;
         }
-        if (EncounterToggle.IsChecked == true)
+        if (doc.EditMode == MapEditMode.Encounters)
         {
             doc.SetEncounter(cell.X, cell.Y, doc.EncounterAt(cell.X, cell.Y) is null ? doc.SelectedEncounterTable : null);
             Redraw();
@@ -207,19 +289,11 @@ public partial class MapView : UserControl
 
     private void OnCanvasMoved(object? sender, PointerEventArgs e)
     {
+        if (CellAt(e) is { } hover)
+            CursorLabel.Text = $"{hover.X},{hover.Y}";
         if (!_stroking || Doc is not { } doc || CellAt(e) is not { } cell)
             return;
-        // Rect fill previews from the anchor; the other tools accumulate along the drag.
-        if (doc.Tool == MapTool.RectFill)
-        {
-            doc.EndStroke();       // discard the interim preview
-            doc.BeginStroke();
-            doc.StrokePaint(cell.X, cell.Y, _anchor.X, _anchor.Y);
-        }
-        else
-        {
-            doc.StrokePaint(cell.X, cell.Y, _anchor.X, _anchor.Y);
-        }
+        doc.StrokePaint(cell.X, cell.Y, _anchor.X, _anchor.Y);
         Redraw();
     }
 
@@ -232,6 +306,15 @@ public partial class MapView : UserControl
         BuildPalette(); // eyedropper may have changed the selection
         Redraw();
         e.Pointer.Capture(null);
+    }
+
+    private void OnCanvasCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (!_stroking || Doc is not { } doc)
+            return;
+        _stroking = false;
+        doc.CancelStroke();
+        Redraw();
     }
 
     // --- Toolbar ---
@@ -248,17 +331,52 @@ public partial class MapView : UserControl
             doc.ActiveLayer = layer;
     }
 
+    private void OnModeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (Doc is { } doc && ModeBox.SelectedItem is MapEditMode mode)
+        {
+            doc.EditMode = mode;
+            Redraw();
+        }
+    }
+
+    private void OnCollisionValueChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (Doc is { } doc && CollisionValueBox.SelectedItem is CollisionValue value)
+            doc.SelectedCollision = value;
+    }
+
     private void OnZoomChanged(object? sender, RoutedEventArgs e) => ApplyZoom();
 
     private void ApplyZoom()
     {
-        double zoom = ZoomSlider?.Value ?? 2;
+        double zoom = ZoomSlider?.Value ?? 1;
         ZoomHost.LayoutTransform = new ScaleTransform(zoom, zoom);
+        if (ZoomLabel is not null)
+            ZoomLabel.Text = $"{zoom * 100:0}%";
     }
 
     private void OnOverlayToggled(object? sender, RoutedEventArgs e) => Redraw();
 
     private void OnRedraw(object? sender, RoutedEventArgs e) => Redraw();
+
+    private bool ActiveLayerUnavailable(MapLayerId layer) => layer switch
+    {
+        MapLayerId.Ground => ShowGround.IsChecked != true || LockGround.IsChecked == true,
+        MapLayerId.DecoBelow => ShowBelow.IsChecked != true || LockBelow.IsChecked == true,
+        _ => ShowAbove.IsChecked != true || LockAbove.IsChecked == true,
+    };
+
+    private async void OnPickEncounter(object? sender, RoutedEventArgs e)
+    {
+        if (Doc is not { } doc || Shell is not { } shell)
+            return;
+        if (await shell.PickEntityAsync(EntityCategory.Encounter, "Paint with encounter table:") is { } table)
+        {
+            doc.SelectedEncounterTable = table;
+            EncounterLabel.Text = table.Slug;
+        }
+    }
 
     /// <summary>Assigns a tileset to the map so its tiles fill the palette. The picked tileset's
     /// tiles append to the global index space, so existing painted tiles keep their meaning.</summary>

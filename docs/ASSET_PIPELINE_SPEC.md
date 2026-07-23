@@ -115,6 +115,11 @@ Reimport replaces a sheet's pixels while preserving its identity and authored wo
   reported to the user before commit, and the commit is confirmation-gated. Declining leaves the
   project untouched (the file copy happens only on confirm). Invalidated cells are removed on
   commit — their sprite ids disappear and the broken-reference rule surfaces every consumer.
+- Imported/reimported bytes remain session-staged until explicit Save commits the asset and sheet
+  metadata through the same project journal. Discard writes neither. A legacy sheet whose decoded
+  PNG dimensions differ from recorded `ImageW/ImageH` shows a repair action that updates the
+  dimensions and re-slices the actual image as one undoable edit; the canvas never presents partial
+  grid coverage as a successful slice.
 
 ### Import v3 — connected components (`ComponentSlicer`)
 

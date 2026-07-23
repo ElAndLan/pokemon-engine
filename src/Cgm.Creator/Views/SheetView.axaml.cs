@@ -149,6 +149,20 @@ public partial class SheetView : UserControl
             shell.CreateWalkClips(id);
     }
 
+    private void OnCreateTileset(object? sender, RoutedEventArgs e)
+    {
+        if (Shell is { } shell && Doc?.Id is { } id)
+            shell.CreateTilesetFromSheet(id);
+    }
+
+    private void OnRepairDimensions(object? sender, RoutedEventArgs e)
+    {
+        if (Doc is not { } doc)
+            return;
+        doc.ResliceToActualImage();
+        Redraw();
+    }
+
     // --- Selection (list <-> canvas kept in sync) ---
 
     private void OnListSelectionChanged(object? sender, SelectionChangedEventArgs e)

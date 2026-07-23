@@ -57,6 +57,8 @@ public sealed class PngImportTests
             SpriteSheet sheet = vm.Session!.Find<SpriteSheet>(EntityId.Parse("sheet:overworld"))!;
             Assert.NotNull(sheet);
             Assert.Equal(4, sheet.Cells.Count);
+            Assert.False(File.Exists(Path.Combine(projectDir, "assets", "sheet.png")));
+            vm.SaveAll();
             Assert.True(File.Exists(Path.Combine(projectDir, "assets", "sheet.png")));
         }
         finally

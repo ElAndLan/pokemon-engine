@@ -390,15 +390,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
             return false;
         }
 
-        string audioDir = Path.Combine(Session.Folder, "assets", "audio");
-        Directory.CreateDirectory(audioDir);
         string baseName = Path.GetFileNameWithoutExtension(wavPath);
         string fileName = baseName + ".wav";
-        if (File.Exists(Path.Combine(audioDir, fileName)))
+        if (Session.AssetExists($"assets/audio/{fileName}"))
             fileName = $"{baseName}_{slug}.wav";
-        for (int n = 2; File.Exists(Path.Combine(audioDir, fileName)); n++)
+        for (int n = 2; Session.AssetExists($"assets/audio/{fileName}"); n++)
             fileName = $"{baseName}_{slug}_{n}.wav";
-        File.WriteAllBytes(Path.Combine(audioDir, fileName), bytes);
+        Session.PutAsset($"assets/audio/{fileName}", bytes);
 
         Session.Add(new Sound
         {
@@ -481,14 +479,39 @@ public sealed partial class MainWindowViewModel : ObservableObject
             $"Reimport '{id}' from {Path.GetFileName(pngPath)} ({image.Width}×{image.Height})? {report}"))
             return false;
 
-        File.WriteAllBytes(Path.Combine(Session.Folder, sheet.Asset), bytes);
-        Session.Put(sheet with
+        Session.PutAsset(sheet.Asset, bytes);
+        string contentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+        SpriteSheet updated;
+        if (sheet.Mode == SliceMode.Grid)
         {
-            ImageW = image.Width,
-            ImageH = image.Height,
-            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)),
-            Cells = sheet.Cells.Except(invalidated).ToList(),
-        });
+            var existing = sheet.Cells.Where(c => c.Index is not null)
+                .ToDictionary(c => c.Index!.Value);
+            updated = Assets.SheetBuilder.Build(sheet.Id, sheet.Asset, image,
+                new Assets.GridSpec(sheet.CellW, sheet.CellH, sheet.OffsetX, sheet.OffsetY,
+                    sheet.SpacingX, sheet.SpacingY)) with
+            {
+                Name = sheet.Name,
+                ContentHash = contentHash,
+            };
+            updated = updated with
+            {
+                Cells = updated.Cells.Select(cell =>
+                    cell.Index is { } index && existing.TryGetValue(index, out SheetCell? old)
+                        ? cell with { SpriteId = old.SpriteId, Class = old.Class, Tags = old.Tags }
+                        : cell).ToList(),
+            };
+        }
+        else
+        {
+            updated = sheet with
+            {
+                ImageW = image.Width,
+                ImageH = image.Height,
+                ContentHash = contentHash,
+                Cells = sheet.Cells.Except(invalidated).ToList(),
+            };
+        }
+        Session.Put(updated);
         RefreshValidation();
         StatusText = $"Reimported '{id}'; {invalidated.Count} cell(s) removed.";
         return true;
@@ -558,6 +581,39 @@ public sealed partial class MainWindowViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>Turns an already-authored sheet into a tileset without reimporting or reslicing it.
+    /// The sheet's current cell order becomes tile order, so the grid visible in the slicer is the
+    /// exact palette the new tileset receives.</summary>
+    public bool CreateTilesetFromSheet(EntityId sheetId)
+    {
+        if (Session?.Find<SpriteSheet>(sheetId) is not { } sheet)
+            return false;
+        var tilesetId = new EntityId(EntityCategory.Tileset, sheet.Id.Slug);
+        if (Session.Contains(tilesetId))
+        {
+            OpenDocument(tilesetId);
+            StatusText = $"Tileset '{tilesetId}' already exists; opened it without replacing its flags.";
+            return false;
+        }
+        if (sheet.Cells.Count == 0)
+        {
+            StatusText = $"Sheet '{sheetId}' has no accepted cells to turn into tiles.";
+            return false;
+        }
+
+        Session.Add(new Tileset
+        {
+            Id = tilesetId,
+            Name = sheet.Name,
+            Tiles = sheet.Cells.Select(c => new Tile { Sprite = c.SpriteId }).ToList(),
+        });
+        RebuildNav();
+        RefreshValidation();
+        OpenDocument(tilesetId);
+        StatusText = $"Created '{tilesetId}' from the sheet's {sheet.Cells.Count} accepted cells.";
+        return true;
+    }
+
     /// <summary>Shared body of the import transaction: validate-before-copy, collision-free asset
     /// name, SHA-256, slice. Adds the sheet to the session and returns it, or null on failure
     /// (status set). Does not touch nav/validation/status beyond the failure message.</summary>
@@ -579,16 +635,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
 
         // One asset file per sheet: never silently overwrite another sheet's pixels.
-        string assetsDir = Path.Combine(Session!.Folder, "assets");
-        Directory.CreateDirectory(assetsDir);
         string baseName = Path.GetFileNameWithoutExtension(pngPath);
         string fileName = baseName + ".png";
-        if (File.Exists(Path.Combine(assetsDir, fileName)))
+        if (Session!.AssetExists($"assets/{fileName}"))
             fileName = $"{baseName}_{id.Slug}.png";
-        for (int n = 2; File.Exists(Path.Combine(assetsDir, fileName)); n++)
+        for (int n = 2; Session.AssetExists($"assets/{fileName}"); n++)
             fileName = $"{baseName}_{id.Slug}_{n}.png";
 
-        File.WriteAllBytes(Path.Combine(assetsDir, fileName), bytes);
+        Session.PutAsset($"assets/{fileName}", bytes);
 
         SpriteSheet sheet = Assets.SheetImporter.Import(
             id, image, $"assets/{fileName}", Session.Settings.TileSize,
@@ -1012,13 +1066,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
             referenced.Add(asset.Replace('\\', '/'));
 
             string full = Path.Combine(Session.Folder, asset);
-            if (!File.Exists(full))
+            if (!Session.AssetExists(asset))
             {
                 yield return new ValidationIssue("asset-file", ValidationSeverity.Error, id,
                     $"Asset file '{asset}' is missing.", "Reimport the asset or restore the file.",
                     Field: "asset");
             }
-            else if (hash is not null && Hash(full) != hash)
+            else if (hash is not null
+                && (Session.HasPendingAsset(asset)
+                    ? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Session.ReadAsset(asset)))
+                    : Hash(full)) != hash)
             {
                 yield return new ValidationIssue("asset-file", ValidationSeverity.Error, id,
                     $"Asset file '{asset}' has changed outside the Creator (content hash mismatch).",

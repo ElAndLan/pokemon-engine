@@ -58,6 +58,49 @@ public sealed class ValidationTests
     private static IReadOnlyList<ValidationIssue> Run(IValidationRule rule, Project p) =>
         rule.Check(p).ToList();
 
+    [Fact]
+    public void MapLayerShape_FlagsWrongLengthAndOutOfPaletteIndex()
+    {
+        var tileset = new Tileset
+        {
+            Id = EntityId.Parse("tileset:t"), Name = "t", Tiles = [new Tile()],
+        };
+        var wrongLength = new Map
+        {
+            Id = EntityId.Parse("map:length"), Name = "length", Width = 2, Height = 2,
+            Tilesets = [tileset.Id],
+            Layers = new MapLayers { Ground = [0], DecoBelow = [-1, -1, -1, -1], DecoAbove = [-1, -1, -1, -1] },
+        };
+        var badIndex = new Map
+        {
+            Id = EntityId.Parse("map:index"), Name = "index", Width = 1, Height = 1,
+            Tilesets = [tileset.Id],
+            Layers = new MapLayers { Ground = [1], DecoBelow = [-1], DecoAbove = [-1] },
+        };
+
+        var issues = Run(new MapLayerShapeRule(), Project(tileset, wrongLength, badIndex));
+
+        Assert.Contains(issues, i => i.EntityId == wrongLength.Id && i.Message.Contains("expected 4"));
+        Assert.Contains(issues, i => i.EntityId == badIndex.Id && i.Message.Contains("outside"));
+    }
+
+    [Fact]
+    public void MapLayerShape_AcceptsExactLayersAndPaletteIndices()
+    {
+        var tileset = new Tileset
+        {
+            Id = EntityId.Parse("tileset:t"), Name = "t", Tiles = [new Tile(), new Tile()],
+        };
+        var map = new Map
+        {
+            Id = EntityId.Parse("map:ok"), Name = "ok", Width = 2, Height = 1,
+            Tilesets = [tileset.Id],
+            Layers = new MapLayers { Ground = [0, 1], DecoBelow = [-1, -1], DecoAbove = [-1, -1] },
+        };
+
+        Assert.Empty(Run(new MapLayerShapeRule(), Project(tileset, map)));
+    }
+
     // --- BrokenReference ---------------------------------------------------------
 
     [Fact]

@@ -28,7 +28,7 @@ public sealed class SheetDocument : EntityEditorDocument<SpriteSheet>
         ImageData? decoded = null;
         try
         {
-            decoded = PngDecoder.DecodeFile(Path.Combine(session.Folder, model.Asset));
+            decoded = PngDecoder.Decode(session.ReadAsset(model.Asset));
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -55,6 +55,26 @@ public sealed class SheetDocument : EntityEditorDocument<SpriteSheet>
     public string AssetPath => Model.Asset;
     public int ImageW => Model.ImageW;
     public int ImageH => Model.ImageH;
+    public int ActualImageW => _image.Width;
+    public int ActualImageH => _image.Height;
+    public bool HasDimensionMismatch => HasPixels
+        && (Model.ImageW != _image.Width || Model.ImageH != _image.Height);
+
+    /// <summary>Repairs metadata/pixels that became mismatched by an interrupted legacy reimport.
+    /// Re-slices the actual decoded image using the current authored grid as one undo step.</summary>
+    public void ResliceToActualImage()
+    {
+        if (!HasDimensionMismatch || Model.Mode != SliceMode.Grid)
+            return;
+        var grid = new GridSpec(Model.CellW, Model.CellH, Model.OffsetX, Model.OffsetY,
+            Model.SpacingX, Model.SpacingY);
+        Edit(SheetBuilder.Build(Model.Id, Model.Asset, _image, grid) with
+        {
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                Session.ReadAsset(Model.Asset))),
+            Name = Model.Name,
+        });
+    }
 
     // --- Grid parameters: each change re-slices the grid as one undo step. Grid re-slice
     // regenerates cells (index naming); authored rect-mode work is untouched by these.

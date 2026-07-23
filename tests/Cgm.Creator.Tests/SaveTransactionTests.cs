@@ -129,4 +129,21 @@ public sealed class SaveTransactionTests : IDisposable
         Assert.Equal("Renamed", ProjectFile.Load(_dir).Name);
         Assert.False(session.IsDirty);
     }
+
+    [Fact]
+    public void ImportedAsset_IsStagedUntilSave_ThenCommitsWithMetadata()
+    {
+        var session = ProjectSession.Open(_dir);
+        byte[] bytes = [1, 2, 3, 4];
+        session.PutAsset("assets/new.bin", bytes);
+
+        Assert.True(session.IsDirty);
+        Assert.False(File.Exists(PathOf("assets/new.bin")));
+        Assert.Equal(bytes, session.ReadAsset("assets/new.bin"));
+
+        session.Save();
+
+        Assert.Equal(bytes, File.ReadAllBytes(PathOf("assets/new.bin")));
+        Assert.False(session.IsDirty);
+    }
 }

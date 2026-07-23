@@ -14,17 +14,36 @@ namespace Cgm.Creator.Views;
 public partial class TilesetView : UserControl
 {
     private SpriteBitmaps? _bitmaps;
+    private TilesetDocument? _subscribed;
     private int _selected = -1;
     private bool _syncing; // suppresses inspector-control events while loading the selection
 
     public TilesetView()
     {
         InitializeComponent();
-        DataContextChanged += (_, _) => Rebuild();
-        DetachedFromVisualTree += (_, _) => _bitmaps?.Dispose();
+        DataContextChanged += (_, _) => SubscribeAndRebuild();
+        DetachedFromVisualTree += (_, _) => UnsubscribeAndDispose();
     }
 
     private TilesetDocument? Doc => DataContext as TilesetDocument;
+
+    private void SubscribeAndRebuild()
+    {
+        if (_subscribed is not null)
+            _subscribed.Undo.Changed -= Rebuild;
+        _subscribed = Doc;
+        if (_subscribed is not null)
+            _subscribed.Undo.Changed += Rebuild;
+        Rebuild();
+    }
+
+    private void UnsubscribeAndDispose()
+    {
+        if (_subscribed is not null)
+            _subscribed.Undo.Changed -= Rebuild;
+        _subscribed = null;
+        _bitmaps?.Dispose();
+    }
 
     private void Rebuild()
     {
@@ -108,16 +127,16 @@ public partial class TilesetView : UserControl
 
     private void OnAddTile(object? sender, RoutedEventArgs e)
     {
-        Doc?.AddTile();
-        Rebuild();
+        if (Doc is { } doc && !doc.AddTile() && Shell is { } shell)
+            shell.StatusText = doc.CountChangeBlockReason(removing: false) ?? "The tile could not be added.";
     }
 
     private void OnRemoveLast(object? sender, RoutedEventArgs e)
     {
         if (Doc is { Tiles.Count: > 0 } doc)
         {
-            doc.RemoveTile(doc.Tiles.Count - 1);
-            Rebuild();
+            if (!doc.RemoveTile(doc.Tiles.Count - 1) && Shell is { } shell)
+                shell.StatusText = doc.CountChangeBlockReason(removing: true) ?? "The trailing tile could not be removed.";
         }
     }
 

@@ -109,4 +109,41 @@ public sealed class TilesetDocumentTests : IDisposable
         doc.SetSprite(0, EntityId.Parse("sprite:tiles_0"));
         Assert.Equal(EntityId.Parse("sprite:tiles_0"), doc.Tiles[0].Sprite);
     }
+
+    [Fact]
+    public void TileCountChange_IsBlockedWhenItWouldRenumberAnotherTileset()
+    {
+        TilesetDocument doc = Doc(2);
+        var later = new Tileset
+        {
+            Id = EntityId.Parse("tileset:later"), Name = "later", Tiles = [new Tile()],
+        };
+        _session.Add(later);
+        _session.Add(new Map
+        {
+            Id = EntityId.Parse("map:index_safety"), Name = "index safety", Width = 1, Height = 1,
+            Tilesets = [EntityId.Parse("tileset:doc"), later.Id],
+            Layers = new MapLayers { Ground = [2], DecoBelow = [-1], DecoAbove = [-1] },
+        });
+
+        Assert.False(doc.AddTile());
+        Assert.Equal(2, doc.Tiles.Count);
+        Assert.Contains("renumber", doc.CountChangeBlockReason(removing: false));
+    }
+
+    [Fact]
+    public void UsedTrailingTile_CannotBeRemoved()
+    {
+        TilesetDocument doc = Doc(2);
+        _session.Add(new Map
+        {
+            Id = EntityId.Parse("map:uses_tail"), Name = "uses tail", Width = 1, Height = 1,
+            Tilesets = [EntityId.Parse("tileset:doc")],
+            Layers = new MapLayers { Ground = [1], DecoBelow = [-1], DecoAbove = [-1] },
+        });
+
+        Assert.False(doc.RemoveTile(1));
+        Assert.Equal(2, doc.Tiles.Count);
+        Assert.Contains("paints with trailing tile", doc.CountChangeBlockReason(removing: true));
+    }
 }

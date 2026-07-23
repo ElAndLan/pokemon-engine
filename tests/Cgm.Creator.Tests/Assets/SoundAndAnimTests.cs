@@ -41,6 +41,8 @@ public sealed class SoundAndAnimTests : IDisposable
         Sound sound = _vm.Session!.Find<Sound>(EntityId.Parse("sound:theme"))!;
         Assert.Equal("assets/audio/theme.wav", sound.Asset);
         Assert.Equal(64, sound.ContentHash!.Length);
+        Assert.False(File.Exists(Path.Combine(_project, sound.Asset)));
+        _vm.SaveAll();
         Assert.True(File.Exists(Path.Combine(_project, sound.Asset)));
         Assert.IsType<SoundDocument>(_vm.ActiveDocument);
     }
@@ -200,6 +202,7 @@ public sealed class SoundAndAnimTests : IDisposable
     public void MissingAssetFile_IsAnError()
     {
         ImportSheet("gone");
+        _vm.SaveAll();
         File.Delete(Path.Combine(_project, "assets", "gone.png"));
         _vm.RefreshValidation();
 
@@ -211,6 +214,7 @@ public sealed class SoundAndAnimTests : IDisposable
     public void ExternallyEditedAsset_IsAHashMismatchError()
     {
         ImportSheet("edited");
+        _vm.SaveAll();
         File.WriteAllBytes(Path.Combine(_project, "assets", "edited.png"), TinyPng.Solid(8, 8));
         _vm.RefreshValidation();
 

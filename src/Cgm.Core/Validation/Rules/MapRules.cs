@@ -2,6 +2,52 @@ using Cgm.Core.Model;
 
 namespace Cgm.Core.Validation.Rules;
 
+/// <summary>Map layers must match map dimensions and every non-empty cell must resolve through the
+/// map's current tileset order. This turns index-shift damage into an authoring error instead of a
+/// silently blank or incorrect runtime tile.</summary>
+public sealed class MapLayerShapeRule : IValidationRule
+{
+    public string Id => "map-layer-shape";
+
+    public IEnumerable<ValidationIssue> Check(Project project)
+    {
+        foreach (Map map in project.All<Map>())
+        {
+            int expected = map.Width > 0 && map.Height > 0 ? map.Width * map.Height : 0;
+            int paletteCount = map.Tilesets
+                .Select(project.Find<Tileset>).OfType<Tileset>().Sum(t => t.Tiles.Count);
+            foreach ((string name, IReadOnlyList<int> layer) in Layers(map))
+            {
+                if (layer.Count != 0 && layer.Count != expected)
+                {
+                    yield return Error(map.Id, name,
+                        $"Layer '{name}' has {layer.Count} cells; expected {expected} for {map.Width}×{map.Height}.");
+                    continue;
+                }
+
+                int bad = layer.Select((tile, index) => (tile, index))
+                    .FirstOrDefault(x => x.tile < -1
+                        || (map.Tilesets.Count > 0 && x.tile >= paletteCount)).index;
+                if (layer.Any(tile => tile < -1
+                    || (map.Tilesets.Count > 0 && tile >= paletteCount)))
+                    yield return Error(map.Id, name,
+                        $"Layer '{name}' contains a tile index outside -1..{paletteCount - 1} (first at cell {bad}).");
+            }
+        }
+    }
+
+    private static IEnumerable<(string Name, IReadOnlyList<int> Layer)> Layers(Map map)
+    {
+        yield return ("ground", map.Layers.Ground);
+        yield return ("decoBelow", map.Layers.DecoBelow);
+        yield return ("decoAbove", map.Layers.DecoAbove);
+    }
+
+    private ValidationIssue Error(EntityId map, string field, string message) =>
+        new(Id, ValidationSeverity.Error, map, message,
+            "Resize or repaint the map with tiles from its assigned tilesets.", $"layers.{field}");
+}
+
 /// <summary>Every placed entity needs a non-empty key that is unique within its map. Without this a
 /// duplicate silently repoints saved flags at the wrong entity — the exact failure the key exists to
 /// prevent — and an empty key makes an entity unaddressable by Runtime, saves, and diagnostics.</summary>
