@@ -728,6 +728,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public Task<EntityId?> PickSpriteAsync(IReadOnlyList<(EntityId Id, string Name)> candidates) =>
         _dialogs.PickEntityAsync(EntityCategory.Sprite, candidates, "Pick a sprite:");
 
+    /// <summary>A single-line text prompt, exposed for editors that configure a free-text field
+    /// (a sign's text, a slug) from the canvas.</summary>
+    public Task<string?> PromptTextAsync(string prompt, string initial) =>
+        _dialogs.PromptTextAsync(prompt, initial);
+
     /// <summary>Picks any entity of a category via the shared picker (map picker for warp targets,
     /// encounter tables, objects, etc.).</summary>
     public Task<EntityId?> PickEntityAsync(EntityCategory category, string prompt)

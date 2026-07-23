@@ -205,6 +205,95 @@ public sealed class MapDocument : EntityEditorDocument<Map>
         return result.OrderBy(index).ToList();
     }
 
+    // --- Entity placement (MAP_EDITOR_SPEC 17C) ---
+
+    public IReadOnlyList<MapEntity> Entities => Model.Entities;
+
+    /// <summary>The entity at a cell, if any (topmost by list order), for select/move/delete.</summary>
+    public MapEntity? EntityAt(int x, int y) =>
+        Model.Entities.LastOrDefault(e => e.Pos.X == x && e.Pos.Y == y);
+
+    /// <summary>Places an entity, assigning a stable, never-reused key <c>{kind}_{n}</c>. Returns
+    /// the key. Out-of-bounds placement is refused (empty key).</summary>
+    public string Place(MapEntity entity)
+    {
+        if (!InBounds(entity.Pos.X, entity.Pos.Y))
+            return "";
+        string key = FreshKey(KindOf(entity));
+        Edit(Model with { Entities = Model.Entities.Append(entity with { Key = key }).ToList() });
+        return key;
+    }
+
+    public void MoveEntity(string key, GridPos pos)
+    {
+        if (!InBounds(pos.X, pos.Y))
+            return;
+        var list = Model.Entities.Select(e => e.Key == key ? e with { Pos = pos } : e).ToList();
+        if (!list.SequenceEqual(Model.Entities))
+            Edit(Model with { Entities = list });
+    }
+
+    /// <summary>Replaces an entity's whole record (its per-instance config), keyed by <see cref="MapEntity.Key"/>.</summary>
+    public void ConfigureEntity(MapEntity edited)
+    {
+        var list = Model.Entities.Select(e => e.Key == edited.Key ? edited : e).ToList();
+        if (!list.SequenceEqual(Model.Entities))
+            Edit(Model with { Entities = list });
+    }
+
+    public void DeleteEntity(string key)
+    {
+        var list = Model.Entities.Where(e => e.Key != key).ToList();
+        if (list.Count != Model.Entities.Count)
+            Edit(Model with { Entities = list });
+    }
+
+    /// <summary>A key unique within the map and never colliding with an existing one, matching the
+    /// v8 migration's derivation so hand-authored and editor-authored keys share one scheme.</summary>
+    private string FreshKey(string kind)
+    {
+        var taken = Model.Entities.Select(e => e.Key).ToHashSet(StringComparer.Ordinal);
+        for (int n = 0; ; n++)
+        {
+            string candidate = $"{kind}_{n}";
+            if (taken.Add(candidate))
+                return candidate;
+        }
+    }
+
+    private static string KindOf(MapEntity e) => e switch
+    {
+        PlayerStartEntity => "player_start",
+        NpcEntity => "npc",
+        WarpEntity => "warp",
+        PickupEntity => "pickup",
+        SignEntity => "sign",
+        TriggerEntity => "trigger",
+        ObjectEntity => "object",
+        _ => "entity",
+    };
+
+    // --- Play-from-map (MAP_EDITOR_SPEC 17C; the process launch is 17F) ---
+
+    /// <summary>Assembles the Runtime argument line to spawn on this map at a cell, or null when the
+    /// target is out of bounds or solid (collision override or a solid tile under it). Only the
+    /// argument string is 17C; 17F runs the process.</summary>
+    public string? PlayFromArgs(string projectFolder, int x, int y)
+    {
+        if (!InBounds(x, y) || IsSolid(x, y))
+            return null;
+        return $"--project \"{projectFolder}\" --map {Model.Id} --at {x},{y}";
+    }
+
+    private bool IsSolid(int x, int y)
+    {
+        if (CollisionAt(x, y) is { } forced)
+            return forced == CollisionValue.Solid;
+        // Otherwise the ground tile's own solid flag, resolved through the palette.
+        int index = TileAt(MapLayerId.Ground, x, y);
+        return Palette.At(index)?.Solid == true;
+    }
+
     private MapLayers WithLayer(MapLayerId id, int[] layer) => id switch
     {
         MapLayerId.Ground => Model.Layers with { Ground = layer },

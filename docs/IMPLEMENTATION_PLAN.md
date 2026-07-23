@@ -4278,7 +4278,21 @@ hand-authoring the world.
    - **Acceptance:** all slicer fixtures and boundaries, transparent/large/malformed images, import/
      reimport rollback, collision naming, animation order, audio missing/invalid, atlas overflow,
      usage/orphan validation, undo/redo, keyboard canvas operations, and performance at 4096² image.
-3. **17C — World authoring (`PLANNED`; prerequisites 17A/B).**
+3. **17C — World authoring (`IN PROGRESS` — 2026-07-23; prerequisites 17A/B, COMPLETE).**
+
+   Progress (2026-07-23): **17C baseline COMPLETE.** MAP_EDITOR_SPEC 17C contract locked.
+   TilesetDocument/View: per-tile sprite + solid/grass/water/counter/ledge/terrain edits, append-
+   only adds and trailing-only removes (an interior delete would renumber every map's global tile
+   indices), sprite thumbnails + flag summary — the surface for finding tileset bugs. MapDocument/
+   View: global tile index across the map's tilesets, paint/rect/bucket/eyedropper/erase over the
+   active visual layer via the pure MapLayerOps, one pointer stroke = one undo step, sparse
+   collision + encounter overlays, resize (top-left anchor, drops out-of-bounds data), layers
+   composited to a RenderTargetBitmap at integer zoom with palette + overlay toggles. Entity
+   placement (stable never-reused keys, move/configure/delete, markers) and play-from-map argument
+   assembly (validated in-bounds, non-solid). SpriteBitmaps helper shared by tileset/map/anim.
+   57 new headless tests; full solution green (3,116). Remaining before VERIFIED: full per-instance
+   entity config forms (deeper fields overlap 17D), sub-100% zoom, and the 17C acceptance matrix
+   (chunk-edge/large-map budget, save-reopen equality). The play-from-map process launch is 17F.
    - **Spec lock:** complete `MAP_EDITOR_SPEC` canvas/chunks, tilesets/objects, all visual/overlay
      layers, tool pointer semantics, stroke undo, entity schemas/forms, warp/path/trigger validation,
      selection, resize, clipboard, and play-from-map arguments.

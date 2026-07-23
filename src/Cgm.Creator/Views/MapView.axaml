@@ -18,6 +18,15 @@
       <ToggleButton x:Name="EncounterToggle" Content="Encounters" IsCheckedChanged="OnOverlayToggled" />
     </StackPanel>
 
+    <!-- Entity placement -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+      <ToggleButton x:Name="EntityToggle" Content="Place entities" IsCheckedChanged="OnRedraw" />
+      <ComboBox x:Name="EntityKindBox" Width="130" />
+      <Button Content="Delete selected" Click="OnDeleteEntity" />
+      <Button Content="Configure…" Click="OnConfigureEntity" />
+      <TextBlock x:Name="EntityLabel" VerticalAlignment="Center" Opacity="0.7" />
+    </StackPanel>
+
     <!-- Layer visibility -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
       <CheckBox x:Name="ShowGround" Content="Ground" IsChecked="True" IsCheckedChanged="OnRedraw" />

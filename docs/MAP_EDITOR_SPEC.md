@@ -1,9 +1,9 @@
 # MAP_EDITOR_SPEC
 
-Status: **17C in progress (2026-07-23).** Layer model and headless map tool ops are written and
-tested; the 17C contract (§ below) is locked. Tileset editor, map document, canvas, entity
-placement, and play-from-map argument assembly land against it. The play-from-map process launch
-is 17F.
+Status: **17C implemented (2026-07-23).** Tileset editor, map document + canvas, entity placement,
+resize, and play-from-map argument assembly are written and tested against the 17C contract
+(§ below). Remaining polish: full per-instance entity config forms (deeper fields are 17D
+structured-data territory) and sub-100% canvas zoom. The play-from-map process launch is 17F.
 
 ## Purpose
 The map editor: tile painting tools, layer semantics, collision/encounter overlays, entity

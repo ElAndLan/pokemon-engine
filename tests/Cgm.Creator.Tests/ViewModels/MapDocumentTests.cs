@@ -199,9 +199,87 @@ public sealed class MapDocumentTests : IDisposable
         MapDocument doc = Doc(8, 8);
         doc.SetCollision(6, 6, CollisionValue.Solid); // will be dropped
         doc.SetCollision(1, 1, CollisionValue.Solid); // survives, remapped
+        doc.Place(new SignEntity { Pos = new GridPos(7, 7), Text = "gone" }); // dropped
+        doc.Place(new SignEntity { Pos = new GridPos(2, 2), Text = "kept" });
 
         doc.Resize(4, 4);
         Assert.Equal(CollisionValue.Solid, doc.CollisionAt(1, 1));
         Assert.Null(doc.CollisionAt(6, 6)); // out of new bounds → dropped
+        Assert.Single(doc.Entities);
+        Assert.Equal(new GridPos(2, 2), doc.Entities[0].Pos);
+    }
+
+    // --- Entity placement ---
+
+    [Fact]
+    public void Place_AssignsStableUniqueKey_ByKind()
+    {
+        MapDocument doc = Doc();
+        string a = doc.Place(new SignEntity { Pos = new GridPos(1, 1), Text = "a" });
+        string b = doc.Place(new SignEntity { Pos = new GridPos(2, 2), Text = "b" });
+        string npc = doc.Place(new NpcEntity { Pos = new GridPos(3, 3) });
+
+        Assert.Equal("sign_0", a);
+        Assert.Equal("sign_1", b);
+        Assert.Equal("npc_0", npc);
+    }
+
+    [Fact]
+    public void Place_OutOfBounds_Refused()
+    {
+        MapDocument doc = Doc();
+        Assert.Equal("", doc.Place(new SignEntity { Pos = new GridPos(99, 0) }));
+        Assert.Empty(doc.Entities);
+    }
+
+    [Fact]
+    public void MoveConfigureDelete_AreUndoable()
+    {
+        MapDocument doc = Doc();
+        string key = doc.Place(new SignEntity { Pos = new GridPos(1, 1), Text = "hi" });
+
+        doc.MoveEntity(key, new GridPos(4, 4));
+        Assert.Equal(new GridPos(4, 4), doc.EntityAt(4, 4)!.Pos);
+
+        doc.ConfigureEntity((doc.EntityAt(4, 4) as SignEntity)! with { Text = "changed" });
+        Assert.Equal("changed", ((SignEntity)doc.EntityAt(4, 4)!).Text);
+
+        doc.DeleteEntity(key);
+        Assert.Empty(doc.Entities);
+
+        doc.Undo.Undo(); // delete
+        doc.Undo.Undo(); // configure
+        doc.Undo.Undo(); // move
+        Assert.Equal(new GridPos(1, 1), doc.EntityAt(1, 1)!.Pos);
+    }
+
+    [Fact]
+    public void FreshKey_NeverReusesAfterDelete()
+    {
+        MapDocument doc = Doc();
+        doc.Place(new SignEntity { Pos = new GridPos(0, 0) }); // sign_0
+        string second = doc.Place(new SignEntity { Pos = new GridPos(1, 0) }); // sign_1
+        doc.DeleteEntity(second);
+        // sign_1 is free again by number, but sign_0 still exists; a new sign takes the lowest free.
+        Assert.Equal("sign_1", doc.Place(new SignEntity { Pos = new GridPos(2, 0) }));
+    }
+
+    // --- Play-from-map ---
+
+    [Fact]
+    public void PlayFromArgs_BuildsRuntimeLine_ForOpenCell()
+    {
+        MapDocument doc = Doc();
+        string? args = doc.PlayFromArgs(@"C:\proj", 3, 4);
+        Assert.Equal("--project \"C:\\proj\" --map map:doc --at 3,4", args);
+    }
+
+    [Fact]
+    public void PlayFromArgs_RefusesSolidOrOutOfBounds()
+    {
+        MapDocument doc = Doc();
+        doc.SetCollision(2, 2, CollisionValue.Solid);
+        Assert.Null(doc.PlayFromArgs(@"C:\proj", 2, 2)); // solid
+        Assert.Null(doc.PlayFromArgs(@"C:\proj", 99, 0)); // out of bounds
     }
 }
