@@ -22,7 +22,7 @@ public sealed class MainWindowViewModelTests
             Assert.True(vm.HasProject);
             Assert.Equal("Fixture Min", vm.ProjectName);
             Assert.NotEmpty(vm.Nav);
-            Assert.Contains(vm.Nav, c => c.Name == nameof(EntityCategory.Move));
+            Assert.Contains(vm.Nav, c => c.Category == EntityCategory.Move);
             Assert.Equal(0, vm.ErrorCount);
         }
         finally { Directory.Delete(dir, true); }

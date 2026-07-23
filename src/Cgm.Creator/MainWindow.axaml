@@ -3,10 +3,11 @@
         xmlns:vm="using:Cgm.Creator.ViewModels"
         xmlns:views="using:Cgm.Creator.Views"
         xmlns:val="using:Cgm.Core.Validation"
+        xmlns:conv="using:Avalonia.Data.Converters"
         x:Class="Cgm.Creator.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Creature Game Maker"
-        Width="1100" Height="720" MinWidth="800" MinHeight="500">
+        Width="1180" Height="760" MinWidth="860" MinHeight="540">
 
   <Window.DataTemplates>
     <DataTemplate DataType="vm:MoveDocument"><views:MoveView /></DataTemplate>
@@ -21,12 +22,35 @@
     <DataTemplate DataType="vm:MapDocument"><views:MapView /></DataTemplate>
   </Window.DataTemplates>
 
+  <Window.Styles>
+    <Style Selector="Button.tool">
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="Background" Value="#243040" />
+      <Setter Property="Foreground" Value="#E4EAF0" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.tool:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#31425A" />
+    </Style>
+    <Style Selector="Button.tool:disabled">
+      <Setter Property="Opacity" Value="0.4" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Padding" Value="18,10" />
+      <Setter Property="Background" Value="#3A6EA5" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
+
   <DockPanel>
 
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
-        <MenuItem Header="_New Project…" Command="{Binding NewCommand}" />
-        <MenuItem Header="_Open Project…" Command="{Binding OpenCommand}" />
+        <MenuItem Header="_New Project…" Command="{Binding NewCommand}" InputGesture="Ctrl+N" />
+        <MenuItem Header="_Open Project…" Command="{Binding OpenCommand}" InputGesture="Ctrl+O" />
         <MenuItem Header="Open _Recent" ItemsSource="{Binding Recent}">
           <MenuItem.ItemTemplate>
             <DataTemplate>
@@ -36,31 +60,49 @@
             </DataTemplate>
           </MenuItem.ItemTemplate>
         </MenuItem>
-        <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
         <Separator />
-        <MenuItem Header="_Import Sheet…" Command="{Binding ImportSheetCommand}" />
-        <MenuItem Header="Import _Audio…" Command="{Binding ImportSoundCommand}" />
+        <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" IsEnabled="{Binding HasProject}" />
+        <Separator />
+        <MenuItem Header="Import _Sprite Sheet…" Command="{Binding ImportSheetCommand}" IsEnabled="{Binding HasProject}" />
+        <MenuItem Header="Import _Audio…" Command="{Binding ImportSoundCommand}" IsEnabled="{Binding HasProject}" />
       </MenuItem>
-      <MenuItem Header="_Edit">
+      <MenuItem Header="_Edit" IsEnabled="{Binding HasProject}">
         <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGesture="Ctrl+Z" />
         <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGesture="Ctrl+Y" />
         <Separator />
         <MenuItem Header="_Duplicate…" Command="{Binding DuplicateActiveCommand}" />
         <MenuItem Header="De_lete" Command="{Binding DeleteActiveCommand}" />
       </MenuItem>
-      <MenuItem Header="_Project">
+      <MenuItem Header="_Project" IsEnabled="{Binding HasProject}">
         <MenuItem Header="_Type Chart" Command="{Binding OpenTypeChartCommand}" />
       </MenuItem>
     </Menu>
+
+    <!-- Toolbar: the common actions, visible and greyed out until a project is open -->
+    <Border DockPanel.Dock="Top" Background="#1B222B" Padding="8,6" IsVisible="{Binding HasProject}">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <ComboBox ItemsSource="{Binding CreatableCategories}" SelectedItem="{Binding NewCategory}" MinWidth="130" />
+        <Button Classes="tool" Content="＋ New" Command="{Binding NewEntityCommand}" ToolTip.Tip="Create an entity of the selected kind" />
+        <Rectangle Width="1" Fill="#33445A" Margin="4,2" />
+        <Button Classes="tool" Content="🖼  Import sprite sheet" Command="{Binding ImportSheetCommand}"
+                ToolTip.Tip="Import a PNG and slice it into sprites" />
+        <Button Classes="tool" Content="🔊  Import audio" Command="{Binding ImportSoundCommand}"
+                ToolTip.Tip="Import a WAV sound" />
+        <Rectangle Width="1" Fill="#33445A" Margin="4,2" />
+        <Button Classes="tool" Content="💾  Save" Command="{Binding SaveCommand}" ToolTip.Tip="Save the project (Ctrl+S)" />
+        <Button Classes="tool" Content="↶" Command="{Binding UndoCommand}" ToolTip.Tip="Undo (Ctrl+Z)" />
+        <Button Classes="tool" Content="↷" Command="{Binding RedoCommand}" ToolTip.Tip="Redo (Ctrl+Y)" />
+      </StackPanel>
+    </Border>
 
     <Border DockPanel.Dock="Bottom" Background="#1B222B" Height="26">
       <TextBlock Text="{Binding StatusText}" Foreground="#C8D0D8" FontSize="12"
                  VerticalAlignment="Center" Margin="10,0" />
     </Border>
 
-    <Expander DockPanel.Dock="Bottom" Header="{Binding ValidationSummary}" ExpandDirection="Up">
+    <Expander DockPanel.Dock="Bottom" Header="{Binding ValidationSummary}" ExpandDirection="Up"
+              IsVisible="{Binding HasProject}">
       <ListBox ItemsSource="{Binding Issues}" SelectionChanged="OnIssueSelected" MaxHeight="200">
-        <!-- §10.10: long lists virtualize; issue counts scale with project size. -->
         <ListBox.ItemsPanel>
           <ItemsPanelTemplate>
             <VirtualizingStackPanel />
@@ -74,42 +116,110 @@
       </ListBox>
     </Expander>
 
-    <Border DockPanel.Dock="Left" Width="240" Background="#161B22"
-            BorderBrush="#0D1116" BorderThickness="0,0,1,0">
-      <DockPanel>
-        <TextBlock DockPanel.Dock="Top" Text="{Binding ProjectName}" Margin="12,10,12,4"
-                   FontWeight="SemiBold" Foreground="#C8D0D8" />
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,0,8,8" Spacing="6">
-          <ComboBox ItemsSource="{Binding CreatableCategories}" SelectedItem="{Binding NewCategory}"
-                    MinWidth="110" />
-          <Button Content="＋ New" Command="{Binding NewEntityCommand}" />
+    <!-- Welcome screen: shown until a project is open -->
+    <Grid>
+      <Border IsVisible="{Binding !HasProject}" Background="#12171E">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="360" Spacing="14">
+          <TextBlock Text="Creature Game Maker" FontSize="26" FontWeight="Bold"
+                     Foreground="#E4EAF0" HorizontalAlignment="Center" />
+          <TextBlock Text="Open a project to start authoring, or create a new one."
+                     Foreground="#8A97A6" HorizontalAlignment="Center" TextWrapping="Wrap"
+                     TextAlignment="Center" Margin="0,0,0,8" />
+          <Button Classes="primary" Content="＋  New Project…" Command="{Binding NewCommand}" />
+          <Button Classes="primary" Content="📂  Open Project…" Command="{Binding OpenCommand}" />
+          <TextBlock Text="Recent projects" Foreground="#8A97A6" FontWeight="SemiBold"
+                     Margin="0,10,0,0" IsVisible="{Binding Recent.Count}" />
+          <ItemsControl ItemsSource="{Binding Recent}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="tool" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                        Margin="0,1" Content="{Binding}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenRecentCommand}"
+                        CommandParameter="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
-        <TreeView ItemsSource="{Binding Nav}" SelectionChanged="OnNavSelectionChanged">
-          <!-- §10.10: the entity tree virtualizes; categories can hold hundreds of entities. -->
-          <TreeView.ItemsPanel>
-            <ItemsPanelTemplate>
-              <VirtualizingStackPanel />
-            </ItemsPanelTemplate>
-          </TreeView.ItemsPanel>
-          <TreeView.DataTemplates>
-            <TreeDataTemplate DataType="vm:NavCategory" ItemsSource="{Binding Entities}">
-              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-            </TreeDataTemplate>
-            <DataTemplate DataType="vm:NavEntity">
-              <TextBlock Text="{Binding Label}" />
-            </DataTemplate>
-          </TreeView.DataTemplates>
-        </TreeView>
-      </DockPanel>
-    </Border>
+      </Border>
 
-    <TabControl ItemsSource="{Binding Documents}" SelectedItem="{Binding ActiveDocument}" Margin="4">
-      <TabControl.ItemTemplate>
-        <DataTemplate x:DataType="vm:EditorDocument">
-          <TextBlock Text="{Binding TabTitle}" />
-        </DataTemplate>
-      </TabControl.ItemTemplate>
-    </TabControl>
+      <!-- Workspace: nav + document tabs, shown once a project is open -->
+      <DockPanel IsVisible="{Binding HasProject}">
+
+        <Border DockPanel.Dock="Left" Width="250" Background="#161B22"
+                BorderBrush="#0D1116" BorderThickness="0,0,1,0">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="{Binding ProjectName}" Margin="12,10,12,8"
+                       FontSize="15" FontWeight="SemiBold" Foreground="#E4EAF0" />
+            <TextBlock DockPanel.Dock="Bottom" Margin="12,8" FontSize="11" Foreground="#6E7B8A"
+                       TextWrapping="Wrap"
+                       Text="Double-click an item to edit. Right-click a category to add." />
+            <TreeView ItemsSource="{Binding Nav}" SelectionChanged="OnNavSelectionChanged"
+                      DoubleTapped="OnNavDoubleTapped">
+              <TreeView.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <VirtualizingStackPanel />
+                </ItemsPanelTemplate>
+              </TreeView.ItemsPanel>
+              <TreeView.DataTemplates>
+                <TreeDataTemplate DataType="vm:NavCategory" ItemsSource="{Binding Entities}">
+                  <TextBlock Text="{Binding Header}" FontWeight="SemiBold" Foreground="#C8D0D8">
+                    <TextBlock.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="New…"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).NewInCategoryCommand}"
+                                  CommandParameter="{Binding}" />
+                      </ContextMenu>
+                    </TextBlock.ContextMenu>
+                  </TextBlock>
+                </TreeDataTemplate>
+                <DataTemplate DataType="vm:NavEntity">
+                  <TextBlock Text="{Binding Label}" Foreground="#B4C0CC">
+                    <TextBlock.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="Open"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenEntityCommand}"
+                                  CommandParameter="{Binding Id}" />
+                        <MenuItem Header="Duplicate…"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DuplicateEntityCmdCommand}"
+                                  CommandParameter="{Binding Id}" />
+                        <MenuItem Header="Delete"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteEntityCmdCommand}"
+                                  CommandParameter="{Binding Id}" />
+                      </ContextMenu>
+                    </TextBlock.ContextMenu>
+                  </TextBlock>
+                </DataTemplate>
+              </TreeView.DataTemplates>
+            </TreeView>
+          </DockPanel>
+        </Border>
+
+        <Grid>
+          <TabControl ItemsSource="{Binding Documents}" SelectedItem="{Binding ActiveDocument}" Margin="4"
+                      IsVisible="{Binding HasActiveDocument}">
+            <TabControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:EditorDocument">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding TabTitle}" VerticalAlignment="Center" />
+                  <Button Content="✕" FontSize="10" Padding="4,0" Background="Transparent" BorderThickness="0"
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CloseDocumentCmdCommand}"
+                          CommandParameter="{Binding}" ToolTip.Tip="Close tab" />
+                </StackPanel>
+              </DataTemplate>
+            </TabControl.ItemTemplate>
+          </TabControl>
+
+          <!-- Empty state when a project is open but nothing is being edited -->
+          <StackPanel IsVisible="{Binding !HasActiveDocument}" VerticalAlignment="Center"
+                      HorizontalAlignment="Center" Spacing="8">
+            <TextBlock Text="Nothing open" FontSize="18" Foreground="#8A97A6" HorizontalAlignment="Center" />
+            <TextBlock Foreground="#6E7B8A" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="320"
+                       Text="Pick an item from the list on the left to edit it, or use ＋ New / Import to add one." />
+          </StackPanel>
+        </Grid>
+
+      </DockPanel>
+    </Grid>
 
   </DockPanel>
 </Window>

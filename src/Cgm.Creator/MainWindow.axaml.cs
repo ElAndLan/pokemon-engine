@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Cgm.Core.Validation;
 using Cgm.Creator.ViewModels;
 
@@ -11,6 +13,17 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        // Ctrl+W closes the active document tab.
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.W && e.KeyModifiers == KeyModifiers.Control
+                && DataContext is MainWindowViewModel { ActiveDocument: { } doc } vm)
+            {
+                vm.CloseDocument(doc);
+                e.Handled = true;
+            }
+        };
 
         // Recovery snapshots (§10.4): a coarse tick drives the 120 s dirty-inactivity autosave;
         // deactivating the app while dirty snapshots immediately. Logic lives in the view-model.
@@ -33,7 +46,11 @@ public partial class MainWindow : Window
     }
 
     // These bridge control selection to the view-model (UI glue only; no logic here).
-    private void OnNavSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    // Selection just selects; double-tapping an entity opens it (matches the tree's hint), so a
+    // single click can browse the list without spawning tabs.
+    private void OnNavSelectionChanged(object? sender, SelectionChangedEventArgs e) { }
+
+    private void OnNavDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (DataContext is MainWindowViewModel vm &&
             sender is TreeView { SelectedItem: NavEntity entity })

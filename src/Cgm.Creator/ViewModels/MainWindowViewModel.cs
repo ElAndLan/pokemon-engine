@@ -44,6 +44,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _statusText = "No project open.";
     [ObservableProperty] private string _projectName = "";
 
+    // Keeps HasProject/HasDocuments-driven UI (welcome screen, toolbar enablement, empty hint) in
+    // sync whenever the session or the open-document set changes.
+    partial void OnSessionChanged(ProjectSession? value) => OnPropertyChanged(nameof(HasProject));
+    partial void OnActiveDocumentChanged(EditorDocument? value) => OnPropertyChanged(nameof(HasActiveDocument));
+
     public ObservableCollection<NavCategory> Nav { get; } = [];
     public ObservableCollection<EditorDocument> Documents { get; } = [];
     public ObservableCollection<ValidationIssue> Issues { get; } = [];
@@ -55,6 +60,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public Editing.UndoStack SessionUndo { get; } = new();
 
     public bool HasProject => Session is not null;
+    public bool HasActiveDocument => ActiveDocument is not null;
     public int ErrorCount => Issues.Count(i => i.Severity == ValidationSeverity.Error);
     public int WarningCount => Issues.Count(i => i.Severity == ValidationSeverity.Warning);
     public string ValidationSummary => $"{ErrorCount} errors, {WarningCount} warnings";
@@ -64,7 +70,55 @@ public sealed partial class MainWindowViewModel : ObservableObject
         [EntityCategory.Type, EntityCategory.Item, EntityCategory.Move, EntityCategory.Ability,
          EntityCategory.Species, EntityCategory.Tileset, EntityCategory.Map];
 
+    /// <summary>Categories always shown in the nav tree (even when empty), so the tree answers
+    /// "where do sprite sheets / maps go?" at a glance. Asset categories are populated by import.</summary>
+    private static readonly EntityCategory[] ShownCategories =
+    [
+        EntityCategory.Map, EntityCategory.Tileset, EntityCategory.Sheet, EntityCategory.Anim,
+        EntityCategory.Sound, EntityCategory.Species, EntityCategory.Move, EntityCategory.Item,
+        EntityCategory.Ability, EntityCategory.Type, EntityCategory.Encounter, EntityCategory.Trainer,
+    ];
+
     [ObservableProperty] private EntityCategory _newCategory = EntityCategory.Move;
+
+    // --- Nav / document context commands (from the tree and tab UI) ---
+
+    /// <summary>Opens the entity in a document tab (double-click / context Open).</summary>
+    [RelayCommand]
+    private void OpenEntity(EntityId id) => OpenDocument(id);
+
+    /// <summary>Creates a new entity in a category picked from the tree's context menu, prompting
+    /// for a slug. Asset categories (sheets/sounds) route to their importers instead.</summary>
+    [RelayCommand]
+    private async Task NewInCategoryAsync(NavCategory category)
+    {
+        if (Session is null || category is null) return;
+        switch (category.Category)
+        {
+            case EntityCategory.Sheet: await ImportSheetAsync(); return;
+            case EntityCategory.Sound: await ImportSoundAsync(); return;
+        }
+        if (await _dialogs.PromptTextAsync($"New {category.Name} — id slug (a-z, 0-9, _):", "") is { } slug)
+            CreateEntity(category.Category, slug);
+    }
+
+    [RelayCommand]
+    private async Task DuplicateEntityCmdAsync(EntityId id)
+    {
+        if (await _dialogs.PromptTextAsync("Duplicate as — new id slug:", id.Slug + "_copy") is { } slug)
+            DuplicateEntity(id, slug);
+    }
+
+    [RelayCommand]
+    private async Task DeleteEntityCmdAsync(EntityId id) => await DeleteEntityAsync(id);
+
+    /// <summary>Closes one document tab (× button / Ctrl+W / middle-click).</summary>
+    [RelayCommand]
+    private void CloseDocumentCmd(EditorDocument doc)
+    {
+        if (doc is not null)
+            CloseDocument(doc);
+    }
 
     // --- Commands (wire dialogs to the testable core) ---
 
@@ -945,14 +999,23 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Nav.Clear();
         if (Session is null) return;
 
-        foreach (var group in Session.Snapshot().Entities
-                     .GroupBy(e => e.Id.Category)
-                     .OrderBy(g => g.Key.ToString(), StringComparer.Ordinal))
+        // Every creatable category shows as a node even when empty, so "where do new maps go?" has
+        // a visible answer and the tree doubles as a checklist of what a project can hold.
+        var byCategory = Session.Snapshot().Entities
+            .GroupBy(e => e.Id.Category)
+            .ToDictionary(g => g.Key, g => g.OrderBy(e => DisplayName(e), StringComparer.OrdinalIgnoreCase).ToList());
+
+        IEnumerable<EntityCategory> categories = ShownCategories
+            .Concat(byCategory.Keys)
+            .Distinct();
+
+        foreach (EntityCategory cat in categories.OrderBy(c => c.ToString(), StringComparer.Ordinal))
         {
-            var category = new NavCategory(group.Key.ToString());
-            foreach (IEntity e in group.OrderBy(e => e.Id.Slug, StringComparer.Ordinal))
-                category.Entities.Add(new NavEntity(e.Id, e.Id.Slug));
-            Nav.Add(category);
+            var node = new NavCategory(cat);
+            if (byCategory.TryGetValue(cat, out var entities))
+                foreach (IEntity e in entities)
+                    node.Entities.Add(new NavEntity(e.Id, DisplayName(e)));
+            Nav.Add(node);
         }
     }
 }
